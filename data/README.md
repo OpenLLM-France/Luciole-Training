@@ -8,8 +8,8 @@ All about preprocessing datasets.
 ```
 module purge
 module load anaconda-py3/2023.09 
-conda create -n data-env python=3.10
-conda activate data-env
+conda create -n datatrove-env python=3.10
+conda activate datatrove-env
 ```
 
 ### Clone datatrove
