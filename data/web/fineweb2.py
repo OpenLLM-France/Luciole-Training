@@ -7,10 +7,14 @@ parser = argparse.ArgumentParser("Load Fineweb 2 dataset")
 parser.add_argument(
     "--language", type=str, default="fra_Latn", help=""
 )
+parser.add_argument("--debug", action="store_true", help="Debug mode")
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    
     OUTPUT_PATH = "/lustre/fsn1/projects/rech/qgz/commun/datasets/training"
+    if args.debug:
+        OUTPUT_PATH += '/debug'
     language = args.language
 
     main_processing_executor = JZSlurmPipelineExecutor(
@@ -18,12 +22,12 @@ if __name__ == "__main__":
         pipeline=[ 
             ParquetReader(
                 f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train", 
-                limit=-1
+                limit=1000 if args.debug else -1
                 ),
             JsonlWriter(f"{OUTPUT_PATH}/fineweb-2/data/{language}/train")
         ],
         sbatch_args={"account": "qgz@cpu"},
-        tasks=50, 
+        tasks=1 if args.debug else 50, 
         cpus_per_task=10,
         time="02:00:00",
         logging_dir=f"{OUTPUT_PATH}/fineweb-2/logs/{language}/train",
