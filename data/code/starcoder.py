@@ -1,4 +1,4 @@
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.executor.jeanzay import JZSlurmPipelineExecutor
@@ -17,8 +17,10 @@ if __name__ == "__main__":
     main_processing_executor = JZSlurmPipelineExecutor(
         job_name=f"starcoder",
         pipeline=[ 
-            HuggingFaceDatasetReader(
-                "bigcode/starcoderdata", 
+            ParquetReader(
+                f"hf://datasets/bigcode/starcoderdata", 
+                glob_pattern = "**/*.parquet",
+                text_key='content',
                 limit=1000 if args.debug else -1
                 ),
             LambdaFilter(
@@ -27,7 +29,7 @@ if __name__ == "__main__":
                     f"{OUTPUT_PATH}/1_low_stars_count" 
                     )
                 ),
-            JsonlWriter(f"{OUTPUT_PATH}/output")
+            JsonlWriter(f"{OUTPUT_PATH}/1_high_stars_count")
         ],
         sbatch_args={"account": "qgz@cpu"},
         tasks=1 if args.debug else 50, 
