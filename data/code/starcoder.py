@@ -2,10 +2,18 @@ from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.executor.jeanzay import JZSlurmPipelineExecutor
+from functools import partial
 import argparse
 
 parser = argparse.ArgumentParser("")
 parser.add_argument("--debug", action="store_true", help="Debug mode")
+
+keywords = [
+    "jupyter-scripts-dedup-filtered",
+    "jupyter-structured-clean-dedup",
+    "github-issues-filtered-structured",
+    "git-commits-cleaned"
+]
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -24,7 +32,19 @@ if __name__ == "__main__":
                 limit=1000 if args.debug else -1
                 ),
             LambdaFilter(
-                lambda doc: doc.metadata['max_stars_count'] >=2,
+                lambda doc: any(
+                    keyword not in doc.metadata['file_path'] for keyword in [
+                        "jupyter-scripts-dedup-filtered",
+                        "jupyter-structured-clean-dedup",
+                        "github-issues-filtered-structured",
+                        "git-commits-cleaned"
+                    ]),
+                exclusion_writer=JsonlWriter(
+                    f"{OUTPUT_PATH}/0_github" 
+                    )
+                ), # https://huggingface.co/datasets/bigcode/starcoderdata#how-to-use-the-dataset
+            LambdaFilter(
+                lambda doc: doc.metadata['max_stars_count'] >= 2 if 'max_stars_count' in doc.metadata else True,
                 exclusion_writer=JsonlWriter(
                     f"{OUTPUT_PATH}/1_low_stars_count" 
                     )
