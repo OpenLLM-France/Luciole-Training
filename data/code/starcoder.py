@@ -1,64 +1,40 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from utils import create_pipeline, create_parser, MAIN_PATH
+
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.executor.jeanzay import JZSlurmPipelineExecutor
-from functools import partial
-import argparse
-
-parser = argparse.ArgumentParser("")
-parser.add_argument("--debug", action="store_true", help="Debug mode")
-
-keywords = [
-    "jupyter-scripts-dedup-filtered",
-    "jupyter-structured-clean-dedup",
-    "github-issues-filtered-structured",
-    "git-commits-cleaned"
-]
 
 if __name__ == "__main__":
+    parser = create_parser()
     args = parser.parse_args()
     
-    OUTPUT_PATH = "/lustre/fsn1/projects/rech/qgz/commun/datasets/training/starcoder"
-    if args.debug:
-        OUTPUT_PATH += '/debug'
+    dataset_name="starcoderdata"
+    output_path = os.path.join(MAIN_PATH, dataset_name)
 
-    main_processing_executor = JZSlurmPipelineExecutor(
-        job_name=f"starcoder",
-        pipeline=[ 
-            ParquetReader(
-                f"hf://datasets/bigcode/starcoderdata", 
-                glob_pattern = "**/*.parquet",
-                text_key='content',
-                limit=1000 if args.debug else -1
-                ),
-            LambdaFilter(
-                lambda doc: any(
-                    keyword not in doc.metadata['file_path'] for keyword in [
-                        "jupyter-scripts-dedup-filtered",
-                        "jupyter-structured-clean-dedup",
-                        "github-issues-filtered-structured",
-                        "git-commits-cleaned"
-                    ]),
-                exclusion_writer=JsonlWriter(
-                    f"{OUTPUT_PATH}/0_github" 
-                    )
-                ), # https://huggingface.co/datasets/bigcode/starcoderdata#how-to-use-the-dataset
-            LambdaFilter(
-                lambda doc: doc.metadata['max_stars_count'] >= 2 if 'max_stars_count' in doc.metadata else True,
-                exclusion_writer=JsonlWriter(
-                    f"{OUTPUT_PATH}/1_low_stars_count" 
-                    )
-                ),
-            JsonlWriter(f"{OUTPUT_PATH}/1_high_stars_count")
-        ],
-        sbatch_args={"account": "qgz@cpu"},
-        tasks=1 if args.debug else 50, 
-        cpus_per_task=2,
-        time="05:00:00",
-        logging_dir=f"{OUTPUT_PATH}/logs",
-        qos="qos_cpu-t3",
-        partition="prepost",
-        condaenv="datatrove-env",
+    pipeline=[ 
+        ParquetReader(
+            f"hf://datasets/bigcode/starcoderdata", 
+            glob_pattern = "**/*.parquet",
+            text_key='content',
+            ),
+        LambdaFilter(
+            lambda doc: doc.metadata['max_stars_count'] >= 2 if 'max_stars_count' in doc.metadata else True,
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/1_low_stars_count" 
+                )
+            ),
+        JsonlWriter(f"{output_path}/1_high_stars_count")
+    ]
+
+    main_processing_executor = create_pipeline(
+        pipeline, dataset_name,
+        output_path=output_path,
+        debug=args.debug,
+        local=args.local,
     )
 
     main_processing_executor.run()

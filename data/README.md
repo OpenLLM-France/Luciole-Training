@@ -20,3 +20,22 @@ cd datatrove
 pip install -e .[io,processing]
 pip install rich
 ```
+
+## Download a dataset from HF
+
+Set a common HF cache dir
+```
+export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
+```
+
+Load a dataset with huggingface-cli:
+```
+dataset_name=open-web-math/open-web-math
+huggingface-cli download $dataset_name --repo-type dataset 
+```
+
+To load a specific subset you can use incluse and/or exclude
+```
+dataset_name=EleutherAI/proof-pile-2
+huggingface-cli download $dataset_name --repo-type dataset --include algebraic-stack/*
+```

@@ -1,35 +1,33 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from utils import create_pipeline, create_parser, MAIN_PATH
+
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.executor.jeanzay import JZSlurmPipelineExecutor
-import argparse
-
-parser = argparse.ArgumentParser("")
-parser.add_argument("--debug", action="store_true", help="Debug mode")
 
 if __name__ == "__main__":
+    parser = create_parser()
     args = parser.parse_args()
     
-    OUTPUT_PATH = "/lustre/fsn1/projects/rech/qgz/commun/datasets/training/open_web_math"
-    if args.debug:
-        OUTPUT_PATH += '/debug'
+    dataset_name="open_web_math"
+    output_path = os.path.join(MAIN_PATH, dataset_name)
 
-    main_processing_executor = JZSlurmPipelineExecutor(
-        job_name=f"open_web_math",
-        pipeline=[ 
-            HuggingFaceDatasetReader(
-                "open-web-math/open-web-math", 
-                limit=1000 if args.debug else -1
-                ),
-            JsonlWriter(f"{OUTPUT_PATH}/output")
-        ],
-        sbatch_args={"account": "qgz@cpu"},
-        tasks=1 if args.debug else 50, 
-        cpus_per_task=2,
-        time="05:00:00",
-        logging_dir=f"{OUTPUT_PATH}/logs",
-        qos="qos_cpu-t3",
-        partition="prepost",
-        condaenv="datatrove-env",
+    pipeline=[ 
+        HuggingFaceDatasetReader(
+            "open-web-math/open-web-math", 
+            {"split": "train"},
+            ),
+        JsonlWriter(f"{output_path}/output")
+    ]
+
+    main_processing_executor = create_pipeline(
+        pipeline, 
+        dataset_name=dataset_name,
+        output_path=output_path,
+        debug=args.debug,
+        local=args.local,
     )
 
     main_processing_executor.run()
