@@ -8,6 +8,41 @@ from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.base import PipelineStep
 from datatrove.data import DocumentsPipeline
+from datatrove.pipeline.writers.disk_base import DiskWriter
+from datatrove.data import Document
+from datatrove.pipeline.filters.base_filter import BaseFilter
+
+class FinewebDocumentCleaning(BaseFilter):
+
+    name = "🧹 FineWeb Document Cleaning"
+
+    def __init__(
+        self,
+        exclusion_writer: DiskWriter = None,
+    ):
+        super().__init__(exclusion_writer)
+
+    def filter(self, doc: Document) -> bool | tuple[bool, str]:
+        # Remove leading empty lines
+        lines = doc.text.strip().splitlines()
+        doc.metadata['repeated_line'] = False
+        unique_lines = []
+        # Skip leading empty lines
+        for line in lines:
+            if line.strip() == "" or "|" in line:
+                # | is a separator in markdown tables
+                unique_lines.append(line)
+            elif not unique_lines or line != unique_lines[-1]:
+                unique_lines.append(line)
+            else:
+                self.stat_update("repeated_line")
+                doc.metadata['repeated_line'] = True
+                doc.metadata['old_text'] = doc.text.strip()
+        doc.text = '\n'.join(unique_lines)
+        # Check if the document is empty after cleaning
+        if not doc.text.strip():
+            return False
+        return True
 
 class Rehydrater(PipelineStep):
     def run(self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
@@ -39,6 +74,7 @@ if __name__ == "__main__":
         ParquetReader(
             f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train", 
             ),
+        FinewebDocumentCleaning(),
         JsonlWriter(f"{output_path}/data/{language}/train")
     ]
     main_processing_executor = create_pipeline(
@@ -47,20 +83,22 @@ if __name__ == "__main__":
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/train",
     )
+    main_processing_executor.run()
 
     # Rehydrate data
-    output_path = os.path.join(MAIN_PATH, dataset_name)
-    pipeline=[ 
-        JsonlReader(f"{output_path}/data/{language}/train"),
-        Rehydrater(),
-        JsonlWriter(f"{output_path}/data/{language}/train_upsampled")
-    ]
-    rehydratation_processing_executor = create_pipeline(
-        pipeline, dataset_name,
-        debug=args.debug,
-        local=args.local,
-        logging_dir=f"{output_path}/logs/{language}/train_upsampled",
-        depends=main_processing_executor,
-    )
-    rehydratation_processing_executor.run()
+    # Maybe the good thing to do is to save into different folders (and then upsample)
+    # output_path = os.path.join(MAIN_PATH, dataset_name)
+    # pipeline=[ 
+    #     JsonlReader(f"{output_path}/data/{language}/train"),
+    #     Rehydrater(),
+    #     JsonlWriter(f"{output_path}/data/{language}/train_upsampled")
+    # ]
+    # rehydratation_processing_executor = create_pipeline(
+    #     pipeline, dataset_name,
+    #     debug=args.debug,
+    #     local=args.local,
+    #     logging_dir=f"{output_path}/logs/{language}/train_upsampled",
+    #     depends=main_processing_executor,
+    # )
+    # rehydratation_processing_executor.run()
 
