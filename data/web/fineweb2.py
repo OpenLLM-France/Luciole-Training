@@ -19,25 +19,26 @@ class FinewebDocumentCleaning(BaseFilter):
     def __init__(
         self,
         exclusion_writer: DiskWriter = None,
+        log_repeated_lines: bool = False,
     ):
         super().__init__(exclusion_writer)
+        self.log_repeated_lines = log_repeated_lines
 
     def filter(self, doc: Document) -> bool | tuple[bool, str]:
-        # Remove leading empty lines
         lines = doc.text.strip().splitlines()
-        doc.metadata['repeated_line'] = False
+        if self.log_repeated_lines:
+            doc.metadata['repeated_line'] = False
+        # Iterating on lines
         unique_lines = []
-        # Skip leading empty lines
         for line in lines:
-            if line.strip() == "" or "|" in line:
-                # | is a separator in markdown tables
+            if "|" in line: # | is a separator in markdown tables
                 unique_lines.append(line)
             elif not unique_lines or line != unique_lines[-1]:
                 unique_lines.append(line)
             else:
                 self.stat_update("repeated_line")
-                doc.metadata['repeated_line'] = True
-                doc.metadata['old_text'] = doc.text.strip()
+                if self.log_repeated_lines:
+                    doc.metadata['repeated_line'] = True
         doc.text = '\n'.join(unique_lines)
         # Check if the document is empty after cleaning
         if not doc.text.strip():
@@ -81,7 +82,7 @@ if __name__ == "__main__":
         FinewebDocumentCleaning(),
         Rehydrater(),
         JsonlWriter(
-            f"{output_path}/data/{language}/train",
+            f"{output_path}/data/{language}/clusters",
             output_filename="${cluster_size_group}/${rank}.jsonl.gz", 
         )
     ]
@@ -92,21 +93,4 @@ if __name__ == "__main__":
         logging_dir=f"{output_path}/logs/{language}/train",
     )
     main_processing_executor.run()
-
-    # Rehydrate data
-    # Maybe the good thing to do is to save into different folders (and then upsample)
-    # output_path = os.path.join(MAIN_PATH, dataset_name)
-    # pipeline=[ 
-    #     JsonlReader(f"{output_path}/data/{language}/train"),
-    #     Rehydrater(),
-    #     JsonlWriter(f"{output_path}/data/{language}/train_upsampled")
-    # ]
-    # rehydratation_processing_executor = create_pipeline(
-    #     pipeline, dataset_name,
-    #     debug=args.debug,
-    #     local=args.local,
-    #     logging_dir=f"{output_path}/logs/{language}/train_upsampled",
-    #     depends=main_processing_executor,
-    # )
-    # rehydratation_processing_executor.run()
 
