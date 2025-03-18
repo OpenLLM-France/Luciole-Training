@@ -16,9 +16,9 @@ else:
 
 def create_pipeline(
         pipeline, dataset_name, 
-        output_path, 
         debug=True,
         local=False,
+        **kwargs
         ):
     
     # Executor arguments
@@ -37,7 +37,7 @@ def create_pipeline(
         main_processing_executor = LocalPipelineExecutor(
             pipeline=pipeline,
             tasks=tasks, 
-            logging_dir=f"{output_path}/logs",
+            **kwargs
         )
     else:
         main_processing_executor = SlurmPipelineExecutor(
@@ -47,10 +47,10 @@ def create_pipeline(
             tasks=tasks, 
             cpus_per_task=2,
             time=time,
-            logging_dir=f"{output_path}/logs",
             qos=qos,
             partition="prepost",
             env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+            **kwargs
         )
     return main_processing_executor
 
