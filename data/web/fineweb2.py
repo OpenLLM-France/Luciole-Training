@@ -45,18 +45,22 @@ class FinewebDocumentCleaning(BaseFilter):
         return True
 
 class Rehydrater(PipelineStep):
+    @staticmethod
+    def get_cluster_size_group(cluster_size):
+        if cluster_size in [1, 2, 3, 4]:
+            return f'cluster_size:{cluster_size}'
+        elif cluster_size < 100:
+            return 'cluster_size:5-100'
+        elif cluster_size < 1000:
+            return 'cluster_size:100-1000'
+        else:
+            return 'cluster_size:1000+'
+    
     def run(self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
-        import bisect
-        upsampling_weights = {1: 1, 2: 2, 3: 3, 5: 5, 100: 8, 1000: 1}
-        # Sorted keys
-        limits = sorted(upsampling_weights.keys())
-
         for doc in data:
-            upsampling_weight = upsampling_weights[
-                limits[bisect.bisect_right(limits, doc.metadata["minhash_cluster_size"]) - 1]]
-            # repeat each document upsampling_weight times
-            for _ in range(upsampling_weight):
-                yield doc
+            cluster_size_group = self.get_cluster_size_group(doc.metadata["minhash_cluster_size"])
+            doc.metadata["cluster_size_group"] = cluster_size_group
+            yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -75,7 +79,11 @@ if __name__ == "__main__":
             f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train", 
             ),
         FinewebDocumentCleaning(),
-        JsonlWriter(f"{output_path}/data/{language}/train")
+        Rehydrater(),
+        JsonlWriter(
+            f"{output_path}/data/{language}/train",
+            output_filename="${cluster_size_group}/${rank}.jsonl.gz", 
+        )
     ]
     main_processing_executor = create_pipeline(
         pipeline, dataset_name,
