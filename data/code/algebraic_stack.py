@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils import create_pipeline, create_parser, MAIN_PATH
 
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 
 if __name__ == "__main__":
@@ -15,9 +15,9 @@ if __name__ == "__main__":
     output_path = os.path.join(MAIN_PATH, dataset_name)
 
     pipeline=[ 
-        HuggingFaceDatasetReader(
-            "EleutherAI/proof-pile-2", 
-            {"name": "algebraic-stack", "trust_remote_code": True},
+        JsonlReader(
+            f"hf://datasets/EleutherAI/proof-pile-2/algebraic-stack/train", 
+            glob_pattern = "*.jsonl.zst",
             ),
         JsonlWriter(f"{output_path}/output")
     ]
