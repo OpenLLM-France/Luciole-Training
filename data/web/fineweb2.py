@@ -90,7 +90,7 @@ if __name__ == "__main__":
         pipeline, dataset_name,
         debug=args.debug,
         local=args.local,
-        logging_dir=f"{output_path}/logs/{language}/train",
+        logging_dir=f"{output_path}/logs/{language}/clusters",
     )
     main_processing_executor.run()
 
