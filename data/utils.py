@@ -2,17 +2,9 @@
 import argparse
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.executor.local import LocalPipelineExecutor
-import socket
 
-KOIOS_PATH = "/media/storage0/ogouvert/datasets/training/"
-JEANZAY_PATH = "/lustre/fsn1/projects/rech/qgz/commun/datasets/training/"
-
-hostname = socket.gethostname()
-
-if hostname == "koios":
-    MAIN_PATH = KOIOS_PATH 
-else: 
-    MAIN_PATH = JEANZAY_PATH
+import os
+MAIN_PATH = os.getenv('DATA')
 
 def create_pipeline(
         pipeline, dataset_name, 
