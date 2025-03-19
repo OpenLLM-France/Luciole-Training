@@ -8,6 +8,10 @@ from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LambdaFilter
 
+# Tried GopherQualityFilter with fineweb-2 config file for french
+# It took 7 minutes and 47 secondes for 1k documents...
+#     Stats: {total: 538, dropped: 355, dropped_gopher_below_alpha_threshold: 328, dropped_gopher_long_doc: 26, forwarded: 183, doc_len: 17142473 [min=2233, max=592330, 93674.72±96825/doc], dropped_gopher_below_avg_threshold: 1}
+        
 mapping = {
     'monographies': 'PleIAs/French-PD-Books',
     'press': 'PleIAs/French-PD-Newspapers',
@@ -36,7 +40,7 @@ if __name__ == "__main__":
             text_key="complete_text"
             ),
         LambdaFilter(
-            lambda doc: int(doc.metadata['ocr']) >= 90 ,
+            lambda doc: int(doc.metadata['ocr']) >= 90,
             exclusion_writer=JsonlWriter(
                 f"{output_path}/1_low_ocr_scores" 
                 )
