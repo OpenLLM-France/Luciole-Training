@@ -19,6 +19,8 @@ git checkout lucie_v2
 cd datatrove
 pip install -e .[io,processing]
 pip install rich
+pip install matplotlib
+pip install spacy
 ```
 
 ## Download a dataset from HF
