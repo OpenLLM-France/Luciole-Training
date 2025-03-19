@@ -2,6 +2,9 @@
 
 All about preprocessing datasets.
 
+- processing
+- scripts
+
 ## Environment setup
 
 ### Create environment 
@@ -23,7 +26,35 @@ pip install matplotlib
 pip install spacy
 ```
 
-## Download a dataset from HF
+You can add a hostname in `set_env.sh` and set your `$DATA`. Then you can use `source set_env.sh`.
+
+## Processing Datasets
+
+### Local
+
+For example, to process FineWeb-2, on your local machine:
+```
+source set_env.sh
+python processing/fineweb2 --local
+```
+It will load only the first 1000 samples of the fineweb2 data
+
+### On Jeanzay
+
+Similarly on Jean Zay, you can use:
+```
+source set_env.sh
+python processing/fineweb2
+```
+Use the `--debug` flag if you want to do some tests (it will use only one task with a dev qos.)
+
+## Useful tools and script
+
+See code in `scripts/`
+
+## Tips
+
+### Download a dataset from HF
 
 Set a common HF cache dir
 ```
