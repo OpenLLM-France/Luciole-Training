@@ -7,6 +7,7 @@ from utils import create_pipeline, create_parser, MAIN_PATH
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LambdaFilter
+from datatrove.data import DocumentsPipeline
 
 # Tried GopherQualityFilter with fineweb-2 config file for french
 # It took 7 minutes and 47 secondes for 1k documents...
@@ -16,6 +17,22 @@ mapping = {
     'monographies': 'PleIAs/French-PD-Books',
     'press': 'PleIAs/French-PD-Newspapers',
 }
+
+def prepare_metadata_header(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+    """
+        `data` is a generator of Document. You must also return a generator of Document (yield)
+        You can optionally use `rank` and `world_size` for sharding
+    """
+    for doc in data:
+        header = "Data extracted from Gallica\n"
+        for field, x  in zip(
+            ['title', 'author', 'date', 'ocr'], 
+            ['Title', 'Author', 'Date', 'OCR quality score']
+            ):
+            if doc.metadata[field] != 'None':
+                header += f"- {x}: {doc.metadata[field]}\n"
+        doc.metadata['header'] = header
+        yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -45,6 +62,10 @@ if __name__ == "__main__":
                 f"{output_path}/1_low_ocr_scores" 
                 )
             ),
+        LambdaFilter(
+            lambda doc: doc.metadata['author'] not in ['Bourse de Paris']
+            ),
+        prepare_metadata_header,
         JsonlWriter(f"{output_path}/1_high_ocr_scores")
     ]
     main_processing_executor = create_pipeline(
