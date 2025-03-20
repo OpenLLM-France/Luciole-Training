@@ -16,9 +16,8 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     
 def configure_dataset():
-    tokenizer = run.Config(get_tokenizer, tokenizer_name="OpenLLM-France/Lucie-7B", use_fast=True)
-    data = run.Config(
-        PreTrainingDataModule,
+    tokenizer = get_tokenizer(tokenizer_name="OpenLLM-France/Lucie-7B", use_fast=True)
+    data =  PreTrainingDataModule(
         paths='/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document',
         global_batch_size=4,
         micro_batch_size=2,
@@ -56,16 +55,24 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     executor = run.LocalExecutor(ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars)
     return executor
 
-def run_pretraining():
+def run_dataloader(number_of_data=1):
     recipe = configure_recipe(nodes=1, gpus_per_node=2)
     recipe.data = configure_dataset()
     print(f"recipe.trainer.devices={recipe.trainer.devices}")
-        
 
-    # Ok for 1 node:
-    executor = local_executor_torchrun(nodes=recipe.trainer.num_nodes, devices=recipe.trainer.devices)
-    run.run(recipe, executor=executor, name="test_llama")
+    recipe.data.build(5, 1, 1, 1)
+    recipe.data.trainer=fdl.build(recipe.trainer)
+    for i, d in enumerate(recipe.data.train_dataloader()):
+        print()
+        print()
+        print(f" START TEXT OF DATA {i}: ".center(80, '-'))
+        ids = d['tokens'][0]
+        text = recipe.data.tokenizer.ids_to_text(ids, remove_special_tokens=False)
+        print(text)
+        print(f" END TEXT OF DATA {i} ".center(80, '-'))
+        if i+1>=number_of_data:
+            break
 
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
-    run_pretraining()
+    run_dataloader()
