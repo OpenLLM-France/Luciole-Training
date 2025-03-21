@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Requires nemo installation - on Jeanzay for now
+module purge
+module load arch/h100 nemo/2.1.0
+export TOKENIZERS_PARALLELISM=true
+
+OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
+INPUT_FOLDER=$OpenLLM_OUTPUT/datasets/starcoder/debug/1_high_stars_count/
+OUTPUT_PATH=$OpenLLM_OUTPUT/tokens_debug/starcoder
+
+echo "Starting tokenization for $INPUT_FOLDER"
+echo "Output will be saved to $OUTPUT_PATH"
+
+python preprocess_data_for_megatron.py \
+    --input=$INPUT_FOLDER \
+    --output-prefix=$OUTPUT_PATH \
+    --preproc-folder \
+    --json-keys=text \
+    --dataset-impl=mmap \
+    --tokenizer-library=huggingface \
+    --tokenizer-model-name=OpenLLM-France/Lucie-7B \
+    --use-fast \
+    --append-eod \
+    --apply-ftfy \
+    --workers=48
