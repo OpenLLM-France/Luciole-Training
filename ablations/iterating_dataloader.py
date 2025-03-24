@@ -1,7 +1,8 @@
 import nemo_run as run
-from nemo.collections import llm
 import fiddle as fdl
+import os
 
+from nemo.collections import llm
 from nemo.collections.llm.gpt.data import PreTrainingDataModule
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 
@@ -14,11 +15,16 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # download tokenizer
 # from transformers import AutoTokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
-    
+
+DATA_PATH = "/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document"
+TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
+OUTPUT_NAME = os.getenv("OPENLLM_NAME", "test")
+OUTPUT_PATH = os.getenv("OPENLLM_OUTPUT", "")
+
 def configure_dataset():
-    tokenizer = get_tokenizer(tokenizer_name="OpenLLM-France/Lucie-7B", use_fast=True)
+    tokenizer = get_tokenizer(tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data =  PreTrainingDataModule(
-        paths='/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document',
+        paths=DATA_PATH,
         global_batch_size=4,
         micro_batch_size=2,
         num_workers=8,
@@ -28,18 +34,15 @@ def configure_dataset():
     )
     return data
 
-def configure_recipe(nodes: int = 1, gpus_per_node: int = 2):
-    # recipe = llm.mamba2_130m.pretrain_recipe(
+def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     recipe = llm.llama3_8b.pretrain_recipe(
-        name="test_llama",
-        dir="/lustre/fsn1/projects/rech/qgz/uxn76rc/llm/xp",
+        name=OUTPUT_NAME,
+        dir=OUTPUT_PATH,
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
     recipe.model.config.num_layers = 2
     recipe.trainer.max_steps = 5
-    
-    # recipe.model.tokenizer.model_name = "OpenLLM-France/Lucie-7B"
     return recipe
 
 def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecutor:
@@ -56,7 +59,7 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     return executor
 
 def run_dataloader(number_of_data=1):
-    recipe = configure_recipe(nodes=1, gpus_per_node=2)
+    recipe = configure_recipe(nodes=1, gpus_per_node=1)
     recipe.data = configure_dataset()
     print(f"recipe.trainer.devices={recipe.trainer.devices}")
 
