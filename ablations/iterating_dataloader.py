@@ -17,14 +17,17 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # from transformers import AutoTokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
 
-DATA_PATH = os.getenv("DATA_PATH", "/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped")
-TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
-OUTPUT_NAME = os.getenv("OPENLLM_NAME", "test")
-OUTPUT_PATH = os.getenv("OPENLLM_OUTPUT", "")
+DATA_PATH = os.getenv("OpenLLM_DATA")
+OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
 
-def configure_dataset(input_data="Wikipedia--fr_text_document", seq_length=2048):
-    if not os.path.exists(input_data):
-        input_data = os.path.join(DATA_PATH, input_data)
+TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
+
+def configure_dataset(input_data="", seq_length=2048):
+    if input_data:
+        if not os.path.exists(input_data):
+            input_data = os.path.join(DATA_PATH, input_data)
+    else:
+        input_data = DATA_PATH
     tokenizer = get_tokenizer(tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data =  PreTrainingDataModule(
         paths=input_data,
@@ -39,8 +42,8 @@ def configure_dataset(input_data="Wikipedia--fr_text_document", seq_length=2048)
 
 def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     recipe = llm.llama3_8b.pretrain_recipe(
-        name=OUTPUT_NAME,
-        dir=OUTPUT_PATH,
+        name="iterating_dataloader",
+        dir=os.path.join(OUTPUT_PATH, "nemo_experiments"),
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
@@ -66,7 +69,7 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
     recipe.data = configure_dataset(data, seq_length)
     print(f"recipe.trainer.devices={recipe.trainer.devices}")
     if output:
-        os.makedirs(output)
+        os.makedirs(output, exist_ok=True)
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer=fdl.build(recipe.trainer)
     for i, d in enumerate(recipe.data.train_dataloader()):
@@ -78,7 +81,7 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
         print(text)
         print(f" END TEXT OF DATA {i} ".center(80, '-'))
         if output:
-            with open(os.path.join(output, i+".txt"), "w", encoding="utf-8") as f:
+            with open(os.path.join(output, f"{i}.txt"), "w", encoding="utf-8") as f:
                 f.write(text)
         if i+1>=number_of_data:
             break
@@ -86,9 +89,9 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('data', help="Data", type=str)
-    parser.add_argument('output', help="Where to store the batch", default=None, type=str)
-    parser.add_argument('number_of_data', help="Number of iteration", default=5, type=str)
-    parser.add_argument('seq_length', help="", default=2048, type=str)
+    parser.add_argument('--data', help="Data", default="", type=str)
+    parser.add_argument('--output', help="Where to store the batch", default=None, type=str)
+    parser.add_argument('--number_of_data', help="Number of iteration", default=5, type=str)
+    parser.add_argument('--seq_length', help="", default=2048, type=str)
     args = parser.parse_args()
     run_dataloader(args.data, args.output, args.number_of_data, args.seq_length)

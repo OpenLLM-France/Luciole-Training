@@ -1,5 +1,6 @@
 import nemo_run as run
 import os
+import argparse
 
 from nemo.collections import llm
 from nemo.collections.llm.gpt.data import PreTrainingDataModule
@@ -15,10 +16,10 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # from transformers import AutoTokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
 
-DATA_PATH = "/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document"
+DATA_PATH = os.getenv("OpenLLM_DATA")
+OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
+
 TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
-OUTPUT_NAME = os.getenv("OPENLLM_NAME", "test")
-OUTPUT_PATH = os.getenv("OPENLLM_OUTPUT", "")
 
 def configure_dataset():
     tokenizer = run.Config(get_tokenizer, tokenizer_name=TOKENIZER_NAME, use_fast=True)
@@ -34,11 +35,11 @@ def configure_dataset():
     )
     return data
 
-def configure_recipe(nodes: int = 1, gpus_per_node: int = 2):
+def configure_recipe(name, nodes: int = 1, gpus_per_node: int = 2):
     # recipe = llm.mamba2_130m.pretrain_recipe(
     recipe = llm.llama3_8b.pretrain_recipe(
-        name=OUTPUT_NAME,
-        dir=OUTPUT_PATH,
+        name=name,
+        dir=os.path.join(OUTPUT_PATH, "nemo_experiments"),
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
@@ -59,8 +60,8 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     executor = run.LocalExecutor(ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars)
     return executor
 
-def run_pretraining():
-    recipe = configure_recipe(nodes=1, gpus_per_node=4)
+def run_pretraining(xp_name):
+    recipe = configure_recipe(xp_name, nodes=1, gpus_per_node=1)
     
     recipe.trainer.max_steps = 25_000
     
@@ -78,4 +79,7 @@ def run_pretraining():
 
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
-    run_pretraining()
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--name', help="", default="test", type=str)
+    args = parser.parse_args()
+    run_pretraining(args.name)
