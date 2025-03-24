@@ -2,7 +2,7 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from utils import create_pipeline, create_parser, MAIN_PATH
+from utils import create_pipeline, create_parser, get_data_path
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import LambdaFilter
@@ -11,7 +11,8 @@ from datatrove.pipeline.writers import JsonlWriter
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    
+    MAIN_PATH = get_data_path(args.debug, args.local)
+
     dataset_name="starcoderdata"
     output_path = os.path.join(MAIN_PATH, dataset_name)
 
