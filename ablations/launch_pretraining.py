@@ -1,7 +1,7 @@
 import nemo_run as run
-from nemo.collections import llm
-import fiddle as fdl
+import os
 
+from nemo.collections import llm
 from nemo.collections.llm.gpt.data import PreTrainingDataModule
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 
@@ -14,17 +14,22 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # download tokenizer
 # from transformers import AutoTokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
-    
+
+DATA_PATH = "/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document"
+TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
+OUTPUT_NAME = os.getenv("OPENLLM_NAME", "test")
+OUTPUT_PATH = os.getenv("OPENLLM_OUTPUT", "")
+
 def configure_dataset():
-    tokenizer = run.Config(get_tokenizer, tokenizer_name="OpenLLM-France/Lucie-7B", use_fast=True)
+    tokenizer = run.Config(get_tokenizer, tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data = run.Config(
         PreTrainingDataModule,
-        paths='/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document',
-        global_batch_size=4,
-        micro_batch_size=2,
+        paths=DATA_PATH,
+        global_batch_size=512,
+        micro_batch_size=1,
         num_workers=8,
         pin_memory=True,
-        seq_length=2048,
+        seq_length=2048,    # 8192 for llama 32 1b
         tokenizer=tokenizer
     )
     return data
@@ -32,15 +37,13 @@ def configure_dataset():
 def configure_recipe(nodes: int = 1, gpus_per_node: int = 2):
     # recipe = llm.mamba2_130m.pretrain_recipe(
     recipe = llm.llama3_8b.pretrain_recipe(
-        name="test_llama",
-        dir="/lustre/fsn1/projects/rech/qgz/uxn76rc/llm/xp",
+        name=OUTPUT_NAME,
+        dir=OUTPUT_PATH,
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
-    recipe.model.config.num_layers = 2
-    recipe.trainer.max_steps = 5
-    
-    # recipe.model.tokenizer.model_name = "OpenLLM-France/Lucie-7B"
+    recipe.data = configure_dataset()
+    recipe.model.tokenizer = recipe.data.tokenizer
     return recipe
 
 def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecutor:
@@ -57,14 +60,21 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     return executor
 
 def run_pretraining():
-    recipe = configure_recipe(nodes=1, gpus_per_node=2)
-    recipe.data = configure_dataset()
-    print(f"recipe.trainer.devices={recipe.trainer.devices}")
-        
+    recipe = configure_recipe(nodes=1, gpus_per_node=4)
+    
+    recipe.trainer.max_steps = 25_000
+    
+    recipe.model.config.share_embeddings_and_output_weights = True
+    recipe.model.config.hidden_size = 2048
+    recipe.model.config.ffn_hidden_size = 8192
+    recipe.model.config.num_attention_heads = 32
+    recipe.model.config.num_layers = 14
+    recipe.model.config.num_query_groups = 32
+    recipe.optim.config.lr=0.0003
 
     # Ok for 1 node:
     executor = local_executor_torchrun(nodes=recipe.trainer.num_nodes, devices=recipe.trainer.devices)
-    run.run(recipe, executor=executor, name="test_llama")
+    run.run(recipe, executor=executor, name=recipe.log.name)
 
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
