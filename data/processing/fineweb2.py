@@ -89,6 +89,7 @@ if __name__ == "__main__":
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/train",
     )
+    main_processing_executor.run()
 
     ## Split by clusters
     pipeline=[ 
