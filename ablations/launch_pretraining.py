@@ -21,11 +21,16 @@ OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
 
 TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
 
-def configure_dataset():
+def configure_dataset(input_data):
+    if input_data:
+        if not os.path.exists(input_data):
+            input_data = os.path.join(DATA_PATH, input_data)
+    else:
+        input_data = DATA_PATH
     tokenizer = run.Config(get_tokenizer, tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data = run.Config(
         PreTrainingDataModule,
-        paths=DATA_PATH,
+        paths=input_data,
         global_batch_size=512,
         micro_batch_size=1,
         num_workers=8,
@@ -35,7 +40,7 @@ def configure_dataset():
     )
     return data
 
-def configure_recipe(name, nodes: int = 1, gpus_per_node: int = 2):
+def configure_recipe(name, input_data, nodes: int = 1, gpus_per_node: int = 2):
     # recipe = llm.mamba2_130m.pretrain_recipe(
     recipe = llm.llama3_8b.pretrain_recipe(
         name=name,
@@ -43,7 +48,7 @@ def configure_recipe(name, nodes: int = 1, gpus_per_node: int = 2):
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
-    recipe.data = configure_dataset()
+    recipe.data = configure_dataset(input_data)
     recipe.model.tokenizer = recipe.data.tokenizer
     return recipe
 
@@ -60,8 +65,8 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     executor = run.LocalExecutor(ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars)
     return executor
 
-def run_pretraining(xp_name):
-    recipe = configure_recipe(xp_name, nodes=1, gpus_per_node=1)
+def run_pretraining(xp_name, input_data):
+    recipe = configure_recipe(xp_name, input_data, nodes=1, gpus_per_node=1)
     
     recipe.trainer.max_steps = 25_000
     
@@ -80,6 +85,7 @@ def run_pretraining(xp_name):
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--data', help="Data", default="Wikipedia--fr_text_document", type=str)
     parser.add_argument('--name', help="", default="test", type=str)
     args = parser.parse_args()
-    run_pretraining(args.name)
+    run_pretraining(args.name, args.data)

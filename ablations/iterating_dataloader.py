@@ -89,7 +89,7 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--data', help="Data", default="", type=str)
+    parser.add_argument('--data', help="Data", default="Wikipedia--fr_text_document", type=str)
     parser.add_argument('--output', help="Where to store the batch", default=None, type=str)
     parser.add_argument('--number_of_data', help="Number of iteration", default=5, type=str)
     parser.add_argument('--seq_length', help="", default=2048, type=str)
