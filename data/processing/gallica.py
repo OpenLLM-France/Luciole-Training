@@ -2,7 +2,7 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from utils import create_pipeline, create_parser, MAIN_PATH
+from utils import create_pipeline, create_parser, get_data_path
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -44,7 +44,8 @@ if __name__ == "__main__":
         help="Dataset to process"
     )
     args = parser.parse_args()
-    
+    MAIN_PATH = get_data_path(args.debug, args.local)
+
     hf_name = mapping[args.dataset_name]
     dataset_name = f"gallica_{args.dataset_name}"
 
