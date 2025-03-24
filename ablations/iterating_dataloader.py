@@ -84,6 +84,6 @@ if __name__ == "__main__":
     parser.add_argument('--data_path', help="", default="/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document", type=str)
     parser.add_argument('--output_path', help="", default=None, type=str)
     parser.add_argument('--number_of_data', help="Number of iteration", default=5, type=str)
-    parser.add_argument('--seq_length', help="", default=2048, type=str)
+    parser.add_argument('--seq_length', help="", default=4096, type=str)
     args = parser.parse_args()
     run_dataloader(args.data_path, args.output_path, args.number_of_data, args.seq_length)
