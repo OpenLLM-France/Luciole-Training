@@ -17,17 +17,9 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # from transformers import AutoTokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
 
-DATA_PATH = os.getenv("OpenLLM_DATA")
-OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
-
 TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
 
-def configure_dataset(input_data="", seq_length=2048):
-    if input_data:
-        if not os.path.exists(input_data):
-            input_data = os.path.join(DATA_PATH, input_data)
-    else:
-        input_data = DATA_PATH
+def configure_dataset(input_data, seq_length=2048):
     tokenizer = get_tokenizer(tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data =  PreTrainingDataModule(
         paths=input_data,
@@ -43,7 +35,7 @@ def configure_dataset(input_data="", seq_length=2048):
 def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     recipe = llm.llama3_8b.pretrain_recipe(
         name="iterating_dataloader",
-        dir=os.path.join(OUTPUT_PATH, "nemo_experiments"),
+        dir="iterating_dataloader",
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
@@ -89,9 +81,9 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--data', help="Data", default="Wikipedia--fr_text_document", type=str)
-    parser.add_argument('--output', help="Where to store the batch", default=None, type=str)
+    parser.add_argument('--data_path', help="", default="/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document", type=str)
+    parser.add_argument('--output_path', help="", default=None, type=str)
     parser.add_argument('--number_of_data', help="Number of iteration", default=5, type=str)
     parser.add_argument('--seq_length', help="", default=2048, type=str)
     args = parser.parse_args()
-    run_dataloader(args.data, args.output, args.number_of_data, args.seq_length)
+    run_dataloader(args.data_path, args.output_path, args.number_of_data, args.seq_length)

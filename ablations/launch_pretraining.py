@@ -16,21 +16,13 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 # from transformers import AutoTokenizer
 # tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
 
-DATA_PATH = os.getenv("OpenLLM_DATA")
-OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
-
 TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
 
-def configure_dataset(input_data):
-    if input_data:
-        if not os.path.exists(input_data):
-            input_data = os.path.join(DATA_PATH, input_data)
-    else:
-        input_data = DATA_PATH
+def configure_dataset(data_path):
     tokenizer = run.Config(get_tokenizer, tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data = run.Config(
         PreTrainingDataModule,
-        paths=input_data,
+        paths=data_path,
         global_batch_size=512,
         micro_batch_size=1,
         num_workers=8,
@@ -40,15 +32,15 @@ def configure_dataset(input_data):
     )
     return data
 
-def configure_recipe(name, input_data, nodes: int = 1, gpus_per_node: int = 2):
+def configure_recipe(name, data_path, output_path, nodes: int = 1, gpus_per_node: int = 2):
     # recipe = llm.mamba2_130m.pretrain_recipe(
     recipe = llm.llama3_8b.pretrain_recipe(
         name=name,
-        dir=os.path.join(OUTPUT_PATH, "nemo_experiments"),
+        dir=os.path.join(output_path, "nemo_experiments"),
         num_nodes=nodes,
         num_gpus_per_node=gpus_per_node,
     )
-    recipe.data = configure_dataset(input_data)
+    recipe.data = configure_dataset(data_path)
     recipe.model.tokenizer = recipe.data.tokenizer
     return recipe
 
@@ -65,8 +57,8 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     executor = run.LocalExecutor(ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars)
     return executor
 
-def run_pretraining(xp_name, input_data):
-    recipe = configure_recipe(xp_name, input_data, nodes=1, gpus_per_node=1)
+def run_pretraining(xp_name, data_path, output_path):
+    recipe = configure_recipe(xp_name, data_path, output_path, nodes=1, gpus_per_node=1)
     
     recipe.trainer.max_steps = 25_000
     
@@ -85,7 +77,8 @@ def run_pretraining(xp_name, input_data):
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--data', help="Data", default="Wikipedia--fr_text_document", type=str)
+    parser.add_argument('--data_path', help="Data", default="/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document", type=str)
+    parser.add_argument('--output_path', help="Data", default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output", type=str)
     parser.add_argument('--name', help="", default="test", type=str)
     args = parser.parse_args()
-    run_pretraining(args.name, args.data)
+    run_pretraining(args.name, args.data_path, args.output_path)
