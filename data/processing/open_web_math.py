@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils import create_pipeline, create_parser, MAIN_PATH
 
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 
 if __name__ == "__main__":
@@ -15,9 +15,8 @@ if __name__ == "__main__":
     output_path = os.path.join(MAIN_PATH, dataset_name)
 
     pipeline=[ 
-        HuggingFaceDatasetReader(
-            "open-web-math/open-web-math", 
-            {"split": "train"},
+        ParquetReader(
+            f"hf://datasets/open-web-math/open-web-math/data", 
             ),
         JsonlWriter(f"{output_path}/output")
     ]
