@@ -2,7 +2,7 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from utils import create_pipeline, create_parser, MAIN_PATH
+from utils import create_pipeline, create_parser, get_data_path
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -12,7 +12,8 @@ years =  ['1774', '1798', '1799', '1800', '1801', '1802', '1803', '1804', '1805'
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    
+    MAIN_PATH = get_data_path(args.debug, args.local)
+
     dataset_name = "american_stories"
 
     for year in years:

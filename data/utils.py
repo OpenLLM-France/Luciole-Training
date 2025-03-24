@@ -4,7 +4,18 @@ from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.executor.local import LocalPipelineExecutor
 
 import os
-MAIN_PATH = os.getenv('DATA')
+
+def get_data_path(
+        debug=True,
+        local=False
+        ):
+    main_path = os.path.join(os.getenv('OpenLLM_OUTPUT'), 'datasets')
+    if debug:
+        main_path += '_debug'
+    elif local:
+        main_path += '_local'
+    os.makedirs(main_path, exist_ok=True)
+    return main_path
 
 def create_pipeline(
         pipeline, dataset_name, 
