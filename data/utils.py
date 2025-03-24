@@ -40,7 +40,6 @@ def create_pipeline(
         main_processing_executor = LocalPipelineExecutor(
             pipeline=pipeline,
             tasks=tasks, 
-            **kwargs
         )
     else:
         main_processing_executor = SlurmPipelineExecutor(
