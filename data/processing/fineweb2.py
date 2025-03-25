@@ -74,6 +74,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--language", type=str, default="fra_Latn", help="Language to process"
     )
+    parser.add_argument(
+        "--run-copyrights", action="store_true", help="Run copyrights"
+    )
+
     args = parser.parse_args()
     MAIN_PATH = get_data_path(args.debug, args.local)
 
@@ -97,7 +101,6 @@ if __name__ == "__main__":
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/train",
     )
-    main_processing_executor.run()
 
     ## Split by clusters
     pipeline=[ 
@@ -120,22 +123,23 @@ if __name__ == "__main__":
     split_executor.run()
 
     ## Extract potential copyrights - there are not remove from the data!
-    pipeline=[ 
-        JsonlReader(
-            f"{output_path}/data/{language}/train"
-        ),
-        RegexFilter(
-            regex_exp=r"(Copyright|copyright|©|All\s+rights\s+reserved)",
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/data/{language}/potential_copyrights" 
-                )
+    if args.run_copyrights:
+        pipeline=[ 
+            JsonlReader(
+                f"{output_path}/data/{language}/train"
+            ),
+            RegexFilter(
+                regex_exp=r"(Copyright|copyright|©|All\s+rights\s+reserved)",
+                exclusion_writer=JsonlWriter(
+                    f"{output_path}/data/{language}/potential_copyrights" 
+                    )
+            )
+        ]
+        copyright_executor = create_pipeline(
+            pipeline, dataset_name,
+            debug=args.debug,
+            local=args.local,
+            logging_dir=f"{output_path}/logs/{language}/potential_copyrights",
+            depends=split_executor,
         )
-    ]
-    copyright_executor = create_pipeline(
-        pipeline, dataset_name,
-        debug=args.debug,
-        local=args.local,
-        logging_dir=f"{output_path}/logs/{language}/clusters",
-        depends=main_processing_executor,
-    )
-    copyright_executor.run()
+        copyright_executor.run()
