@@ -37,7 +37,6 @@ def create_pipeline(
         pipeline[0].limit=-1
 
     if local:
-        kwargs.pop("depends_on", None)
         main_processing_executor = LocalPipelineExecutor(
             pipeline=pipeline,
             tasks=tasks, 

@@ -13,6 +13,14 @@ from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.filters import RegexFilter
 
+"""
+List of languages we are interested in:
+- deu_Latn
+- spa_Latn
+- fra_Latn
+- ita_Latn
+"""
+
 class FinewebDocumentCleaning(BaseFilter):
 
     name = "🧹 FineWeb Document Cleaning"
@@ -107,7 +115,7 @@ if __name__ == "__main__":
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/clusters",
-        depends_on=main_processing_executor,
+        depends=main_processing_executor,
     )
     split_executor.run()
 
@@ -128,6 +136,6 @@ if __name__ == "__main__":
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/clusters",
-        depends_on=main_processing_executor,
+        depends=main_processing_executor,
     )
     copyright_executor.run()
