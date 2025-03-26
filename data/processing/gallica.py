@@ -1,12 +1,11 @@
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils import create_pipeline, create_parser, get_data_path
 
-from datatrove.pipeline.readers import ParquetReader
+from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.filters import LambdaFilter
+from datatrove.pipeline.filters import LambdaFilter, FastTextClassifierFilter
 from datatrove.data import DocumentsPipeline
 
 # Tried GopherQualityFilter with fineweb-2 config file for french
@@ -37,7 +36,7 @@ def prepare_metadata_header(data: DocumentsPipeline, rank: int = 0, world_size: 
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
-        "--dataset_name",
+        "--dataset-name",
         type=str,
         default="monographies",
         choices=list(mapping.keys()),
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     hf_name = mapping[args.dataset_name]
     dataset_name = f"gallica_{args.dataset_name}"
 
-    # Collect data
+    # Collect data and filter OCR by scores
     output_path = os.path.join(MAIN_PATH, dataset_name)
     pipeline=[ 
         ParquetReader(
@@ -77,3 +76,22 @@ if __name__ == "__main__":
     )
     main_processing_executor.run()
 
+    # # FastText tests
+    # pipeline=[ 
+    #     JsonlReader(f"{output_path}/1_high_ocr_scores"),
+    #     FastTextClassifierFilter(
+    #         model_url='https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin',
+    #         keep_labels=('fr', 0.65),
+    #         filter_mode="CHUNKS",
+    #         save_labels_in_metadata=False,
+    #         save_removed_spans=True
+    #         ),
+    #     JsonlWriter(f"{output_path}/2_fastext_cleaning")
+    # ]
+    # filtering_executor = create_pipeline(
+    #     pipeline, dataset_name,
+    #     debug=args.debug,
+    #     local=args.local,
+    #     logging_dir=f"{output_path}/logs_2",
+    # )
+    # filtering_executor.run()
