@@ -57,7 +57,7 @@ if __name__ == "__main__":
             text_key="complete_text"
             ),
         LambdaFilter(
-            lambda doc: int(doc.metadata['ocr']) >= 90,
+            lambda doc: (doc.metadata['ocr'].isdigit() and int(doc.metadata['ocr']) >= 90) if doc.metadata['ocr'] else False,
             exclusion_writer=JsonlWriter(
                 f"{output_path}/1_low_ocr_scores" 
                 )
