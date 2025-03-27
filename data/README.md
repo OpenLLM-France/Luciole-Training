@@ -11,15 +11,15 @@ All about preprocessing datasets.
 ```
 module purge
 module load anaconda-py3/2023.09 
-conda create -n datatrove-env python=3.10
+conda create -n datatrove-env python=3.12
 conda activate datatrove-env
 ```
 
 ### Clone datatrove
 ```
 git clone https://github.com/linagora-labs/datatrove.git
-git checkout lucie_v2
 cd datatrove
+git checkout lucie_v2
 pip install -e .[io,processing]
 pip install rich
 pip install matplotlib
