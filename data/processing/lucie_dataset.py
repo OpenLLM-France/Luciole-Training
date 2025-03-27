@@ -6,6 +6,7 @@ from datatrove.pipeline.writers import JsonlWriter
 from datasets import load_dataset_builder
 
 config_names = list(load_dataset_builder("OpenLLM-France/Lucie-Training-Dataset").builder_configs)
+print(config_names)
 
 if __name__ == "__main__":
     parser = create_parser()
