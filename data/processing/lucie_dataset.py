@@ -2,6 +2,7 @@ from utils import create_pipeline, create_parser, get_data_path
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
+from slugify import slugify
 
 from datasets import load_dataset_builder
 
@@ -19,6 +20,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     name = args.name
+    slug_name = slugify(name)
     revision = args.revision
     MAIN_PATH = get_data_path(args.debug, args.local)
     
@@ -28,14 +30,14 @@ if __name__ == "__main__":
             {"name": name, "revision": revision, "split": "train"},
             streaming=True
             ),
-        JsonlWriter(f"{MAIN_PATH}/lucie_dataset/{name}/output")
+        JsonlWriter(f"{MAIN_PATH}/lucie_dataset/{slug_name}/output")
     ]
 
     main_processing_executor = create_pipeline(
-        pipeline, name,
+        pipeline, slug_name,
         debug=args.debug,
         local=args.local,
-        logging_dir=f"{MAIN_PATH}/lucie_dataset/{name}/logs",
+        logging_dir=f"{MAIN_PATH}/lucie_dataset/{slug_name}/logs",
     )
 
     main_processing_executor.run()
