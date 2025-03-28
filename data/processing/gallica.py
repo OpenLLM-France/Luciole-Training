@@ -80,8 +80,9 @@ if __name__ == "__main__":
     # pipeline=[ 
     #     JsonlReader(f"{output_path}/1_high_ocr_scores"),
     #     FastTextClassifierFilter(
-    #         model_url='https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin',
-    #         keep_labels=('fr', 0.65),
+    #         # model_url='https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin',
+    #         model_url=os.path.join(os.getenv("OpenLLM_OUTPUT"), "datasets/fasttext_ocr/models/ocr_ngram2_epoch5_lr0.1.bin"),
+    #         keep_labels=('good', 0.5),
     #         filter_mode="CHUNKS",
     #         save_labels_in_metadata=False,
     #         save_removed_spans=True
@@ -93,5 +94,26 @@ if __name__ == "__main__":
     #     debug=args.debug,
     #     local=args.local,
     #     logging_dir=f"{output_path}/logs_2",
+    #     depends=main_processing_executor
+    # )
+    # filtering_executor.run()
+
+    # # FastText tests
+    # pipeline=[ 
+    #     JsonlReader(f"{output_path}/1_high_ocr_scores"),
+    #     FastTextClassifierFilter(
+    #         # model_url='https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin',
+    #         model_url=os.path.join(os.getenv("OpenLLM_OUTPUT"), "datasets/fasttext_ocr/models/ocr_ngram2_epoch5_lr0.1.bin"),
+    #         keep_labels=('good', 0.),
+    #         save_labels_in_metadata=True,
+    #         ),
+    #     JsonlWriter(f"{output_path}/3_fastext_cleaning")
+    # ]
+    # filtering_executor = create_pipeline(
+    #     pipeline, dataset_name,
+    #     debug=args.debug,
+    #     local=args.local,
+    #     logging_dir=f"{output_path}/logs_3",
+    #     depends=main_processing_executor
     # )
     # filtering_executor.run()
