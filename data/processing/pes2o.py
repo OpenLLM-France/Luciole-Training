@@ -8,19 +8,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
     MAIN_PATH = get_data_path(args.debug, args.local)
 
-    dataset_name = "pes2o" 
+    dataset_name = "pes2o"
 
-    pipeline=[ 
+    pipeline = [
         HuggingFaceDatasetReader(
-            "allenai/olmo-mix-1124", 
+            "allenai/olmo-mix-1124",
             {"name": "pes2o", "split": "train"},
-            streaming = True,
-            ),
-        JsonlWriter(f"{MAIN_PATH}/{dataset_name}/output")
+            streaming=True,
+        ),
+        JsonlWriter(f"{MAIN_PATH}/{dataset_name}/output"),
     ]
 
     main_processing_executor = create_pipeline(
-        pipeline, dataset_name,
+        pipeline,
+        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{MAIN_PATH}/{dataset_name}/logs",
