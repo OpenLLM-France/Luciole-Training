@@ -46,10 +46,10 @@ if __name__ == "__main__":
 
     main_processing_executor = create_pipeline(
         pipeline,
-        slug_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{MAIN_PATH}/lucie_dataset/{slug_name}/logs",
+        job_name=slug_name,
     )
 
     main_processing_executor.run()

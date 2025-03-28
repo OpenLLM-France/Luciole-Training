@@ -104,10 +104,10 @@ if __name__ == "__main__":
     ]
     main_processing_executor = create_pipeline(
         pipeline,
-        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/train",
+        job_name=dataset_name,
     )
 
     ## Split by clusters
@@ -121,11 +121,11 @@ if __name__ == "__main__":
     ]
     split_executor = create_pipeline(
         pipeline,
-        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/clusters",
-        depends=main_processing_executor,
+        job_name=dataset_name,
+        depends=main_processing_executor
     )
     split_executor.run()
 
@@ -142,10 +142,10 @@ if __name__ == "__main__":
         ]
         copyright_executor = create_pipeline(
             pipeline,
-            dataset_name,
             debug=args.debug,
             local=args.local,
             logging_dir=f"{output_path}/logs/{language}/potential_copyrights",
+            job_name=dataset_name,
             depends=split_executor,
         )
         copyright_executor.run()

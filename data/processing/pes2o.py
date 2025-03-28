@@ -21,10 +21,10 @@ if __name__ == "__main__":
 
     main_processing_executor = create_pipeline(
         pipeline,
-        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{MAIN_PATH}/{dataset_name}/logs",
+        job_name=dataset_name,
     )
 
     main_processing_executor.run()

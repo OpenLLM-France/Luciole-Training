@@ -15,7 +15,7 @@ def get_data_path(debug=True, local=False):
     return main_path
 
 
-def create_pipeline(pipeline, dataset_name, debug=True, local=False, **kwargs):
+def create_pipeline(pipeline, debug=True, local=False, **kwargs):
     # Executor arguments
     if debug or local:
         tasks = 1
@@ -34,7 +34,6 @@ def create_pipeline(pipeline, dataset_name, debug=True, local=False, **kwargs):
         )
     else:
         main_processing_executor = SlurmPipelineExecutor(
-            job_name=dataset_name,
             pipeline=pipeline,
             sbatch_args={"account": "qgz@cpu"},
             tasks=tasks,
