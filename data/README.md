@@ -24,6 +24,7 @@ pip install -e .[io,processing]
 pip install rich
 pip install matplotlib
 pip install spacy
+pip install slugify
 ```
 
 You can add a hostname in `set_env.sh` and set your `$DATA`. Then you can use `source set_env.sh`.
