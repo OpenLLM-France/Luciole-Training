@@ -1,4 +1,3 @@
-import sys
 import os
 
 from utils import create_pipeline, create_parser, get_data_path
@@ -12,26 +11,27 @@ if __name__ == "__main__":
     args = parser.parse_args()
     MAIN_PATH = get_data_path(args.debug, args.local)
 
-    dataset_name="starcoderdata"
+    dataset_name = "starcoderdata"
     output_path = os.path.join(MAIN_PATH, dataset_name)
 
-    pipeline=[ 
+    pipeline = [
         ParquetReader(
-            f"hf://datasets/bigcode/starcoderdata", 
-            glob_pattern = "**/*.parquet",
-            text_key='content',
-            ),
+            "hf://datasets/bigcode/starcoderdata",
+            glob_pattern="**/*.parquet",
+            text_key="content",
+        ),
         LambdaFilter(
-            lambda doc: doc.metadata['max_stars_count'] >= 2 if 'max_stars_count' in doc.metadata else True,
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/1_low_stars_count" 
-                )
-            ),
-        JsonlWriter(f"{output_path}/1_high_stars_count")
+            lambda doc: doc.metadata["max_stars_count"] >= 2
+            if "max_stars_count" in doc.metadata
+            else True,
+            exclusion_writer=JsonlWriter(f"{output_path}/1_low_stars_count"),
+        ),
+        JsonlWriter(f"{output_path}/1_high_stars_count"),
     ]
 
     main_processing_executor = create_pipeline(
-        pipeline, dataset_name,
+        pipeline,
+        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs",

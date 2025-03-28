@@ -1,29 +1,29 @@
-import sys
 import os
 
 from utils import create_pipeline, create_parser, get_data_path
 
-from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
+from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
     MAIN_PATH = get_data_path(args.debug, args.local)
-    
-    dataset_name="algebraic_stack"
+
+    dataset_name = "algebraic_stack"
     output_path = os.path.join(MAIN_PATH, dataset_name)
 
-    pipeline=[ 
+    pipeline = [
         JsonlReader(
-            f"hf://datasets/EleutherAI/proof-pile-2/algebraic-stack/train", 
-            glob_pattern = "*.jsonl.zst",
-            ),
-        JsonlWriter(f"{output_path}/output")
+            "hf://datasets/EleutherAI/proof-pile-2/algebraic-stack/train",
+            glob_pattern="*.jsonl.zst",
+        ),
+        JsonlWriter(f"{output_path}/output"),
     ]
 
     main_processing_executor = create_pipeline(
-        pipeline, dataset_name,
+        pipeline,
+        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs",

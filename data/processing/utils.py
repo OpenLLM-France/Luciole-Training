@@ -1,61 +1,52 @@
-
 import argparse
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.executor.local import LocalPipelineExecutor
 
 import os
 
-def get_data_path(
-        debug=True,
-        local=False
-        ):
-    main_path = os.path.join(os.getenv('OpenLLM_OUTPUT'), 'datasets')
+
+def get_data_path(debug=True, local=False):
+    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "datasets")
     if debug:
-        main_path += '_debug'
+        main_path += "_debug"
     elif local:
-        main_path += '_local'
+        main_path += "_local"
     os.makedirs(main_path, exist_ok=True)
     return main_path
 
-def create_pipeline(
-        pipeline, dataset_name, 
-        debug=True,
-        local=False,
-        **kwargs
-        ):
-    
+
+def create_pipeline(pipeline, dataset_name, debug=True, local=False, **kwargs):
     # Executor arguments
     if debug or local:
-        tasks=1
-        time="00:10:00"
-        qos="qos_cpu-dev"
-        pipeline[0].limit=1000
+        tasks = 1
+        time = "00:10:00"
+        qos = "qos_cpu-dev"
+        pipeline[0].limit = 1000
     else:
-        tasks=50
-        time="05:00:00"
-        qos="qos_cpu-t3"
-        pipeline[0].limit=-1
+        tasks = 50
+        time = "05:00:00"
+        qos = "qos_cpu-t3"
+        pipeline[0].limit = -1
 
     if local:
         main_processing_executor = LocalPipelineExecutor(
-            pipeline=pipeline,
-            tasks=tasks, 
-            **kwargs
+            pipeline=pipeline, tasks=tasks, **kwargs
         )
     else:
         main_processing_executor = SlurmPipelineExecutor(
             job_name=dataset_name,
             pipeline=pipeline,
             sbatch_args={"account": "qgz@cpu"},
-            tasks=tasks, 
+            tasks=tasks,
             cpus_per_task=2,
             time=time,
             qos=qos,
             partition="prepost",
             env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-            **kwargs
+            **kwargs,
         )
     return main_processing_executor
+
 
 def create_parser():
     parser = argparse.ArgumentParser("")

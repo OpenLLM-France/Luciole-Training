@@ -19,18 +19,20 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 
 TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
 
+
 def configure_dataset(input_data, seq_length=2048):
     tokenizer = get_tokenizer(tokenizer_name=TOKENIZER_NAME, use_fast=True)
-    data =  PreTrainingDataModule(
+    data = PreTrainingDataModule(
         paths=input_data,
         global_batch_size=4,
         micro_batch_size=2,
         num_workers=8,
         pin_memory=True,
         seq_length=seq_length,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
     )
     return data
+
 
 def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     recipe = llm.llama3_8b.pretrain_recipe(
@@ -43,6 +45,7 @@ def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     recipe.trainer.max_steps = 5
     return recipe
 
+
 def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecutor:
     # Env vars for jobs are configured here
     env_vars = {
@@ -51,10 +54,13 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
         "NCCL_NVLS_ENABLE": "0",
         "NVTE_DP_AMAX_REDUCE_INTERVAL": "0",
         "NVTE_ASYNC_AMAX_REDUCTION": "1",
-        "TOKENIZERS_PARALLELISM": "false"
+        "TOKENIZERS_PARALLELISM": "false",
     }
-    executor = run.LocalExecutor(ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars)
+    executor = run.LocalExecutor(
+        ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars
+    )
     return executor
+
 
 def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
@@ -63,27 +69,37 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
     if output:
         os.makedirs(output, exist_ok=True)
     recipe.data.build(5, 1, 1, 1)
-    recipe.data.trainer=fdl.build(recipe.trainer)
+    recipe.data.trainer = fdl.build(recipe.trainer)
     for i, d in enumerate(recipe.data.train_dataloader()):
         print()
         print()
-        print(f" START TEXT OF DATA {i}: ".center(80, '-'))
-        ids = d['tokens'][0]
+        print(f" START TEXT OF DATA {i}: ".center(80, "-"))
+        ids = d["tokens"][0]
         text = recipe.data.tokenizer.ids_to_text(ids, remove_special_tokens=False)
         print(text)
-        print(f" END TEXT OF DATA {i} ".center(80, '-'))
+        print(f" END TEXT OF DATA {i} ".center(80, "-"))
         if output:
             with open(os.path.join(output, f"{i}.txt"), "w", encoding="utf-8") as f:
                 f.write(text)
-        if i+1>=number_of_data:
+        if i + 1 >= number_of_data:
             break
+
 
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--data_path', help="", default="/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document", type=str)
-    parser.add_argument('--output_path', help="", default=None, type=str)
-    parser.add_argument('--number_of_data', help="Number of iteration", default=5, type=str)
-    parser.add_argument('--seq_length', help="", default=4096, type=str)
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument(
+        "--data_path",
+        help="",
+        default="/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document",
+        type=str,
+    )
+    parser.add_argument("--output_path", help="", default=None, type=str)
+    parser.add_argument(
+        "--number_of_data", help="Number of iteration", default=5, type=str
+    )
+    parser.add_argument("--seq_length", help="", default=4096, type=str)
     args = parser.parse_args()
-    run_dataloader(args.data_path, args.output_path, args.number_of_data, args.seq_length)
+    run_dataloader(
+        args.data_path, args.output_path, args.number_of_data, args.seq_length
+    )
