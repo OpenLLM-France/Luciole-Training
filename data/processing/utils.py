@@ -29,6 +29,7 @@ def create_pipeline(pipeline, debug=True, local=False, **kwargs):
         pipeline[0].limit = -1
 
     if local:
+        kwargs.pop("job_name", None)
         main_processing_executor = LocalPipelineExecutor(
             pipeline=pipeline, tasks=tasks, **kwargs
         )
