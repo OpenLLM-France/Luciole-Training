@@ -6,19 +6,13 @@ from slugify import slugify
 
 from datasets import load_dataset_builder
 
-config_names = list(
-    load_dataset_builder("OpenLLM-France/Lucie-Training-Dataset").builder_configs
-)
-print(config_names)
-
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
         "--name",
         type=str,
-        default="default",
+        default=None,
         help="Subset to load",
-        choices=config_names,
     )
     parser.add_argument(
         "--revision",
@@ -28,6 +22,13 @@ if __name__ == "__main__":
         choices=["main", "v1.2"],
     )
     args = parser.parse_args()
+
+    if args.name is None:
+        config_names = list(
+            load_dataset_builder("OpenLLM-France/Lucie-Training-Dataset").builder_configs
+        )
+        print(f"Chose a name in: {config_names}")
+        raise NotImplementedError
 
     name = args.name
     slug_name = slugify(name)
