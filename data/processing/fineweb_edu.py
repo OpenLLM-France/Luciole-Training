@@ -6,6 +6,10 @@ from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.writers import JsonlWriter
 
+# FineWeb edu is already on JZ: $DSDIR/HuggingFace/fineweb/data
+# up to CC-MAIN-2024-10
+# new dumps are available
+
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
