@@ -73,10 +73,10 @@ if __name__ == "__main__":
     ]
     main_processing_executor = create_pipeline(
         pipeline,
-        dataset_name,
         debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs",
+        job_name=dataset_name,
     )
     main_processing_executor.run()
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     #     JsonlWriter(f"{output_path}/2_fastext_cleaning")
     # ]
     # filtering_executor = create_pipeline(
-    #     pipeline, dataset_name,
+    #     pipeline,
     #     debug=args.debug,
     #     local=args.local,
     #     logging_dir=f"{output_path}/logs_2",
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     #     JsonlWriter(f"{output_path}/3_fastext_cleaning")
     # ]
     # filtering_executor = create_pipeline(
-    #     pipeline, dataset_name,
+    #     pipeline,
     #     debug=args.debug,
     #     local=args.local,
     #     logging_dir=f"{output_path}/logs_3",
