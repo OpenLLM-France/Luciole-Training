@@ -59,13 +59,13 @@ class Rehydrater(PipelineStep):
     @staticmethod
     def get_cluster_size_group(cluster_size):
         if cluster_size in [1, 2, 3, 4]:
-            return f"cluster_size:{cluster_size}"
+            return f"cluster_size-{cluster_size}"
         elif cluster_size < 100:
-            return "cluster_size:5-100"
+            return "cluster_size-5-100"
         elif cluster_size < 1000:
-            return "cluster_size:100-1000"
+            return "cluster_size-100-1000"
         else:
-            return "cluster_size:1000+"
+            return "cluster_size-1000+"
 
     def run(
         self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1
@@ -129,23 +129,23 @@ if __name__ == "__main__":
     )
     split_executor.run()
 
-    ## Extract potential copyrights - there are not remove from the data!
-    if args.run_copyrights:
-        pipeline = [
-            JsonlReader(f"{output_path}/data/{language}/train"),
-            RegexFilter(
-                regex_exp=r"(Copyright|copyright|©|All\s+rights\s+reserved)",
-                exclusion_writer=JsonlWriter(
-                    f"{output_path}/data/{language}/potential_copyrights"
-                ),
-            ),
-        ]
-        copyright_executor = create_pipeline(
-            pipeline,
-            debug=args.debug,
-            local=args.local,
-            logging_dir=f"{output_path}/logs/{language}/potential_copyrights",
-            job_name=dataset_name,
-            depends=split_executor,
-        )
-        copyright_executor.run()
+    # ## Extract potential copyrights - there are not remove from the data!
+    # if args.run_copyrights:
+    #     pipeline = [
+    #         JsonlReader(f"{output_path}/data/{language}/train"),
+    #         RegexFilter(
+    #             regex_exp=r"(Copyright|copyright|©|All\s+rights\s+reserved)",
+    #             exclusion_writer=JsonlWriter(
+    #                 f"{output_path}/data/{language}/potential_copyrights"
+    #             ),
+    #         ),
+    #     ]
+    #     copyright_executor = create_pipeline(
+    #         pipeline,
+    #         debug=args.debug,
+    #         local=args.local,
+    #         logging_dir=f"{output_path}/logs/{language}/potential_copyrights",
+    #         job_name=dataset_name,
+    #         depends=split_executor,
+    #     )
+    #     copyright_executor.run()
