@@ -5,9 +5,6 @@ from datatrove.pipeline.writers import JsonlWriter
 
 if __name__ == "__main__":
     parser = create_parser()
-    parser.add_argument(
-        "--olmo", action="store_true", help="Take dataset from Olmo2"
-    )
     args = parser.parse_args()
     MAIN_PATH = get_data_path(args.debug, args.local)
 
