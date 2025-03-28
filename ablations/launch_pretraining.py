@@ -68,7 +68,7 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
 def run_pretraining(xp_name, data_path, output_path):
     recipe = configure_recipe(xp_name, data_path, output_path, nodes=1, gpus_per_node=1)
 
-    recipe.trainer.max_steps = 25_000
+    recipe.trainer.max_steps = 5
 
     recipe.model.config.share_embeddings_and_output_weights = True
     recipe.model.config.hidden_size = 2048
