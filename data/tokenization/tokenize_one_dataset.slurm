@@ -1,5 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=token 
 #SBATCH --output=%x.out 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
@@ -14,7 +13,6 @@ module purge
 module load arch/h100 nemo/2.1.0
 export TOKENIZERS_PARALLELISM=true
 
-OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
 INPUT_FOLDER=$1
 OUTPUT_PATH=$2
 
@@ -33,3 +31,5 @@ python preprocess_data_for_megatron.py \
     --append-eod \
     --apply-ftfy \
     --workers=10
+
+touch ${OUTPUT_PATH}_completed

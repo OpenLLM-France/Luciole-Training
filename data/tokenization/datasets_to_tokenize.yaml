@@ -1,0 +1,84 @@
+datasets:
+  # Fineweb2 french
+  - name: fineweb2_fra_Latn_cluster_1
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:1
+  - name: fineweb2_fra_Latn_cluster_1000+
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:1000+
+  - name: fineweb2_fra_Latn_cluster_100-1000
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:100-1000
+  - name: fineweb2_fra_Latn_cluster_2
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:2
+  - name: fineweb2_fra_Latn_cluster_3
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:3
+  - name: fineweb2_fra_Latn_cluster_4
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:4
+  - name: fineweb2_fra_Latn_cluster_5-100
+    path: fineweb2/data/fra_Latn/clusters/cluster_size:5-100
+  # Fineweb2 italian
+  - name: fineweb2_ita_Latn_cluster_1
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:1
+  - name: fineweb2_ita_Latn_cluster_1000+
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:1000+
+  - name: fineweb2_ita_Latn_cluster_100-1000
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:100-1000
+  - name: fineweb2_ita_Latn_cluster_2
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:2
+  - name: fineweb2_ita_Latn_cluster_3
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:3
+  - name: fineweb2_ita_Latn_cluster_4
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:4
+  - name: fineweb2_ita_Latn_cluster_5-100
+    path: fineweb2/data/ita_Latn/clusters/cluster_size:5-100
+  # Fineweb2 deutch
+  - name: fineweb2_deu_Latn_cluster_1
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:1
+  - name: fineweb2_deu_Latn_cluster_1000+
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:1000+
+  - name: fineweb2_deu_Latn_cluster_100-1000
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:100-1000
+  - name: fineweb2_deu_Latn_cluster_2
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:2
+  - name: fineweb2_deu_Latn_cluster_3
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:3
+  - name: fineweb2_deu_Latn_cluster_4
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:4
+  - name: fineweb2_deu_Latn_cluster_5-100
+    path: fineweb2/data/deu_Latn/clusters/cluster_size:5-100
+  # Fineweb2 spanish
+  - name: fineweb2_spa_Latn_cluster_1
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:1
+  - name: fineweb2_spa_Latn_cluster_1000+
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:1000+
+  - name: fineweb2_spa_Latn_cluster_100-1000
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:100-1000
+  - name: fineweb2_spa_Latn_cluster_2
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:2
+  - name: fineweb2_spa_Latn_cluster_3
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:3
+  - name: fineweb2_spa_Latn_cluster_4
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:4
+  - name: fineweb2_spa_Latn_cluster_5-100
+    path: fineweb2/data/spa_Latn/clusters/cluster_size:5-100
+  # Wikipedia
+  - name: wikipedia_fr
+    path: lucie/wikipedia-fr
+  - name: wikipedia_it
+    path: lucie/wikipedia-it
+  - name: wikipedia_es
+    path: lucie/wikipedia-es
+  - name: wikipedia_en
+    path: lucie/wikipedia-en
+  # Code / Math
+  - name: starcoder
+    path: starcoder/1_high_stars_count
+  - name: algebraic_stack
+    path: algebraic_stack/output
+  - name: pes2o
+    path: pes2o/output
+  - name: open_web_math
+    path: open_web_math/output
+  # OCR
+  - name: gallica_monographies
+    path: gallica_monographies/1_high_ocr_scores
+  - name: gallica_press
+    path: gallica_press/1_high_ocr_scores
