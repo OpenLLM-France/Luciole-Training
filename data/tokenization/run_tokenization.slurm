@@ -3,7 +3,7 @@
 #SBATCH --output=%x.out 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
-#SBATCH --time=00:30:00 
+#SBATCH --time=02:00:00 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
@@ -15,8 +15,8 @@ module load arch/h100 nemo/2.1.0
 export TOKENIZERS_PARALLELISM=true
 
 OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
-INPUT_FOLDER=$OpenLLM_OUTPUT/datasets_debug/gallica_press/1_high_ocr_scores
-OUTPUT_PATH=$OpenLLM_OUTPUT/tokens_debug/gallica_press
+INPUT_FOLDER=$1
+OUTPUT_PATH=$2
 
 echo "Starting tokenization for $INPUT_FOLDER"
 echo "Output will be saved to $OUTPUT_PATH"
