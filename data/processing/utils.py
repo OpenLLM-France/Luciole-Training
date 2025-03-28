@@ -6,7 +6,7 @@ import os
 
 
 def get_data_path(debug=True, local=False):
-    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "datasets")
+    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets")
     if debug:
         main_path += "_debug"
     elif local:
