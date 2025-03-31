@@ -13,10 +13,10 @@ from datatrove.pipeline.writers import JsonlWriter
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     dataset_name = "fineweb_edu"
-    output_path = os.path.join(MAIN_PATH, dataset_name)
+    output_path = os.path.join(DATA_PATH, dataset_name)
 
     pipeline=[
             ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),

@@ -13,10 +13,10 @@ if __name__ == "__main__":
         action="store_true", help="Read from olmo 2"
     )
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     dataset_name = "starcoderdata" + ("_olmo" if args.olmo else "")
-    output_path = os.path.join(MAIN_PATH, dataset_name)
+    output_path = os.path.join(DATA_PATH, dataset_name)
 
     if args.olmo:
         pipeline = [
@@ -34,7 +34,6 @@ if __name__ == "__main__":
                 "hf://datasets/bigcode/starcoderdata",
                 glob_pattern="**/*.parquet",
                 text_key="content",
-                limit=args.limit
             ),
             LambdaFilter(
                 lambda doc: doc.metadata["max_stars_count"] >= 2

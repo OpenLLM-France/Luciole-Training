@@ -8,10 +8,10 @@ from datatrove.pipeline.writers import JsonlWriter
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     dataset_name = "open_web_math"
-    output_path = os.path.join()
+    output_path = os.path.join(DATA_PATH, dataset_name)
 
     pipeline = [
         ParquetReader(

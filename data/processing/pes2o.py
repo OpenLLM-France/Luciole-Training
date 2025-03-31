@@ -6,7 +6,7 @@ from datatrove.pipeline.writers import JsonlWriter
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     dataset_name = "pes2o"
 
@@ -16,14 +16,14 @@ if __name__ == "__main__":
             {"name": "pes2o", "split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{MAIN_PATH}/{dataset_name}/output"),
+        JsonlWriter(f"{DATA_PATH}/{dataset_name}/output"),
     ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{MAIN_PATH}/{dataset_name}/logs",
+        logging_dir=f"{DATA_PATH}/{dataset_name}/logs",
         job_name=dataset_name,
     )
 
