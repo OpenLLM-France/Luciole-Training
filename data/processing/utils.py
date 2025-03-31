@@ -1,23 +1,22 @@
 import argparse
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.executor.local import LocalPipelineExecutor
+from datatrove.pipeline.filters import SamplerFilter
 
 import os
 
 
-def get_data_path(debug=True, local=False):
+def get_data_path(args):
     main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets")
-    if debug:
-        main_path += "_debug"
-    elif local:
-        main_path += "_local"
+    if args.ablation:
+        main_path += '_ablation'
     os.makedirs(main_path, exist_ok=True)
     return main_path
 
 
-def create_pipeline(pipeline, debug=True, local=False, **kwargs):
+def create_executor(pipeline, local=False, **kwargs):
     # Executor arguments
-    if debug or local:
+    if local:
         tasks = 1
         time = "00:10:00"
         qos = "qos_cpu-dev"
@@ -26,7 +25,6 @@ def create_pipeline(pipeline, debug=True, local=False, **kwargs):
         tasks = 50
         time = "05:00:00"
         qos = "qos_cpu-t3"
-        pipeline[0].limit = -1
 
     if local:
         kwargs.pop("job_name", None)
@@ -48,8 +46,12 @@ def create_pipeline(pipeline, debug=True, local=False, **kwargs):
     return main_processing_executor
 
 
+def add_sampler_filter(pipeline):
+    pipeline.insert(1, SamplerFilter(rate=0.05, seed=42))
+    return pipeline
+
 def create_parser():
     parser = argparse.ArgumentParser("")
-    parser.add_argument("--debug", action="store_true", help="Debug mode")
-    parser.add_argument("--local", action="store_true", help="Local executor")
+    parser.add_argument("--ablation", action="store_true", help="Process a dataset for ablation")
+    parser.add_argument("--local", action="store_true", help="Use a local executor")
     return parser

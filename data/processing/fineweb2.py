@@ -1,6 +1,6 @@
 import os
 
-from utils import create_pipeline, create_parser, get_data_path
+from utils import *
 
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -86,31 +86,35 @@ if __name__ == "__main__":
     parser.add_argument("--run-copyrights", action="store_true", help="Run copyrights")
 
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args.debug, args.local)
+    MAIN_PATH = get_data_path(args)
 
     dataset_name = "fineweb2"
     language = args.language
     output_path = os.path.join(MAIN_PATH, dataset_name)
 
+    ################
     ## Collect data
+    ################
+
     pipeline = [
         ParquetReader(
-            f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
+            f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"
         ),
         FinewebDocumentCleaning(),
         JsonlWriter(
             f"{output_path}/data/{language}/train",
         ),
     ]
-    main_processing_executor = create_pipeline(
+    main_processing_executor = create_executor(
         pipeline,
-        debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/train",
         job_name=dataset_name,
     )
 
+    ################
     ## Split by clusters
+    ################
     pipeline = [
         JsonlReader(f"{output_path}/data/{language}/train"),
         Rehydrater(),
@@ -119,9 +123,10 @@ if __name__ == "__main__":
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
         ),
     ]
-    split_executor = create_pipeline(
+    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
+
+    split_executor = create_executor(
         pipeline,
-        debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs/{language}/clusters",
         job_name=dataset_name,
@@ -140,9 +145,8 @@ if __name__ == "__main__":
     #             ),
     #         ),
     #     ]
-    #     copyright_executor = create_pipeline(
+    #     copyright_executor = create_executor(
     #         pipeline,
-    #         debug=args.debug,
     #         local=args.local,
     #         logging_dir=f"{output_path}/logs/{language}/potential_copyrights",
     #         job_name=dataset_name,

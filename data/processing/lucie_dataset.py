@@ -1,4 +1,4 @@
-from utils import create_pipeline, create_parser, get_data_path
+from utils import *
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     name = args.name
     slug_name = slugify(name)
     revision = args.revision
-    MAIN_PATH = get_data_path(args.debug, args.local)
+    MAIN_PATH = get_data_path(args)
 
     pipeline = [
         HuggingFaceDatasetReader(
@@ -43,10 +43,10 @@ if __name__ == "__main__":
         ),
         JsonlWriter(f"{MAIN_PATH}/lucie_dataset/{slug_name}/output"),
     ]
+    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
-    main_processing_executor = create_pipeline(
+    main_processing_executor = create_executor(
         pipeline,
-        debug=args.debug,
         local=args.local,
         logging_dir=f"{MAIN_PATH}/lucie_dataset/{slug_name}/logs",
         job_name=slug_name,
