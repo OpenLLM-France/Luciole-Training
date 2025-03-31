@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --output=%x.out 
+#SBATCH --output=slurm/%x.out 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --time=02:00:00 

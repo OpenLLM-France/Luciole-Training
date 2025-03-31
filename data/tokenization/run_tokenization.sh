@@ -3,6 +3,11 @@
 YAML_FILE="datasets_to_tokenize.yaml"
 MAIN_PATH="$OpenLLM_OUTPUT/data"
 
+raw_dataset_path="$MAIN_PATH/raw_datasets"
+tokens_dataset_path="$MAIN_PATH/tokens"
+
+mkdir -p $tokens_dataset_path
+
 while IFS= read -r line; do
     # Extract name
     if [[ $line =~ name:\ (.*) ]]; then
@@ -11,10 +16,10 @@ while IFS= read -r line; do
 
     # Extract path
     if [[ $line =~ path:\ (.*) ]]; then
+        echo ""
         datapath="${BASH_REMATCH[1]}"
         
         # Check if the raw dataset exists
-        raw_dataset_path="$MAIN_PATH/raw_datasets_debug"
         if [[ -d "$raw_dataset_path/$datapath" ]]; then
             # Check if the log file for this dataset exists
             if [[ ! -f "$LOG_FOLDER/$name.log" ]]; then
@@ -24,7 +29,7 @@ while IFS= read -r line; do
                 echo "--------------------------------------"
 
                 # Run the sbatch command with the paths
-                sbatch --job-name=tok_$name tokenize_one_dataset.slurm "$raw_dataset_path/$datapath" "$MAIN_PATH/tokens_debug/$name"
+                sbatch --job-name=tok_$name tokenize_one_dataset.slurm "$raw_dataset_path/$datapath" "$tokens_dataset_path/$name"
             else
                 echo "--------------------------------------"
                 echo "⏩ Skipping $name, already processed."
