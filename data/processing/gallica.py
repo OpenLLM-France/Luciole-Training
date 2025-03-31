@@ -1,6 +1,6 @@
 import os
 
-from utils import create_pipeline, create_parser, get_data_path
+from utils import *
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         help="Dataset to process",
     )
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args.debug, args.local)
+    MAIN_PATH = get_data_path(args)
 
     hf_name = mapping[args.dataset_name]
     dataset_name = f"gallica_{args.dataset_name}"
@@ -71,9 +71,10 @@ if __name__ == "__main__":
         prepare_metadata_header,
         JsonlWriter(f"{output_path}/1_high_ocr_scores"),
     ]
-    main_processing_executor = create_pipeline(
+    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
+
+    main_processing_executor = create_executor(
         pipeline,
-        debug=args.debug,
         local=args.local,
         logging_dir=f"{output_path}/logs",
         job_name=dataset_name,
@@ -95,7 +96,6 @@ if __name__ == "__main__":
     # ]
     # filtering_executor = create_pipeline(
     #     pipeline,
-    #     debug=args.debug,
     #     local=args.local,
     #     logging_dir=f"{output_path}/logs_2",
     #     depends=main_processing_executor
@@ -115,7 +115,6 @@ if __name__ == "__main__":
     # ]
     # filtering_executor = create_pipeline(
     #     pipeline,
-    #     debug=args.debug,
     #     local=args.local,
     #     logging_dir=f"{output_path}/logs_3",
     #     depends=main_processing_executor
