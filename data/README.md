@@ -40,6 +40,15 @@ python processing/fineweb2 --local
 ```
 It will load only the first 1000 samples of the fineweb2 data
 
+### Ablation
+
+For ablation, use the ablation argument. You can add the code line:
+```
+from utils import add_sampler_filter
+pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
+```
+to add sampling step after reading the data.
+
 ### On Jeanzay
 
 Similarly on Jean Zay, you can use:
@@ -47,7 +56,6 @@ Similarly on Jean Zay, you can use:
 source set_env.sh
 python processing/fineweb2
 ```
-Use the `--debug` flag if you want to do some tests (it will use only one task with a dev qos.)
 
 ## Useful tools and script
 
