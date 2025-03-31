@@ -101,13 +101,13 @@ if __name__ == "__main__":
         ),
         FinewebDocumentCleaning(),
         JsonlWriter(
-            f"{MAIN_DATA_PATH}/{dataset_name}/data/{language}/train",
+            f"{DATA_PATH}/{dataset_name}/data/{language}/train",
         ),
     ]
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{MAIN_DATA_PATH}/{dataset_name}/logs/{language}/train",
+        logging_dir=f"{DATA_PATH}/{dataset_name}/logs/{language}/train",
         job_name=dataset_name,
     )
 
