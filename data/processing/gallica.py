@@ -46,13 +46,13 @@ if __name__ == "__main__":
         help="Dataset to process",
     )
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     hf_name = mapping[args.dataset_name]
     dataset_name = f"gallica_{args.dataset_name}"
 
     # Collect data and filter OCR by scores
-    output_path = os.path.join(MAIN_PATH, dataset_name)
+    output_path = os.path.join(DATA_PATH, dataset_name)
     pipeline = [
         ParquetReader(
             f"hf://datasets/{hf_name}",

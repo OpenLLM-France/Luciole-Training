@@ -86,11 +86,10 @@ if __name__ == "__main__":
     parser.add_argument("--run-copyrights", action="store_true", help="Run copyrights")
 
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     dataset_name = "fineweb2"
     language = args.language
-    output_path = os.path.join(MAIN_PATH, dataset_name)
 
     ################
     ## Collect data
@@ -102,13 +101,13 @@ if __name__ == "__main__":
         ),
         FinewebDocumentCleaning(),
         JsonlWriter(
-            f"{output_path}/data/{language}/train",
+            f"{MAIN_DATA_PATH}/{dataset_name}/data/{language}/train",
         ),
     ]
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{output_path}/logs/{language}/train",
+        logging_dir=f"{MAIN_DATA_PATH}/{dataset_name}/logs/{language}/train",
         job_name=dataset_name,
     )
 
@@ -116,10 +115,10 @@ if __name__ == "__main__":
     ## Split by clusters
     ################
     pipeline = [
-        JsonlReader(f"{output_path}/data/{language}/train"),
+        JsonlReader(f"{DATA_PATH}/{dataset_name}/data/{language}/train"),
         Rehydrater(),
         JsonlWriter(
-            f"{output_path}/data/{language}/clusters",
+            f"{DATA_PATH}/{dataset_name}/data/{language}/clusters",
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
         ),
     ]
@@ -128,7 +127,7 @@ if __name__ == "__main__":
     split_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{output_path}/logs/{language}/clusters",
+        logging_dir=f"{DATA_PATH}/{dataset_name}/logs/{language}/clusters",
         job_name=dataset_name,
         depends=main_processing_executor
     )

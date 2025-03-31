@@ -5,14 +5,16 @@ from datatrove.pipeline.filters import SamplerFilter
 
 import os
 
+MAIN_DATA_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets")
+ABLATION_DATA_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets_ablation")
 
 def get_data_path(args):
-    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets")
     if args.ablation:
-        main_path += '_ablation'
-    os.makedirs(main_path, exist_ok=True)
-    return main_path
-
+        data_path = ABLATION_DATA_PATH
+    else:
+        data_path = MAIN_DATA_PATH
+    os.makedirs(data_path, exist_ok=True)
+    return data_path
 
 def create_executor(pipeline, local=False, **kwargs):
     # Executor arguments

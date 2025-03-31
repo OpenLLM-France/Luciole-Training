@@ -178,14 +178,14 @@ years = [
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     dataset_name = "american_stories"
 
     for year in years:
         year = str(year)
 
-        output_path = os.path.join(MAIN_PATH, dataset_name)
+        output_path = os.path.join(DATA_PATH, dataset_name)
         pipeline = [
             HuggingFaceDatasetReader(
                 "dell-research-harvard/AmericanStories",

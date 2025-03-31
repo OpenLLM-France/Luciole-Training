@@ -33,7 +33,7 @@ if __name__ == "__main__":
     name = args.name
     slug_name = slugify(name)
     revision = args.revision
-    MAIN_PATH = get_data_path(args)
+    DATA_PATH = get_data_path(args)
 
     pipeline = [
         HuggingFaceDatasetReader(
@@ -41,14 +41,14 @@ if __name__ == "__main__":
             {"name": name, "revision": revision, "split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{MAIN_PATH}/lucie_dataset/{slug_name}/output"),
+        JsonlWriter(f"{DATA_PATH}/lucie_dataset/{slug_name}/output"),
     ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{MAIN_PATH}/lucie_dataset/{slug_name}/logs",
+        logging_dir=f"{DATA_PATH}/lucie_dataset/{slug_name}/logs",
         job_name=slug_name,
     )
 
