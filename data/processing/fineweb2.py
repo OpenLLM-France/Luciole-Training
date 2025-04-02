@@ -1,5 +1,3 @@
-import os
-
 from utils import *
 
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
@@ -9,7 +7,6 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
-from datatrove.pipeline.filters import RegexFilter
 
 """
 List of languages we are interested in:
@@ -104,6 +101,8 @@ if __name__ == "__main__":
             f"{DATA_PATH}/{dataset_name}/data/{language}/train",
         ),
     ]
+    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
+
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
@@ -122,7 +121,6 @@ if __name__ == "__main__":
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
         ),
     ]
-    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
     split_executor = create_executor(
         pipeline,
