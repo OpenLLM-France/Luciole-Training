@@ -11,7 +11,7 @@
 # Requires nemo installation - on Jeanzay for now
 module purge
 module load arch/h100 nemo/2.1.0
-export TOKENIZERS_PARALLELISM=true
+export TOKENIZERS_PARALLELISM=false
 
 INPUT_FOLDER=$1
 OUTPUT_PATH=$2
