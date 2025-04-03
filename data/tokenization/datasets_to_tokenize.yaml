@@ -73,6 +73,12 @@ datasets:
     path: lucie_dataset/wikipedia-es/output
   - name: wikipedia_en
     path: lucie_dataset/wikipedia-en/output
+  - name: wikipedia_de
+    path: lucie_dataset/wikipedia-de/output
+  - name: wikisource
+    path: lucie_dataset/wikisource/output
+  - name: wiktionary
+    path: lucie_dataset/wiktionary/output
   # Code / Math
   - name: starcoder
     path: starcoder/1_high_stars_count
