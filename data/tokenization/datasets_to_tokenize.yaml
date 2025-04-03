@@ -59,15 +59,20 @@ datasets:
     path: fineweb2/data/spa_Latn/clusters/cluster_size-4
   - name: fineweb2_spa_Latn_cluster_5-100
     path: fineweb2/data/spa_Latn/clusters/cluster_size-5-100
+  # Web english
+  - name: fineweb_edu
+    path: fineweb_edu/output
+  - name: dclm_dolmino
+    path: dclm_dolmino/output
   # Wikipedia
   - name: wikipedia_fr
-    path: lucie_dataset/wikipedia-fr
+    path: lucie_dataset/wikipedia-fr/output
   - name: wikipedia_it
-    path: lucie_dataset/wikipedia-it
+    path: lucie_dataset/wikipedia-it/output
   - name: wikipedia_es
-    path: lucie_dataset/wikipedia-es
+    path: lucie_dataset/wikipedia-es/output
   - name: wikipedia_en
-    path: lucie_dataset/wikipedia-en
+    path: lucie_dataset/wikipedia-en/output
   # Code / Math
   - name: starcoder
     path: starcoder/1_high_stars_count
