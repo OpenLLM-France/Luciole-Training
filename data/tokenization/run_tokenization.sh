@@ -3,8 +3,8 @@
 YAML_FILE="datasets_to_tokenize.yaml"
 MAIN_PATH="$OpenLLM_OUTPUT/data"
 
-raw_dataset_path="$MAIN_PATH/raw_datasets"
-tokens_dataset_path="$MAIN_PATH/tokens"
+raw_dataset_path="$MAIN_PATH/raw_datasets_ablation"
+tokens_dataset_path="$MAIN_PATH/tokens_ablation"
 
 mkdir -p $tokens_dataset_path
 
