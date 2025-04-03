@@ -20,10 +20,10 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 TOKENIZER_NAME = "OpenLLM-France/Lucie-7B"
 
 
-def configure_dataset(input_data, seq_length=2048):
+def configure_dataset(paths, seq_length=2048):
     tokenizer = get_tokenizer(tokenizer_name=TOKENIZER_NAME, use_fast=True)
     data = PreTrainingDataModule(
-        paths=input_data,
+        paths=paths,
         global_batch_size=4,
         micro_batch_size=2,
         num_workers=8,
@@ -62,9 +62,9 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     return executor
 
 
-def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
+def run_dataloader(paths, output=None, number_of_data=1, seq_length=2048):
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
-    recipe.data = configure_dataset(data, seq_length)
+    recipe.data = configure_dataset(paths, seq_length)
     print(f"recipe.trainer.devices={recipe.trainer.devices}")
     if output:
         os.makedirs(output, exist_ok=True)
@@ -89,17 +89,19 @@ def run_dataloader(data, output=None, number_of_data=1, seq_length=2048):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
-        "--data_path",
+        "--paths",
         help="",
-        default="/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document",
+        default=["0.5", "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/wikipedia_fr_text_document",
+                 "0.5", "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/wikipedia_es_text_document"],
         type=str,
+        nargs="+",
     )
-    parser.add_argument("--output_path", help="", default=None, type=str)
+    parser.add_argument("--output_path", help="out/", default=None, type=str)
     parser.add_argument(
-        "--number_of_data", help="Number of iteration", default=5, type=str
+        "--number_of_data", help="Number of iteration", default=10, type=str
     )
     parser.add_argument("--seq_length", help="", default=4096, type=str)
     args = parser.parse_args()
     run_dataloader(
-        args.data_path, args.output_path, args.number_of_data, args.seq_length
+        args.paths, args.output_path, args.number_of_data, args.seq_length
     )
