@@ -1,10 +1,9 @@
 #!/bin/bash
 #SBATCH --output=slurm/%x.out 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=10
-#SBATCH --time=02:00:00 
+#SBATCH --cpus-per-task=20
+#SBATCH --time=10:00:00 
 #SBATCH --hint=nomultithread 
-#SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
 #SBATCH --partition=prepost
 
@@ -30,4 +29,4 @@ python preprocess_data_for_megatron.py \
     --use-fast \
     --append-eod \
     --apply-ftfy \
-    --workers=10
+    --workers=20
