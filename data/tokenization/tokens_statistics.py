@@ -74,7 +74,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(data_path, 'figs'), exist_ok=True)
 
     # Search for all matching files in the specified directory
-    files = glob.glob(os.path.join(data_path, "*_text_document.idx"))
+    files = sorted(glob.glob(os.path.join(data_path, "*_text_document.idx")))
 
     # Extract the "name" part using regex
     names = [re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1) for f in files]
