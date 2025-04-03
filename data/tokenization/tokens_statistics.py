@@ -45,6 +45,28 @@ def pdf_distribution(token_lengths, name, ax=None, **kwargs):
     ax.set_xlim(10, 10**7)  # Set x-axis limit for log scale
     ax.set_xscale("log")
 
+def process_and_save_plot(data_path, name, token_lengths, pattern=None):
+    # Determine the output path based on whether it's a match or not
+    output_path = os.path.join(data_path, 'figs', (pattern.replace(".*", "") + ".png") if pattern else f'{name}.png')
+    
+    if os.path.exists(output_path):
+        print(f"Skip {('pattern ' + pattern if pattern else 'name ' + name)}.")
+    else:
+        # Create a new figure
+        plt.figure(figsize=(8, 5))  
+        # Set title depending on whether pattern is provided
+        plt.title(pattern.replace(".*", "") if pattern else name)
+        
+        # Process the token lengths and generate the plot
+        pdf_distribution(token_lengths, name, ax=plt.gca(), fill=bool(pattern), alpha=0.8 if pattern else 0.5)
+        plt.legend()  # Add legend to distinguish between different plots
+        
+
+        # Save the plot
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        plt.show()  # Show the plot for non-matching names
+        print(f"{('Pattern ' + pattern if pattern else 'Name ')}{name} processed.")
+
 if __name__ == "__main__":
     data_path = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation"
 
@@ -57,6 +79,7 @@ if __name__ == "__main__":
     # Extract the "name" part using regex
     names = [re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1) for f in files]
 
+    # Run stats and fig
     patterns = [
         'fineweb2_fra.*',
         'fineweb2_ita.*',
@@ -66,38 +89,23 @@ if __name__ == "__main__":
         'gallica.*'
     ]
 
+    # Matched names processing
     matched_names_set = set()
     for pattern in patterns:
-        output_path = os.path.join(data_path, 'figs', pattern.replace(".*", "") + ".png")
-        if not os.path.exists(output_path):
-            compiled_pattern = re.compile(pattern)
-            matched_names = [name for name in names if compiled_pattern.match(name)]
-            matched_names_set.update(matched_names)
-            plt.figure(figsize=(8, 5))  # Create a new figure
-            plt.title(pattern.replace(".*", ""))
-            for name in matched_names:
-                print(f"Processing {name}...")
+        compiled_pattern = re.compile(pattern)
+        for name in names:
+            if compiled_pattern.match(name) and name not in matched_names_set:
+                print(f"Processing {name} for pattern {pattern}...")
                 token_lengths = extract_token_lengths(data_path, name)
                 stats_summary(token_lengths, data_path, name)
-                pdf_distribution(token_lengths, name, ax=plt.gca(), fill=False, alpha=0.8)  # Pass the current axis to the function
-                plt.legend()  # Add legend to distinguish between different plots
+                matched_names_set.add(name)
+                process_and_save_plot(data_path, name, token_lengths, pattern)
 
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            print(f"Pattern {pattern} processed.")
-
+    # Non-matched names processing
     non_matching_names = [name for name in names if name not in matched_names_set]
-
     if non_matching_names:
         for name in non_matching_names:
-            output_path = os.path.join(data_path, 'figs', f'{name}.png')
-            if not os.path.exists(output_path):
-                print(f"\nProcessing {name}...\n")
-                token_lengths = extract_token_lengths(data_path, name)
-                stats_summary(token_lengths, data_path, name)
-                plt.figure(figsize=(8, 5))
-                plt.title(name)
-                pdf_distribution(token_lengths, name, ax=plt.gca(), fill=True, alpha=0.5)  # Pass the current axis to the function
-                plt.legend()  # Add legend to distinguish between different plots
-                plt.savefig(output_path, dpi=300, bbox_inches="tight")
-                plt.show()  # Display the figure with non-matching names
-                print(f"Name {name} processed.")
+            print(f"\nProcessing {name}...\n")
+            token_lengths = extract_token_lengths(data_path, name)
+            stats_summary(token_lengths, data_path, name)
+            process_and_save_plot(data_path, name, token_lengths)
