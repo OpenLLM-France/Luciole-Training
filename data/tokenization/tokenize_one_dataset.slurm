@@ -31,5 +31,3 @@ python preprocess_data_for_megatron.py \
     --append-eod \
     --apply-ftfy \
     --workers=10
-
-touch ${OUTPUT_PATH}_completed

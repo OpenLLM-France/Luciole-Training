@@ -22,7 +22,7 @@ while IFS= read -r line; do
         # Check if the raw dataset exists
         if [[ -d "$raw_dataset_path/$datapath" ]]; then
             # Check if the log file for this dataset exists
-            if [[ ! -f "$LOG_FOLDER/$name.log" ]]; then
+            if [[ ! -f "$tokens_dataset_path/completions/$name" ]]; then
                 echo "--------------------------------------"
                 echo "🚀 Processing dataset: $name"
                 echo "📂 Path: $raw_dataset_path/$datapath"
@@ -30,6 +30,7 @@ while IFS= read -r line; do
 
                 # Run the sbatch command with the paths
                 sbatch --job-name=tok_$name tokenize_one_dataset.slurm "$raw_dataset_path/$datapath" "$tokens_dataset_path/$name"
+                touch $tokens_dataset_path/completions/$name
             else
                 echo "--------------------------------------"
                 echo "⏩ Skipping $name, already processed."
