@@ -15,7 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     DATA_PATH = get_data_path(args)
 
-    dataset_name = "starcoderdata" + ("_olmo" if args.olmo else "")
+    dataset_name = "starcoder" + ("_olmo" if args.olmo else "")
     output_path = os.path.join(DATA_PATH, dataset_name)
 
     if args.olmo:
