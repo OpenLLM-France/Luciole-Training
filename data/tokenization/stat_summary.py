@@ -30,12 +30,7 @@ for json_file in json_files:
 df = pd.DataFrame(data_list)
 df = df.sort_values('name')
 
-# Save the DataFrame to a CSV file
-df.to_csv(os.path.join(data_path, 'output.csv'), index=False)
 
-print("CSV file 'output.csv' created successfully.")
-
-###
 rehydratation_mapping = dict(
     zip(["1", "2", "3", "4", "5-100", "100-1000", "1000+"], [1, 2, 3, 3, 5, 8, 1])
 )
@@ -53,7 +48,13 @@ def catch_cluster_size(name):
         return None
 
 df['rehydratation_weight'] = df.apply(lambda x: rehydratation_mapping.get(catch_cluster_size(x['name']), 1), axis=1)
-df['total_tokens'] = df['total_tokens'] * df['rehydratation_weight'] * 20
+
+df['total_tokens_estimation'] = df['total_tokens'] * df['rehydratation_weight'] * 20
+
+# Save the DataFrame to a CSV file
+df.to_csv(os.path.join(data_path, 'output.csv'), index=False)
+
+##### TREEMAP #####
 
 patterns = [
     'fineweb2_fra',
@@ -68,20 +69,20 @@ patterns = [
 df['group'] = df['name'].str.extract(f"({'|'.join(patterns)})")
 df['group'] = df['group'].fillna(df['name'])
 
-grouped_df = df.groupby('group')['total_tokens'].sum().reset_index()
-# grouped_df = grouped_df.sort_values('total_tokens', ascending=True)
+grouped_df = df.groupby('group')['total_tokens_estimation'].sum().reset_index()
+# grouped_df = grouped_df.sort_values('total_tokens_estimation', ascending=True)
 
-labels = [f"{group}\n{tokens/ 1e9:.1f} B" for group, tokens in zip(grouped_df['group'], grouped_df['total_tokens'])]
+labels = [f"{group}\n{tokens/ 1e9:.1f} B" for group, tokens in zip(grouped_df['group'], grouped_df['total_tokens_estimation'])]
 
 # Treemap
 plt.figure(figsize=(10, 6))
-squarify.plot(sizes = grouped_df['total_tokens'], label = labels,
+squarify.plot(sizes = grouped_df['total_tokens_estimation'], label = labels,
               pad = 0.05, alpha=0.7,
               text_kwargs = {'fontsize': 6, 'color': 'black'},
               color = sb.color_palette("rocket", len(grouped_df)))
 
 # Remove the axis:
 plt.axis("off")
-plt.title(f"Tokens per dataset (estimation, with rehydratation)\n Total tokens: {df['total_tokens'].sum()/ 1e9:.1f} B")
+plt.title(f"Tokens per dataset (estimation, with rehydratation)\n Total tokens: {df['total_tokens_estimation'].sum()/ 1e9:.1f} B")
 plt.savefig(os.path.join(os.getenv("OpenLLM_OUTPUT"), "data/tokens_ablation/figs/treemap.png"), dpi=300, bbox_inches='tight')
 # plt.show() 
