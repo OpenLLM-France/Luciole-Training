@@ -5,6 +5,7 @@ from utils import *
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LambdaFilter
+from datatrove.pipeline.filters import PerplexityFilter, ExtremeTokenizerFilter
 from datatrove.data import DocumentsPipeline
 
 # Tried GopherQualityFilter with fineweb-2 config file for french
@@ -15,7 +16,6 @@ mapping = {
     "monographies": "PleIAs/French-PD-Books",
     "press": "PleIAs/French-PD-Newspapers",
 }
-
 
 def prepare_metadata_header(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
@@ -81,42 +81,9 @@ if __name__ == "__main__":
     )
     main_processing_executor.run()
 
-    # # FastText tests
-    # pipeline=[
-    #     JsonlReader(f"{output_path}/1_high_ocr_scores"),
-    #     FastTextClassifierFilter(
-    #         # model_url='https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin',
-    #         model_url=os.path.join(os.getenv("OpenLLM_OUTPUT"), "datasets/fasttext_ocr/models/ocr_ngram2_epoch5_lr0.1.bin"),
-    #         keep_labels=('good', 0.5),
-    #         filter_mode="CHUNKS",
-    #         save_labels_in_metadata=False,
-    #         save_removed_spans=True
-    #         ),
-    #     JsonlWriter(f"{output_path}/2_fastext_cleaning")
-    # ]
-    # filtering_executor = create_pipeline(
-    #     pipeline,
-    #     local=args.local,
-    #     logging_dir=f"{output_path}/logs_2",
-    #     depends=main_processing_executor
-    # )
-    # filtering_executor.run()
-
-    # # FastText tests
-    # pipeline=[
-    #     JsonlReader(f"{output_path}/1_high_ocr_scores"),
-    #     FastTextClassifierFilter(
-    #         # model_url='https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin',
-    #         model_url=os.path.join(os.getenv("OpenLLM_OUTPUT"), "datasets/fasttext_ocr/models/ocr_ngram2_epoch5_lr0.1.bin"),
-    #         keep_labels=('good', 0.),
-    #         save_labels_in_metadata=True,
-    #         ),
-    #     JsonlWriter(f"{output_path}/3_fastext_cleaning")
-    # ]
-    # filtering_executor = create_pipeline(
-    #     pipeline,
-    #     local=args.local,
-    #     logging_dir=f"{output_path}/logs_3",
-    #     depends=main_processing_executor
-    # )
-    # filtering_executor.run()
+        # PerplexityFilter(
+        #     model_dataset="wikipedia", 
+        #     language='fr', 
+        #     label_only=True
+        # ),
+        # ExtremeTokenizerFilter("OpenLLM-France/Lucie-7B"),
