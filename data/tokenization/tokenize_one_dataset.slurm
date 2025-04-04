@@ -29,4 +29,5 @@ python preprocess_data_for_megatron.py \
     --use-fast \
     --append-eod \
     --apply-ftfy \
-    --workers=20
+    --workers=20 \
+    --log-interval 10000
