@@ -245,10 +245,10 @@ if __name__ == "__main__":
     #     'test': train_data_paths[1]
     # }
 
-    name = f"{os.path.basename(args.config)}_{args.mode}"
+    name = f"{os.path.splitext(os.path.basename(args.config))[0]}_{args.mode}"
     output_dir = args.output_dir
 
-    torch.set_float32_matmul_precision("medium")
+    torch.set_float32_matmul_precision("high")
 
     data = create_data(data_paths)
 
