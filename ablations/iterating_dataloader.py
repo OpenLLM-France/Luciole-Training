@@ -62,46 +62,63 @@ def local_executor_torchrun(nodes: int = 1, devices: int = 2) -> run.LocalExecut
     return executor
 
 
-def run_dataloader(paths, output=None, number_of_data=1, seq_length=2048):
-    recipe = configure_recipe(nodes=1, gpus_per_node=1)
-    recipe.data = configure_dataset(paths, seq_length)
-    print(f"recipe.trainer.devices={recipe.trainer.devices}")
-    if output:
-        os.makedirs(output, exist_ok=True)
-    recipe.data.build(5, 1, 1, 1)
-    recipe.data.trainer = fdl.build(recipe.trainer)
-    for i, d in enumerate(recipe.data.train_dataloader()):
-        print()
-        print()
-        print(f" START TEXT OF DATA {i}: ".center(80, "-"))
-        ids = d["tokens"][0]
-        text = recipe.data.tokenizer.ids_to_text(ids, remove_special_tokens=False)
+def save_sample_texts(recipe, output=None, number_of_data=5):
+    dataloader = recipe.data.train_dataloader()
+
+    for i, batch in enumerate(dataloader):
+        print("\n" + f" START TEXT OF DATA {i} ".center(80, "-"))
+
+        # Extract and decode token IDs
+        token_ids = batch["tokens"][0]
+        text = recipe.data.tokenizer.ids_to_text(token_ids, remove_special_tokens=False)
         print(text)
-        print(f" END TEXT OF DATA {i} ".center(80, "-"))
+
+        print(f" END TEXT OF DATA {i} ".center(80, "-") + "\n")
+
+        # Save to file if output directory is specified
         if output:
-            with open(os.path.join(output, f"{i}.txt"), "w", encoding="utf-8") as f:
+            os.makedirs(output, exist_ok=True)
+            file_path = os.path.join(output, f"{i}.txt")
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(text)
+
+        # Stop after desired number of samples
         if i + 1 >= number_of_data:
             break
+
+def run_dataloader(paths, output, number_of_data=1, seq_length=2048):
+    recipe = configure_recipe(nodes=1, gpus_per_node=1)
+    recipe.data = configure_dataset(paths, seq_length)
+
+    recipe.data.build(5, 1, 1, 1)
+    recipe.data.trainer = fdl.build(recipe.trainer)
+    
+    save_sample_texts(
+        recipe,
+        output=output,
+        number_of_data=int(number_of_data),
+    )
 
 
 # This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
-        "--paths",
+        "--dataset_name",
         help="",
-        default=["0.5", "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/wikipedia_fr_text_document",
-                 "0.5", "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/wikipedia_es_text_document"],
+        default="wikipedia_fr_text_document",
         type=str,
-        nargs="+",
     )
-    parser.add_argument("--output_path", help="out/", default=None, type=str)
     parser.add_argument(
         "--number_of_data", help="Number of iteration", default=10, type=str
     )
     parser.add_argument("--seq_length", help="", default=4096, type=str)
     args = parser.parse_args()
+
+    main_path = os.path.join(os.getenv('OpenLLM_OUTPUT'), "data/tokens_ablation")
+    data_path = os.path.join(main_path, args.dataset_name)
+    output_path = os.path.join(main_path, "batch_examples", args.dataset_name)
+
     run_dataloader(
-        args.paths, args.output_path, args.number_of_data, args.seq_length
+        data_path, output_path, args.number_of_data, args.seq_length
     )
