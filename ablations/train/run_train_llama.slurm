@@ -31,4 +31,4 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 
-srun torchrun $DISTRIBUTED_ARGS train_llama.py
+srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py $cwd/../datamix/mock.json
