@@ -86,13 +86,14 @@ def save_sample_texts(recipe, output=None, number_of_data=5):
         if i + 1 >= number_of_data:
             break
 
+
 def run_dataloader(paths, output, number_of_data=1, seq_length=2048):
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
     recipe.data = configure_dataset(paths, seq_length)
 
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
-    
+
     save_sample_texts(
         recipe,
         output=output,
@@ -115,10 +116,8 @@ if __name__ == "__main__":
     parser.add_argument("--seq_length", help="", default=4096, type=str)
     args = parser.parse_args()
 
-    main_path = os.path.join(os.getenv('OpenLLM_OUTPUT'), "data/tokens_ablation")
+    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data/tokens_ablation")
     data_path = os.path.join(main_path, args.dataset_name)
     output_path = os.path.join(main_path, "batch_examples", args.dataset_name)
 
-    run_dataloader(
-        data_path, output_path, args.number_of_data, args.seq_length
-    )
+    run_dataloader(data_path, output_path, args.number_of_data, args.seq_length)

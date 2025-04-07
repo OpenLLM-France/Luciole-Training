@@ -2,7 +2,7 @@
 #SBATCH --job-name=test 
 #SBATCH --output=%x.out 
 #SBATCH --gres=gpu:4
-#SBATCH --nodes=2
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1   
 #SBATCH --cpus-per-task=16  
 #SBATCH --time=00:30:00 
@@ -11,15 +11,11 @@
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 
-module purge
-module load arch/h100 nemo/2.1.0
 
-TRANSFORMERS_OFFLINE=1
-TORCH_NCCL_AVOID_RECORD_STREAMS=1
-NCCL_NVLS_ENABLE=0
-NVTE_DP_AMAX_REDUCE_INTERVAL=0
-NVTE_ASYNC_AMAX_REDUCTION=1
-TOKENIZERS_PARALLELISM=false
+
+cwd=$(pwd)
+
+source $cwd/set_env.sh
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
