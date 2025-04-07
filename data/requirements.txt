@@ -1,0 +1,6 @@
+rich
+matplotlib
+spacy
+python-slugify
+sentencepiece
+squarify

@@ -21,10 +21,7 @@ git clone https://github.com/linagora-labs/datatrove.git
 cd datatrove
 git checkout lucie_v2
 pip install -e .[io,processing]
-pip install rich
-pip install matplotlib
-pip install spacy
-pip install slugify
+pip install -r requirements.txt
 ```
 
 You can add a hostname in `set_env.sh` and set your `$DATA`. Then you can use `source set_env.sh`.
