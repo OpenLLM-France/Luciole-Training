@@ -12,4 +12,5 @@
 module purge
 module load arch/h100 nemo/2.1.0
 
-python tokens_statistics.py
+python token_stats.py
+python plot_doc_length_distribution.py
