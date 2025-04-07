@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=test 
-#SBATCH --output=%x.out 
+#SBATCH --output=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/slurms_logs/%x_%j.out 
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1   
@@ -30,5 +30,5 @@ DISTRIBUTED_ARGS=" \
        --rdzv_backend c10d \
        --max_restarts 0 \
        "
-
-srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py $cwd/../datamix/mock.json
+default_mix=$cwd/../datamix/mock.json
+srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py ${1:-$default_mix}
