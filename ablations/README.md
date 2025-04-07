@@ -2,6 +2,8 @@
 
 Running ablations.
 
+`pip install --user --no-cache-dir  zarr`
+
 ## Singularity
 
 ### Build and use a Singularity image
