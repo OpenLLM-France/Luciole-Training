@@ -1,4 +1,7 @@
 import torch
+import argparse
+import json
+import os
 from typing import Optional
 from datetime import timedelta
 
@@ -179,14 +182,14 @@ def create_trainer(
         callbacks=callbacks,
         devices=num_gpus_per_node,
         limit_test_batches=50,
-        limit_val_batches=32,
         log_every_n_steps=10,
         max_steps=max_steps,
         num_nodes=num_nodes,
         plugins=bf16_mixed(),
         strategy=strategy,
         use_distributed_sampler=False,
-        val_check_interval=2000,
+        val_check_interval=100,  # default 2000
+        limit_val_batches=0.0,  # 32
         num_sanity_val_steps=2,  # dont work
     )
 
@@ -203,16 +206,51 @@ def create_data(data_path, tokenizer_name="OpenLLM-France/Lucie-7B"):
         pin_memory=True,
         seq_length=2048,  # 8192 for llama 32 1b
         tokenizer=tokenizer,
+        split="90,5,5",
     )
     return data
 
 
 if __name__ == "__main__":
-    torch.set_float32_matmul_precision("medium")
-    data_path = "/lustre/fsn1/projects/rech/qgz/commun/preprocessed_data/Lucie/lucie_tokens_65k_grouped/Wikipedia--fr_text_document"
-    ## setup the dummy dataset
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config")
+    parser.add_argument("--num_nodes", default=1)
+    parser.add_argument("--mode", choices=["debug", "35b"], default="debug")
+    parser.add_argument(
+        "--output_dir",
+        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
+    )
+    args = parser.parse_args()
 
-    data = create_data(data_path)
+    if args.mode == "debug":
+        max_steps = 5
+        resume_if_exists = False
+    elif args.mode == "35b":
+        max_steps = 10  # need to compute it
+        resume_if_exists = True
+    num_nodes = args.num_nodes
+
+    with open(args.config, "r") as f:
+        json_data = json.load(f)
+
+    train_data_paths = []
+    for dataset in json_data["datasets"]:
+        train_data_paths.append(str(dataset["weight"]))
+        train_data_paths.append(os.path.join(json_data["data_path"], dataset["name"]))
+
+    data_paths = train_data_paths
+    # data_paths = {
+    #     'train': train_data_paths,
+    #     'validation': train_data_paths[1],
+    #     'test': train_data_paths[1]
+    # }
+
+    name = f"{os.path.basename(args.config)}_{args.mode}"
+    output_dir = args.output_dir
+
+    torch.set_float32_matmul_precision("medium")
+
+    data = create_data(data_paths)
 
     model_config = Llama32Config1B()
     model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
@@ -223,16 +261,16 @@ if __name__ == "__main__":
         tensor_parallelism=1,
         pipeline_parallelism=1,
         pipeline_parallelism_type=torch.bfloat16,
-        max_steps=5,
+        max_steps=max_steps,
         num_gpus_per_node=4,
-        num_nodes=1,
+        num_nodes=num_nodes,
         callbacks=[TimingCallback()],
     )
 
     nemo_logger = default_log(
-        dir="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/",
-        name="test3",
-        tensorboard_logger=tensorboard_logger(name="test3"),
+        dir=output_dir,
+        name=name,
+        tensorboard_logger=tensorboard_logger(name=name),
     )
 
     llm.train(
@@ -242,5 +280,5 @@ if __name__ == "__main__":
         log=nemo_logger,
         tokenizer="data",
         optim=opt,
-        resume=default_resume(),
+        resume=default_resume(resume_if_exists=resume_if_exists),
     )
