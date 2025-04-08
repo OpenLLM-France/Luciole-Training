@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     pipeline=[
             ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),
-            JsonlWriter(f"{output_path}/output"),
+            JsonlWriter(f"{output_path}/output", max_file_size = int(5e9)),
         ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 

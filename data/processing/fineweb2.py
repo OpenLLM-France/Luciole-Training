@@ -119,6 +119,7 @@ if __name__ == "__main__":
         JsonlWriter(
             f"{DATA_PATH}/{dataset_name}/data/{language}/clusters",
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
+            max_file_size = int(5e9)  # 5GB in bytes
         ),
     ]
 
