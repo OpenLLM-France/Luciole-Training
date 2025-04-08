@@ -5,9 +5,9 @@ import re
 import glob
 import pandas as pd
 import argparse
-from nemo.collections.nlp.data.language_modeling.megatron import indexed_dataset
 
 def extract_token_lengths(data_path, name):
+    from nemo.collections.nlp.data.language_modeling.megatron import indexed_dataset
     suffix = "_text_document"
     dataset = indexed_dataset.MMapIndexedDataset(os.path.join(data_path, name + suffix))
     return [len(data) for data in dataset]
@@ -25,11 +25,37 @@ def stats_summary(token_lengths):
     }
     return stats
 
+def merge_stats_to_csv(data_path, output_csv_path=None):
+    # Get only JSON filenames
+    json_files = [file for file in os.listdir(data_path) if file.lower().endswith('.json')]
+
+    data_list = []
+    for json_file in json_files:
+        with open(os.path.join(data_path, json_file), 'r') as f:
+            stats = json.load(f)
+            stats = {'name': os.path.splitext(json_file)[0], **stats}
+            data_list.append(stats)
+
+    df = pd.DataFrame(data_list)
+    df = df.sort_values(by="name")
+
+    # Define default output path if none provided
+    if output_csv_path is None:
+        output_csv_path = os.path.join(data_path, "all_stats_merged.csv")
+
+    df.to_csv(output_csv_path, index=False)
+    print(f"Merged stats saved to {output_csv_path}")
+
+    return df
+
+
 if __name__ == "__main__":
+    main_path = os.getenv("OpenLLM_OUTPUT")
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--data_path", 
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation"
+        default=f"{main_path}/data/tokens_ablation"
         )
     parser.add_argument(
         "--force", 
@@ -57,3 +83,6 @@ if __name__ == "__main__":
             print(f"Stats for {name} already exist, skipping.")
 
     print("All stats saved.")
+
+    # Merge all stats into a single CSV file
+    merged_df = merge_stats_to_csv(os.path.join(data_path, 'stats'))
