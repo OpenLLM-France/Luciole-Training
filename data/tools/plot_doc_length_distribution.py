@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import re
-from token_stats import extract_token_lengths
+from data.tools.generate_token_stats import extract_token_lengths
 import argparse
 
 def pdf_distribution(token_lengths, name, ax=None, **kwargs):
