@@ -1,5 +1,0 @@
-datasets:
-  - name: wikipedia_fr
-    weight: 0.5
-  - name: wikipedia_en
-    weight: 0.5
