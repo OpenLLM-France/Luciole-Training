@@ -3,6 +3,7 @@ import os
 import numpy as np
 import re
 import glob
+import pandas as pd
 import argparse
 from nemo.collections.nlp.data.language_modeling.megatron import indexed_dataset
 
@@ -26,10 +27,19 @@ def stats_summary(token_lengths):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--force", action="store_true", help="Force re-generation of stats even if they already exist.")
+    parser.add_argument(
+        "--data_path", 
+        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation"
+        )
+    parser.add_argument(
+        "--force", 
+        action="store_true", 
+        help="Force re-generation of stats even if they already exist."
+        )
     args = parser.parse_args()
+    data_path = args.data_path
 
-    data_path = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation"
+    # Look for all files matching the pattern *_text_document.idx
     files = glob.glob(os.path.join(data_path, "*_text_document.idx"))
     names = [re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1) for f in files]
 
