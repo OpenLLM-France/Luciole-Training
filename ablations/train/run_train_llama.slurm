@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test 
+#SBATCH --job-name=test
 #SBATCH --output=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/slurms_logs/%x_%j.out 
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
@@ -31,4 +31,4 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 default_mix=$cwd/../datamix/mock.json
-srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py ${1:-$default_mix}
+srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py ${1:-$default_mix} --num_nodes $SLURM_NNODES
