@@ -11,8 +11,9 @@ All about preprocessing datasets.
 ```
 module purge
 module load anaconda-py3/2023.09 
-conda create -n datatrove-env python=3.12
+conda create -n datatrove-env python=3.10
 conda activate datatrove-env
+pip install -r requirements.txt
 ```
 
 ### Clone datatrove
@@ -21,10 +22,9 @@ git clone https://github.com/linagora-labs/datatrove.git
 cd datatrove
 git checkout lucie_v2
 pip install -e .[io,processing]
-pip install -r requirements.txt
 ```
 
-You can add a hostname in `set_env.sh` and set your `$DATA`. Then you can use `source set_env.sh`.
+You can add a hostname in `set_env.sh` and set your `$OpenLLM_OUTPUT` variable. Then you can use `source set_env.sh`.
 
 ## Processing Datasets
 
