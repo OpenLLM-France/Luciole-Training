@@ -2,35 +2,8 @@ import re
 import pandas as pd
 import os
 import argparse
-from collections import OrderedDict
 import yaml 
 
-rehydratation_mapping = OrderedDict(
-    zip(["1", "2", "3", "4", "5-100", "100-1000", "1000+"], [1, 2, 3, 3, 5, 8, 1])
-)
-
-def catch_name_and_cluster_size(name):
-    # The regex pattern
-    pattern = r"(fineweb2_.*)_cluster_(.*)"
-    # Perform the search
-    match = re.search(pattern, name)
-    # Check if a match was found
-    if match:
-        return match.group(1), match.group(2)
-    else:
-        return name, None
-
-def apply_rehydratation(df):
-    # Apply the mapping to create the new columns
-    df[['dataset', 'cluster_size']] = df['name'].apply(lambda x: pd.Series(catch_name_and_cluster_size(x)))
-    df['rehydratation_weight'] = df.apply(lambda x: rehydratation_mapping.get(x['cluster_size'], 1), axis=1)
-    df['total_tokens_rehydrated'] = df['total_tokens'] * df['rehydratation_weight'] 
-
-    df["cluster_size"] = pd.Categorical(
-        df["cluster_size"], categories=list(rehydratation_mapping.keys()), ordered=True
-    )
-    df = df.sort_values('cluster_size')
-    return df
 
 def load_metadata():
     # Get the directory of the current script
@@ -91,7 +64,6 @@ if __name__ == "__main__":
 
     df = pd.read_csv(data_path)
     df['total_tokens'] *= args.multiplier
-    df = apply_rehydratation(df)
     print(df.head(5))
     
     ### Rehydratation upsampling
