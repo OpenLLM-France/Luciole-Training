@@ -1,0 +1,9 @@
+{
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/",
+    "datasets": [
+        {
+            "name": "fineweb_edu_text_document",
+            "weight": 1.0
+        }
+    ]
+}
