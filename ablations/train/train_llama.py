@@ -1,8 +1,8 @@
 import torch
 import argparse
 import os
+import logging
 from typing import Optional
-from datetime import timedelta
 
 from llama32_config import Llama32Config1B
 
@@ -20,6 +20,9 @@ from megatron.core.distributed import DistributedDataParallelConfig
 from megatron.core.optimizer import OptimizerConfig
 from lightning.pytorch.callbacks.callback import Callback
 from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def tensorboard_logger(name: str, save_dir: str = "tb_logs"):
@@ -82,15 +85,19 @@ def distributed_fused_adam_with_cosine_annealing(
 def default_log(
     dir: Optional[str] = None,
     name: str = "default",
+    every_n_train_steps=1000,
     tensorboard_logger: Optional[TensorBoardLogger] = None,
     wandb_logger: Optional[WandbLogger] = None,
 ):
     """Factory function to configure NemoLogger."""
     ckpt = nl.ModelCheckpoint(
         save_last=True,
-        save_top_k=10,
-        train_time_interval=timedelta(minutes=15),
-        filename="{model_name}--{val_loss:.2f}-{step}-{consumed_samples}",
+        save_top_k=-1,
+        every_n_train_steps=every_n_train_steps,
+        monitor="step",
+        mode="max",
+        every_n_epochs=None,
+        filename="{step}--{consumed_samples:.0f}-{train_loss:.2f}",
     )
 
     return nl.NeMoLogger(
@@ -195,15 +202,17 @@ def create_trainer(
     return trainer
 
 
-def create_data(data_path, tokenizer_name="OpenLLM-France/Lucie-7B"):
+def create_data(
+    data_path, tokenizer_name="OpenLLM-France/Lucie-7B", batch_size=512, seq_length=2048
+):
     tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
     data = PreTrainingDataModule(
         paths=data_path,
-        global_batch_size=512,
+        global_batch_size=batch_size,
         micro_batch_size=1,
         num_workers=8,
         pin_memory=True,
-        seq_length=2048,  # 8192 for llama 32 1b
+        seq_length=seq_length,  # 8192 for llama 32 1b
         tokenizer=tokenizer,
         split="90,5,5",
     )
@@ -220,17 +229,11 @@ if __name__ == "__main__":
         "--output_dir",
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
     )
+    parser.add_argument("--batch_size", default=512, type=int)
+    parser.add_argument("--seq_length", default=2048, type=int)
+    parser.add_argument("--tokenizer", default="OpenLLM-France/Lucie-7B", type=str)
     args = parser.parse_args()
 
-    if args.mode == "debug":
-        max_steps = 10
-        resume_if_exists = False
-    elif args.mode == "20b":
-        max_steps = 5
-        resume_if_exists = True
-    elif args.mode == "35b":
-        max_steps = 33_378
-        resume_if_exists = True
     num_nodes = args.num_nodes
 
     loaded_data = None
@@ -264,7 +267,36 @@ if __name__ == "__main__":
 
     torch.set_float32_matmul_precision("high")
 
-    data = create_data(data_paths)
+    data = create_data(
+        data_paths,
+        tokenizer_name=args.tokenizer,
+        batch_size=args.batch_size,
+        seq_length=args.seq_length,
+    )
+
+    if args.mode == "debug":
+        max_steps = 10
+        resume_if_exists = False
+        every_n_train_steps = 5
+    else:
+        number_of_tokens = int(args.mode.replace("b", "")) * 1_000_000_000
+        max_steps = number_of_tokens // (data.seq_length * data.global_batch_size)
+        resume_if_exists = True
+        every_n_train_steps = 5_000_000_000 // (
+            data.seq_length * data.global_batch_size
+        )
+
+    logger.info(f"Job name: {name}")
+    logger.info(f"Output dir: {output_dir}")
+    logger.info(f"Mode: {args.mode}")
+    logger.info(f"Batch size: {args.batch_size}")
+    logger.info(f"Sequence length: {args.seq_length}")
+    logger.info(f"Number of nodes: {args.num_nodes}")
+    logger.info(f"Tokenizer: {args.tokenizer}")
+    logger.info(f"Config file: {args.config}")
+    logger.info(f"Max steps: {max_steps}")
+    logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
+    logger.info(f"Resume training if possible: {resume_if_exists}")
 
     model_config = Llama32Config1B()
     model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
@@ -284,6 +316,7 @@ if __name__ == "__main__":
     nemo_logger = default_log(
         dir=output_dir,
         name=name,
+        every_n_train_steps=every_n_train_steps,
         tensorboard_logger=tensorboard_logger(name=name),
     )
 
