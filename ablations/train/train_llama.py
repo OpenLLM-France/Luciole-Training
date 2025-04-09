@@ -213,9 +213,9 @@ def create_data(data_path, tokenizer_name="OpenLLM-France/Lucie-7B"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
-    parser.add_argument("--name_prefix", default="", type=str)
+    parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
-    parser.add_argument("--mode", choices=["debug", "35b"], default="debug")
+    parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
     parser.add_argument(
         "--output_dir",
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
@@ -225,6 +225,9 @@ if __name__ == "__main__":
     if args.mode == "debug":
         max_steps = 10
         resume_if_exists = False
+    elif args.mode == "20b":
+        max_steps = 5
+        resume_if_exists = True
     elif args.mode == "35b":
         max_steps = 33_378
         resume_if_exists = True
@@ -256,11 +259,7 @@ if __name__ == "__main__":
     #     'test': train_data_paths[1]
     # }
 
-    name = (
-        f"{os.path.splitext(os.path.basename(args.config))[0]}_{num_nodes}n_{args.mode}"
-    )
-    if args.name_prefix:
-        name = f"{args.name_prefix}_{name}"
+    name = args.name
     output_dir = args.output_dir
 
     torch.set_float32_matmul_precision("high")
