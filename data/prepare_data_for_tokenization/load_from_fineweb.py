@@ -1,0 +1,64 @@
+from datatrove.executor.slurm import SlurmPipelineExecutor
+from datatrove.pipeline.readers import ParquetReader
+from datatrove.pipeline.filters import SamplerFilter
+from datatrove.pipeline.writers import ParquetWriter
+import pandas as pd
+import argparse
+import os
+
+def read_markdown_table(filepath = "fineweb2_languages.md"):
+    df = pd.read_csv(filepath, sep="|", engine="python", index_col=False)
+    df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
+    df.columns = [col.strip() for col in df.columns]
+    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    # Remove first and last rows
+    df = df.iloc[1:-1]
+    # Format columns
+    df["Subset"] = df["Subset"].str.replace("`", "", regex=False)
+    df["Words"] = df["Words"].str.replace(",", "").astype(int)
+    df["Documents"] = df["Documents"].str.replace(",", "").astype(int)
+    return df
+
+if __name__ == "__main__":
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument(
+        "--language",
+        type=str,
+        default="fra_Latn",
+        help="Language to process",
+    )
+    args = argparser.parse_args()
+
+    main_path = os.getenv("OpenLLM_OUTPUT")
+    language = args.language
+    output_path = os.path.join(main_path, "data/data_for_tokenization")
+
+    # Read stats from fineweb2
+    df = read_markdown_table("fineweb2_languages.md")
+    selected_row = df[df['Subset'] == language].iloc[0]
+    print(selected_row)
+
+    target_num_words = 1e9
+    rate = target_num_words / selected_row["Words"]
+    print(f"\nSampler rate: {rate}")
+
+    pipeline=[
+                ParquetReader(f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"),
+                SamplerFilter(rate=rate, seed=42),
+                ParquetWriter(f"{output_path}/data/fineweb2_{language}")
+            ]
+
+    main_processing_executor = SlurmPipelineExecutor(
+        pipeline=pipeline,
+        sbatch_args={"account": "qgz@cpu"},
+        tasks=50,
+        cpus_per_task=2,
+        time = "05:00:00",
+        qos="qos_cpu-t3",
+        partition="prepost",
+        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+        logging_dir=f"{output_path}/logs/fineweb2_{language}",
+        job_name=language,
+    )
+    
+    main_processing_executor.run()
