@@ -12,7 +12,7 @@ os.makedirs(tokens_dataset_path, exist_ok=True)
 
 # Load the YAML content
 with open(YAML_FILE, "r") as f:
-    datasets = yaml.safe_load(f)
+    datasets = yaml.safe_load(f)['datasets']
 
 # Iterate through each dataset entry
 for dataset in datasets:
