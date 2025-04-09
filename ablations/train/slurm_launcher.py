@@ -41,7 +41,21 @@ echo "Output dir: {output_dir}"
 
 cwd=$(pwd)
 
-source $cwd/set_env.sh
+export OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
+
+export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
+export HF_DATASETS_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export HF_HUB_OFFLINE=1
+
+export TORCH_NCCL_AVOID_RECORD_STREAMS=1
+export NCCL_NVLS_ENABLE=0
+export NVTE_DP_AMAX_REDUCE_INTERVAL=0
+export NVTE_ASYNC_AMAX_REDUCTION=1
+export TOKENIZERS_PARALLELISM=false
+
+module purge
+module load arch/h100 nemo/2.1.0
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
