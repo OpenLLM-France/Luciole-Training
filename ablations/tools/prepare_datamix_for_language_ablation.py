@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--expe_name",
         type=str,
-        default="datamix.json",
+        default=None,
         help="Name of the output file",
     )
     args = parser.parse_args()
@@ -30,6 +30,8 @@ if __name__ == "__main__":
     language_weights = args.language_weights
     data_path = args.data_path
     expe_name = args.expe_name
+    if expe_name is None:
+        expe_name = f"datamix_{'_'.join(language_weights)}.json"
 
     assert len(language_weights) % 2 == 0
 
