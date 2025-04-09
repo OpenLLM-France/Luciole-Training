@@ -213,6 +213,7 @@ def create_data(data_path, tokenizer_name="OpenLLM-France/Lucie-7B"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
+    parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--mode", choices=["debug", "35b"], default="debug")
     parser.add_argument(
@@ -225,7 +226,7 @@ if __name__ == "__main__":
         max_steps = 10
         resume_if_exists = False
     elif args.mode == "35b":
-        max_steps = 10  # need to compute it
+        max_steps = 33_378
         resume_if_exists = True
     num_nodes = args.num_nodes
 
@@ -258,6 +259,8 @@ if __name__ == "__main__":
     name = (
         f"{os.path.splitext(os.path.basename(args.config))[0]}_{num_nodes}n_{args.mode}"
     )
+    if args.name_prefix:
+        name = f"{args.name_prefix}_{name}"
     output_dir = args.output_dir
 
     torch.set_float32_matmul_precision("high")
