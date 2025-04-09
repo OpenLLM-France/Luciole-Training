@@ -1,6 +1,5 @@
 import torch
 import argparse
-import json
 import os
 from typing import Optional
 from datetime import timedelta
@@ -230,13 +229,24 @@ if __name__ == "__main__":
         resume_if_exists = True
     num_nodes = args.num_nodes
 
-    with open(args.config, "r") as f:
-        json_data = json.load(f)
+    loaded_data = None
+    if args.config.endswith(".json"):
+        import json
+
+        with open(args.config, "r") as f:
+            loaded_data = json.load(f)
+    elif args.config.endswith(".yaml"):
+        import yaml
+
+        with open(args.config, "r") as f:
+            config = yaml.safe_load(f)
+    else:
+        raise RuntimeError(f"Config should be a json or a yaml, got {args.config}")
 
     train_data_paths = []
-    for dataset in json_data["datasets"]:
+    for dataset in loaded_data["datasets"]:
         train_data_paths.append(str(dataset["weight"]))
-        train_data_paths.append(os.path.join(json_data["data_path"], dataset["name"]))
+        train_data_paths.append(os.path.join(loaded_data["data_path"], dataset["name"]))
 
     data_paths = train_data_paths
     # data_paths = {
