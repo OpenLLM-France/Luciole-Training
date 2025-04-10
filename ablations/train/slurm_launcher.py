@@ -78,6 +78,7 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 
+echo "Arguments: {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir}" 
 srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir}
 """
     return script
