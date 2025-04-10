@@ -1,9 +1,8 @@
 import argparse
-import os
 import torch
 import logging
 
-from llama32_config import Llama32Config1B
+from llama32_config import get_config
 from utils import (
     read_datamix_file,
     create_data,
@@ -71,7 +70,7 @@ if __name__ == "__main__":
     logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
     logger.info(f"Resume training if possible: {resume_if_exists}")
 
-    model_config = Llama32Config1B()
+    model_config = get_config()
     model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
 
     opt = distributed_fused_adam_with_cosine_annealing(max_lr=3e-4)
@@ -101,4 +100,3 @@ if __name__ == "__main__":
         optim=opt,
         resume=create_autoresume(resume_if_exists=resume_if_exists),
     )
-    model.save_to(os.path.join(output_dir, "nemo_models", "model.nemo"))
