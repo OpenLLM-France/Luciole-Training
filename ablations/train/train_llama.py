@@ -52,10 +52,10 @@ if __name__ == "__main__":
         every_n_train_steps = 5
     else:
         number_of_tokens = int(args.mode.replace("b", "")) * 1_000_000_000
-        max_steps = number_of_tokens // (data.seq_length * data.global_batch_size)
+        max_steps = number_of_tokens // (args.seq_length * args.batch_size)
         resume_if_exists = True
         every_n_train_steps = 5_000_000_000 // (
-            data.seq_length * data.global_batch_size
+            args.seq_length * args.batch_size
         )
 
     logger.info(f"Job name: {args.name}")
