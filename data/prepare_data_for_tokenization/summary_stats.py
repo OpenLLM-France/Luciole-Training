@@ -4,7 +4,7 @@ import os
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.filters.sampler_filter import SamplerFilter
 from datatrove.pipeline.readers.parquet import ParquetReader
-from datatrove.pipeline.stats import WordStats
+from datatrove.pipeline.stats import WordStats, StatsMerger
 
 parser = argparse.ArgumentParser(description="Summary Stats")
 parser.add_argument("--dataset_name", type=str, default= "fineweb2_fra_Latn", help="")
@@ -19,6 +19,7 @@ language_mapping = {
 }
 
 main_path = os.getenv("OpenLLM_OUTPUT")
+TOTAL_TASKS = 50
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -27,6 +28,8 @@ if __name__ == "__main__":
     if language is None:
         raise ValueError(f"Dataset name {dataset_name} is not recognized.")
     
+    folder = os.path.join(main_path, "data/data_for_tokenization/word_stats", dataset_name)
+
     compute = SlurmPipelineExecutor(
         pipeline=[
             ParquetReader(
@@ -39,12 +42,12 @@ if __name__ == "__main__":
             ),
             WordStats(
                 language=language,
-                output_folder=os.path.join(main_path, "data/data_for_tokenization/word_stats", dataset_name),
+                output_folder=folder,
                 groups_to_compute=['summary'],
             ),
         ],
         sbatch_args={"account": "qgz@cpu"},
-        tasks=50,
+        tasks=TOTAL_TASKS,
         cpus_per_task=2,
         time = "05:00:00",
         qos="qos_cpu-t3",
@@ -54,4 +57,26 @@ if __name__ == "__main__":
         logging_dir=os.path.join(main_path, "data/data_for_tokenization/logs_word_stats", dataset_name),
     )
 
-    compute.run()
+    # compute.run()
+
+    merger = SlurmPipelineExecutor(
+        pipeline=[
+            StatsMerger(
+                input_folder=folder,
+                output_folder=folder,
+                remove_input=False,
+                ),
+        ],
+        sbatch_args={"account": "qgz@cpu"},
+        tasks=TOTAL_TASKS,
+        cpus_per_task=2,
+        time = "01:00:00",
+        qos="qos_cpu-t3",
+        partition="prepost",
+        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+        logging_dir=os.path.join(main_path, "data/data_for_tokenization/logs_word_stats_merge", dataset_name),
+        job_name=f"merging-stats-{dataset_name}",
+        depends=compute,
+    )
+
+    merger.run()
