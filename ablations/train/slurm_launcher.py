@@ -32,7 +32,7 @@ def create_slurm_script(job_name, nodes, mode, config, output_dir, email):
 #SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:4
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/%x_%j.out 
+#SBATCH --output={output_dir}/log_%j.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
 #SBATCH --account=wuh@h100
@@ -99,7 +99,7 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     )
 
     # Écrire le script dans un fichier temporaire
-    sbatch_script_path = os.path.join(xp_output_dir, f"{job_name}.slurm")
+    sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
     os.makedirs(xp_output_dir, exist_ok=True)
     with open(sbatch_script_path, "w") as fout:
         fout.write(slurm_script)
