@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_slurm_script(job_name, nodes, mode, config, output_dir):
+def create_slurm_script(job_name, nodes, mode, config, output_dir, email):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
         qos = "qos_gpu_h100-dev"
@@ -18,6 +18,12 @@ def create_slurm_script(job_name, nodes, mode, config, output_dir):
         time = "20:00:00"
     else:
         raise ValueError(f"Unkown mode {mode}, should be debug or 20b or 35b.")
+
+    email_line = ""
+    if email:
+        email_line = f"""#SBATCH --mail-user={email}  # Où envoyer l'e-mail
+#SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL            # Événements déclencheurs (NONE, BEGIN, END, FAIL, ALL)"""
+
     # Contenu du script SLURM
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
@@ -31,6 +37,7 @@ def create_slurm_script(job_name, nodes, mode, config, output_dir):
 #SBATCH --qos={qos}
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
+{email_line}
 
 echo "Job name: {job_name}"
 echo "Qos: {qos}"
@@ -76,14 +83,16 @@ srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py {config} --num_nodes {nodes}
     return script
 
 
-def submit_job(config, name_prefix, nodes, mode, output_dir):
+def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     job_name = f"{os.path.splitext(os.path.basename(config))[0]}_{nodes}n_{mode}"
     if args.name_prefix:
         job_name = f"{name_prefix}_{job_name}"
 
     xp_output_dir = os.path.join(output_dir, job_name)
 
-    slurm_script = create_slurm_script(job_name, nodes, mode, config, xp_output_dir)
+    slurm_script = create_slurm_script(
+        job_name, nodes, mode, config, xp_output_dir, email
+    )
 
     # Écrire le script dans un fichier temporaire
     sbatch_script_path = os.path.join(xp_output_dir, f"{job_name}.slurm")
@@ -104,15 +113,21 @@ def submit_job(config, name_prefix, nodes, mode, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("config")
+    parser.add_argument("--config", default="../datamix/mock.json")
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
+    parser.add_argument("--email", default=None)
     parser.add_argument(
         "--output_dir",
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
     )
     args = parser.parse_args()
     submit_job(
-        args.config, args.name_prefix, args.num_nodes, args.mode, args.output_dir
+        args.config,
+        args.name_prefix,
+        args.num_nodes,
+        args.mode,
+        args.output_dir,
+        args.email,
     )

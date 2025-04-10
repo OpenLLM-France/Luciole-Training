@@ -19,3 +19,18 @@ class Llama32Config1B(Llama31Config):
     num_attention_heads: int = 32
     num_query_groups: int = 8
     make_vocab_size_divisible_by: int = 128
+
+
+def get_config():
+    # return Llama32Config1B()
+    return Llama31Config(
+        scale_factor=32.0,
+        share_embeddings_and_output_weights=True,
+        rotary_base=500_000,
+        num_layers=16,
+        hidden_size=2048,
+        ffn_hidden_size=8192,
+        num_attention_heads=32,
+        num_query_groups=8,
+        make_vocab_size_divisible_by=128,
+    )
