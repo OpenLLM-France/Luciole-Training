@@ -1,0 +1,2 @@
+python slurm_launcher.py --config datamix_1._eng_Latn.json --name_prefix lang_ablation_ --num_nodes 4 --mode 20b
+python slurm_launcher.py --config datamix_.5_fra_Latn_.5_eng_Latn.json --name_prefix lang_ablation_ --num_nodes 4 --mode 20b
