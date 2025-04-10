@@ -14,7 +14,7 @@ def create_slurm_script(job_name, nodes, mode, config, output_dir, email):
         qos = "qos_gpu_h100-dev"
         time = "00:30:00"
     elif mode == "20b" or mode == "35b":
-        qos = "qos_gpu_h100"
+        qos = "qos_gpu_h100-t3"
         time = "20:00:00"
     else:
         raise ValueError(f"Unkown mode {mode}, should be debug or 20b or 35b.")
