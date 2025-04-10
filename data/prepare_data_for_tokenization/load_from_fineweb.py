@@ -32,21 +32,32 @@ if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
     language = args.language
     output_path = os.path.join(main_path, "data/data_for_tokenization")
+    target_num_words = 1e9
 
     # Read stats from fineweb2
-    df = read_markdown_table("fineweb2_languages.md")
-    selected_row = df[df['Subset'] == language].iloc[0]
-    print(selected_row)
+    if language in ["fra_Latn", "deu_Latn", "ita_Latn", "spa_Latn"]:
+        df = read_markdown_table("fineweb2_languages.md")
+        selected_row = df[df['Subset'] == language].iloc[0]
+        print(selected_row)
 
-    target_num_words = 1e9
-    rate = target_num_words / selected_row["Words"]
+        rate = target_num_words / selected_row["Words"]
+        pipeline=[
+            ParquetReader(f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"),
+            SamplerFilter(rate=rate, seed=42),
+            ParquetWriter(f"{output_path}/data/fineweb2_{language}")
+        ]
+        
+    elif language == "eng_Latn":
+        rate = 0.01 * target_num_words / 12847061986 # 12.8B words based on aubset of ablation :)
+        pipeline=[
+            ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),
+            SamplerFilter(rate=rate, seed=42),
+            ParquetWriter(f"{output_path}/data/fineweb2_{language}")
+        ]
+    else:
+        raise NotImplementedError(f"Language {language} not implemented")
+    
     print(f"\nSampler rate: {rate}")
-
-    pipeline=[
-                ParquetReader(f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"),
-                SamplerFilter(rate=rate, seed=42),
-                ParquetWriter(f"{output_path}/data/fineweb2_{language}")
-            ]
 
     main_processing_executor = SlurmPipelineExecutor(
         pipeline=pipeline,
