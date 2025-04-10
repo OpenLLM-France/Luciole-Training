@@ -84,6 +84,10 @@ srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py {config} --num_nodes {nodes}
 
 
 def submit_job(config, name_prefix, nodes, mode, output_dir, email):
+    config = os.path.join("../datamix", config)
+    if not os.path.exists(config):
+        raise RuntimeError(f"Config : {config} does not exist")
+
     job_name = f"{os.path.splitext(os.path.basename(config))[0]}_{nodes}n_{mode}"
     if args.name_prefix:
         job_name = f"{name_prefix}_{job_name}"
@@ -113,7 +117,7 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="../datamix/mock.json")
+    parser.add_argument("--config", default="mock.json")
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
