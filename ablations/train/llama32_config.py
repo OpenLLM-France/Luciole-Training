@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from nemo.collections.llm.gpt.model.llama import Llama31Config
+from nemo.collections.llm.gpt.model.llama import Llama31Config, Llama31Config8B
 
 
 @dataclass
@@ -21,19 +21,22 @@ class Llama32Config1B(Llama31Config):
     make_vocab_size_divisible_by: int = 128
 
 
-def get_config():
+def get_config(size_1b=True):
     # return Llama32Config1B()
-    return Llama31Config(
-        scale_factor=32.0,
-        share_embeddings_and_output_weights=True,
-        rotary_base=500_000,
-        num_layers=16,
-        hidden_size=2048,
-        ffn_hidden_size=8192,
-        num_attention_heads=32,
-        num_query_groups=8,
-        make_vocab_size_divisible_by=128,
-    )
+    if not size_1b:
+        return Llama31Config8B()
+    else:
+        return Llama31Config(
+            scale_factor=32.0,
+            share_embeddings_and_output_weights=True,
+            rotary_base=500_000,
+            num_layers=16,
+            hidden_size=2048,
+            ffn_hidden_size=8192,
+            num_attention_heads=32,
+            num_query_groups=8,
+            make_vocab_size_divisible_by=128,
+        )
 
 
 def convert_to_llama32_1b(model_config):
