@@ -37,16 +37,3 @@ def get_config(size_1b=True):
             num_query_groups=8,
             make_vocab_size_divisible_by=128,
         )
-
-
-def convert_to_llama32_1b(model_config):
-    model_config.config.scale_factor = 32.0
-    model_config.config.share_embeddings_and_output_weights = True
-    model_config.config.rotary_base = 500_000
-    model_config.config.num_layers = 16
-    model_config.config.hidden_size = 2048
-    model_config.config.ffn_hidden_size = 8192
-    model_config.config.num_attention_heads = 32
-    model_config.config.num_query_groups = 8
-    model_config.config.make_vocab_size_divisible_by = 128
-    return model_config
