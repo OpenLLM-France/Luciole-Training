@@ -231,15 +231,16 @@ def read_datamix_file(file):
     else:
         raise RuntimeError(f"Config should be a json or a yaml, got {file}")
 
-    train_data_paths = []
-    for dataset in loaded_data["datasets"]:
-        train_data_paths.append(str(dataset["weight"]))
-        train_data_paths.append(os.path.join(loaded_data["data_path"], dataset["name"]))
+    def make_data_flattened_list(split="train"):
+        data_paths = []
+        for dataset in loaded_data.get(split, []):
+            data_paths.append(str(dataset["weight"]))
+            data_paths.append(os.path.join(loaded_data["data_path"], dataset["name"]))
+        return data_paths
 
-    data_paths = train_data_paths
-    # data_paths = {
-    #     'train': train_data_paths,
-    #     'validation': train_data_paths[1],
-    #     'test': train_data_paths[1]
-    # }
+    data_paths = {
+        "train": make_data_flattened_list("train"),
+        "validation": make_data_flattened_list("valid"),
+        "test": make_data_flattened_list("test"),
+    }
     return data_paths

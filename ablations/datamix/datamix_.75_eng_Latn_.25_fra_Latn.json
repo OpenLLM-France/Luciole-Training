@@ -1,6 +1,6 @@
 {
     "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/",
-    "datasets": [
+    "train": [
         {
             "name": "fineweb2_fra_Latn_cluster_1_text_document",
             "weight": 0.036506147069225024
