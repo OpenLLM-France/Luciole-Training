@@ -15,7 +15,7 @@ if __name__ == "__main__":
             {"name": "dclm", "split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{DATA_PATH}/dclm_dolmino/output", max_file_size = int(2e9)),
+        JsonlWriter(f"{DATA_PATH}/dclm_dolmino/output"),
     ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 

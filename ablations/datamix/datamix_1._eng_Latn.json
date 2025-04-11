@@ -1,5 +1,5 @@
 {
-    "data_path": "/media/storage0/ogouvert/OpenLLM-BPI-output/data/tokens_ablation/",
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/",
     "train": [
         {
             "name": "fineweb_edu_text_document",

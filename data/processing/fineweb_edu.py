@@ -3,7 +3,6 @@ import os
 from utils import *
 
 from datatrove.pipeline.readers import ParquetReader
-from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.writers import JsonlWriter
 
 # FineWeb edu is already on JZ: $DSDIR/HuggingFace/fineweb/data
@@ -20,7 +19,7 @@ if __name__ == "__main__":
 
     pipeline=[
             ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),
-            JsonlWriter(f"{output_path}/output", max_file_size = int(2e9)),
+            JsonlWriter(f"{output_path}/output"),
         ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
@@ -30,5 +29,6 @@ if __name__ == "__main__":
         logging_dir=f"{output_path}/logs",
         job_name=dataset_name,
     )
+    main_processing_executor.tasks = 100
 
     main_processing_executor.run()
