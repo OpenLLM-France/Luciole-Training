@@ -38,7 +38,7 @@ if __name__ == "__main__":
             ),
             WordStats(
                 language=language,
-                output_folder=os.path.join(output_path, f"stats_{args.sample_rate}/output"),
+                output_folder=os.path.join(output_path, f"summary_stats_{args.sample_rate}/output"),
                 groups_to_compute=['summary'],
             ),
             # LineStats(
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
         job_name=f"summary-stats",
-        logging_dir=os.path.join(output_path, f"stats_{args.sample_rate}/logs_compute"),
+        logging_dir=os.path.join(output_path, f"summary_stats_{args.sample_rate}/logs_compute"),
     )
 
     # compute.run()
@@ -66,8 +66,8 @@ if __name__ == "__main__":
     merger = SlurmPipelineExecutor(
         pipeline=[
             StatsMerger(
-                input_folder=os.path.join(output_path, f"stats_{args.sample_rate}/output"),
-                output_folder=os.path.join(output_path, f"stats_{args.sample_rate}/output"),
+                input_folder=os.path.join(output_path, f"summary_stats_{args.sample_rate}/output"),
+                output_folder=os.path.join(output_path, f"summary_stats_{args.sample_rate}/output"),
                 remove_input=False,
                 ),
         ],
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        logging_dir=os.path.join(output_path, f"stats_{args.sample_rate}/logs_merge"),
+        logging_dir=os.path.join(output_path, f"summary_stats_{args.sample_rate}/logs_merge"),
         job_name=f"merging-stats",
         depends=compute,
     )
