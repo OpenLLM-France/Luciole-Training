@@ -1,6 +1,6 @@
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
-from datatrove.pipeline.filters import SamplerFilter
+from datatrove.pipeline.filters import SamplerFilter, LambdaFilter
 from datatrove.pipeline.writers import ParquetWriter
 import pandas as pd
 import argparse
@@ -48,11 +48,27 @@ if __name__ == "__main__":
         ]
         
     elif language == "eng_Latn":
-        rate = 0.01 * target_num_words / 12847061986 # 12.8B words based on aubset of ablation :)
+        rate = 0.01 * target_num_words / 12847061986 # 12.8B words based on a subset of ablation :)
         pipeline=[
             ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),
             SamplerFilter(rate=rate, seed=42),
-            ParquetWriter(f"{output_path}/data/fineweb2_{language}")
+            ParquetWriter(f"{output_path}/data/fineweb_edu")
+        ]
+    elif language == "code":
+        rate = 0.01 * target_num_words / 629431122 # 628M words based on a subset of ablation :)
+        pipeline = [
+            ParquetReader(
+                "hf://datasets/bigcode/starcoderdata",
+                glob_pattern="**/*.parquet",
+                text_key="content",
+            ),
+            LambdaFilter(
+                lambda doc: doc.metadata["max_stars_count"] >= 2
+                if "max_stars_count" in doc.metadata
+                else True,
+            ),
+            SamplerFilter(rate=rate, seed=42),
+            ParquetWriter(f"{output_path}/data/starcoder")
         ]
     else:
         raise NotImplementedError(f"Language {language} not implemented")
@@ -68,7 +84,7 @@ if __name__ == "__main__":
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        logging_dir=f"{output_path}/logs/fineweb2_{language}",
+        logging_dir=f"{output_path}/logs/{language}",
         job_name=language,
     )
     
