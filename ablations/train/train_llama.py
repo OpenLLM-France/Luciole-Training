@@ -2,14 +2,16 @@ import argparse
 import torch
 import logging
 
-from llama32_config import get_config
-from utils import (
-    read_datamix_file,
-    create_data,
+from recipe_llama import (
     create_trainer,
     distributed_fused_adam_with_cosine_annealing,
     create_logger,
     create_autoresume,
+)
+from utils import (
+    read_datamix_file,
+    create_data,
+    get_config,
 )
 
 from nemo.collections import llm
@@ -54,9 +56,7 @@ if __name__ == "__main__":
         number_of_tokens = int(args.mode.replace("b", "")) * 1_000_000_000
         max_steps = number_of_tokens // (args.seq_length * args.batch_size)
         resume_if_exists = True
-        every_n_train_steps = 5_000_000_000 // (
-            args.seq_length * args.batch_size
-        )
+        every_n_train_steps = 5_000_000_000 // (args.seq_length * args.batch_size)
 
     logger.info(f"Job name: {args.name}")
     logger.info(f"Output dir: {args.output_dir}")
