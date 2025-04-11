@@ -89,11 +89,11 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
 
-    job_name = f"{os.path.splitext(os.path.basename(config))[0]}_{nodes}n_{mode}"
+    job_name = f"{os.path.splitext(os.path.basename(config))[0]}_{nodes}n"
     if args.name_prefix:
         job_name = f"{name_prefix}_{job_name}"
 
-    xp_output_dir = os.path.join(output_dir, job_name)
+    xp_output_dir = os.path.join(output_dir, mode, job_name)
 
     slurm_script = create_slurm_script(
         job_name, nodes, mode, config, xp_output_dir, email
