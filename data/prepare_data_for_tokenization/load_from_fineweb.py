@@ -2,6 +2,7 @@ from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import SamplerFilter, LambdaFilter
 from datatrove.pipeline.writers import ParquetWriter
+from datatrove.data import DocumentsPipeline
 import pandas as pd
 import argparse
 import os
@@ -18,6 +19,17 @@ def read_markdown_table(filepath = "fineweb2_languages.md"):
     df["Words"] = df["Words"].str.replace(",", "").astype(int)
     df["Documents"] = df["Documents"].str.replace(",", "").astype(int)
     return df
+
+def remove_metadata(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
+    """
+    `data` is a generator of Document. You must also return a generator of Document (yield)
+    You can optionally use `rank` and `world_size` for sharding
+    """
+    for doc in data:
+        doc.metadata = {}
+        yield doc
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -42,7 +54,7 @@ if __name__ == "__main__":
 
         rate = target_num_words / selected_row["Words"]
         pipeline=[
-            ParquetReader(f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"),
+            ParquetReader(f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train", read_metadata=False),
             SamplerFilter(rate=rate, seed=42),
             ParquetWriter(f"{output_path}/data/fineweb2_{language}")
         ]
@@ -50,7 +62,7 @@ if __name__ == "__main__":
     elif language == "eng_Latn":
         rate = 0.01 * target_num_words / 12847061986 # 12.8B words based on a subset of ablation :)
         pipeline=[
-            ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),
+            ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet", read_metadata=False),
             SamplerFilter(rate=rate, seed=42),
             ParquetWriter(f"{output_path}/data/fineweb_edu")
         ]
@@ -67,6 +79,7 @@ if __name__ == "__main__":
                 if "max_stars_count" in doc.metadata
                 else True,
             ),
+            remove_metadata,
             SamplerFilter(rate=rate, seed=42),
             ParquetWriter(f"{output_path}/data/starcoder")
         ]
