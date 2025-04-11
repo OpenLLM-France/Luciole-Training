@@ -70,6 +70,7 @@ if __name__ == "__main__":
         out = {
             'data_path': data_path, 
             'train': df[['name', 'weight']].to_dict(orient='records'),
+            'validation': [{'name': 'wikipedia_fr_text_document', 'weight': 0.5}, {'name': 'wikipedia_en_text_document', 'weight': 0.5}],
         }
 
         # Save the output to a JSON file
