@@ -89,7 +89,7 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
 
-    job_name = f"{os.path.splitext(os.path.basename(config))[0]}_{nodes}n"
+    job_name = f"{os.path.splitext(os.path.basename(config))[0]}_{nodes}n_{mode}"
     if args.name_prefix:
         job_name = f"{name_prefix}_{job_name}"
 
@@ -98,6 +98,9 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     slurm_script = create_slurm_script(
         job_name, nodes, mode, config, xp_output_dir, email
     )
+
+    logger.info(f"Experiment name : {job_name}")
+    logger.info(f"Experiment path : {xp_output_dir}")
 
     # Écrire le script dans un fichier temporaire
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
@@ -123,9 +126,10 @@ if __name__ == "__main__":
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
     parser.add_argument("--email", default=None)
+    parser.add_argument("--output_dir", default="")
     parser.add_argument(
-        "--output_dir",
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
+        "--output_path",
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
     )
     args = parser.parse_args()
     submit_job(
@@ -133,6 +137,6 @@ if __name__ == "__main__":
         args.name_prefix,
         args.num_nodes,
         args.mode,
-        args.output_dir,
+        os.path.join(args.output_path, args.output_dir),
         args.email,
     )
