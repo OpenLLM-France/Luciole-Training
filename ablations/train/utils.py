@@ -211,7 +211,7 @@ def create_data(
         pin_memory=True,
         seq_length=seq_length,  # 8192 for llama 32 1b
         tokenizer=tokenizer,
-        split="90,5,5",
+        split="1,0,0",
     )
     return data
 
@@ -238,9 +238,12 @@ def read_datamix_file(file):
             data_paths.append(os.path.join(loaded_data["data_path"], dataset["name"]))
         return data_paths
 
-    data_paths = {
-        "train": make_data_flattened_list("train"),
-        "validation": make_data_flattened_list("valid"),
-        "test": make_data_flattened_list("test"),
-    }
+    if "valid" in loaded_data:
+        data_paths = {
+            "train": make_data_flattened_list("train"),
+            "validation": make_data_flattened_list("validation"),
+            "test": make_data_flattened_list("test"),
+        }
+    else:
+        data_paths = make_data_flattened_list("train")
     return data_paths
