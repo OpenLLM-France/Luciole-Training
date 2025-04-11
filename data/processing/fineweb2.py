@@ -99,6 +99,7 @@ if __name__ == "__main__":
         FinewebDocumentCleaning(),
         JsonlWriter(
             f"{DATA_PATH}/{dataset_name}/data/{language}/train",
+            max_file_size = int(2e9)
         ),
     ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
@@ -119,7 +120,7 @@ if __name__ == "__main__":
         JsonlWriter(
             f"{DATA_PATH}/{dataset_name}/data/{language}/clusters",
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
-            max_file_size = int(5e9)  # 5GB in bytes
+            max_file_size = int(2e9)  
         ),
     ]
 
