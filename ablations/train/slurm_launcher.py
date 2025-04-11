@@ -29,7 +29,7 @@ def create_slurm_script(job_name, nodes, mode, config, output_dir, email):
 #SBATCH --job-name={job_name}
 #SBATCH --nodes={nodes}
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:4
 #SBATCH --time={time}
 #SBATCH --output={output_dir}/log_%j.out 
