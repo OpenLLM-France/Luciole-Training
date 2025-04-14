@@ -66,15 +66,16 @@ def save_sample_texts(recipe, output=None, number_of_data=5):
     dataloader = recipe.data.train_dataloader()
 
     for i, batch in enumerate(dataloader):
-        print("\n" + f" START TEXT OF DATA {i} ".center(80, "-"))
-
+        print("\n" + f" START TEXT {i} ".center(80, "-"))
         # Extract and decode token IDs
         token_ids = batch["tokens"][0]
         text = recipe.data.tokenizer.ids_to_text(token_ids, remove_special_tokens=False)
         print(text)
+        print(f" END TEXT {i} ".center(80, "-") + "\n")
 
-        print(f" END TEXT OF DATA {i} ".center(80, "-") + "\n")
-
+        print("\n" + f" START BATCH {i} ".center(80, "-"))
+        print(batch)
+        print(f" END BATCH {i} ".center(80, "-") + "\n")
         # Save to file if output directory is specified
         if output:
             os.makedirs(output, exist_ok=True)
