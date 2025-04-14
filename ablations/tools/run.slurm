@@ -11,6 +11,7 @@
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 
-source set_env.sh
+module purge
+module load arch/h100 nemo/2.1.0
 
 python $1
