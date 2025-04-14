@@ -10,9 +10,10 @@ from recipe_llama import (
 )
 from utils import (
     read_datamix_file,
-    create_data,
     get_config,
 )
+
+from dataloader import create_data
 
 from nemo.collections import llm
 from nemo.utils.exp_manager import TimingCallback

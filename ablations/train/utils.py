@@ -2,31 +2,12 @@ import os
 import torch
 import logging
 
-from nemo.collections.llm.gpt.data import PreTrainingDataModule
-from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 from nemo.collections.llm.gpt.model.llama import Llama31Config8B, Llama32Config1B
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 torch.set_float32_matmul_precision("high")
-
-
-def create_data(
-    data_path, tokenizer_name="OpenLLM-France/Lucie-7B", batch_size=512, seq_length=2048
-):
-    tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
-    data = PreTrainingDataModule(
-        paths=data_path,
-        global_batch_size=batch_size,
-        micro_batch_size=1,
-        num_workers=8,
-        pin_memory=True,
-        seq_length=seq_length,  # 8192 for llama 32 1b
-        tokenizer=tokenizer,
-        split="1,0,0",
-    )
-    return data
 
 
 def read_datamix_file(file):
