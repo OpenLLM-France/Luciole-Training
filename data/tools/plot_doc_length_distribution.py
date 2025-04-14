@@ -17,11 +17,21 @@ def pdf_distribution(token_lengths, name, ax=None, **kwargs):
 
 
 if __name__ == "__main__":
+    main_path = os.getenv("OpenLLM_OUTPUT")
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--force", action="store_true", help="Force re-generation of plots even if they already exist.")
+    parser.add_argument(
+        "--data_path", 
+        default=f"{main_path}/data/tokens"
+        )
+    parser.add_argument(
+        "--force", 
+        action="store_true", 
+        help="Force re-generation of plots even if they already exist."
+        )
     args = parser.parse_args()
 
-    data_path = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation"
+    data_path = args.data_path
     os.makedirs(os.path.join(data_path, 'figs'), exist_ok=True)
     files = sorted(glob.glob(os.path.join(data_path, "*_text_document.idx")))
     names = [re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1) for f in files]

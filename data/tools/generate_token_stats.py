@@ -74,7 +74,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--data_path", 
-        default=f"{main_path}/data/tokens_ablation"
+        default=f"{main_path}/data/tokens"
         )
     parser.add_argument(
         "--force", 
