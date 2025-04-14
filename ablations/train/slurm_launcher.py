@@ -8,7 +8,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_slurm_script(job_name, nodes, mode, config, output_dir, email):
+def create_slurm_script(
+    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4
+):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
         qos = "qos_gpu_h100-dev"
@@ -30,7 +32,7 @@ def create_slurm_script(job_name, nodes, mode, config, output_dir, email):
 #SBATCH --nodes={nodes}
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=64
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
 #SBATCH --output={output_dir}/log_%j.out 
 #SBATCH --hint=nomultithread 
@@ -67,7 +69,7 @@ module load arch/h100 nemo/2.1.0
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 MASTER_PORT=6000
-GPUS_PER_NODE=4  # Adjust based on your setup
+GPUS_PER_NODE={gpus_per_node}  # Adjust based on your setup
 
 DISTRIBUTED_ARGS=" \
        --nproc_per_node $GPUS_PER_NODE \
@@ -93,7 +95,7 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     if args.name_prefix:
         job_name = f"{name_prefix}_{job_name}"
 
-    xp_output_dir = os.path.join(output_dir, mode, job_name)
+    xp_output_dir = os.path.join(output_dir, job_name)
 
     slurm_script = create_slurm_script(
         job_name, nodes, mode, config, xp_output_dir, email
