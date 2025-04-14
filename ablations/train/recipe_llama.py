@@ -186,8 +186,8 @@ def create_trainer(
         plugins=bf16_mixed(),
         strategy=strategy,
         use_distributed_sampler=False,
-        val_check_interval=2000, 
-        limit_val_batches=32, 
+        val_check_interval=100, 
+        limit_val_batches=0,  
         num_sanity_val_steps=2, # not sure it works
     )
 
