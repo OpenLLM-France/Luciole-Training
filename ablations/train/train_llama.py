@@ -84,7 +84,7 @@ if __name__ == "__main__":
         num_gpus_per_node=4,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
-        val_check_interval=5 if args.mode == "debug" else 100,
+        val_check_interval=5 if args.mode == "debug" else 1000,
         limit_val_batches=1 if args.mode == "debug" else 20,
     )
 
