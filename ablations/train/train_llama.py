@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("config")
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
+    parser.add_argument("--num_gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
     parser.add_argument(
         "--output_dir",
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     )
 
     if args.mode == "debug":
-        max_steps = 10
+        max_steps = 1
         resume_if_exists = False
         every_n_train_steps = 5
     else:
@@ -81,7 +82,7 @@ if __name__ == "__main__":
         pipeline_parallelism=1,
         pipeline_parallelism_type=torch.bfloat16,
         max_steps=max_steps,
-        num_gpus_per_node=4,
+        num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
     )

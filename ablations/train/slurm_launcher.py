@@ -3,6 +3,7 @@ import subprocess
 import os
 import logging
 import shutil
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +27,9 @@ def create_slurm_script(
         email_line = f"""#SBATCH --mail-user={email}  # Où envoyer l'e-mail
 #SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL            # Événements déclencheurs (NONE, BEGIN, END, FAIL, ALL)"""
 
+    train_path = Path(__file__).resolve().parent
+
+    logger.info(f"Train script path: {train_path}/train_llama.py")
     # Contenu du script SLURM
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
@@ -80,13 +84,13 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 
-echo "Arguments: {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir}" 
-srun torchrun $DISTRIBUTED_ARGS $cwd/train_llama.py {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir}
+echo "Arguments: {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}" 
+srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}
 """
     return script
 
 
-def submit_job(config, name_prefix, nodes, mode, output_dir, email):
+def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email):
     config = os.path.join("../datamix", config)
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
@@ -98,7 +102,13 @@ def submit_job(config, name_prefix, nodes, mode, output_dir, email):
     xp_output_dir = os.path.join(output_dir, job_name)
 
     slurm_script = create_slurm_script(
-        job_name, nodes, mode, config, xp_output_dir, email
+        job_name,
+        nodes,
+        mode,
+        config,
+        xp_output_dir,
+        email,
+        gpus_per_node=num_gpus_per_node,
     )
 
     logger.info(f"Experiment name : {job_name}")
@@ -126,6 +136,7 @@ if __name__ == "__main__":
     parser.add_argument("--config", default="mock.json")
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
+    parser.add_argument("--gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
     parser.add_argument("--email", default=None)
     parser.add_argument("--output_dir", default="")
@@ -138,6 +149,7 @@ if __name__ == "__main__":
         args.config,
         args.name_prefix,
         args.num_nodes,
+        args.gpus_per_node,
         args.mode,
         os.path.join(args.output_path, args.output_dir),
         args.email,
