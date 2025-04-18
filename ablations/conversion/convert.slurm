@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=debug 
+#SBATCH --job-name=convert 
 #SBATCH --output=%x.out 
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
@@ -13,39 +13,6 @@
 
 source ../set_env.sh
 
-python -m torch.distributed.launch --nproc_per_node 1 \
-    megatron_ckpt_to_nemo.py \
-    --checkpoint_folder "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/mock_1n_debug/mock_1n_debug/2025-04-11_17-13-38/checkpoints" \
-    --checkpoint_name "mock_1n_debug--step=9.0000-epoch=0-consumed_samples=5120.0/weights" \
-    --nemo_file_path /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/model.nemo \
-    --hparams_file "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/mock_1n_debug/mock_1n_debug/2025-04-11_17-13-38/checkpoints/context/model.yaml" \
-    --tensor_model_parallel_size 1 \
-    --pipeline_model_parallel_size 1 \
-    --gpus_per_node 1 \
-    --model_type gpt \
-    # --hparams_file model_old.yaml \
-    # --convert_mlm
-
-    # --hparams_file "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/mock_1n_debug/mock_1n_debug/2025-04-11_17-13-38/checkpoints/mock_1n_debug--step=9.0000-epoch=0-consumed_samples=5120.0/context/model.yaml" \
-
-# python -m torch.distributed.launch --nproc_per_node=1 megatron_lm_ckpt_to_nemo.py \
-#     --checkpoint_folder "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/mock_1n_debug/mock_1n_debug/2025-04-11_17-13-38/checkpoints/" \
-#     --checkpoint_name "mock_1n_debug--step=9.0000-epoch=0-consumed_samples=5120.0/weights" \
-#     --nemo_file_path /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/model.nemo \
-#     --hparams_file "model.yaml" \
-#     --model_type gpt \
-#     --tensor_model_parallel_size 1 \
-#     --pipeline_model_parallel_size 1 \
-#     --gpus_per_node 1 \
-#     --mcore_input
-
-# python -m torch.distributed.launch --nproc_per_node=1 megatron_lm_ckpt_to_nemo.py \
-#     --checkpoint_folder "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/mock_1n_debug/mock_1n_debug/2025-04-11_17-13-38/checkpoints/mock_1n_debug--step=9.0000-epoch=0-consumed_samples=5120.0/weights" \
-#     --checkpoint_name "common.pt" \
-#     --nemo_file_path /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/model.nemo \
-#     --model_type gpt \
-#     --tensor_model_parallel_size 1 \
-#     --pipeline_model_parallel_size 1 \
-#     --gpus_per_node 1
-
-# python test.py
+python -m torch.distributed.launch --nproc_per_node 1 convert_llama_nemo_to_hf.py \
+    --input_name_or_path "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/language_ablations/datamix_1._fra_Latn_4n_20b/datamix_1._fra_Latn_4n_20b/checkpoints/datamix_1._fra_Latn_4n_20b--step=19072.0000-epoch=1-consumed_samples=9765376.0-last" \
+    --output_path "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/hf/model.bin"
