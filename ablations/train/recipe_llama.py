@@ -124,6 +124,8 @@ def create_trainer(
     num_nodes: int = 1,
     num_gpus_per_node: int = 8,
     max_steps: int = 1168251,
+    val_check_interval: int = 1000,
+    limit_val_batches: int = 0,
     callbacks: Optional[list[Callback]] = None,
 ):
     """
@@ -186,8 +188,8 @@ def create_trainer(
         plugins=bf16_mixed(),
         strategy=strategy,
         use_distributed_sampler=False,
-        val_check_interval=100, 
-        limit_val_batches=0,  
+        val_check_interval=val_check_interval, 
+        limit_val_batches=limit_val_batches,  
         num_sanity_val_steps=2, # not sure it works
     )
 

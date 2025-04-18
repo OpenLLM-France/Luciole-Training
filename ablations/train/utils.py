@@ -32,14 +32,17 @@ def read_datamix_file(file):
             data_paths.append(os.path.join(loaded_data["data_path"], dataset["name"]))
         return data_paths
 
-    if "valid" in loaded_data:
+    logger.info(loaded_data)
+    if "validation" in loaded_data:
         data_paths = {
             "train": make_data_flattened_list("train"),
             "validation": make_data_flattened_list("validation"),
-            "test": make_data_flattened_list("test"),
+            "test": make_data_flattened_list("validation"),
         }
     else:
         data_paths = make_data_flattened_list("train")
+    logger.info(">>>>>>>>>>>")
+    logger.info(data_paths)
     return data_paths
 
 
