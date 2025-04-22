@@ -49,7 +49,7 @@ def convert(model_config, model_state_dict):
 
     # Embedding
     embed_weight = model_state_dict[f'module.embedding.word_embeddings.weight']
-    embed_weights_base_name = f'module.embed_tokens.weight'
+    embed_weights_base_name = f'embed_tokens.weight'
     checkpoint[embed_weights_base_name] = param_to_weights(embed_weight)
 
     for l in range(int(num_layers)):
@@ -76,9 +76,9 @@ def convert(model_config, model_state_dict):
         ## k_slice = [8, 18, 28, ... 68, 78]
         ## v_slice = [9, 19, 29, ... 69, 79]
 
-        q_weights_base_name = f'module.layers.{l}.self_attn.q_proj.weight'
-        k_weights_base_name = f'module.layers.{l}.self_attn.k_proj.weight'
-        v_weights_base_name = f'module.layers.{l}.self_attn.v_proj.weight'
+        q_weights_base_name = f'layers.{l}.self_attn.q_proj.weight'
+        k_weights_base_name = f'layers.{l}.self_attn.k_proj.weight'
+        v_weights_base_name = f'layers.{l}.self_attn.v_proj.weight'
 
         checkpoint[q_weights_base_name] = param_to_weights(qkv_weights[q_slice].reshape(-1, hidden_size))
         checkpoint[k_weights_base_name] = param_to_weights(qkv_weights[k_slice].reshape(-1, hidden_size))
@@ -86,7 +86,7 @@ def convert(model_config, model_state_dict):
 
         # attention dense
         o_weight = model_state_dict[f'module.decoder.layers.self_attention.linear_proj.weight'][l, ...]
-        o_weight_base_name = f'module.layers.{l}.self_attn.o_proj.weight'
+        o_weight_base_name = f'layers.{l}.self_attn.o_proj.weight'
         checkpoint[o_weight_base_name] = param_to_weights(o_weight)
 
         # mlp
@@ -94,29 +94,29 @@ def convert(model_config, model_state_dict):
         mlp_down_proj_weight = mlp_weights[:ffn_hidden_size, :]
         mlp_gate_proj_weight = mlp_weights[ffn_hidden_size:, :]
 
-        mlp_down_proj_base_name = f'module.layers.{l}.mlp.gate_proj.weight'
-        mlp_gate_proj_base_name = f'module.layers.{l}.mlp.up_proj.weight'
+        mlp_down_proj_base_name = f'layers.{l}.mlp.gate_proj.weight'
+        mlp_gate_proj_base_name = f'layers.{l}.mlp.up_proj.weight'
 
         checkpoint[mlp_down_proj_base_name] = param_to_weights(mlp_down_proj_weight)
         checkpoint[mlp_gate_proj_base_name] = param_to_weights(mlp_gate_proj_weight)
 
         mlp_up_proj_weight = model_state_dict[f'module.decoder.layers.mlp.linear_fc2.weight'][l, ...]
-        mlp_up_proj_base_name = f'module.layers.{l}.mlp.down_proj.weight'
+        mlp_up_proj_base_name = f'layers.{l}.mlp.down_proj.weight'
         checkpoint[mlp_up_proj_base_name] = param_to_weights(mlp_up_proj_weight)
 
         # layernorm
         input_ln_weight = model_state_dict[f'module.decoder.layers.self_attention.linear_qkv.layer_norm_weight'][l, ...]
-        input_ln_base_name = f'module.layers.{l}.input_layernorm.weight'
+        input_ln_base_name = f'layers.{l}.input_layernorm.weight'
         checkpoint[input_ln_base_name] = param_to_weights(input_ln_weight)
 
         post_attn_ln_weight = model_state_dict[f'module.decoder.layers.mlp.linear_fc1.layer_norm_weight'][l, ...]
-        post_attn_ln_base_name = f'module.layers.{l}.post_attention_layernorm.weight'
+        post_attn_ln_base_name = f'layers.{l}.post_attention_layernorm.weight'
         checkpoint[post_attn_ln_base_name] = param_to_weights(post_attn_ln_weight)
 
         # print(f"done layer {l}")
 
     final_ln_weight = model_state_dict[f'module.decoder.final_layernorm.weight']
-    final_ln_base_name = f'module.norm.weight'
+    final_ln_base_name = f'norm.weight'
     checkpoint[final_ln_base_name] = param_to_weights(final_ln_weight)
 
     # output_layer_weight = model_state_dict[f'module.output_layer.weight']
@@ -156,12 +156,13 @@ def save_llama_config(model_config, output_path):
         num_hidden_layers=model_config.num_layers,
         num_key_value_heads=model_config.num_query_groups,
         rope_scaling= {
-            "factor": model_config.scale_factor,
-            "high_freq_factor": model_config.high_freq_factor,
-            "low_freq_factor": model_config.low_freq_factor,
+            "factor": float(model_config.scale_factor),
+            "high_freq_factor": float(model_config.high_freq_factor),
+            "low_freq_factor": float(model_config.low_freq_factor),
             "original_max_position_embeddings": model_config.old_context_len,
             "rope_type": "llama3"
         },
+        max_position_embeddings=131072, # model_config.seq_length,
         rope_theta=model_config.rotary_base,
         tie_word_embeddings=True,
         use_cache=True,
@@ -180,6 +181,7 @@ def save_llama_config(model_config, output_path):
 
 if "__main__" == "__main__":
     parser = argparse.ArgumentParser(description="Convert NeMo checkpoint to Hugging Face format")    
+    parser.add_argument("--local-rank")
     parser.add_argument("--input_path", type=str, required=True, help="Path to the checkpoint")
     parser.add_argument("--output_path", type=str, required=True, help="Output directory for the converted checkpoint")
     args = parser.parse_args()
