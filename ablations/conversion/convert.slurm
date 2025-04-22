@@ -13,5 +13,4 @@
 
 source ../set_env.sh
 
-python -m torch.distributed.launch --nproc_per_node 1 convert.py ablations/train/language_ablations/datamix_1._fra_Latn_4n_20b/datamix_1._fra_Latn_4n_20b/checkpoints/datamix_1._fra_Latn_4n_20b--step=19072.0000-epoch=1-consumed_samples=9765376.0-last \
-    --output_path "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/hf/model"
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/audran/datamix_1._fra_Latn_4n_20b
