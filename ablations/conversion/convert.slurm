@@ -13,4 +13,10 @@
 
 source ../set_env.sh
 
-python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/audran/datamix_1._fra_Latn_4n_20b
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_1._eng_Latn_4n_20b
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_1._fra_Latn_4n_20b
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_.25_fra_Latn_.75_eng_Latn_4n_20b
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_.5_fra_Latn_.5_eng_Latn_4n_20b
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_.75_fra_Latn_.25_eng_Latn_4n_20b
+python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_.95_fra_Latn_.05_eng_Latn_4n_20b
+# python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py ablations/train/language_ablations/datamix_dclm_dolmino_4n_20b
