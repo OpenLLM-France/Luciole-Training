@@ -1,13 +1,16 @@
 import torch
-import logging
+from nemo.utils import logging
+import logging  # noqa: F811
 import os
 from argparse import ArgumentParser
 from tqdm import tqdm
 
 import convert_dist_to_llama
 
+for name in logging.root.manager.loggerDict:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.ERROR)
 torch.set_float32_matmul_precision("high")
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -16,7 +19,11 @@ def convert_checkpoint_folder(input_path, ouput_path):
     checkpoints = os.listdir(os.path.join(input_path, "checkpoints"))
     os.makedirs(os.path.join(ouput_path), exist_ok=True)
 
-    for checkpoint in tqdm(checkpoints, desc=f"Converting run {input_path}"):
+    for checkpoint in tqdm(
+        checkpoints,
+        total=len(checkpoints),
+        desc=f"Converting {os.path.basename(input_path)}",
+    ):
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
         checkpoint_output_path = os.path.join(ouput_path, checkpoint)
         convert_dist_to_llama.convert_checkpoint(
