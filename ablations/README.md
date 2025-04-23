@@ -17,3 +17,11 @@ Running ablations.
 | 1               | 5.3s    | 49h         |
 | 2               | 2.7s    | 25h         |
 | 4               | 1.43s   | 13h15       |
+
+## Language ablations
+
+Experiments run:
+```
+python slurm_launcher.py --config datamix_dclm_dolmino.json --output_dir language_ablations --num_nodes 4 --mode 20b
+```
+
