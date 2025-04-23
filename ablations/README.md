@@ -20,8 +20,9 @@ Running ablations.
 
 ## Language ablations
 
-Experiments run:
+Example of command training:
 ```
+python slurm_launcher.py --config datamix_dclm_dolmino.json --output_dir test --num_nodes 1 --mode debug
 python slurm_launcher.py --config datamix_dclm_dolmino.json --output_dir language_ablations --num_nodes 4 --mode 20b
 ```
 
