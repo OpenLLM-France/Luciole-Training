@@ -104,5 +104,3 @@ if __name__ == "__main__":
         optim=opt,
         resume=create_autoresume(resume_if_exists=resume_if_exists),
     )
-
-    # model 

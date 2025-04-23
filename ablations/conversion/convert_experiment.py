@@ -50,7 +50,13 @@ if __name__ == "__main__":
     parser.add_argument("--local-rank")
     args = parser.parse_args()
 
-    experiment_path = os.path.join(args.input_path, args.experiment)
+    if args.input_path in args.experiment:
+        experiment_path = args.experiment
+    else:
+        logger.warning(
+            f"You should specify an aboslute path to your experiment, not a relative to $OpenLLM_OUTPUT path ({args.experiment}). It could be remove in the future"
+        )
+        experiment_path = os.path.join(args.input_path, args.experiment)
 
     logger.info(f"Converting experiment {experiment_path}")
 
