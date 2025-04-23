@@ -20,7 +20,16 @@ export OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
-expe_name="datamix_.5_fra_Latn_.5_eng_Latn_4n_20b"
+expe_name=$1 
+# For example:
+# datamix_1._eng_Latn_4n_20b  
+# datamix_1._fra_Latn_4n_20b  
+# datamix_.25_fra_Latn_.75_eng_Latn_4n_20b 
+# datamix_.5_fra_Latn_.5_eng_Latn_4n_20b  
+# datamix_.75_fra_Latn_.25_eng_Latn_4n_20b  
+# datamix_.95_fra_Latn_.05_eng_Latn_4n_20b  
+# datamix_dclm_dolmino_4n_20b
+
 PARENT_DIR="$OpenLLM_OUTPUT/ablations/train/language_ablations/$expe_name/huggingface_checkpoints"
 
 for path in "$PARENT_DIR"/*/; do
