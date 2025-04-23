@@ -1,61 +1,15 @@
 import argparse
 import os
-from nemo.lightning.data import WrappedDataLoader
-from torch.utils.data._utils.collate import default_collate
 from nemo.collections.llm.gpt.data import PreTrainingDataModule
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 from nemo.collections import llm
 import fiddle as fdl
-import torch
-
-def create_random_offset(reset_positions, mean=1024):
-    p = 1./mean
-    nnz = reset_positions.count_nonzero()
-    samples = torch.distributions.Geometric(probs=torch.tensor([p])).sample((nnz,)).long().squeeze(1)
-    values = torch.zeros_like(reset_positions, dtype=torch.long)
-    values[reset_positions] = samples
-    offsets = values.cumsum(dim=1)  
-    return offsets
-
-def custom_collate_with_positional_offset(batch, offset=100, eos_token_id=1):
-    batch = default_collate(batch)  # collate normally
-    if 'position_ids' in batch:  
-        reset_postions = batch['tokens'] == eos_token_id
-        batch['position_ids'] += create_random_offset(reset_postions, 1024)
-    return batch
-
-class WrappedPreTrainingDataModule(PreTrainingDataModule):
-
-    def __init__(self, offset_collate=False, **dataloader_kwargs):
-        super().__init__(**dataloader_kwargs)
-        self.offset_collate = offset_collate
-
-    def _create_dataloader(self, dataset, mode, **kwargs) -> WrappedDataLoader:
-        self.init_global_step = self.trainer.global_step
-        self.data_sampler.init_global_step = self.init_global_step
-
-        if self.offset_collate:
-            collate_fn=getattr(dataset, "collate_fn", custom_collate_with_positional_offset)
-        else:
-            collate_fn=getattr(dataset, "collate_fn", default_collate)
-        
-        dataloader = WrappedDataLoader(
-            mode=mode,
-            dataset=dataset,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            persistent_workers=self.persistent_workers,
-            collate_fn=collate_fn,
-            **kwargs,
-        )
-        return dataloader
 
 def create_data(
-    data_path, tokenizer_name="OpenLLM-France/Lucie-7B", batch_size=512, seq_length=2048, offset_collate=False
+    data_path, tokenizer_name="OpenLLM-France/Lucie-7B", batch_size=512, seq_length=2048
 ):
     tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
-    data = WrappedPreTrainingDataModule(
-        offset_collate=offset_collate,
+    data = PreTrainingDataModule(
         paths=data_path,
         global_batch_size=batch_size,
         micro_batch_size=1,
@@ -104,9 +58,9 @@ def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     recipe.trainer.max_steps = 5
     return recipe
 
-def run_dataloader(paths, output, number_of_data=1, seq_length=2048, offset_collate=False):
+def run_dataloader(paths, output, number_of_data=1, seq_length=2048):
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
-    recipe.data = create_data(paths, batch_size=1, seq_length=seq_length, offset_collate=offset_collate)
+    recipe.data = create_data(paths, batch_size=1, seq_length=seq_length)
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
     save_sample_texts(
@@ -127,9 +81,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_data", help="Number of iteration", default=10, type=str
     )
-    parser.add_argument(
-        "--offset_collate", help="Use offset collate", action='store_true'
-    )
     parser.add_argument("--seq_length", help="", default=4096, type=str)
     args = parser.parse_args()
 
@@ -137,4 +88,4 @@ if __name__ == "__main__":
     data_path = os.path.join(main_path, args.dataset_name)
     output_path = os.path.join(main_path, "batch_examples", args.dataset_name)
 
-    run_dataloader(data_path, output_path, args.number_of_data, args.seq_length, offset_collate=args.offset_collate)
+    run_dataloader(data_path, output_path, args.number_of_data, args.seq_length)
