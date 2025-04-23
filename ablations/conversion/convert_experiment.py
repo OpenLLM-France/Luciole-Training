@@ -24,6 +24,8 @@ def convert_checkpoint_folder(input_path, ouput_path):
         total=len(checkpoints),
         desc=f"Converting {os.path.basename(input_path)}",
     ):
+        if checkpoint.endswith("-last"):
+            continue
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
         checkpoint_output_path = os.path.join(ouput_path, checkpoint)
         convert_dist_to_llama.convert_checkpoint(
