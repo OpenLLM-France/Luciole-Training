@@ -38,7 +38,8 @@ for path in "$PARENT_DIR"/*/; do
         path="$PARENT_DIR/$escaped_name"
     fi
 
-    accelerate launch --multi_gpu --num_processes=4 lighteval accelerate \
+    accelerate launch --multi_gpu --num_processes=4 -m \
+        lighteval accelerate \
         --model_args "pretrained=$path,dtype="bfloat16"" \
         --tasks "task_to_evaluate.txt" \
         --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations"
