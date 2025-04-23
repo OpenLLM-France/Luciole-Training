@@ -40,7 +40,7 @@ for path in "$PARENT_DIR"/*/; do
 
     accelerate launch --multi_gpu --num_processes=4 -m \
         lighteval accelerate \
-        --model_args "pretrained=$path,dtype="bfloat16"" \
-        --tasks "task_to_evaluate.txt" \
+        "pretrained=$path,dtype="bfloat16"" \
+        "task_to_evaluate.txt" \
         --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations"
 done
