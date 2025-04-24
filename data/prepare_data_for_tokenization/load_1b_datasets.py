@@ -47,7 +47,7 @@ if __name__ == "__main__":
     target_num_words = 1e9
 
     # Read stats from fineweb2
-    if language in ["fra_Latn", "deu_Latn", "ita_Latn", "spa_Latn", "por_Latn", "nld_Latn"]:
+    if language in ["fra_Latn", "deu_Latn", "ita_Latn", "spa_Latn", "por_Latn", "nld_Latn", "arb_Arab"]:
         df = read_markdown_table("fineweb2_languages.md")
         selected_row = df[df['Subset'] == language].iloc[0]
         print(selected_row)
