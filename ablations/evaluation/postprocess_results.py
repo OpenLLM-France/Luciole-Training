@@ -43,7 +43,7 @@ def plot_task(ax, df, task, metric, xlog=False):
         ax.set_xscale('log')
 
 
-def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, xlog=False):
+def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title=None, xlog=False):
     num_tasks = len(list_of_tasks_to_plot)
     num_plots = num_tasks + 1  # +1 for the legend
 
@@ -72,14 +72,16 @@ def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, xlog=False):
         legend_labels,
         title="datamix",
         loc="center",
-        prop={'size': 14},        # 🔍 This controls the font size
-        title_fontsize=16         # Optional: make title larger too
+        # prop={'size': 14},        
+        # title_fontsize=16        
     )
 
     # Hide any other unused subplots if any
     for j in range(len(list_of_tasks_to_plot), len(axes) - 1):
         fig.delaxes(axes[j])
 
+    if title is not None:
+        fig.suptitle(title)
     plt.tight_layout()
     plt.savefig(output_dir)
 
@@ -103,4 +105,4 @@ if __name__=="__main__":
         ("lighteval|piqa|0", "acc_norm")    
     ]
     output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/en.png")
-    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir)
+    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="English Tasks", xlog=False)

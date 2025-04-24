@@ -42,7 +42,6 @@ PARENT_DIR="$OpenLLM_OUTPUT/ablations/train/language_ablations/$expe_name/huggin
 
 for path in "$PARENT_DIR"/*/; do
     echo "Processing folder: $path"
-
     # Get base directory name (e.g., checkpoint-1000)
     dir_name=$(basename "$path")
     
@@ -55,10 +54,13 @@ for path in "$PARENT_DIR"/*/; do
         path="$PARENT_DIR/$escaped_name"
     fi
 
+    output_dir="$OpenLLM_OUTPUT/ablations/evaluation/language_ablations/$task_to_evaluate"
+    echo "Output directory: $output_dir"
+
     accelerate launch --multi_gpu --num_processes=4 -m \
         lighteval accelerate \
         "pretrained=$path,dtype="bfloat16"" \
         "$task_to_evaluate.txt" \
-        --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations/$task_to_evaluate" \
+        --output-dir $output_dir \
         $extra_arg
 done
