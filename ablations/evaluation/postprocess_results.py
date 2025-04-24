@@ -110,3 +110,13 @@ if __name__=="__main__":
     ]
     output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/en.png")
     plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="English Tasks", xlog=False)
+
+    # English benchmarks
+    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/fr")
+    df = read_all_results(main_dir)
+    print(df)
+    list_of_tasks_to_plot = [
+        # ...
+    ]
+    output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/fr.png")
+    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="English Tasks", xlog=False)
