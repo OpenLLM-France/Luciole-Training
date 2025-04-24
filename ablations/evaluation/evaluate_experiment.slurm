@@ -24,9 +24,9 @@ expe_name=$1
 task_to_evaluate=$2 # without .txt file
 
 if [ "$3" == "multilingual" ]; then
-  extra_arg="--multilingual"
-else
   extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
+else
+  extra_arg=""
 fi
 
 # For example:
