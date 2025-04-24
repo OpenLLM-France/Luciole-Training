@@ -23,6 +23,12 @@ export HF_HUB_OFFLINE=1
 expe_name=$1 
 task_to_evaluate=$2 # without .txt file
 
+if [ "$3" == "multilingual" ]; then
+  extra_arg="--multilingual"
+else
+  extra_arg=" --custom-tasks lighteval.tasks.multilingual.tasks"
+fi
+
 # For example:
 # datamix_1._eng_Latn_4n_20b  
 # datamix_1._fra_Latn_4n_20b  
@@ -53,5 +59,6 @@ for path in "$PARENT_DIR"/*/; do
         lighteval accelerate \
         "pretrained=$path,dtype="bfloat16"" \
         "$task_to_evaluate.txt" \
-        --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations/$task_to_evaluate"
+        --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations/$task_to_evaluate" \
+        $extra_arg
 done
