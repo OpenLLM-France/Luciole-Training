@@ -20,14 +20,18 @@ def read_all_results(main_dir):
     df = pd.concat([read_file(file) for file in json_files])
     df['datamix'] = df['model_name'].str.extract(r'huggingface_checkpoints_datamix_(.*?)_4n_20b--')
     df['step'] = df['model_name'].str.extract(r'--step_([0-9.]+)-')[0].astype(float)
+    df['samples'] = df['model_name'].str.extract(r'-consumed_samples_([0-9.]+)')[0].astype(float)
+    df['tokens'] = df['samples'] * 2048 / 10**9
+    df['fr_prop'] = df['model_name'].str.extract(r'([0-9.]+)_fra_Latn')[0].astype(float)
+    df['en_prop'] = df['model_name'].str.extract(r'([0-9.]+)_eng_Latn')[0].astype(float)
     return df
 
 def plot_task(ax, df, task, metric, xlog=False):
     df = df[df['task'] == task]
-    df = df.sort_values('step')
+    df = df.sort_values('tokens')
 
-    pivot_df = df.pivot(index='step', columns='datamix', values=metric)
-    stderr_df = df.pivot(index='step', columns='datamix', values=metric + '_stderr')
+    pivot_df = df.pivot(index='tokens', columns='datamix', values=metric)
+    stderr_df = df.pivot(index='tokens', columns='datamix', values=metric + '_stderr')
 
     for col in pivot_df.columns:
         mean = pivot_df[col]
@@ -36,7 +40,7 @@ def plot_task(ax, df, task, metric, xlog=False):
         ax.plot(mean.index, mean.values, marker='+', label=col, alpha=0.8)
         ax.fill_between(mean.index, mean - stderr, mean + stderr, alpha=0.1)
 
-    ax.set_xlabel('step')
+    ax.set_xlabel('B tokens')
     ax.set_ylabel(metric)
     ax.set_title(task)
     if xlog:
@@ -91,7 +95,7 @@ if __name__=="__main__":
     # English benchmarks
     main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/en")
     df = read_all_results(main_dir)
-
+    print(df)
     list_of_tasks_to_plot = [
         ("helm|boolq|0", "pem"),
         ("lighteval|triviaqa|0", "qem"),
