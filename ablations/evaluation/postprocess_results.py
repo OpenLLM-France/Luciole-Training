@@ -93,7 +93,7 @@ if __name__=="__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
 
     # English benchmarks
-    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/en")
+    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/en")
     df = read_all_results(main_dir)
     print(df)
     list_of_tasks_to_plot = [
@@ -108,15 +108,36 @@ if __name__=="__main__":
         ("lighteval|openbookqa|0", "acc_norm"),
         ("lighteval|piqa|0", "acc_norm")    
     ]
-    output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/en.png")
+    output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/en.png")
     plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="English Tasks", xlog=False)
 
-    # English benchmarks
-    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/fr")
+    # French benchmarks
+    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr")
     df = read_all_results(main_dir)
     print(df)
     list_of_tasks_to_plot = [
-        # ...
+        # ("all", "acc_norm_token"), 
+        # ("all", "acc_norm"), 
+        # ("all", "acc_norm_pmi"), 
+        # ("all", "acc_"), 
+        # ("all", "exact_match_fra_prefix"), 
+        # ("all", "f1_fra"), 
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm_token"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"), 
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"), 
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"), 
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"), 
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"), 
+        ("lighteval|xcodah_fra_cf|0", "acc_norm_token"), 
+        ("lighteval|xcodah_fra_cf|0", "acc_norm"), 
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"), 
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm"),     
+        ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"), 
+        ("lighteval|xnli2.0_fra_cf|0", "acc_norm"),     
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"), 
+        ("lighteval|fquadv2_fra|0", "f1_fra"),     
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"), 
+        ("lighteval|mintaka_fra|0", "f1_fra"), 
     ]
-    output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/results/fr.png")
-    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="English Tasks", xlog=False)
+    output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr.png")
+    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="French Tasks", xlog=False)
