@@ -21,6 +21,8 @@ export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
 expe_name=$1 
+task_to_evaluate=$2 # without .txt file
+
 # For example:
 # datamix_1._eng_Latn_4n_20b  
 # datamix_1._fra_Latn_4n_20b  
@@ -50,6 +52,6 @@ for path in "$PARENT_DIR"/*/; do
     accelerate launch --multi_gpu --num_processes=4 -m \
         lighteval accelerate \
         "pretrained=$path,dtype="bfloat16"" \
-        "task_to_evaluate.txt" \
-        --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations"
+        "$task_to_evaluate.txt" \
+        --output-dir "$OpenLLM_OUTPUT/ablations/evaluation/language_ablations/$task_to_evaluate"
 done
