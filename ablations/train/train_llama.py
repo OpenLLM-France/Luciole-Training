@@ -58,7 +58,7 @@ if __name__ == "__main__":
         number_of_tokens = int(args.mode.replace("b", "")) * 1_000_000_000
         max_steps = number_of_tokens // (args.seq_length * args.batch_size)
         resume_if_exists = True
-        every_n_train_steps = 5_000_000_000 // (args.seq_length * args.batch_size)
+        every_n_train_steps = 2_500_000_000 // (args.seq_length * args.batch_size)
 
     logger.info(f"Job name: {args.name}")
     logger.info(f"Output dir: {args.output_dir}")
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
         val_check_interval=5 if args.mode == "debug" else 1000,
-        limit_val_batches=1 if args.mode == "debug" else 20,
+        limit_val_batches=1 if args.mode == "debug" else 0,
     )
 
     nemo_logger = create_logger(
