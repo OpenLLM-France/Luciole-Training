@@ -1,0 +1,29 @@
+{
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/",
+    "train": [
+        {
+            "name": "algebraic_stack_text_document",
+            "weight": 0.010161779731073075
+        },
+        {
+            "name": "dclm_dolmino_text_document",
+            "weight": 0.7838924039521433
+        },
+        {
+            "name": "open_web_math_text_document",
+            "weight": 0.013735236169711687
+        },
+        {
+            "name": "pes2o_text_document",
+            "weight": 0.06189561196550069
+        },
+        {
+            "name": "starcoder_text_document",
+            "weight": 0.12276709271695738
+        },
+        {
+            "name": "wikipedia_en_text_document",
+            "weight": 0.007547875464613847
+        }
+    ]
+}
