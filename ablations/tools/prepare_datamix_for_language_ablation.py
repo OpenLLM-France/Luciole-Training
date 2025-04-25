@@ -45,14 +45,23 @@ if __name__ == "__main__":
         default=None,
         help="Name of the output file",
     )
+    parser.add_argument(
+        "--no-rehydratation",
+        action="store_true",
+        help="If set, disables rehydratation."
+    )
     args = parser.parse_args()
 
     language_weights = args.language_weights
     data_path = args.data_path
     expe_name = args.expe_name
+    no_rehydratation = args.no_rehydratation
     if expe_name is None:
-        expe_name = f"datamix_{'_'.join(language_weights)}.json"
-
+        if no_rehydratation:
+            expe_name = f"datamix_{'_'.join(language_weights)}_norehydratation.json"
+        else:
+            expe_name = f"datamix_{'_'.join(language_weights)}.json"
+    
     assert len(language_weights) % 2 == 0
     
     if not os.path.exists(f"../datamix/{expe_name}"):
@@ -60,7 +69,11 @@ if __name__ == "__main__":
 
         # Load stats and normalize the total tokens by datasets
         stats_df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
-        stats_df['weight_per_dataset'] = stats_df.groupby('dataset')['total_tokens_rehydrated'].transform(lambda x: x / x.sum())
+        if no_rehydratation:
+            total_tokens_ref = 'total_tokens'
+        else:
+            total_tokens_ref = 'total_tokens_rehydrated'
+        stats_df['weight_per_dataset'] = stats_df.groupby('dataset')[total_tokens_ref].transform(lambda x: x / x.sum())
 
         # Merge
         df = pd.merge(stats_df, language_df, on='dataset', how='inner')
