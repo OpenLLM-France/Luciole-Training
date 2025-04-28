@@ -14,38 +14,7 @@ def hash_dict(d):
 main_path = os.getenv("OpenLLM_OUTPUT")
 default_data_path = os.path.join(main_path, "data/tokens_ablation/")
 
-datasets_by_language = {
-    'en': [
-        'dclm_dolmino',
-        'open_web_math',
-        'pes2o',
-        'wikipedia_en',
-    ],
-    'fr': [
-        'fineweb2_fra_Latn',
-        'wikipedia_fr',
-        'wikisource',
-        'wiktionary', 
-        'gallica_monographies',
-        'gallica_press'
-    ],
-    'es': [
-        'fineweb2_spa_Latn',
-        'wikipedia_es'
-    ],
-    'de': [
-        'fineweb2_deu_Latn',
-        'wikipedia_de'
-    ],
-    'it': [
-        'fineweb2_ita_Latn',
-        'wikipedia_it'
-    ],
-    'code': [
-        'algebraic_stack',
-        'starcoder'
-    ]
-}
+dataset_info = pd.read_csv('datasets_info.csv')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -61,19 +30,14 @@ if __name__ == "__main__":
         default=None,
         help="Name of the output file",
     )
-    # Define all possible weighting
-    for k, v in datasets_by_language.items():
+    unique_values = set(dataset_info['language']) | set(dataset_info['dataset']) | set(dataset_info['category'])
+    unique_values = list(unique_values)
+    for key in unique_values:
         parser.add_argument(
-            f"--{k}",
+            f"--{key}",
             type=float,
             default=1.,
         )
-        for d in v:
-            parser.add_argument(
-                f"--{d}",
-                type=float,
-                default=1.,
-            )
 
     args = vars(parser.parse_args())
     print('Arguments:')
@@ -86,18 +50,19 @@ if __name__ == "__main__":
         name = args['name']
     data_path = args['data_path']
 
-    # Read args and define each data weight
-    upsampling = []
-    for k, v in datasets_by_language.items():
-        language_upsampling = args[k]
-        for d in v:
-            dataset_upsampling = args[d] * language_upsampling
-            upsampling.append({"language": k, "dataset": d, "upsampling": dataset_upsampling})
-    df_upsampling = pd.DataFrame(upsampling)
+    # Read args and define each data weight 
+    def compute_upsampling(row):
+        unique_values = {row['language'], row['dataset'], row['category']}  # a set: unique only
+        product = 1.0
+        for value in unique_values:
+            product *= args.get(value, 1.0)  # default to 1.0 if value not found
+        return product
+
+    dataset_info['upsampling'] = dataset_info.apply(compute_upsampling, axis=1)
     
     # read data
     stats_df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
-    df = df_upsampling.merge(stats_df, how='left', on='dataset')
+    df = dataset_info.merge(stats_df, how='left', on='dataset')
 
     total_tokens_ref = 'total_tokens_rehydrated'
     df['total_tokens_upsampled'] = df[total_tokens_ref] * df['upsampling']
@@ -118,6 +83,11 @@ if __name__ == "__main__":
     language_df = df.groupby("language")['weight'].sum()
     pprint(language_df)
 
+    # Print Category proportions
+    print("\nCategory proportion:")
+    category_df = df.groupby("category")['weight'].sum()
+    pprint(category_df)
+
     # Save the output to a JSON file
     output_dir = f"../datamix/{name}"
     os.makedirs(output_dir, exist_ok=True)
@@ -132,4 +102,5 @@ if __name__ == "__main__":
         json.dump(args, f, indent=4)
     # Save Language proportions
     language_df.to_csv(f"{output_dir}/language_proportion.csv")
+    category_df.to_csv(f"{output_dir}/category_proportion.csv")
     df.to_csv(f"{output_dir}/all_stats.csv")
