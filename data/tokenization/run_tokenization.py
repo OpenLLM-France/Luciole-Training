@@ -6,18 +6,24 @@ import argparse
 MAIN_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data")
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        "--yaml_file", type=str, default="datasets_to_tokenize.yaml"
+        "--yaml_file", 
+        type=str, 
+        default="datasets_to_tokenize.yaml", 
+        help=".yaml file that contains the datasets you want to tokenize. See for example datasets_to_tokenize.yaml."
     )
     parser.add_argument(
-        "--input_dir", type=str, default="raw_datasets_ablation"
+        "--input_dir", type=str, default="raw_datasets_ablation",
+        help="Input directory (in $OpenLLM_OUTPUT/data) that contains the processed datasets you want to tokenize. "
     )
     parser.add_argument(
-        "--output_dir", type=str, default="tokens_ablation"
+        "--output_dir", type=str, default="tokens_ablation",
+        help="Output directory (in $OpenLLM_OUTPUT/data) that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error)."
     )
     parser.add_argument(
-        "--tokenizer_name", type=str, default="OpenLLM-France/Lucie-7B"
+        "--tokenizer_name", type=str, default="OpenLLM-France/Lucie-7B",
+        help="The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir."
     )
     args = parser.parse_args()
     yaml_file = args.yaml_file

@@ -12,5 +12,7 @@
 module purge
 module load arch/h100 nemo/2.1.0
 
-python generate_token_stats.py --data_path $OpenLLM_OUTPUT/data/tokens
-python plot_doc_length_distribution.py --data_path $OpenLLM_OUTPUT/data/tokens
+data_path=$OpenLLM_OUTPUT/data/tokens_ablation
+
+python generate_token_stats.py --data_path $data_path
+python plot_doc_length_distribution.py --data_path $data_path
