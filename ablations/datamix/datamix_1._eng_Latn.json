@@ -1,0 +1,19 @@
+{
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/",
+    "train": [
+        {
+            "name": "fineweb_edu_text_document",
+            "weight": 1.0
+        }
+    ],
+    "validation": [
+        {
+            "name": "wikipedia_fr_text_document",
+            "weight": 0.5
+        },
+        {
+            "name": "wikipedia_en_text_document",
+            "weight": 0.5
+        }
+    ]
+}
