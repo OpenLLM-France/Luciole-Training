@@ -91,6 +91,7 @@ sbatch run_statistics.slurm
 ```
 Just modify the `data_path` that corresponds to the path of your tokenized datasets.
 
+4. Next step is in `../ablations` or in `../training`.
 
 ## Tips... 
 
