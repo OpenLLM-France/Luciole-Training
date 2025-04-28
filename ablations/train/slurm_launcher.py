@@ -91,11 +91,11 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {config} --num_nodes
 
 
 def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email):
-    config_name = slugify.slugify(os.path.splitext(os.path.basename(config))[0])
     config = os.path.join("../datamix", config)
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
-
+    
+    config_name = os.path.splitext(os.path.basename(config))[0]
     job_name = f"{config_name}_{nodes}n_{mode}"
     if args.name_prefix:
         job_name = f"{name_prefix}_{job_name}"

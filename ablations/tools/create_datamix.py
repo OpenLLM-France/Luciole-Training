@@ -44,11 +44,8 @@ if __name__ == "__main__":
     pprint(args)
     hash = hash_dict(args)
     print(f'\nHash: {hash}')
-    if args['name'] is None:
-        name = hash
-    else:
-        name = args['name']
     data_path = args['data_path']
+    name = args['name']
 
     # Read args and define each data weight 
     def compute_upsampling(row):
@@ -88,19 +85,22 @@ if __name__ == "__main__":
     category_df = df.groupby("category")['weight'].sum()
     pprint(category_df)
 
-    # Save the output to a JSON file
-    output_dir = f"../datamix/{name}"
-    os.makedirs(output_dir, exist_ok=True)
-    # Save datamix
-    with open(f"{output_dir}/datamix.json", 'w') as f:
-        json.dump(out, f, indent=4)
-    # Save Hash
-    with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
-        pass
-    # Save datamix
-    with open(f"{output_dir}/args.json", 'w') as f:
-        json.dump(args, f, indent=4)
-    # Save Language proportions
-    language_df.to_csv(f"{output_dir}/language_proportion.csv")
-    category_df.to_csv(f"{output_dir}/category_proportion.csv")
-    df.to_csv(f"{output_dir}/all_stats.csv")
+    if name is not None:
+        # Save the output to a JSON file
+        output_dir = f"../datamix/{name}"
+        os.makedirs(output_dir, exist_ok=True)
+        # Save datamix
+        with open(f"{output_dir}/datamix_{name}.json", 'w') as f:
+            json.dump(out, f, indent=4)
+        # Save Hash
+        with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
+            pass
+        # Save datamix
+        with open(f"{output_dir}/args.json", 'w') as f:
+            json.dump(args, f, indent=4)
+        # Save Language proportions
+        language_df.to_csv(f"{output_dir}/language_proportion.csv")
+        category_df.to_csv(f"{output_dir}/category_proportion.csv")
+        df.to_csv(f"{output_dir}/all_stats.csv")
+    else:
+        print("\nYou should use --name if you want to save your datamix.")
