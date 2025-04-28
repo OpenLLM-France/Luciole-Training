@@ -3,6 +3,7 @@
 Running ablations.
 
 `pip install --user --no-cache-dir  zarr`
+`pip install --user --no-cache-dir  python-slugify[unidecode]`
 
 ## Estimate training time for 35B tokens on Llama 32 1b
 
