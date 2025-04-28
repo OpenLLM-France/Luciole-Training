@@ -30,6 +30,16 @@ if __name__=="__main__":
     tokens_dataset_path = os.path.join(MAIN_PATH, output_dir)
     os.makedirs(tokens_dataset_path, exist_ok=True)
 
+    # Check if tokenizer name is already register, and if it match
+    tokenizer_name_file = f"{tokens_dataset_path}/tokenizer_name.txt"
+    if os.path.exists(tokenizer_name_file):
+        with open(tokenizer_name_file, "r") as f:
+            content = f.read()
+            assert tokenizer_name == content, f"This output folder is associated with the tokenizer: {content}. You should either create a new output folder, or tokenize with the tokenizer {content}."
+    else:
+        with open(tokenizer_name_file, "w", encoding="utf-8") as f:
+            f.write(tokenizer_name)
+
     # Load the YAML content
     with open(yaml_file, "r") as f:
         datasets = yaml.safe_load(f)['datasets']
