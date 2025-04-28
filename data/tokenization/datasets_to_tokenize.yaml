@@ -1,223 +1,137 @@
 datasets:
   # Fineweb2 french
   - name: fineweb2_fra_Latn_cluster_1
-    category: web
-    language: fr
     path: fineweb2/data/fra_Latn/clusters/cluster_size-1
 
   - name: fineweb2_fra_Latn_cluster_1000+
-    category: web
-    language: fr
     path: fineweb2/data/fra_Latn/clusters/cluster_size-1000+
 
   - name: fineweb2_fra_Latn_cluster_100-1000
-    category: web
-    language: fr    
     path: fineweb2/data/fra_Latn/clusters/cluster_size-100-1000
 
   - name: fineweb2_fra_Latn_cluster_2
-    category: web
-    language: fr
     path: fineweb2/data/fra_Latn/clusters/cluster_size-2
 
   - name: fineweb2_fra_Latn_cluster_3
-    category: web
-    language: fr
     path: fineweb2/data/fra_Latn/clusters/cluster_size-3
 
   - name: fineweb2_fra_Latn_cluster_4
-    category: web
-    language: fr
     path: fineweb2/data/fra_Latn/clusters/cluster_size-4
 
   - name: fineweb2_fra_Latn_cluster_5-100
-    category: web
-    language: fr
     path: fineweb2/data/fra_Latn/clusters/cluster_size-5-100
 
   # Fineweb2 italian
   - name: fineweb2_ita_Latn_cluster_1
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-1
 
   - name: fineweb2_ita_Latn_cluster_1000+
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-1000+
     
   - name: fineweb2_ita_Latn_cluster_100-1000
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-100-1000
 
   - name: fineweb2_ita_Latn_cluster_2
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-2
 
   - name: fineweb2_ita_Latn_cluster_3
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-3
 
   - name: fineweb2_ita_Latn_cluster_4
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-4
 
   - name: fineweb2_ita_Latn_cluster_5-100
-    category: web
-    language: it
     path: fineweb2/data/ita_Latn/clusters/cluster_size-5-100
 
   # Fineweb2 deutch
   - name: fineweb2_deu_Latn_cluster_1
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-1
 
   - name: fineweb2_deu_Latn_cluster_1000+
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-1000+
 
   - name: fineweb2_deu_Latn_cluster_100-1000
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-100-1000
 
   - name: fineweb2_deu_Latn_cluster_2
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-2
 
   - name: fineweb2_deu_Latn_cluster_3
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-3
 
   - name: fineweb2_deu_Latn_cluster_4
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-4
 
   - name: fineweb2_deu_Latn_cluster_5-100
-    category: web
-    language: de
     path: fineweb2/data/deu_Latn/clusters/cluster_size-5-100
 
   # Fineweb2 spanish
   - name: fineweb2_spa_Latn_cluster_1
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-1
 
   - name: fineweb2_spa_Latn_cluster_1000+
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-1000+
 
   - name: fineweb2_spa_Latn_cluster_100-1000
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-100-1000
 
   - name: fineweb2_spa_Latn_cluster_2
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-2
 
   - name: fineweb2_spa_Latn_cluster_3
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-3
 
   - name: fineweb2_spa_Latn_cluster_4
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-4
 
   - name: fineweb2_spa_Latn_cluster_5-100
-    category: web
-    language: es
     path: fineweb2/data/spa_Latn/clusters/cluster_size-5-100
 
   # Web english
   - name: fineweb_edu
-    category: web
-    language: en
     path: fineweb_edu/output
 
   - name: dclm_dolmino
-    category: web
-    language: en
     path: dclm_dolmino/output
 
   # Wikipedia
   - name: wikipedia_fr
-    category: wiki
-    language: fr
     path: lucie_dataset/wikipedia-fr/output
 
   - name: wikipedia_it
-    category: wiki
-    language: it
     path: lucie_dataset/wikipedia-it/output
 
   - name: wikipedia_es
-    category: wiki
-    language: es
     path: lucie_dataset/wikipedia-es/output
 
   - name: wikipedia_en
-    category: wiki
-    language: en
     path: lucie_dataset/wikipedia-en/output
 
   - name: wikipedia_de
-    category: wiki
-    language: de
     path: lucie_dataset/wikipedia-de/output
 
   - name: wikisource
-    category: wiki
-    language: fr
     path: lucie_dataset/wikisource/output
 
   - name: wiktionary
-    category: wiki
-    language: fr
     path: lucie_dataset/wiktionary/output
 
   # Code / Math
   - name: starcoder
-    category: code
-    language: code
     path: starcoder/1_high_stars_count
 
   - name: algebraic_stack
-    category: code
-    language: code
     path: algebraic_stack/output
 
   - name: pes2o
-    category: math
-    language: en
     path: pes2o/output
 
   - name: open_web_math
-    category: math
-    language: en
     path: open_web_math/output
 
   # OCR
   - name: gallica_monographies
-    category: books
-    language: fr
     path: gallica_monographies/1_high_ocr_scores
 
   - name: gallica_press
-    category: press
-    language: fr
     path: gallica_press/1_high_ocr_scores
