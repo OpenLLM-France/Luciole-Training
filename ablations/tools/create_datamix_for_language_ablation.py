@@ -3,8 +3,7 @@ import argparse
 import pandas as pd
 import json
 
-main_path = os.getenv("OpenLLM_OUTPUT")
-default_data_path = os.path.join(main_path, "data/tokens_ablation/")
+main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data")
 
 def convert_args_to_dataframe(language_weights):
     out = []
@@ -34,15 +33,15 @@ if __name__ == "__main__":
         nargs="+",
         )
     parser.add_argument(
-        "--data_path",
+        "--input_dir",
         type=str,
-        default=default_data_path,
+        default="tokens_ablation",
         help="Path to the data directory",
     )
     parser.add_argument(
-        "--expe_name",
+        "--suffix",
         type=str,
-        default=None,
+        default="",
         help="Name of the output file",
     )
     parser.add_argument(
@@ -53,22 +52,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     language_weights = args.language_weights
-    data_path = args.data_path
-    expe_name = args.expe_name
+    input_dir = args.input_dir
+    suffix = args.suffix
     no_rehydratation = args.no_rehydratation
-    if expe_name is None:
-        if no_rehydratation:
-            expe_name = f"datamix_{'_'.join(language_weights)}_norehydratation.json"
-        else:
-            expe_name = f"datamix_{'_'.join(language_weights)}.json"
+    if no_rehydratation:
+        output_name = f"datamix_{'_'.join(language_weights)}_norehydratation"
+    else:
+        output_name = f"datamix_{'_'.join(language_weights)}"
+    if suffix: 
+        output_name += suffix
+    output_name += ".json"
     
     assert len(language_weights) % 2 == 0
     
-    if not os.path.exists(f"../datamix/{expe_name}"):
+    if not os.path.exists(f"../datamix/{output_name}"):
         language_df = convert_args_to_dataframe(language_weights)
 
         # Load stats and normalize the total tokens by datasets
-        stats_df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
+        stats_df = pd.read_csv(os.path.join(main_path, input_dir, "stats/all_stats_merged.csv"))
         if no_rehydratation:
             total_tokens_ref = 'total_tokens'
         else:
@@ -81,13 +82,13 @@ if __name__ == "__main__":
         df['name'] = df['name'] + "_text_document"
 
         out = {
-            'data_path': data_path, 
+            'data_path': os.path.join(main_path, input_dir), 
             'train': df[['name', 'weight']].to_dict(orient='records'),
             'validation': [{'name': 'wikipedia_fr_text_document', 'weight': 0.5}, {'name': 'wikipedia_en_text_document', 'weight': 0.5}],
         }
 
         # Save the output to a JSON file
-        with open(f"../datamix/{expe_name}", 'w') as f:
+        with open(f"../datamix/{output_name}", 'w') as f:
             json.dump(out, f, indent=4)
 
     else: 
