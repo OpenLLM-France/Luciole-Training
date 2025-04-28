@@ -15,7 +15,7 @@ python create_datamix.py --data_path path/to/your/tokenized/datasets --code .5 -
 ```
 
 ### Important note
-You should have tokenize your dataset and run statistics before! Refer to the README in `../data/tokenization`.
+You should have tokenize your dataset and run statistics before! Refer to the README in `../data`.
 
 ## Train a small 1B model
 
