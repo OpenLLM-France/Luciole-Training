@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_slurm_script(
-    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4
+    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4, tokenizer="OpenLLM-France/Lucie-7B"
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
@@ -85,12 +85,12 @@ DISTRIBUTED_ARGS=" \
        "
 
 echo "Arguments: {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}" 
-srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}
+srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {config} --tokenizer {tokenizer} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}
 """
     return script
 
 
-def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email):
+def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, tokenizer="OpenLLM-France/Lucie-7B"):
     config = os.path.join("../datamix", config)
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
@@ -110,6 +110,7 @@ def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, 
         xp_output_dir,
         email,
         gpus_per_node=num_gpus_per_node,
+        tokenizer=tokenizer
     )
 
     logger.info(f"Experiment name : {job_name}")
@@ -140,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
     parser.add_argument("--email", default=None)
+    parser.add_argument("--tokenizer", default="OpenLLM-France/Lucie-7B", type=str)
     parser.add_argument("--output_dir", default="")
     parser.add_argument(
         "--output_path",
@@ -154,4 +156,5 @@ if __name__ == "__main__":
         args.mode,
         os.path.join(args.output_path, args.output_dir),
         args.email,
+        tokenizer=args.tokenizer
     )
