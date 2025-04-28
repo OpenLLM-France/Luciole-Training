@@ -1,0 +1,47 @@
+{
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/",
+    "train": [
+        {
+            "name": "fineweb2_fra_Latn_cluster_1_text_document",
+            "weight": 0.10951844120767507
+        },
+        {
+            "name": "fineweb2_fra_Latn_cluster_100-1000_text_document",
+            "weight": 0.00591375456136526
+        },
+        {
+            "name": "fineweb2_fra_Latn_cluster_1000+_text_document",
+            "weight": 4.75661721700814e-05
+        },
+        {
+            "name": "fineweb2_fra_Latn_cluster_2_text_document",
+            "weight": 0.09260812819866206
+        },
+        {
+            "name": "fineweb2_fra_Latn_cluster_3_text_document",
+            "weight": 0.07085950739240893
+        },
+        {
+            "name": "fineweb2_fra_Latn_cluster_4_text_document",
+            "weight": 0.05031774899162429
+        },
+        {
+            "name": "fineweb2_fra_Latn_cluster_5-100_text_document",
+            "weight": 0.42073485347609435
+        },
+        {
+            "name": "fineweb_edu_text_document",
+            "weight": 0.25
+        }
+    ],
+    "validation": [
+        {
+            "name": "wikipedia_fr_text_document",
+            "weight": 0.5
+        },
+        {
+            "name": "wikipedia_en_text_document",
+            "weight": 0.5
+        }
+    ]
+}
