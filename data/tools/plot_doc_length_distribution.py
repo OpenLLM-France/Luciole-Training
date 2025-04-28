@@ -14,7 +14,8 @@ def pdf_distribution(token_lengths, name, ax=None, **kwargs):
     ax.set_ylabel("pdf")
     ax.set_xlim(10, 10**7)
     ax.set_xscale("log")
-
+    ax.axvline(4096, color='grey', linestyle='--')
+    ax.axvline(8192, color='grey', linestyle='--')
 
 if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
