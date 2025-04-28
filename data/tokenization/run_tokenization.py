@@ -8,18 +8,22 @@ MAIN_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data")
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--yaml_file", type="str", default="datasets_to_tokenize.yaml"
+        "--yaml_file", type=str, default="datasets_to_tokenize.yaml"
     )
     parser.add_argument(
-        "--input_dir", type="str", default="raw_datasets_ablation"
+        "--input_dir", type=str, default="raw_datasets_ablation"
     )
     parser.add_argument(
-        "--output_dir", type="str", default="tokens_ablation"
+        "--output_dir", type=str, default="tokens_ablation"
+    )
+    parser.add_argument(
+        "--tokenizer_name", type=str, default="OpenLLM-France/Lucie-7B"
     )
     args = parser.parse_args()
     yaml_file = args.yaml_file
     input_dir = args.input_dir
-    output_dir=args.output_dir
+    output_dir = args.output_dir
+    tokenizer_name = args.tokenizer_name
 
     # Define the path
     raw_dataset_path = os.path.join(MAIN_PATH, input_dir)
@@ -54,7 +58,8 @@ if __name__=="__main__":
                     f"--job-name=tok_{name}",
                     "tokenize_one_dataset.slurm",
                     raw_path,
-                    os.path.join(tokens_dataset_path, name)
+                    os.path.join(tokens_dataset_path, name),
+                    tokenizer_name
                 ])
             else:
                 print("--------------------------------------")

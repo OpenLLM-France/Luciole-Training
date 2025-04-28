@@ -14,6 +14,7 @@ export TOKENIZERS_PARALLELISM=false
 
 INPUT_FOLDER=$1
 OUTPUT_PATH=$2
+TOKENIZER_NAME=$3 
 
 echo "Starting tokenization for $INPUT_FOLDER"
 echo "Output will be saved to $OUTPUT_PATH"
@@ -25,7 +26,7 @@ python preprocess_data_for_megatron.py \
     --json-keys=text \
     --dataset-impl=mmap \
     --tokenizer-library=huggingface \
-    --tokenizer-model-name=OpenLLM-France/Lucie-7B \
+    --tokenizer-model-name=$TOKENIZER_NAME \
     --use-fast \
     --append-eod \
     --apply-ftfy \
