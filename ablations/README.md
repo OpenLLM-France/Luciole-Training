@@ -11,6 +11,7 @@ In `tools/`, you can use `create_datamix.py` to create a new datamix in `datamix
 
 For example:
 ```
+cd tools/
 python create_datamix.py --data_path path/to/your/tokenized/datasets --code .5 --es 0. --de 0. --it 0.
 ```
 
@@ -36,11 +37,13 @@ Example of command training:
 
 In debug mode:
 ```
+cd train/
 python slurm_launcher.py --config mock.json --output_dir test --mode debug
 ```
 
 Otherwise, if you want to train on 20B tokens:
 ```
+cd train/
 python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b
 ```
 
@@ -64,6 +67,7 @@ Run `convert.slurm` to convert all the checkpoints of your experiment.
 
 For example:
 ```
+cd conversion/
 sbatch convert.slurm $OpenLLM_OUTPUT/ablations/train/languages_ablations/datamix_dclm_dolmino_4n_20b
 ```
 
@@ -90,6 +94,7 @@ pip install hf-xet
 
 #### Evaluate all the checkpoints of your experiment:
 ```
+cd evaluation/
 sbatch evaluate_experiment.slurm $expe_name $task_to_evaluate multilingual
 ```
 where:
