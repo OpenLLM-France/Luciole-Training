@@ -145,3 +145,14 @@ if __name__=="__main__":
     ]
     output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr_5_shots.png")
     plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="French Tasks (5-shots)", xlog=False)
+
+    # French benchmarks
+    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr_cf")
+    df = read_all_results(main_dir)
+    list_of_tasks_to_plot = [
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"), 
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm_pmi"), 
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm_token"), 
+    ]
+    output_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr_cf.png")
+    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="French MMLU", xlog=False)
