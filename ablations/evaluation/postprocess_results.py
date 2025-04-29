@@ -34,8 +34,13 @@ def plot_task(ax, df, task, metric, xlog=False):
     stderr_df = df.pivot(index='tokens', columns='datamix', values=metric + '_stderr')
 
     for col in pivot_df.columns:
-        mean = pivot_df[col]
-        stderr = stderr_df[col]
+        mean = pivot_df[col].dropna()
+        stderr = stderr_df[col].dropna()
+
+        # Align indices in case they differ slightly after dropna
+        common_index = mean.index.intersection(stderr.index)
+        mean = mean.loc[common_index]
+        stderr = stderr.loc[common_index]
 
         ax.plot(mean.index, mean.values, marker='+', label=col, alpha=0.8)
         ax.fill_between(mean.index, mean - stderr, mean + stderr, alpha=0.1)
@@ -91,10 +96,10 @@ def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title=None, xlog=F
 
 if __name__=="__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
+    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations")
+    df = read_all_results(main_dir)
 
     # English benchmarks
-    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/en")
-    df = read_all_results(main_dir)
     list_of_tasks_to_plot = [
         ("helm|boolq|0", "pem"),
         ("lighteval|triviaqa|0", "qem"),
@@ -111,10 +116,9 @@ if __name__=="__main__":
     plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="English Tasks", xlog=False)
 
     # French benchmarks
-    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr")
-    df = read_all_results(main_dir)
     list_of_tasks_to_plot = [
         ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"), 
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"), 
         ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"), 
         ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"), 
         ("lighteval|xcodah_fra_cf|0", "acc_norm"), 
@@ -129,8 +133,6 @@ if __name__=="__main__":
     plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir, title="French Tasks", xlog=False)
 
     # French benchmarks
-    main_dir = os.path.join(main_path, "ablations/evaluation/language_ablations/fr")
-    df = read_all_results(main_dir)
     list_of_tasks_to_plot = [
         ("lighteval|belebele_fra_Latn_cf|5", "acc_norm"), 
         ("lighteval|mlmm_arc_fra_cf:challenge|5", "acc_norm"), 
