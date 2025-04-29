@@ -20,8 +20,8 @@ export OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
-expe_name=$1 
-task_to_evaluate=$2 # without .txt file
+path_to_experiment=$1 
+task_to_evaluate="$(pwd)/$2"
 
 if [ "$3" == "multilingual" ]; then
   extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
@@ -29,38 +29,34 @@ else
   extra_arg=""
 fi
 
-# For example:
-# datamix_1._eng_Latn_4n_20b  
-# datamix_1._fra_Latn_4n_20b  
-# datamix_.25_fra_Latn_.75_eng_Latn_4n_20b 
-# datamix_.5_fra_Latn_.5_eng_Latn_4n_20b  
-# datamix_.75_fra_Latn_.25_eng_Latn_4n_20b  
-# datamix_.95_fra_Latn_.05_eng_Latn_4n_20b  
-# datamix_dclm_dolmino_4n_20b
+PARENT_DIR="$path_to_experiment/huggingface_checkpoints"
+cd $PARENT_DIR
 
-PARENT_DIR="$OpenLLM_OUTPUT/ablations/train/language_ablations/$expe_name/huggingface_checkpoints"
+output_dir="$path_to_experiment/evaluation"
+mkdir -p "$output_dir"
+echo "Output directory: $output_dir"
 
-for path in "$PARENT_DIR"/*/; do
-    echo "Processing folder: $path"
-    # Get base directory name (e.g., checkpoint-1000)
-    dir_name=$(basename "$path")
-    
+log_dir="$output_dir/slurm"
+mkdir -p "$log_dir"
+echo "Log directory: $log_dir"
+
+for checkpoint_dir in *; do    
     # Escape equal signs if any (just in case)
-    escaped_name="${dir_name//=/\_}"
+    escaped_checkpoint_dir="${checkpoint_dir//=/\_}"
     
     # Only rename if the name changed
-    if [[ "$dir_name" != "$escaped_name" ]]; then
-        mv "$path" "$PARENT_DIR/$escaped_name"
-        path="$PARENT_DIR/$escaped_name"
+    if [[ "$checkpoint_dir" != "$escaped_checkpoint_dir" ]]; then
+        mv "$checkpoint_dir" "$escaped_checkpoint_dir"
+        checkpoint_dir=$escaped_checkpoint_dir
     fi
 
-    output_dir="$OpenLLM_OUTPUT/ablations/evaluation/language_ablations/$task_to_evaluate"
-    echo "Output directory: $output_dir"
+    echo "Processing checkpoint: $checkpoint_dir"
 
     accelerate launch --multi_gpu --num_processes=4 -m \
         lighteval accelerate \
-        "pretrained=$path,dtype="bfloat16"" \
-        "$task_to_evaluate.txt" \
+        "pretrained=$checkpoint_dir,dtype="bfloat16"" \
+        "$task_to_evaluate" \
         --output-dir $output_dir \
-        $extra_arg
+        $extra_arg \
+        > "$log_dir/$checkpoint_dir.out" 2>&1
 done
