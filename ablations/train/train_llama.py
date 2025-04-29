@@ -35,17 +35,17 @@ if __name__ == "__main__":
     )
     parser.add_argument("--batch_size", default=512, type=int)
     parser.add_argument("--seq_length", default=2048, type=int)
-    parser.add_argument("--tokenizer", default="OpenLLM-France/Lucie-7B", type=str)
     args = parser.parse_args()
 
     num_nodes = args.num_nodes
     name = args.name
     output_dir = args.output_dir
 
-    data_paths = read_datamix_file(args.config)
+    data_paths, tokenizer_name = read_datamix_file(args.config)
+
     data = create_data(
         data_paths,
-        tokenizer_name=args.tokenizer,
+        tokenizer_name=tokenizer_name,
         batch_size=args.batch_size,
         seq_length=args.seq_length,
     )
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     logger.info(f"Batch size: {args.batch_size}")
     logger.info(f"Sequence length: {args.seq_length}")
     logger.info(f"Number of nodes: {args.num_nodes}")
-    logger.info(f"Tokenizer: {args.tokenizer}")
+    logger.info(f"Tokenizer: {tokenizer_name}")
     logger.info(f"Config file: {args.config}")
     logger.info(f"Max steps: {max_steps}")
     logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
