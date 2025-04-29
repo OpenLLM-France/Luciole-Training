@@ -54,9 +54,9 @@ echo "Output dir: {output_dir}"
 
 cwd=$(pwd)
 
-export OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
+export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 
-export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_OFFLINE=1
