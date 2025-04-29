@@ -91,7 +91,7 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {config} --tokenizer
 
 
 def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, tokenizer="OpenLLM-France/Lucie-7B"):
-    config = os.path.join("../datamix", config)
+    # config = os.path.join("../datamix", config)
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
     
