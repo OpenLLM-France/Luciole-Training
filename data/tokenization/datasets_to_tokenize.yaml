@@ -87,6 +87,72 @@ datasets:
   - name: fineweb2_spa_Latn_cluster_5-100
     path: fineweb2/data/spa_Latn/clusters/cluster_size-5-100
 
+  # Fineweb2 portuguese
+  - name: fineweb2_por_Latn_cluster_1
+    path: fineweb2/data/por_Latn/clusters/cluster_size-1
+
+  - name: fineweb2_por_Latn_cluster_1000+
+    path: fineweb2/data/por_Latn/clusters/cluster_size-1000+
+
+  - name: fineweb2_por_Latn_cluster_100-1000
+    path: fineweb2/data/por_Latn/clusters/cluster_size-100-1000
+
+  - name: fineweb2_por_Latn_cluster_2
+    path: fineweb2/data/por_Latn/clusters/cluster_size-2
+
+  - name: fineweb2_por_Latn_cluster_3
+    path: fineweb2/data/por_Latn/clusters/cluster_size-3
+
+  - name: fineweb2_por_Latn_cluster_4
+    path: fineweb2/data/por_Latn/clusters/cluster_size-4
+
+  - name: fineweb2_por_Latn_cluster_5-100
+    path: fineweb2/data/por_Latn/clusters/cluster_size-5-100
+
+  # Fineweb2 nld
+  - name: fineweb2_nld_Latn_cluster_1
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-1
+
+  - name: fineweb2_nld_Latn_cluster_1000+
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-1000+
+
+  - name: fineweb2_nld_Latn_cluster_100-1000
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-100-1000
+
+  - name: fineweb2_nld_Latn_cluster_2
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-2
+
+  - name: fineweb2_nld_Latn_cluster_3
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-3
+
+  - name: fineweb2_nld_Latn_cluster_4
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-4
+
+  - name: fineweb2_nld_Latn_cluster_5-100
+    path: fineweb2/data/nld_Latn/clusters/cluster_size-5-100
+
+  # Fineweb2 Arab
+  - name: fineweb2_arb_Arab_cluster_1
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-1
+
+  - name: fineweb2_arb_Arab_cluster_1000+
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-1000+
+
+  - name: fineweb2_arb_Arab_cluster_100-1000
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-100-1000
+
+  - name: fineweb2_arb_Arab_cluster_2
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-2
+
+  - name: fineweb2_arb_Arab_cluster_3
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-3
+
+  - name: fineweb2_arb_Arab_cluster_4
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-4
+
+  - name: fineweb2_arb_Arab_cluster_5-100
+    path: fineweb2/data/arb_Arab/clusters/cluster_size-5-100
+
   # Web english
   - name: fineweb_edu
     path: fineweb_edu/output
