@@ -5,15 +5,5 @@
             "name": "dclm_dolmino_text_document",
             "weight": 1.0
         }
-    ],
-    "validation": [
-        {
-            "name": "wikipedia_fr_text_document",
-            "weight": 0.5
-        },
-        {
-            "name": "wikipedia_en_text_document",
-            "weight": 0.5
-        }
     ]
 }

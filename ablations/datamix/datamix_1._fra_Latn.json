@@ -29,15 +29,5 @@
             "name": "fineweb2_fra_Latn_cluster_5-100_text_document",
             "weight": 0.5609798046347925
         }
-    ],
-    "validation": [
-        {
-            "name": "wikipedia_fr_text_document",
-            "weight": 0.5
-        },
-        {
-            "name": "wikipedia_en_text_document",
-            "weight": 0.5
-        }
     ]
 }

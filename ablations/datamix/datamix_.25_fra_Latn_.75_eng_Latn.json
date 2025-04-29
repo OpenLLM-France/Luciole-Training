@@ -33,15 +33,5 @@
             "name": "fineweb_edu_text_document",
             "weight": 0.75
         }
-    ],
-    "validation": [
-        {
-            "name": "wikipedia_fr_text_document",
-            "weight": 0.5
-        },
-        {
-            "name": "wikipedia_en_text_document",
-            "weight": 0.5
-        }
     ]
 }
