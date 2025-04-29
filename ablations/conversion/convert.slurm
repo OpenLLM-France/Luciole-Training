@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=convert 
-#SBATCH --output=%x.out 
+#SBATCH --output=%x-%j.out 
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

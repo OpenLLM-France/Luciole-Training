@@ -7,7 +7,7 @@ All about preprocessing datasets.
 ### Environment setup
 
 #### Create environment 
-```
+```bash
 module purge
 module load anaconda-py3/2024.06
 conda create -n datatrove-env python=3.10
@@ -16,7 +16,7 @@ pip install -r requirements.txt
 ```
 
 #### Clone datatrove
-```
+```bash
 git clone https://github.com/linagora-labs/datatrove.git
 cd datatrove
 git checkout lucie_v2
@@ -39,7 +39,7 @@ It will load only the first 1000 samples of the fineweb2 data
 #### On Jeanzay
 
 Similarly on Jean Zay, you can use:
-```
+```bash
 source set_env.sh
 python processing/fineweb2
 ```
@@ -47,7 +47,7 @@ python processing/fineweb2
 #### ... for ablation
 
 For ablation, use the ablation argument. You can add the code line:
-```
+```python
 from utils import add_sampler_filter
 pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 ```
@@ -76,9 +76,9 @@ options:
   --yaml_file YAML_FILE
                         .yaml file that contains the datasets you want to tokenize. See for example datasets_to_tokenize.yaml. (default: datasets_to_tokenize.yaml)
   --input_dir INPUT_DIR
-                        Input directory (in $OpenLLM_OUTPUT/data) that contains the processed datasets you want to tokenize. (default: raw_datasets_ablation)
+                        Relative input path (in $OpenLLM_OUTPUT/data) that contains the processed datasets you want to tokenize. (default: raw_datasets_ablation)
   --output_dir OUTPUT_DIR
-                        Output directory (in $OpenLLM_OUTPUT/data) that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one
+                        Relative output path (in $OpenLLM_OUTPUT/data) that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one
                         output_dir (it will raise an error). (default: tokens_ablation)
   --tokenizer_name TOKENIZER_NAME
                         The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir. (default: OpenLLM-France/Lucie-7B)
@@ -86,30 +86,36 @@ options:
 It will create one sbatch per dataset, using prepost partition.
 
 3. Run statistics: 
+```bash
+sbatch run_statistics.slurm OUTPUT_DIR
 ```
-sbatch run_statistics.slurm
-```
-Just modify the `data_path` that corresponds to the path of your tokenized datasets.
+where `OUTPUT_DIR` is the relative path of your tokenized datasets (in $OpenLLM_OUTPUT/data).
+It will create a folder `stats` in the tokenized data folder, with the statistics of each tokens file.
 
-4. Next step is in `../ablations` or in `../training`.
+4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../training/README.md).
 
 ## Tips... 
 
 ### Download a dataset from HF
 
 Set a common HF cache dir
-```
-export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
+```bash
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 ```
 
 Load a dataset with huggingface-cli:
-```
+```bash
 dataset_name=open-web-math/open-web-math
 huggingface-cli download $dataset_name --repo-type dataset 
 ```
 
 To load a specific subset you can use incluse and/or exclude
-```
+```bash
 dataset_name=EleutherAI/proof-pile-2
 huggingface-cli download $dataset_name --repo-type dataset --include algebraic-stack/*
+```
+
+Load a tokenizer:
+```bash
+huggingface-cli download OpenLLM-BPI/tokenizer_128k_latin --repo-type model
 ```

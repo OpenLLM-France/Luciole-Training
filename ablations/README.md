@@ -1,22 +1,21 @@
 # Ablations
 
 Add in your `.bashprofile`: 
-```
+```bash
 export OpenLLM_OUTPUT=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output
 ```
 
 ## Create a datamix
 
-In `tools/`, you can use `create_datamix.py` to create a new datamix in `datamix/`. It will create a folder with a summary of your datamix and a `datamix_xxx.json` file that you can use for training.
+First, you should have tokenize your dataset and run statistics before! Refer to the [README in `../data`](../data/README.md).
+
+In `data/tools/`, you can use `create_datamix.py` to create a new datamix in `datamix/`. It will create a folder with a summary of your datamix and a `datamix_xxx.json` file that you can use for training.
 
 For example:
-```
-cd tools/
+```bash
+cd data/tools/
 python create_datamix.py --data_path path/to/your/tokenized/datasets --code .5 --es 0. --de 0. --it 0.
 ```
-
-### Important note
-You should have tokenize your dataset and run statistics before! Refer to the README in `../data`.
 
 ## Train a small 1B model
 
@@ -26,8 +25,8 @@ Nemo is already installed on JZ, you just need to install `zarr` in your `.local
 
 Note: If you have some errors, it might be due to your `.local` directory. Try some clean up and it should run.
 
-```
-module load arch/h100 nemo/2.1.0
+<!-- module load arch/h100 nemo/2.1.0 -->
+```bash
 pip install --user --no-cache-dir zarr
 ```
 
@@ -36,24 +35,22 @@ pip install --user --no-cache-dir zarr
 Example of command training:
 
 In debug mode:
-```
+```bash
 cd train/
 python slurm_launcher.py --config mock.json --output_dir test --mode debug
 ```
 
 Otherwise, if you want to train on 20B tokens:
-```
+```bash
 cd train/
 python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b
 ```
 
 ### Estimate training time for a 1b model
 
-`Number of tokens per step: seq_length (2048) * global_batch_size (512) = 1 048 576`
-
-`Number of steps in order to see 35B: 33 378 steps`
-
-`Time to see 35b tokens on 1 node: (33 378 * 5.3)/3600 = 49h `
+* Number of tokens per step: seq_length (2048) * global_batch_size (512) = 1 048 576
+* Number of steps in order to see 35B: 33 378 steps
+* Time to see 35b tokens on 1 node: (33 378 * 5.3)/3600 = 49h
 
 | Number of nodes | 1 step | 20B tokens | 35B tokens  | 
 |-----------------|--------|------------|-------------|
@@ -63,10 +60,10 @@ python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b
 
 ## Convert checkpoints to HF
 
-Run `convert.slurm` to convert all the checkpoints of your experiment.
+Run `convert.slurm` to convert all the checkpoints of your experiment, giving the parent output folder.
 
 For example:
-```
+```bash
 cd conversion/
 sbatch convert.slurm $OpenLLM_OUTPUT/ablations/train/languages_ablations/datamix_dclm_dolmino_4n_20b
 ```
@@ -76,8 +73,7 @@ sbatch convert.slurm $OpenLLM_OUTPUT/ablations/train/languages_ablations/datamix
 ###  Install
 
 You should create a new environment for evaluation.
-
-```
+```bash
 module purge
 module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
@@ -93,7 +89,7 @@ pip install hf-xet
 - or use one of the predefined (en.txt, fr.txt). 
 
 #### Evaluate all the checkpoints of your experiment:
-```
+```bash
 cd evaluation/
 sbatch evaluate_experiment.slurm $expe_name $task_to_evaluate multilingual
 ```
