@@ -8,8 +8,8 @@ HOSTNAME=$(hostname)
 if [[ "$HOSTNAME" == "koios" ]]; then
     export OpenLLM_OUTPUT="/media/storage0/ogouvert/OpenLLM-BPI-output"
 else
-    export OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
-    export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
+    export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
+    export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
     module purge
     module load anaconda-py3/2024.06
 fi
