@@ -98,3 +98,19 @@ where:
 - `$task_to_evaluate` is the name of your .txt file (with the extension)
 - add `multilingual` only if you need to evaluate multilingual tasks. It will activate lighteval args: `--custom-tasks lighteval.tasks.multilingual.tasks`
 
+#### Plotting the results...
+You can use the script `postprocess_results.py` to plot your results.
+
+``` 
+python postprocess_results.py --help
+>>> usage: postprocess_results.py [-h] [--experiment_path EXPERIMENT_PATH [EXPERIMENT_PATH ...]] [--group {en,fr} [{en,fr} ...]] [--output_path OUTPUT_PATH]
+
+options:
+  -h, --help            show this help message and exit
+  --experiment_path EXPERIMENT_PATH [EXPERIMENT_PATH ...]
+                        List of all the experiments you want to plot
+  --group {en,fr} [{en,fr} ...]
+                        List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want.
+  --output_path OUTPUT_PATH
+                        Output path where your plot are storred
+``` 
