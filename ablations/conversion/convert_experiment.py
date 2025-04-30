@@ -36,27 +36,14 @@ def convert_checkpoint_folder(input_path, ouput_path):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "experiment",
+        "experiment_path",
         type=str,
         default=None,
         help="Path to an experiment",
     )
-    parser.add_argument(
-        "--input_path",
-        type=str,
-        default=os.getenv("OpenLLM_OUTPUT"),
-        help="",
-    )
     parser.add_argument("--local-rank")
     args = parser.parse_args()
-
-    if args.input_path in args.experiment:
-        experiment_path = args.experiment
-    else:
-        logger.warning(
-            f"You should specify an aboslute path to your experiment, not a relative to $OpenLLM_OUTPUT path ({args.experiment}). It could be remove in the future"
-        )
-        experiment_path = os.path.join(args.input_path, args.experiment)
+    experiment_path = args.experiment
 
     logger.info(f"Converting experiment {experiment_path}")
 
