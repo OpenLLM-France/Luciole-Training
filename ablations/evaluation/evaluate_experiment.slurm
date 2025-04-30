@@ -16,8 +16,8 @@ module load arch/h100
 module load anaconda-py3/2024.06
 conda activate eval-env
 
-export OpenLLM_OUTPUT=$ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$ALL_CCFRSCRATCH/.cache/huggingface
+export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
 path_to_experiment=$1 
