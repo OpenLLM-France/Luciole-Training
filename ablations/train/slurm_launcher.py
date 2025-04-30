@@ -4,7 +4,6 @@ import os
 import logging
 import shutil
 from pathlib import Path
-import slugify
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
