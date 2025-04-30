@@ -30,6 +30,11 @@ Note: If you have some errors, it might be due to your `.local` directory. Try s
 pip install --user --no-cache-dir zarr
 ```
 
+If you want to train a Mamba model:
+```bash
+pip install --user --no-cache-dir mamba-ssm[causal-conv1d]
+```
+
 ### Train
 
 Example of command training:
