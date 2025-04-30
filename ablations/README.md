@@ -91,10 +91,10 @@ pip install hf-xet
 #### Evaluate all the checkpoints of your experiment:
 ```bash
 cd evaluation/
-sbatch evaluate_experiment.slurm $expe_name $task_to_evaluate multilingual
+sbatch evaluate_experiment.slurm $experiment_path $task_to_evaluate multilingual
 ```
 where:
-- `$expe_name` is your expe name in language ablation. It will evaluate all the checkpoints in `"$OpenLLM_OUTPUT/ablations/train/language_ablations/$expe_name/huggingface_checkpoints"`. (we will make it more general)
-- `$task_to_evaluate` is the name of your .txt file (without the extension)
+- `$experiment_path` is the path to your experiments. It should have a `"huggingface_checkpoints"` folder in it. 
+- `$task_to_evaluate` is the name of your .txt file (with the extension)
 - add `multilingual` only if you need to evaluate multilingual tasks. It will activate lighteval args: `--custom-tasks lighteval.tasks.multilingual.tasks`
 
