@@ -5,7 +5,36 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import math
 import re
+import argparse
 
+task_group_mapping = {
+    "en" : [
+        ("helm|boolq|0", "pem"),
+        ("lighteval|triviaqa|0", "qem"),
+        ("lighteval|arc:easy|0", "acc"),
+        ("lighteval|arc:easy|0", "acc_norm"),
+        ("leaderboard|arc:challenge|0", "acc"),
+        ("leaderboard|arc:challenge|0", "acc_norm"),
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|openbookqa|0", "acc_norm"),
+        ("lighteval|piqa|0", "acc_norm")    
+    ],
+    "fr": [
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"), 
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"), 
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"), 
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"), 
+        ("lighteval|xcodah_fra_cf|0", "acc_norm"), 
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm"),     
+        ("lighteval|xnli2.0_fra_cf|0", "acc_norm"),     
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"), 
+        ("lighteval|fquadv2_fra|0", "f1_fra"),     
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"), 
+        ("lighteval|mintaka_fra|0", "f1_fra"), 
+    ]
+}
+    
 def read_json_results(file):
     with open(file, 'r') as file:
         data = json.load(file)
@@ -107,26 +136,24 @@ def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir=None, title=None, x
         fig.suptitle(title)
     plt.tight_layout()
     if output_dir is not None:
-        plt.savefig(output_dir)
+        plt.savefig(output_dir, dpi=300)
 
 if __name__=="__main__":
-    dfs = []
-    main_path = os.getenv('OpenLLM_OUTPUT')
-    for expe_name in ['multi_base_4n_20b', 'multi_gallica_4n_20b', 'olmo2_4n_20b']:
-        path = os.path.join(f"{main_path}/ablations/train/lucie2_ablations/{expe_name}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--experiment_path', type=str, nargs='+', help="List of all the experiments you want to plot")
+    parser.add_argument(
+        '--group', type=str, nargs='+', choices=list(task_group_mapping.keys()), default=["en"], 
+        help="List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want."
+        )
+    parser.add_argument('--output_path', type=str, help="Output path where your plot are storred")
+    args = parser.parse_args()
+    os.makedirs(args.output_path, exist_ok=True)
+
+    dfs = []    
+    for path in args.experiment_path:
         dfs.append(read_experiment_results(path))
     df = pd.concat(dfs)
 
-    list_of_tasks_to_plot = [
-        ("helm|boolq|0", "pem"),
-        ("lighteval|triviaqa|0", "qem"),
-        ("lighteval|arc:easy|0", "acc"),
-        ("lighteval|arc:easy|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc"),
-        ("leaderboard|arc:challenge|0", "acc_norm"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|openbookqa|0", "acc_norm"),
-        ("lighteval|piqa|0", "acc_norm")    
-    ]
-    plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir="test.png", title=None, xlog=False)
+    for g in args.group:
+        output_dir = os.path.join(args.output_path, f"{g}.png")
+        plot_list_of_tasks(df, task_group_mapping[g], output_dir=output_dir, title=None, xlog=False)
