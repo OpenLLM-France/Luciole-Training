@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=eval 
-#SBATCH --output=%x.out 
+#SBATCH --job-name=eval
+#SBATCH --output=log_%x-%j.out
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=64  
-#SBATCH --time=02:00:00 
-#SBATCH --hint=nomultithread 
+#SBATCH --cpus-per-task=64
+#SBATCH --time=02:00:00
+#SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-dev
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
