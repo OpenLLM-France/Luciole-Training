@@ -43,7 +43,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--local-rank")
     args = parser.parse_args()
-    experiment_path = args.experiment
+    experiment_path = args.experiment_path
 
     logger.info(f"Converting experiment {experiment_path}")
 
