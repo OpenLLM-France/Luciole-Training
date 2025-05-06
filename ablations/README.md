@@ -37,19 +37,13 @@ pip install --user --no-cache-dir mamba-ssm[causal-conv1d]
 
 ### Train
 
-Example of command training:
-
-In debug mode:
+Here is an example of training command,
+to train on 20B tokens:
 ```bash
 cd train/
-python slurm_launcher.py --config mock.json --output_dir test --mode debug
+python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b [--email xxx@xxx.com] [--nodes 4]
 ```
-
-Otherwise, if you want to train on 20B tokens:
-```bash
-cd train/
-python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b
-```
+Use `--mode debug` to try your script before running it.
 
 ### Estimate training time for a 1b model
 
