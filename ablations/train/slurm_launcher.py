@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_slurm_script(
-    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4
+    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4, fp8=False
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
@@ -29,6 +29,10 @@ def create_slurm_script(
     train_path = Path(__file__).resolve().parent
 
     logger.info(f"Train script path: {train_path}/train_llama.py")
+
+
+    args = f"{config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node} {'--fp8' if fp8 else ''}"
+
     # Contenu du script SLURM
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
@@ -83,13 +87,13 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 
-echo "Arguments: {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}" 
-srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}
+echo "Arguments: {args}" 
+srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {args}
 """
     return script
 
 
-def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email):
+def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, fp8):
     # config = os.path.join("../datamix", config)
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
@@ -109,6 +113,7 @@ def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, 
         xp_output_dir,
         email,
         gpus_per_node=num_gpus_per_node,
+        fp8=fp8
     )
 
     logger.info(f"Experiment name : {job_name}")
@@ -138,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
+    parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--email", default=None)
     parser.add_argument("--output_dir", default="")
     parser.add_argument(
@@ -153,4 +159,5 @@ if __name__ == "__main__":
         args.mode,
         os.path.join(args.output_path, args.output_dir),
         args.email,
+        args.fp8,
     )

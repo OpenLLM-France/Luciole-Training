@@ -35,6 +35,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--batch_size", default=512, type=int)
     parser.add_argument("--seq_length", default=2048, type=int)
+    parser.add_argument("--fp8", default=False, action="store_true")
     args = parser.parse_args()
 
     num_nodes = args.num_nodes
@@ -51,9 +52,9 @@ if __name__ == "__main__":
     )
 
     if args.mode == "debug":
-        max_steps = 1
+        max_steps = 50
         resume_if_exists = False
-        every_n_train_steps = 5
+        every_n_train_steps = max_steps
     else:
         number_of_tokens = int(args.mode.replace("b", "")) * 1_000_000_000
         max_steps = number_of_tokens // (args.seq_length * args.batch_size)
@@ -85,8 +86,9 @@ if __name__ == "__main__":
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
-        val_check_interval=5 if args.mode == "debug" else 1000,
-        limit_val_batches=1 if args.mode == "debug" else 0,
+        val_check_interval=1000, #5 if args.mode == "debug" else 1000,
+        limit_val_batches=0, #1 if args.mode == "debug" else 0,
+        fp8 = args.fp8,
     )
 
     nemo_logger = create_logger(

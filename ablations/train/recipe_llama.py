@@ -4,6 +4,7 @@ from typing import Optional
 
 from nemo import lightning as nl
 from nemo.lightning.pytorch.plugins.mixed_precision import MegatronMixedPrecision
+# from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_mixed
 from nemo.lightning.pytorch.optim import (
     CosineAnnealingScheduler,
     MegatronOptimizerModule,
@@ -113,6 +114,17 @@ def bf16_mixed():
         grad_reduce_in_fp32=True,
     )
 
+def bf16_with_fp8_mixed():
+    """FP8 recipes are experimental and have not been tested for training convergence."""
+    cfg = bf16_mixed()
+    cfg.fp8 = 'hybrid'
+    cfg.fp8_margin = 0
+    cfg.fp8_amax_history_len = 1024
+    cfg.fp8_amax_compute_algo = "max"
+    cfg.fp8_params = True
+    cfg.grad_reduce_in_fp32 = False
+    return cfg
+
 
 def create_trainer(
     tensor_parallelism: int = 1,
@@ -127,6 +139,7 @@ def create_trainer(
     val_check_interval: int = 1000,
     limit_val_batches: int = 0,
     callbacks: Optional[list[Callback]] = None,
+    fp8: bool = False,
 ):
     """
     Configure the NeMo Lightning Trainer for Llama3.2 1B model.
@@ -185,7 +198,7 @@ def create_trainer(
         log_every_n_steps=10,
         max_steps=max_steps,
         num_nodes=num_nodes,
-        plugins=bf16_mixed(),
+        plugins=bf16_with_fp8_mixed() if fp8 else bf16_mixed(),
         strategy=strategy,
         use_distributed_sampler=False,
         val_check_interval=val_check_interval, 
