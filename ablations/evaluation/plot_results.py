@@ -95,7 +95,7 @@ def plot_task(ax, df, task, metric, xlog=False):
         ax.set_xscale('log')
 
 
-def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir=None, title=None, xlog=False):
+def plot_list_of_tasks(df, list_of_tasks_to_plot, output_file=None, title=None, xlog=False):
     num_tasks = len(list_of_tasks_to_plot)
     num_plots = num_tasks + 1  # +1 for the legend
 
@@ -135,8 +135,8 @@ def plot_list_of_tasks(df, list_of_tasks_to_plot, output_dir=None, title=None, x
     if title is not None:
         fig.suptitle(title)
     plt.tight_layout()
-    if output_dir is not None:
-        plt.savefig(output_dir, dpi=300)
+    if output_file:
+        plt.savefig(output_file, dpi=300)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
@@ -145,9 +145,10 @@ if __name__=="__main__":
         '--group', type=str, nargs='+', choices=list(task_group_mapping.keys()), default=["en"], 
         help="List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want."
         )
-    parser.add_argument('--output_path', type=str, help="Output path where your plot are storred")
+    parser.add_argument('--output_path', type=str, default=None, help="Output path where your plot are storred")
     args = parser.parse_args()
-    os.makedirs(args.output_path, exist_ok=True)
+    if args.output_path:
+        os.makedirs(args.output_path, exist_ok=True)
 
     dfs = []    
     for path in args.experiment_path:
@@ -155,5 +156,8 @@ if __name__=="__main__":
     df = pd.concat(dfs)
 
     for g in args.group:
-        output_dir = os.path.join(args.output_path, f"{g}.png")
-        plot_list_of_tasks(df, task_group_mapping[g], output_dir=output_dir, title=None, xlog=False)
+        output_file = os.path.join(args.output_path, f"{g}.png") if args.output_path else None
+        plot_list_of_tasks(df, task_group_mapping[g], output_file=output_file, title=None, xlog=False)
+
+    if not args.output_path:
+        plt.show()
