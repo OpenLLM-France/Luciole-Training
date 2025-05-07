@@ -23,12 +23,22 @@ logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
+
+    def to_nb_tokens(x):
+        if x == "debug": return x
+        x = x.replace("b", " * 1_000_000_000")
+        x = x.replace("m", " * 1_000_000")
+        try:
+            return int(eval(x))
+        except Exception as e:
+            raise ValueError(f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)") from e
+
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--num_gpus_per_node", default=4, type=int)
-    parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
+    parser.add_argument("--mode", default="debug", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
@@ -56,7 +66,7 @@ if __name__ == "__main__":
         resume_if_exists = False
         every_n_train_steps = max_steps
     else:
-        number_of_tokens = int(args.mode.replace("b", "")) * 1_000_000_000
+        number_of_tokens = args.mode
         max_steps = number_of_tokens // (args.seq_length * args.batch_size)
         resume_if_exists = True
         every_n_train_steps = 2_500_000_000 // (args.seq_length * args.batch_size)

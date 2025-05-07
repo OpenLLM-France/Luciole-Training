@@ -142,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--gpus_per_node", default=4, type=int)
-    parser.add_argument("--mode", choices=["debug", "20b", "35b"], default="debug")
+    parser.add_argument("--mode", default="debug", type=str)
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--email", default=None)
     parser.add_argument("--output_dir", default="")
