@@ -77,10 +77,13 @@ module purge
 module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
-pip install lighteval[extended_tasks,math,multilingual]
+pip install lighteval[extended_tasks,math,multilingual]==0.8.1
 pip install hf-xet
 pip install matplotlib
 ```
+
+Warning: in more recent versions of `lighteval`,
+"`pretrained=`" option has been renamed to "`model_name=`".
 
 ### Run Evaluations
 
@@ -99,18 +102,4 @@ where:
 - add `multilingual` only if you need to evaluate multilingual tasks. It will activate lighteval args: `--custom-tasks lighteval.tasks.multilingual.tasks`
 
 #### Plotting the results...
-You can use the script `postprocess_results.py` to plot your results.
-
-``` 
-python postprocess_results.py --help
->>> usage: postprocess_results.py [-h] [--experiment_path EXPERIMENT_PATH [EXPERIMENT_PATH ...]] [--group {en,fr} [{en,fr} ...]] [--output_path OUTPUT_PATH]
-
-options:
-  -h, --help            show this help message and exit
-  --experiment_path EXPERIMENT_PATH [EXPERIMENT_PATH ...]
-                        List of all the experiments you want to plot
-  --group {en,fr} [{en,fr} ...]
-                        List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want.
-  --output_path OUTPUT_PATH
-                        Output path where your plot are storred
-``` 
+You can use the script `plot_results.py` to plot your results.
