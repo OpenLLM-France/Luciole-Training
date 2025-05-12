@@ -32,7 +32,7 @@ pip install --user --no-cache-dir zarr
 
 If you want to train a Mamba model:
 ```bash
-pip install --user --no-cache-dir mamba-ssm[causal-conv1d]
+pip install --user --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
 
 ### Train
