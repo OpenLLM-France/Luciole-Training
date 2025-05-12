@@ -11,6 +11,8 @@
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 
+set -e
+
 module purge
 module load arch/h100
 module load anaconda-py3/2024.06
@@ -20,8 +22,12 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
-path_to_experiment=$1 
-task_to_evaluate="$(pwd)/$2"
+path_to_experiment=$1
+if [ -f $2 ];then 
+  task_to_evaluate=`realpath $2`
+else
+  task_to_evaluate=$2
+fi
 
 if [ "$3" == "multilingual" ]; then
   extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
