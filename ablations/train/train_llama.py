@@ -10,8 +10,9 @@ from recipe_llama import (
 )
 from utils import (
     read_datamix_file,
-    get_config,
 )
+
+from nemo.collections.llm.gpt.model.llama import Llama31Config8B, Llama32Config1B
 
 from dataloader import create_data
 
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
     logger.info(f"Resume training if possible: {resume_if_exists}")
 
-    model_config = get_config()
+    model_config = Llama32Config1B() # Llama31Config8B()
     model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
 
     opt = distributed_fused_adam_with_cosine_annealing(max_lr=3e-4)
