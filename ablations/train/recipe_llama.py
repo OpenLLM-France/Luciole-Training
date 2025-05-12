@@ -118,13 +118,12 @@ def bf16_with_fp8_mixed():
     """FP8 recipes are experimental and have not been tested for training convergence."""
     cfg = bf16_mixed()
     cfg.fp8 = 'hybrid'
-    cfg.fp8_recipe = "delayed"
     cfg.fp8_margin = 0
     cfg.fp8_amax_history_len = 1024
     cfg.fp8_amax_compute_algo = "max"
-    cfg.fp8_param_gather = True
-    # logger.info(f"bf16_with_fp8_mixed:\n{vars(cfg)}")
-
+    cfg.fp8_params = True
+    cfg.grad_reduce_in_fp32 = False # NVIDIA recommends False for FP8
+    logger.info(f"bf16_with_fp8_mixed:\n{vars(cfg)}")
     return cfg
 
 
