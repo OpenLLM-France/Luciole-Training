@@ -201,3 +201,10 @@ datasets:
 
   - name: gallica_press
     path: gallica_press/1_high_ocr_scores
+
+  # OCR (removed ocr score < 95)
+  - name: gallica_monographies_removed
+    path: gallica_monographies/1_low_ocr_scores
+
+  - name: gallica_press_removed
+    path: gallica_press/1_low_ocr_scores
