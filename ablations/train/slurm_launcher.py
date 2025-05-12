@@ -100,7 +100,9 @@ def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, 
     
     config_name = os.path.splitext(os.path.basename(config))[0]
     job_name = f"{config_name}_{nodes}n_{mode}"
-    if args.name_prefix:
+    if fp8:
+        job_name += "_fp8"
+    if name_prefix:
         job_name = f"{name_prefix}_{job_name}"
 
     xp_output_dir = os.path.join(output_dir, job_name)
