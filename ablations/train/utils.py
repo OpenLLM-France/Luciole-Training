@@ -1,9 +1,6 @@
 import os
 import torch
 import logging
-import warnings
-
-from nemo.collections.llm.gpt.model.llama import Llama31Config8B, Llama32Config1B
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,11 +50,3 @@ def read_datamix_file(file):
     except FileNotFoundError:
         raise FileNotFoundError(f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step.")
     return data_paths, tokenizer_name
-
-
-def get_config(size_1b=True):
-    # return Llama32Config1B()
-    if not size_1b:
-        return Llama31Config8B()
-    else:
-        return Llama32Config1B()
