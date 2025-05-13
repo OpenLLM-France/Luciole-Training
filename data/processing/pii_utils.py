@@ -17,18 +17,18 @@ class PhoneNumberPII(BaseFilter):
     def __init__(
         self,
         country: str = "US",
-        replacement: str = "<<pii_phone_number>>",
+        replacement: str = "<<pii_phone>>",
         exclusion_writer: DiskWriter = None,
     ):
         super().__init__(exclusion_writer)
         self.country = country
         self.replacement = replacement
-        import phonenumbers
 
     def filter(self, doc: Document) -> bool | tuple[bool, str]:
+        import phonenumbers
         if 'pii_phone_number' not in doc.metadata:
             doc.metadata['pii_phone_number'] = []
-        matches = list(phonenumbers.PhoneNumberMatcher(doc.text, country))
+        matches = list(phonenumbers.PhoneNumberMatcher(doc.text, self.country))
         # Replace from the end to the beginning to avoid messing up indices
         new_text = doc.text
         for m in reversed(matches):
