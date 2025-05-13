@@ -1,20 +1,13 @@
 from utils import *
-
+from pii_utils import PhoneNumberPII
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.base import PipelineStep
+from datatrove.pipeline.formatters import PIIFormatter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
-
-"""
-List of languages we are interested in:
-- deu_Latn
-- spa_Latn
-- fra_Latn
-- ita_Latn
-"""
 
 
 class FinewebDocumentCleaning(BaseFilter):
@@ -131,7 +124,51 @@ if __name__ == "__main__":
         job_name=dataset_name,
         depends=main_processing_executor
     )
-    split_executor.run()
+    # split_executor.run()
+
+    ################
+    ## PII Cleaning
+    ################
+
+    pii_cleaning = [
+        PIIFormatter(email_replacement="<<pii_email>>", ip_replacement="<<pii_ip>>"),
+    ]
+
+    if args.language == "fra_Latn":
+        pii_cleaning.append(PhoneNumberPII("FR"))
+        pii_cleaning.append(PhoneNumberPII("CA"))
+    elif args.language == "deu_Latn":
+        pii_cleaning.append(PhoneNumberPII("DE"))
+    elif args.language == "eng_Latn":
+        pii_cleaning.append(PhoneNumberPII("US"))
+        pii_cleaning.append(PhoneNumberPII("GB"))
+    elif args.language == "spa_Latn":
+        pii_cleaning.append(PhoneNumberPII("ES"))
+    elif args.language == "ita_Latn":
+        pii_cleaning.append(PhoneNumberPII("IT"))
+    elif args.language == "por_Latn":
+        pii_cleaning.append(PhoneNumberPII("PT"))
+    else:
+        pii_cleaning = []
+
+    pipeline = [
+        JsonlReader(f"{DATA_PATH}/{dataset_name}/data/{language}/clusters"),
+        *pii_cleaning,
+        JsonlWriter(
+            f"{DATA_PATH}/{dataset_name}/data/{language}/clean_pii",
+            output_filename="${cluster_size_group}/${rank}.jsonl.gz",
+            max_file_size = int(2e9)  
+        ),
+    ]
+
+    pii_executor = create_executor(
+        pipeline,
+        local=args.local,
+        logging_dir=f"{DATA_PATH}/{dataset_name}/logs/{language}/clean_pii",
+        job_name=dataset_name,
+        depends=split_executor
+    )
+    pii_executor.run()
 
     # ## Extract potential copyrights - there are not remove from the data!
     # if args.run_copyrights:
