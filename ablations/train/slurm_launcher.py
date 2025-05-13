@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_slurm_script(
-    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4, fp8=False
+    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4, fp8=False, arch="llama"
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
@@ -28,10 +28,10 @@ def create_slurm_script(
 
     train_path = Path(__file__).resolve().parent
 
-    logger.info(f"Train script path: {train_path}/train_llama.py")
+    logger.info(f"Train script path: {train_path}/train.py")
 
 
-    args = f"{config} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node} {'--fp8' if fp8 else ''}"
+    args = f"{config} --arch {arch} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node} {'--fp8' if fp8 else ''}"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
@@ -88,18 +88,18 @@ DISTRIBUTED_ARGS=" \
        "
 
 echo "Arguments: {args}" 
-srun torchrun $DISTRIBUTED_ARGS {train_path}/train_llama.py {args}
+srun torchrun $DISTRIBUTED_ARGS {train_path}/train.py {args}
 """
     return script
 
 
-def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, fp8):
+def submit_job(config, arch, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, fp8):
     # config = os.path.join("../datamix", config)
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
     
     config_name = os.path.splitext(os.path.basename(config))[0]
-    job_name = f"{config_name}_{nodes}n_{mode}"
+    job_name = f"{arch}_{config_name}_{nodes}n_{mode}"
     if fp8:
         job_name += "_fp8"
     if name_prefix:
@@ -115,7 +115,8 @@ def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, 
         xp_output_dir,
         email,
         gpus_per_node=num_gpus_per_node,
-        fp8=fp8
+        fp8=fp8,
+        arch=arch
     )
 
     logger.info(f"Experiment name : {job_name}")
@@ -141,6 +142,7 @@ def submit_job(config, name_prefix, nodes, num_gpus_per_node, mode, output_dir, 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="mock.json")
+    parser.add_argument("--arch", default="llama", type=str, choices=["llama", "mamba"])
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--gpus_per_node", default=4, type=int)
@@ -155,6 +157,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     submit_job(
         args.config,
+        args.arch,
         args.name_prefix,
         args.num_nodes,
         args.gpus_per_node,
