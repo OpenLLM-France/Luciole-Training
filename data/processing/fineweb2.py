@@ -1,5 +1,5 @@
 from utils import *
-from pii_utils import PhoneNumberPII
+from pii_utils import PhoneNumberPII, MorePIIFormatter
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.base import PipelineStep
@@ -124,7 +124,6 @@ if __name__ == "__main__":
         job_name=dataset_name,
         depends=main_processing_executor
     )
-    # split_executor.run()
 
     ################
     ## PII Cleaning
@@ -137,6 +136,7 @@ if __name__ == "__main__":
     if args.language == "fra_Latn":
         pii_cleaning.append(PhoneNumberPII("FR"))
         pii_cleaning.append(PhoneNumberPII("CA"))
+        pii_cleaning.append(MorePIIFormatter())
     elif args.language == "deu_Latn":
         pii_cleaning.append(PhoneNumberPII("DE"))
     elif args.language == "eng_Latn":
