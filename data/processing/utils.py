@@ -22,18 +22,15 @@ def create_executor(pipeline, local=False, **kwargs):
         tasks = 1
         time = "00:10:00"
         qos = "qos_cpu-dev"
-        pipeline[0].limit = 1000
-    else:
-        tasks = 50
-        time = "05:00:00"
-        qos = "qos_cpu-t3"
-
-    if local:
+        pipeline[0].limit = 10000 
         kwargs.pop("job_name", None)
         main_processing_executor = LocalPipelineExecutor(
             pipeline=pipeline, tasks=tasks, **kwargs
         )
     else:
+        tasks = 50
+        time = "05:00:00"
+        qos = "qos_cpu-t3"
         main_processing_executor = SlurmPipelineExecutor(
             pipeline=pipeline,
             sbatch_args={"account": "qgz@cpu"},
