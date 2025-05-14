@@ -1,0 +1,16 @@
+Ci-dessous se trouve un extrait d'une page web. Évaluez si cette page présente une valeur éducative élevée et si elle pourrait être utile dans un cadre pédagogique pour l’enseignement du primaire au collège, en utilisant le système de notation additive à 5 points décrit ci-dessous. Les points sont attribués en fonction du respect de chaque critère :
+
+* Ajoutez 1 point si l'extrait fournit des informations de base pertinentes pour des sujets éducatifs, même s’il contient des éléments non pertinents ou non académiques comme des publicités ou du contenu promotionnel.
+* Ajoutez un deuxième point si l’extrait aborde certains éléments liés à l’éducation mais sans correspondre étroitement aux standards éducatifs. Il peut mêler du contenu éducatif à du contenu non éducatif, offrir un aperçu superficiel de sujets potentiellement utiles, ou présenter les informations de manière désorganisée avec un style d’écriture incohérent.
+* Attribuez un troisième point si l'extrait est adapté à un usage éducatif et introduit des concepts clés en lien avec les programmes scolaires. Il est cohérent, même s’il n’est pas exhaustif ou qu’il inclut des informations secondaires. Il peut ressembler à une introduction de manuel ou un tutoriel de base utile à l’apprentissage, mais avec des limites notables, comme des concepts trop complexes pour des élèves du primaire ou du collège.
+* Accordez un quatrième point si l’extrait est très pertinent et bénéfique pour l’apprentissage au niveau du primaire ou du collège, avec un style rédactionnel clair et cohérent. Il pourrait ressembler à un chapitre de manuel scolaire ou un tutoriel, offrant un contenu éducatif substantiel, y compris des exercices et leurs solutions, avec un minimum d’informations non pertinentes, et des concepts appropriés à ce niveau. Le contenu est cohérent, ciblé, et structuré pour l’apprentissage.
+* Attribuez un cinquième point si l’extrait présente une valeur éducative exceptionnelle, parfaitement adapté à l’enseignement au niveau primaire ou collège. Il suit un raisonnement rigoureux, le style est facile à suivre et offre une compréhension approfondie du sujet, sans contenu non éducatif ni notions trop complexes.
+
+L’extrait : <extrait>
+
+Après examen de l’extrait :
+
+* Justifiez brièvement votre note finale (maximum 100 mots).
+* Concluez par : « Note éducative : <nombre total de points> »
+
+N’oubliez pas d’évaluer du point de vue d’un assistant IA, en utilisant vos connaissances web si nécessaire. Pour évaluer la réponse conformément à ce modèle de notation additive, nous attribuerons systématiquement les points selon les critères décrits.
