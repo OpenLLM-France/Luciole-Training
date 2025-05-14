@@ -1,34 +1,57 @@
-import datasets 
 from distilabel.models import TransformersLLM
-from distilabel.models import vLLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps.tasks import TextGeneration
-import os
+from distilabel.steps import LoadDataFromDicts, LoadDataFromDisk
 
-with Pipeline() as pipeline: # 
-    TextGeneration( # 
-        llm=vLLM(
-            model="Qwen/Qwen3-0.6B",
-            # generation_kwargs={"temperature": 0.7, "max_new_tokens": 512},
-        ),
-    )
+import datasets
+import os
+import argparse
+
+chat_template = """{%- for message in messages %}
+    {{- '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n' }}
+{%- endfor %}
+{{- '<|im_start|>assistant\n' }}
+{{- '<think>\n\n</think>\n\n' }}"""
+
+main_path = os.getenv("OpenLLM_OUTPUT")
 
 if __name__ == "__main__":
-    with open('prompt/fr.txt', 'r', encoding='utf-8') as file:
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument(
+        "--prompt",
+        type=str,
+        default="prompt/en.txt",
+    )
+    argparser.add_argument(
+        "--disable_thinking",
+        action="store_true",
+        help="Disable the thinking process."
+    )
+    args = argparser.parse_args()
+
+    with open(args.prompt, 'r', encoding='utf-8') as file:
         prompt = file.read()
 
+    # Preprocess dataset
     dataset = datasets.load_dataset(
-        os.path.join(os.getenv("OpenLLM_OUTPUT"), "data/raw_datasets/fineweb2/data/fra_Latn/train")
-        ) 
+        os.path.join(main_path, "data/raw_datasets/fineweb2/data/fra_Latn/train"), split='train'
+    )
     dataset = dataset.map(
         lambda x: {"instruction": prompt.replace('<extrait>', x["text"])},
-        remove_columns=dataset["train"].column_names,
+        remove_columns=dataset.column_names,
     )
-    distiset = pipeline.run(dataset=dataset["train"].select(range(2)))
-    distiset.save_to_disk(
-        "test-dataset",
-        save_card=True,
-        save_pipeline_config=True,
-        save_pipeline_log=True
-    )
-    
+    dataset = dataset.select(range(5))
+
+    # Define the pipeline
+    with Pipeline(name="annotation") as pipeline:
+        generation = TextGeneration(
+            llm=TransformersLLM(
+                model="Qwen/Qwen3-0.6B",
+                generation_kwargs={"temperature": 0.8, "max_new_tokens": 512},
+                chat_template = chat_template if args.disable_thinking else None,
+            )
+        )
+
+    distiset = pipeline.run(dataset=dataset, use_cache=False)
+
+    distiset['default']['train'].to_pandas().to_csv("data.csv")
