@@ -12,6 +12,8 @@ pip install flash-attn --no-build-isolation
 pip install hf_xet
 pip install pynvml
 pip install bs4
+pip install scikit-learn
+pip install matplotlib
 ```
 
 ### Use it

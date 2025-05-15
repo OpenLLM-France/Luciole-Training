@@ -1,8 +1,10 @@
-from distilabel.models import TransformersLLM, vLLM
+from distilabel.models.llms import TransformersLLM, vLLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps.tasks import TextGeneration
 from distilabel.steps import LoadDataFromDicts, LoadDataFromDisk
 from distilabel.steps import StepResources
+from datetime import datetime
+import random
 
 import datasets
 import os
@@ -29,14 +31,14 @@ if __name__ == "__main__":
         default=os.path.join(main_path, "data/raw_datasets_ablation/fineweb2/data/fra_Latn/train"),
     )
     argparser.add_argument(
-        "--prompt",
+        "--prompt_name",
         type=str,
-        default="prompt/en.txt",
+        default="en",
     )
     argparser.add_argument(
         "--output_dir",
         type=str,
-        default="out",
+        default=os.path.join(main_path, "synthetic_data"),
     )
     argparser.add_argument(
         "--disable_thinking",
@@ -50,15 +52,23 @@ if __name__ == "__main__":
     )
     args = argparser.parse_args()
     model_name = args.model_name
+    prompt_name = args.prompt_name
     data_path = args.data_path
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
-    with open(args.prompt, 'r', encoding='utf-8') as file:
+    date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
+    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{date}"
+    print(output_name)
+
+    with open(f"prompt/{prompt_name}.txt", 'r', encoding='utf-8') as file:
         prompt = file.read()
 
     # Preprocess dataset
-    dataset = datasets.load_dataset(data_path, split="train").select(range(100))  # Select a subset for testing
+    random.seed(42)  # Set seed for reproducibility
+    dataset = datasets.load_dataset(data_path, split="train")
+    random_indices = random.sample(range(len(dataset)), 100)
+    dataset = dataset.select(random_indices)
     dataset = dataset.map(
         lambda x: {"instruction": prompt.replace('<text>', x["text"])},
         remove_columns=dataset.column_names,
@@ -66,19 +76,17 @@ if __name__ == "__main__":
 
     # Define the pipeline
     with Pipeline(name="annotation") as pipeline:
-        generation_kwargs={"temperature": 0.8, "max_new_tokens": 512}
+        chat_template = chat_template if args.disable_thinking else None
         if args.vllm:
             llm = vLLM(
                 model = model_name,
-                generation_kwargs = generation_kwargs,
-                chat_template = chat_template if args.disable_thinking else None,
+                chat_template = chat_template,
                 extra_kwargs = {}
             )
         else:
             llm = TransformersLLM(
                 model = model_name,
-                generation_kwargs = generation_kwargs,
-                chat_template = chat_template if args.disable_thinking else None,
+                chat_template = chat_template,
                 model_kwargs = {}
             )
         generation = TextGeneration(
@@ -89,4 +97,9 @@ if __name__ == "__main__":
 
     distiset = pipeline.run(dataset=dataset, use_cache=False)
 
-    distiset['default']['train'].to_json(os.path.join(output_dir, "data.jsonl"))
+    distiset.save_to_disk(
+        os.path.join(output_dir, output_name),
+        save_card=True,
+        save_pipeline_config=True,
+        save_pipeline_log=True
+    )
