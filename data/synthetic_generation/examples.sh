@@ -14,10 +14,15 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 # huggingface-cli download Qwen/Qwen3-0.6B --repo-type model
 # huggingface-cli download Qwen/Qwen3-1.7B --repo-type model
 # huggingface-cli download Qwen/Qwen3-8B --repo-type model
+# huggingface-cli download Qwen/Qwen3-14B --repo-type model
 
 model_name=Qwen/Qwen3-0.6B
 model_name=Qwen/Qwen3-1.7B
 model_name=Qwen/Qwen3-8B
+model_name=Qwen/Qwen3-14B
+model_name=$DSDIR/HuggingFace_Models/Qwen/Qwen3-32B
+model_name=$DSDIR/HuggingFace_Models/meta-llama/Llama-3.1-8B-Instruct
+model_name=$DSDIR/HuggingFace_Models/meta-llama/Meta-Llama-3.1-70B-Instruct
 
 python generate.py --model_name $model_name --prompt en --disable_thinking
 python generate.py --model_name $model_name --prompt fr --disable_thinking
