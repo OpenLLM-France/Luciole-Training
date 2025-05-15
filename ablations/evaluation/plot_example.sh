@@ -3,7 +3,7 @@
 ### Language ablation example
 main_path=$OpenLLM_OUTPUT/ablations/train/language_ablations
 
-python postprocess_results.py \
+python plot_results.py \
     --group fr en \
     --experiment_path $main_path/datamix_1._eng_Latn_4n_20b \
     $main_path/datamix_1._fra_Latn_4n_20b \
@@ -16,7 +16,7 @@ python postprocess_results.py \
 ### Lucie2 ablation
 main_path=$OpenLLM_OUTPUT/ablations/train/lucie2_ablations
 
-python postprocess_results.py \
+python plot_results.py \
     --group fr en \
-    --experiment_path $main_path/multi_base_4n_20b $main_path/multi_gallica_4n_20b $main_path/olmo2_4n_20b \
+    --experiment_path $main_path/multi_base_4n_20b $main_path/multi_gallica_4n_20b $main_path/datamix_multi_gallica_plus_4n_20b $main_path/llama_datamix_multi_gallica_full_4n_20b\
     --output_path $OpenLLM_OUTPUT/ablations/evaluation/lucie2_ablations
