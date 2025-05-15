@@ -91,6 +91,23 @@ Warning: in more recent versions of `lighteval`,
 - you can create a new .txt file 
 - or use one of the predefined (en.txt, fr.txt). 
 
+#### Load benchmarks in the cache:
+
+You can run this on prepost partition for example:
+
+```
+module purge
+module load arch/h100
+module load anaconda-py3/2024.06
+conda activate eval-env
+
+export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+
+lighteval accelerate "pretrained=gpt2" "tasks/en.txt"
+lighteval accelerate "pretrained=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
+```
+
 #### Evaluate all the checkpoints of your experiment:
 ```bash
 cd evaluation/
