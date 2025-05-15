@@ -43,6 +43,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable the thinking process."
     )
+    argparser.add_argument(
+        "--vllm",
+        action="store_true",
+        help="Use vLLM."
+    )
     args = argparser.parse_args()
     model_name = args.model_name
     data_path = args.data_path
@@ -61,13 +66,24 @@ if __name__ == "__main__":
 
     # Define the pipeline
     with Pipeline(name="annotation") as pipeline:
-        generation = TextGeneration(
-            llm=TransformersLLM(
-                model=model_name,
-                generation_kwargs={"temperature": 0.8, "max_new_tokens": 512},
+        generation_kwargs={"temperature": 0.8, "max_new_tokens": 512}
+        if args.vllm:
+            llm = vLLM(
+                model = model_name,
+                generation_kwargs = generation_kwargs,
                 chat_template = chat_template if args.disable_thinking else None,
-            ),
-            input_batch_size=8,
+                extra_kwargs = {}
+            )
+        else:
+            llm = TransformersLLM(
+                model = model_name,
+                generation_kwargs = generation_kwargs,
+                chat_template = chat_template if args.disable_thinking else None,
+                model_kwargs = {}
+            )
+        generation = TextGeneration(
+            llm = llm,
+            input_batch_size = 8,
             # resources=StepResources(replicas=1, cpus=1, gpus=4)
         )
 
