@@ -46,6 +46,18 @@ def plot_histograms(df):
 
     plt.savefig("histograms.png")
 
+# Map over the dataset to extract the score
+def extract_score(example):
+    match = re.search(
+        r"(?:Educational score:|Note éducative\s*:)\s*\**(\d)\s*(?:points)?\**",
+        example["generation"],
+        re.IGNORECASE
+    )
+    if match:
+        return {"score": int(match.group(1))}
+    else:
+        return {"score": -1}  # or None if you prefer
+
 # Clip and warn if needed
 def clip_and_warn(scores):
     x_min, x_max = -1, 5
@@ -57,46 +69,39 @@ def clip_and_warn(scores):
         clipped.append(s)
     return clipped
 
-main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "synthetic_data") 
+if __name__ == "__main__":
 
-out = []
+    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "synthetic_data") 
 
-for dataset_name in os.listdir(main_path):
-    # Load dataset from disk using Distiset
-    expe_path = os.path.join(main_path, dataset_name)
-    distiset = Distiset.load_from_disk(expe_path)
-    ds = distiset["default"]["train"]
+    out = []
 
-    # Map over the dataset to extract the score
-    def extract_score(example):
-        match = re.search(
-            r"(?:Educational score:|Note éducative\s*:)\s*\**(\d)\s*(?:points)?\**",
-            example["generation"],
-            re.IGNORECASE
-        )
-        if match:
-            return {"score": int(match.group(1))}
-        else:
-            return {"score": -1}  # or None if you prefer
+    for dataset_name in os.listdir(main_path):
+        # Load dataset from disk using Distiset
+        expe_path = os.path.join(main_path, dataset_name)
+        distiset = Distiset.load_from_disk(expe_path)
+        ds = distiset["default"]["train"]
 
-    ds = ds.map(extract_score)
 
-    # print(ds["score"])
-    print(dataset_name)
-    print(ds[-1]['generation'])
-    print('<<<<<<<<<\n')
-    out.append({"name": dataset_name, "scores": ds["score"]})
 
-df = pd.DataFrame(out)
-df["scores"] = df["scores"].apply(clip_and_warn)
-df.sort_values(by="name", inplace=True)
-df[['model', 'language', 'date']] = df['name'].str.extract(
-    r'^(?P<model>.+)_(?P<language>fr|en)_(?P<date>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)$'
-)
-print(df)
+        ds = ds.map(extract_score)
 
-plot_histograms(df)
-plot_confusion_matrix(df, "Qwen3-32B_en_2025-05-15T16-14-58.654993", "Qwen3-8B_en_2025-05-15T15-37-29.144996", "confusion_qwen.png")
-plot_confusion_matrix(df, "Llama-3.1-8B-Instruct_en_2025-05-15T16-04-47.059051", "Qwen3-8B_en_2025-05-15T15-37-29.144996", "confusion_llama_qwen.png")
-plot_confusion_matrix(df, "Qwen3-8B_en_2025-05-15T15-37-29.144996", "Qwen3-8B_fr_2025-05-15T15-41-13.785139", "confusion_qwen_8B_language.png")
-plot_confusion_matrix(df, "Qwen3-32B_en_2025-05-15T16-14-58.654993", "Qwen3-32B_fr_2025-05-15T16-57-11.168984", "confusion_qwen_32B_language.png")
+        # print(ds["score"])
+        print(dataset_name)
+        print(ds[-1]['generation'])
+        print('<<<<<<<<<\n')
+        out.append({"name": dataset_name, "scores": ds["score"]})
+
+    df = pd.DataFrame(out)
+    df["scores"] = df["scores"].apply(clip_and_warn)
+    df.sort_values(by="name", inplace=True)
+    df[['model', 'language', 'date']] = df['name'].str.extract(
+        r'^(?P<model>.+)_(?P<language>fr|en)_(?P<date>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)$'
+    )
+    print(df)
+
+    plot_histograms(df)
+    plot_confusion_matrix(df, "Qwen3-32B_en_2025-05-15T16-14-58.654993", "Qwen3-8B_en_2025-05-15T15-37-29.144996", "confusion_qwen.png")
+    plot_confusion_matrix(df, "Llama-3.1-8B-Instruct_en_2025-05-15T16-04-47.059051", "Qwen3-8B_en_2025-05-15T15-37-29.144996", "confusion_llama_qwen.png")
+    plot_confusion_matrix(df, "Qwen3-8B_en_2025-05-15T15-37-29.144996", "Qwen3-8B_fr_2025-05-15T15-41-13.785139", "confusion_qwen_8B_language.png")
+    plot_confusion_matrix(df, "Qwen3-32B_en_2025-05-15T16-14-58.654993", "Qwen3-32B_fr_2025-05-15T16-57-11.168984", "confusion_qwen_32B_language.png")
+    plot_confusion_matrix(df, "Qwen3-8B_en_2025-05-15T15-37-29.144996", "Qwen3-8B_en_think_2025-05-15T17-15-48.012094", "confusion_qwen_thinking.png")

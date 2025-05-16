@@ -5,7 +5,6 @@ from distilabel.steps import LoadDataFromDicts, LoadDataFromDisk
 from distilabel.steps import StepResources
 from datetime import datetime
 import random
-
 import datasets
 import os
 import argparse
@@ -26,9 +25,9 @@ if __name__ == "__main__":
         default="/lustre/fsmisc/dataset/HuggingFace_Models/meta-llama/Llama-3.1-8B-Instruct",
     )
     argparser.add_argument(
-        "--data_path",
+        "--data_language",
         type=str,
-        default=os.path.join(main_path, "data/raw_datasets_ablation/fineweb2/data/fra_Latn/train"),
+        default="fr",
     )
     argparser.add_argument(
         "--prompt_name",
@@ -52,17 +51,27 @@ if __name__ == "__main__":
     )
     args = argparser.parse_args()
     model_name = args.model_name
+    data_language = args.data_language
     prompt_name = args.prompt_name
-    data_path = args.data_path
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
-    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{date}"
+    if not args.disable_thinking and "Qwen" in model_name:
+        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_think_{date}"
+    else:
+        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{date}"
     print(output_name)
 
     with open(f"prompt/{prompt_name}.txt", 'r', encoding='utf-8') as file:
         prompt = file.read()
+
+    if data_language == "fr":
+        data_path = os.path.join(main_path, "data/raw_datasets_ablation/fineweb2/data/fra_Latn/train")
+    elif data_language == "en":
+        data_path = "HuggingFaceFW/fineweb-edu-llama3-annotations"
+    else:
+        raise ValueError("Unsupported data language. Use 'fr' or 'en'.")
 
     # Preprocess dataset
     random.seed(42)  # Set seed for reproducibility
@@ -71,7 +80,7 @@ if __name__ == "__main__":
     dataset = dataset.select(random_indices)
     dataset = dataset.map(
         lambda x: {"instruction": prompt.replace('<text>', x["text"])},
-        remove_columns=dataset.column_names,
+        # remove_columns=dataset.column_names,
     )
 
     # Define the pipeline
@@ -98,7 +107,7 @@ if __name__ == "__main__":
     distiset = pipeline.run(dataset=dataset, use_cache=False)
 
     distiset.save_to_disk(
-        os.path.join(output_dir, output_name),
+        os.path.join(output_dir, f'{data_language}_data', output_name),
         save_card=True,
         save_pipeline_config=True,
         save_pipeline_log=True
