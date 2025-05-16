@@ -17,6 +17,14 @@ chat_template = """{%- for message in messages %}
 
 main_path = os.getenv("OpenLLM_OUTPUT")
 
+def to_shorthand(n):
+    if n >= 1_000_000:
+        return f"{n/1_000_000:.0f}M"
+    elif n >= 1_000:
+        return f"{n/1_000:.0f}k"
+    else:
+        return str(n)
+
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument(
@@ -72,9 +80,9 @@ if __name__ == "__main__":
 
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
     if not args.disable_thinking and "Qwen" in model_name:
-        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_think_{date}"
+        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{to_shorthand(args.nsamples)}_think_{date}"
     else:
-        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{date}"
+        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{to_shorthand(args.nsamples)}_{date}"
     print(output_name)
 
     with open(f"prompt/{prompt_name}.txt", 'r', encoding='utf-8') as file:

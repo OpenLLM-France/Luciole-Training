@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=generate 
-#SBATCH --output=%x.out 
+#SBATCH --output=log_%x-%j.out 
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -20,4 +20,4 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 model_name=$DSDIR/HuggingFace_Models/Qwen/Qwen3-32B
 
-VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language fra_Latn --prompt multi_task --disable_thinking --vllm --gpus 4 --nsamples 20000
+VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language fra_Latn --prompt multi_task --disable_thinking --vllm --gpus 4 --nsamples 400000 --use_cache
