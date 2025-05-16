@@ -1,0 +1,22 @@
+Evaluate the educational value of the following web page extract for use in primary to grade school educational settings. Use the 5-point scale below:
+
+1 – Very Low Educational Value: The content is misleading, irrelevant, or inappropriate for educational use.
+
+2 – Low Educational Value: The content is minimally relevant or poorly presented for educational purposes.
+
+3 – Neutral: The content is somewhat relevant but lacks depth or clarity.
+
+4 – Good Educational Value: The content is accurate, appropriate, and useful for teaching.
+
+5 – Very High Educational Value: The content is highly informative, well-structured, and strongly supports learning outcomes.
+
+Web Page Extract:
+<text>
+
+Instructions:
+
+- Assess the extract based on relevance, clarity, age appropriateness, factual accuracy, and engagement for primary to grade school learners.
+
+- Justify your score in no more than 100 words.
+
+- End your response with the score in the format: Educational score: <number>
