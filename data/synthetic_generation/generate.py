@@ -30,6 +30,16 @@ if __name__ == "__main__":
         default="fr",
     )
     argparser.add_argument(
+        "--nsamples",
+        type=int,
+        default=200,
+    )
+    argparser.add_argument(
+        "--gpus",
+        type=int,
+        default=1,
+    )
+    argparser.add_argument(
         "--prompt_name",
         type=str,
         default="en",
@@ -38,6 +48,10 @@ if __name__ == "__main__":
         "--output_dir",
         type=str,
         default=os.path.join(main_path, "synthetic_data"),
+    )
+    argparser.add_argument(
+        "--use_cache",
+        action="store_true",
     )
     argparser.add_argument(
         "--disable_thinking",
@@ -66,21 +80,21 @@ if __name__ == "__main__":
     with open(f"prompt/{prompt_name}.txt", 'r', encoding='utf-8') as file:
         prompt = file.read()
 
-    if data_language == "fr":
-        data_path = os.path.join(main_path, "data/raw_datasets_ablation/fineweb2/data/fra_Latn/train")
-    elif data_language == "en":
+    if data_language == "en":
         data_path = "HuggingFaceFW/fineweb-edu-llama3-annotations"
+    elif data_language in ["fra_Latn"]:
+        data_path = os.path.join(main_path, f"data/raw_datasets_ablation/fineweb2/data/{data_language}/train")
     else:
-        raise ValueError("Unsupported data language. Use 'fr' or 'en'.")
+        raise ValueError("Unsupported data language. Use 'en' or 'fra_Latn'.")
 
     # Preprocess dataset
     random.seed(42)  # Set seed for reproducibility
     dataset = datasets.load_dataset(data_path, split="train")
-    random_indices = random.sample(range(len(dataset)), 200)
+    random_indices = random.sample(range(len(dataset)), args.nsamples)
     dataset = dataset.select(random_indices)
     dataset = dataset.map(
-        lambda x: {"instruction": prompt.replace('<text>', x["text"][:1000])},
-        # remove_columns=dataset.column_names,
+        lambda x: {"instruction": prompt.replace('<text>', x["text"][:2000])},
+        remove_columns=dataset.column_names,
     )
 
     # Define the pipeline
@@ -91,8 +105,8 @@ if __name__ == "__main__":
                 model = model_name,
                 chat_template = chat_template,
                 extra_kwargs={
-                    # "tensor_parallel_size": 1,               # Number of GPUs per node
-                    "max_model_len": 4096,
+                    "tensor_parallel_size": 4,               # Number of GPUs per node
+                    "gpu_memory_utilization": 0.95,  # GPU memory utilization
                 },
                 generation_kwargs={
                     "temperature": 0.5,
@@ -112,10 +126,10 @@ if __name__ == "__main__":
         generation = TextGeneration(
             llm = llm,
             input_batch_size = 50,
-            resources=StepResources(replicas=1, gpus=1),
+            resources=StepResources(replicas=1, gpus=args.gpus),
         )
 
-    distiset = pipeline.run(dataset=dataset, use_cache=False)
+    distiset = pipeline.run(dataset=dataset, use_cache=args.use_cache)
 
     distiset.save_to_disk(
         os.path.join(output_dir, f'{data_language}_data', output_name),
