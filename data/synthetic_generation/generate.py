@@ -76,10 +76,10 @@ if __name__ == "__main__":
     # Preprocess dataset
     random.seed(42)  # Set seed for reproducibility
     dataset = datasets.load_dataset(data_path, split="train")
-    random_indices = random.sample(range(len(dataset)), 100)
+    random_indices = random.sample(range(len(dataset)), 200)
     dataset = dataset.select(random_indices)
     dataset = dataset.map(
-        lambda x: {"instruction": prompt.replace('<text>', x["text"])},
+        lambda x: {"instruction": prompt.replace('<text>', x["text"][:1000])},
         # remove_columns=dataset.column_names,
     )
 
@@ -90,18 +90,29 @@ if __name__ == "__main__":
             llm = vLLM(
                 model = model_name,
                 chat_template = chat_template,
-                extra_kwargs = {}
+                extra_kwargs={
+                    # "tensor_parallel_size": 1,               # Number of GPUs per node
+                    "max_model_len": 4096,
+                },
+                generation_kwargs={
+                    "temperature": 0.5,
+                    "max_new_tokens": 1024,
+                },
             )
         else:
             llm = TransformersLLM(
                 model = model_name,
                 chat_template = chat_template,
-                model_kwargs = {}
+                model_kwargs = {},
+                generation_kwargs={
+                    "temperature": 0.5,
+                    "max_new_tokens": 1024,
+                },
             )
         generation = TextGeneration(
             llm = llm,
-            input_batch_size = 8,
-            # resources=StepResources(replicas=1, cpus=1, gpus=4)
+            input_batch_size = 50,
+            resources=StepResources(replicas=1, gpus=1),
         )
 
     distiset = pipeline.run(dataset=dataset, use_cache=False)
