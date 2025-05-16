@@ -37,7 +37,7 @@ def plot_confusion_matrix(ds, expe_name, output_dir="out"):
     plt.grid(False)
 
     os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(os.path.join(output_dir, f"confusion_{expe_name}.png"))
+    plt.savefig(os.path.join(output_dir, f"confusion_{expe_name.replace('/', '-')}.png"))
 
 def plot_histograms(ds, expe_name, output_dir="out"):
     # Extract columns
@@ -70,7 +70,8 @@ def plot_histograms(ds, expe_name, output_dir="out"):
     plt.tight_layout()
     plt.show()
 
-    plt.savefig(os.path.join(output_dir, f"hist_{expe_name}.png"))
+    os.makedirs(output_dir, exist_ok=True)
+    plt.savefig(os.path.join(output_dir, f"hist_{expe_name.replace('/', '-')}.png"))
 
 if __name__ == "__main__":
 
@@ -83,20 +84,22 @@ if __name__ == "__main__":
         # "Qwen3-32B_en_2025-05-16T10-05-48.950671",
         # "Qwen3-32B_multi_task_2025-05-16T11-25-11.332632", 
         # "Qwen3-32B_multi_task_2025-05-16T14-14-44.721269", 
-        "Qwen3-32B_multi_task_2025-05-16T15-44-06.564778"
+        # "en_data/Qwen3-32B_multi_task_2025-05-16T15-44-06.564778"
+        "fra_Latn_data/Qwen3-32B_multi_task_2025-05-16T16-21-09.458535"
     ]:
-        expe_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "synthetic_data/en_data/", expe_name)
+        expe_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "synthetic_data/", expe_name)
         distiset = Distiset.load_from_disk(expe_path)
         ds = distiset["default"]["train"]
         ds = ds.map(lambda x: extract_educational_json(x["generation"]))
         # print(ds)
 
-        plot_confusion_matrix(ds, expe_name, output_dir="out")
+        # plot_confusion_matrix(ds, expe_name, output_dir="out")
         plot_histograms(ds, expe_name, output_dir="out")
 
         # print("\nList of subtopics:")
         # print(list(set(ds['subtopic'])))
 
-        # ds = ds.filter(lambda x: x["harmfulness_score"] == 5) 
+        # ds = ds.filter(lambda x: x["educational_score"] >= 4) 
         # print(ds[0]['instruction'])
+        # print(ds[0]['generation'])
 
