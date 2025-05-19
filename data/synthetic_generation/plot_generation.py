@@ -7,27 +7,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-categories = [
-    "News",
-    "Sports",
-    "Culture",
-    "Entertainment",
-    "Technology",
-    "Business",
-    "Health",
-    "Science",
-    "Mathematics",
-    "Travel",
-    "Education",
-    "Lifestyle",
-    "Politics",
-    "Finance",
-    "Real Estate",
-    "Shopping",
-    "Dating",
-    "Adult"
-]
+import numpy as np
 
 def extract_educational_json(text: str) -> dict | None:
     pattern = re.compile(r'\{[^{}]*\}', re.DOTALL)
@@ -40,7 +20,7 @@ def extract_educational_json(text: str) -> dict | None:
     except json.JSONDecodeError:
         return None
 
-def plot_label_crosstab(input_1, input_2, expe_path, output_name):
+def plot_label_crosstab(ds, col1_name, col2_name, expe_path, output_name):
     """
     input_1: tuple (name, list/array) for first column (e.g. predicted)
     input_2: tuple (name, list/array) for second column (e.g. true labels)
@@ -48,11 +28,10 @@ def plot_label_crosstab(input_1, input_2, expe_path, output_name):
     output_name: file name (without extension)
     """
 
-    col1_name, col1_vals = input_1
-    col2_name, col2_vals = input_2
-
     # Create DataFrame
-    df = pd.DataFrame({col2_name: col2_vals, col1_name: col1_vals})
+    if (col1_name not in ds.column_names) or (col2_name not in ds.column_names):
+        return None
+    df = pd.DataFrame({col2_name: ds[col2_name], col1_name: ds[col1_name]})
 
     # Cross-tabulation (contingency table)
     cross_tab = pd.crosstab(df[col2_name], df[col1_name])
@@ -70,39 +49,61 @@ def plot_label_crosstab(input_1, input_2, expe_path, output_name):
     plt.savefig(os.path.join(expe_path, "out", f"crosstab_{output_name}.png"))
     plt.close()
 
+
 def plot_histograms(ds, expe_path):
-    # Extract columns
-    educational_scores = ds['educational_score']
-    harmfulness_scores = ds['toxicity_score']
-    topics = ds['topic']
+    """
+    Plots histograms or bar charts for the specified metrics in the dataset.
 
-    fig, axs = plt.subplots(3, 1, figsize=(8, 10))
+    Args:
+        ds: A dataset (e.g., pandas DataFrame or Hugging Face Dataset).
+        expe_path: Path to save the output plot.
+        metrics: List of fields to plot. Numeric fields are plotted as histograms,
+                 categorical and boolean fields as bar charts.
+    """
+    metrics = ['educational_score', 'toxicity_score', 'topic', 'is_ad', 'is_toxic']
+    n_plots = len(metrics)
+    fig, axs = plt.subplots(n_plots, 1, figsize=(8, 4 * n_plots))
+    if n_plots == 1:
+        axs = [axs]  # Ensure axs is always iterable
 
-    # Histogram for educational_score
-    axs[0].hist(educational_scores, bins=6, range=(0, 6), alpha=0.7, align='left', rwidth=0.8)
-    axs[0].set_title('Educational Score')
-    axs[0].set_xlabel('Score')
-    axs[0].set_ylabel('Frequency')
+    for i, metric in enumerate(metrics):
+        if metric not in ds.column_names:
+            axs[i].text(0.5, 0.5, f'{metric} not found', ha='center', va='center')
+            axs[i].set_title(f'{metric} (missing)')
+            axs[i].axis('off')
+            continue
 
-    # Histogram for harmfulness_score
-    axs[1].hist(harmfulness_scores, bins=6, range=(0, 6), alpha=0.7, align='left', rwidth=0.8)
-    axs[1].set_title('Toxicity Score')
-    axs[1].set_xlabel('Score')
-    axs[1].set_ylabel('Frequency')
+        values = ds[metric]
 
-    # Histogram for topic (categorical) — count frequencies
-    topic_counts = Counter(topics)
-    axs[2].bar(topic_counts.keys(), topic_counts.values(), alpha=0.7)
-    axs[2].set_title('Topic Distribution')
-    axs[2].set_xlabel('Topic')
-    axs[2].set_ylabel('Frequency')
-    axs[2].tick_params(axis='x', rotation=90)
+        # Handle missing or None values
+        values = [v for v in values if v is not None]
+
+        # Determine type
+        if all(isinstance(v, bool) for v in values):
+            counts = Counter(values)
+            axs[i].bar(['False', 'True'], [counts.get(False, 0), counts.get(True, 0)], alpha=0.7)
+            axs[i].set_xlabel('Value')
+            axs[i].set_ylabel('Frequency')
+
+        elif all(isinstance(v, (int, float, np.integer, np.floating)) for v in values):
+            axs[i].hist(values, bins=6, range=(0, 6), alpha=0.7, align='left', rwidth=0.8)
+            axs[i].set_xlabel('Score')
+            axs[i].set_ylabel('Frequency')
+
+        else:
+            counts = Counter(values)
+            axs[i].bar(counts.keys(), counts.values(), alpha=0.7)
+            axs[i].set_xlabel('Category')
+            axs[i].set_ylabel('Frequency')
+            axs[i].tick_params(axis='x', rotation=90)
+
+        axs[i].set_title(metric.replace('_', ' ').title())
 
     plt.tight_layout()
+    os.makedirs(os.path.join(expe_path, "out"), exist_ok=True)
+    plt.savefig(os.path.join(expe_path, "out", "hist.png"))
     plt.show()
 
-    os.makedirs(os.path.join(expe_path, "out"), exist_ok=True)
-    plt.savefig(os.path.join(expe_path, "out", f"hist.png"))
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -115,20 +116,14 @@ if __name__ == "__main__":
 
     ds = load_from_disk(os.path.join(expe_path, "default"))['train']
     ds = ds.map(lambda x: extract_educational_json(x["generation"]))
-    ds = ds.map(lambda x: {"topic": x["topic"] if x["topic"] in categories else "Other"})
     print(ds[0])
 
-    plot_label_crosstab(
-        ('Edu score', ds['educational_score']),
-        ('Toxicity score', ds['toxicity_score']),
-        expe_path, "toxicity_edu")
-    plot_label_crosstab(
-        ('Toxicity score', ds['toxicity_score']),
-        ('Topic', ds['topic']),
-        expe_path, "topic_toxicity")
-    plot_label_crosstab(
-        ('Edu score', ds['educational_score']),
-        ('Topic', ds['topic']),
-        expe_path, "topic_edu")
+    plot_label_crosstab(ds, 'educational_score', 'toxicity_score', expe_path, "toxic_edu")
+    plot_label_crosstab(ds, 'educational_score', 'is_toxic', expe_path, "toxic_edu")
+    plot_label_crosstab(ds, 'educational_score', 'is_ad', expe_path, "ad_edu")
+    plot_label_crosstab(ds, 'educational_score', 'topic', expe_path, "edu_topic")
+    plot_label_crosstab(ds, 'is_toxic', 'topic', expe_path, "toxic_topic")
+    plot_label_crosstab(ds, 'toxicity_score', 'topic', expe_path, "toxic_topic")
+
     plot_histograms(ds, expe_path)
 

@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 model = model_name,
                 chat_template = chat_template,
                 extra_kwargs={
-                    "tensor_parallel_size": 4,               # Number of GPUs per node
+                    "tensor_parallel_size": args.gpus,               # Number of GPUs per node
                     "gpu_memory_utilization": 0.95,  # GPU memory utilization
                 },
                 generation_kwargs={
