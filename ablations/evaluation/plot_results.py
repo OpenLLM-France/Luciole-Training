@@ -8,6 +8,10 @@ import re
 import argparse
 
 task_group_mapping = {
+    "mmlu" : [
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc"),
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
+    ],
     "en" : [
         ("helm|boolq|0", "pem"),
         ("lighteval|triviaqa|0", "qem"),
@@ -61,7 +65,6 @@ def read_experiment_results(main_dir):
     # Fix date and deduplicate
     df['timestamp'] = df['timestamp'].str.replace('T', ' ').str.replace(r'(\d{2})-(\d{2})-(\d{2}\.\d+)', r'\1:\2:\3', regex=True)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df = df.sort_values('timestamp').drop_duplicates(subset=df.columns.difference(['timestamp']), keep='last')
     # Post process some columns
     df['experiment_name'] = experiment_name
     df['step'] = df['model_name'].str.extract(r'--step_([0-9.]+)-')[0].astype(float)
@@ -154,6 +157,15 @@ if __name__=="__main__":
     for path in args.experiment_path:
         dfs.append(read_experiment_results(path))
     df = pd.concat(dfs)
+
+    columns = ['task', 'experiment_name', 'step', 'samples', 'tokens']
+    df_sorted = df.sort_values('timestamp')
+    # # Identify duplicates that would be removed
+    # duplicates_removed = df_sorted[df_sorted.duplicated(subset=columns, keep='last')]
+    # # Print removed rows
+    # print(duplicates_removed)
+    # # Drop duplicates
+    df = df_sorted.drop_duplicates(subset=columns, keep='last')
 
     for g in args.group:
         output_file = os.path.join(args.output_path, f"{g}.png") if args.output_path else None
