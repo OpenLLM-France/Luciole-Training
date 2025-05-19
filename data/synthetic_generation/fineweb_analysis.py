@@ -1,10 +1,33 @@
-import os
-from distilabel.distiset import Distiset
+from datasets import load_from_disk
 import re
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
 from collections import Counter
 import json
+import argparse
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+categories = [
+    "News",
+    "Sports",
+    "Culture",
+    "Entertainment",
+    "Technology",
+    "Business",
+    "Health",
+    "Science",
+    "Mathematics",
+    "Travel",
+    "Education",
+    "Lifestyle",
+    "Politics",
+    "Finance",
+    "Real Estate",
+    "Shopping",
+    "Dating",
+    "Adult"
+]
 
 def extract_educational_json(text: str) -> dict | None:
     pattern = re.compile(r'\{[^{}]*\}', re.DOTALL)
@@ -17,29 +40,37 @@ def extract_educational_json(text: str) -> dict | None:
     except json.JSONDecodeError:
         return None
 
-def plot_confusion_matrix(ds, expe_name, output_dir="out"):
-    # Assuming `ds['extracted_score']` and `ds['score']` are arrays or pandas Series
-    y_pred = ds['educational_score']
-    y_true = ds['score']
+def plot_label_crosstab(input_1, input_2, expe_path, output_name):
+    """
+    input_1: tuple (name, list/array) for first column (e.g. predicted)
+    input_2: tuple (name, list/array) for second column (e.g. true labels)
+    expe_path: folder path to save the plot
+    output_name: file name (without extension)
+    """
 
-    # Define all possible labels from -1 to 5
-    labels = list(range(-1, 6))
+    col1_name, col1_vals = input_1
+    col2_name, col2_vals = input_2
 
-    # Compute confusion matrix
-    cm = confusion_matrix(y_true, y_pred, labels=labels)
+    # Create DataFrame
+    df = pd.DataFrame({col2_name: col2_vals, col1_name: col1_vals})
 
-    # Plot
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
-    disp.plot(cmap=plt.cm.Blues, xticks_rotation=45)
-    plt.title(f"Confusion Matrix: {expe_name}")
-    plt.xlabel("Qwen Score")
-    plt.ylabel("Finweb Score")
-    plt.grid(False)
+    # Cross-tabulation (contingency table)
+    cross_tab = pd.crosstab(df[col2_name], df[col1_name])
 
-    os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(os.path.join(output_dir, f"confusion_{expe_name.replace('/', '-')}.png"))
+    # Plot heatmap
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cross_tab, annot=True, fmt="d", cmap="Blues")
+    plt.title(f"Cross-tabulation between {col2_name} and {col1_name}")
+    plt.xlabel(col1_name)
+    plt.ylabel(col2_name)
+    plt.tight_layout()
 
-def plot_histograms(ds, expe_name, output_dir="out"):
+    # Save plot
+    os.makedirs(os.path.join(expe_path, "out"), exist_ok=True)
+    plt.savefig(os.path.join(expe_path, "out", f"crosstab_{output_name}.png"))
+    plt.close()
+
+def plot_histograms(ds, expe_path):
     # Extract columns
     educational_scores = ds['educational_score']
     harmfulness_scores = ds['toxicity_score']
@@ -70,36 +101,41 @@ def plot_histograms(ds, expe_name, output_dir="out"):
     plt.tight_layout()
     plt.show()
 
-    os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(os.path.join(output_dir, f"hist_{expe_name.replace('/', '-')}.png"))
+    os.makedirs(os.path.join(expe_path, "out"), exist_ok=True)
+    plt.savefig(os.path.join(expe_path, "out", f"hist.png"))
 
 if __name__ == "__main__":
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument(
+        "--expe_path",
+        type=str,
+    )
+    args = argparser.parse_args()
+    expe_path = args.expe_path
 
-    for expe_name in [
-        # "Qwen3-14B_en_2025-05-15T18-05-12.214286",
-        # "Qwen3-8B_en_2025-05-15T17-48-58.241512",
-        # "Qwen3-8B_scale_2025-05-15T18-17-32.125437",
-        # "Qwen3-14B_scale_2025-05-15T18-25-29.448993",
-        # "Qwen3-32B_scale_2025-05-15T18-30-45.785649",
-        # "Qwen3-32B_en_2025-05-16T10-05-48.950671",
-        # "Qwen3-32B_multi_task_2025-05-16T11-25-11.332632", 
-        # "Qwen3-32B_multi_task_2025-05-16T14-14-44.721269", 
-        # "en_data/Qwen3-32B_multi_task_2025-05-16T15-44-06.564778"
-        "fra_Latn_data/Qwen3-32B_multi_task_2025-05-16T16-21-09.458535"
-    ]:
-        expe_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "synthetic_data/", expe_name)
-        distiset = Distiset.load_from_disk(expe_path)
-        ds = distiset["default"]["train"]
-        ds = ds.map(lambda x: extract_educational_json(x["generation"]))
-        # print(ds)
+    ds = load_from_disk(os.path.join(expe_path, "default"))['train']
+    ds = ds.map(lambda x: extract_educational_json(x["generation"]))
+    ds = ds.map(lambda x: {"topic": x["topic"] if x["topic"] in categories else "Other"})
+    print(ds[0])
 
-        # plot_confusion_matrix(ds, expe_name, output_dir="out")
-        plot_histograms(ds, expe_name, output_dir="out")
+    plot_label_crosstab(
+        ('Edu score', ds['educational_score']),
+        ('Toxicity score', ds['toxicity_score']),
+        expe_path, "toxicity_edu")
+    plot_label_crosstab(
+        ('Toxicity score', ds['toxicity_score']),
+        ('Topic', ds['topic']),
+        expe_path, "topic_toxicity")
+    plot_label_crosstab(
+        ('Edu score', ds['educational_score']),
+        ('Topic', ds['topic']),
+        expe_path, "topic_edu")
+    plot_histograms(ds, expe_path)
 
-        # print("\nList of subtopics:")
-        # print(list(set(ds['subtopic'])))
+    # print("\nList of subtopics:")
+    # print(list(set(ds['subtopic'])))
 
-        # ds = ds.filter(lambda x: x["educational_score"] >= 4) 
-        # print(ds[0]['instruction'])
-        # print(ds[0]['generation'])
+    # ds = ds.filter(lambda x: x["educational_score"] >= 4) 
+    # print(ds[0]['instruction'])
+    # print(ds[0]['generation'])
 
