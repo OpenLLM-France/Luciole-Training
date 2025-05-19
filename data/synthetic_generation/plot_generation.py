@@ -132,10 +132,3 @@ if __name__ == "__main__":
         expe_path, "topic_edu")
     plot_histograms(ds, expe_path)
 
-    # print("\nList of subtopics:")
-    # print(list(set(ds['subtopic'])))
-
-    # ds = ds.filter(lambda x: x["educational_score"] >= 4) 
-    # print(ds[0]['instruction'])
-    # print(ds[0]['generation'])
-
