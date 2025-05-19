@@ -9,7 +9,6 @@ import argparse
 
 task_group_mapping = {
     "mmlu" : [
-        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc"),
         ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
     ],
     "en" : [
@@ -25,6 +24,7 @@ task_group_mapping = {
         ("lighteval|piqa|0", "acc_norm")    
     ],
     "fr": [
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
         ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"), 
         ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"), 
         ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"), 
@@ -149,6 +149,7 @@ if __name__=="__main__":
         help="List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want."
         )
     parser.add_argument('--output_path', type=str, default=None, help="Output path where your plot are storred")
+    parser.add_argument('--xlog', action='store_true', help="Use log scale for x-axis")
     args = parser.parse_args()
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
@@ -169,7 +170,7 @@ if __name__=="__main__":
 
     for g in args.group:
         output_file = os.path.join(args.output_path, f"{g}.png") if args.output_path else None
-        plot_list_of_tasks(df, task_group_mapping[g], output_file=output_file, title=None, xlog=False)
+        plot_list_of_tasks(df, task_group_mapping[g], output_file=output_file, title=None, xlog=args.xlog)
 
     if not args.output_path:
         plt.show()
