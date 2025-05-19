@@ -35,7 +35,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--data_language",
         type=str,
-        default="fr",
+        default="en",
     )
     argparser.add_argument(
         "--nsamples",
@@ -102,8 +102,8 @@ if __name__ == "__main__":
     dataset = dataset.select(random_indices)
     dataset = dataset.map(
         lambda x: {"instruction": prompt.replace('<text>', x["text"][:2000])},
-        remove_columns=dataset.column_names,
     )
+    dataset = dataset.select_columns(["text", "instruction"])
 
     # Define the pipeline
     with Pipeline(name="annotation") as pipeline:
