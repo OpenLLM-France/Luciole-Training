@@ -8,6 +8,13 @@ import random
 import datasets
 import os
 import argparse
+import psutil
+import os
+
+def print_memory_usage(tag=""):
+    process = psutil.Process(os.getpid())
+    mem_mb = process.memory_info().rss / 1024 / 1024
+    print(f"[{tag}] Memory usage: {mem_mb:.2f} MB")
 
 chat_template = """{%- for message in messages %}
     {{- '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n' }}
@@ -101,9 +108,10 @@ if __name__ == "__main__":
     random_indices = random.sample(range(len(dataset)), args.nsamples)
     dataset = dataset.select(random_indices)
     dataset = dataset.map(
-        lambda x: {"instruction": prompt.replace('<text>', x["text"][:2000])},
+        lambda x: {"instruction": prompt.replace('<text>', x["text"][:2000])}, num_proc=4
     )
     dataset = dataset.select_columns(["text", "instruction"])
+    print_memory_usage("After loading dataset")
 
     # Define the pipeline
     with Pipeline(name="annotation") as pipeline:

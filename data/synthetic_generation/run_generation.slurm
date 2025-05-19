@@ -20,4 +20,4 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 model_name=$DSDIR/HuggingFace_Models/Qwen/Qwen3-32B
 
-VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language fra_Latn --prompt multi_task --disable_thinking --vllm --gpus 4 --nsamples 400000 --use_cache
+VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language fra_Latn --prompt multi_task --disable_thinking --vllm --gpus 4 --nsamples 400000 
