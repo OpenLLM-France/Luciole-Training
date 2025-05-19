@@ -1,0 +1,146 @@
+from datasets import load_from_disk
+import os
+from fasttext import train_supervised
+from plot_generation import extract_educational_json
+import argparse
+import re
+import json
+
+def print_results(N, p, r):
+    print('-'*7)
+    print("N\t" + str(N))
+    print("P@{}\t{:.3f}".format(1, p))
+    print("R@{}\t{:.3f}".format(1, r))
+    print('-'*7)
+
+def extract_text(text: str) -> dict | None:
+    pattern = re.compile(r'Web page:\n\n(.*?)\n\n---', re.DOTALL)
+
+    matches = pattern.findall(text)
+    match = matches[0] 
+    try:
+        return match
+    except json.JSONDecodeError:
+        return ""
+
+import re
+
+def normalize_text(text: str) -> str:
+    text = text.lower()
+    
+    # Apply the sequence of substitutions
+    text = re.sub(r"'", " ' ", text)
+    text = re.sub(r'"', '', text)
+    text = re.sub(r'\.', ' . ', text)
+    text = re.sub(r'<br\s*/?>', ' ', text)
+    text = re.sub(r',', ' , ', text)
+    text = re.sub(r'\(', ' ( ', text)
+    text = re.sub(r'\)', ' ) ', text)
+    text = re.sub(r'!', ' ! ', text)
+    text = re.sub(r'\?', ' ? ', text)
+    text = re.sub(r';', ' ', text)
+    text = re.sub(r':', ' ', text)
+
+    # Collapse multiple spaces into one
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+if __name__ == "__main__":
+    main_path = os.getenv("OpenLLM_OUTPUT", '')
+
+    parser = argparse.ArgumentParser(description="Train a fastText classifier on educational data.")
+    parser.add_argument(
+        "--input_path",
+        type=str,
+        default=os.path.join(main_path, "synthetic_data/fra_Latn_data/Qwen3-32B_multi_task_2025-05-16T16-26-25.365295"),
+        help="Path to the input dataset."
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default=os.path.join(main_path, "fasttext_classifiers/fineweb_fra_Latn"),
+        help="Path to save the output model and data."
+    )
+    parser.add_argument(
+        "--label",
+        type=str,
+        default="educational_score",
+        choices=["educational_score", "toxicity_score", "topic"],
+        help="Label to use for classification."
+    )
+    parser.add_argument(
+        "--epoch",
+        type=int,
+        default=5
+    )
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=0.1
+    )
+    parser.add_argument(
+        "--ngrams",
+        type=int,
+        default=2
+    )
+    parser.add_argument(
+        "--normalize",
+        action='store_true',
+        help="Whether to normalize the text."
+    )
+    args = parser.parse_args()
+
+    epoch = args.epoch
+    lr = args.lr
+    ngrams = args.ngrams
+    output_path = args.output_path
+    input_path = args.input_path
+    label = args.label
+    normalize = args.normalize
+
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(os.path.join(output_path, "model"), exist_ok=True)
+    os.makedirs(os.path.join(output_path, "data"), exist_ok=True)
+
+    # Preprocess dataset
+    ds = load_from_disk(os.path.join(input_path, "default"))['train']
+    ds = ds.map(lambda x: extract_educational_json(x["generation"]))
+    if "text" not in ds.column_names:
+        ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
+    ds = ds.map(lambda x: {"text": x["text"].replace("\n", " ") if x["text"] else ""})
+    if normalize:
+        ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
+    ds = ds.train_test_split(test_size=10000, seed=42, shuffle=True)
+
+    # Write txt file
+    train_data = os.path.join(output_path, f"data/train_{label}.txt")
+    valid_data = os.path.join(output_path, f"data/valid_{label}.txt")
+
+    with open(train_data, "w") as f:
+        for sample in ds["train"]:
+            f.write(f"__label__{str(sample[label]).lower()} {sample['text']}\n")
+
+    with open(valid_data, "w") as f:
+        for sample in ds["test"]:
+            f.write(f"__label__{str(sample[label]).lower()} {sample['text']}\n")
+
+    model_name = f"{label}_ngram{ngrams}_epoch{epoch}_lr{lr}"
+
+    # train_supervised uses the same arguments and defaults as the fastText cli
+    model = train_supervised(
+        input=train_data, 
+        wordNgrams=ngrams, 
+        verbose=2, 
+        minCount=1, 
+        thread=40,
+        epoch=epoch, 
+        lr=lr, 
+    )
+
+    print_results(*model.test(valid_data))
+    model.save_model(os.path.join(output_path, "model",  f"{model_name}.bin"))
+
+    model.quantize(input=train_data, qnorm=True, retrain=True, cutoff=100000)
+    print_results(*model.test(valid_data))
+    model.save_model(os.path.join(output_path, "model",  f"{model_name}.ftz"))
