@@ -4,7 +4,7 @@
 main_path=$OpenLLM_OUTPUT/ablations/train/language_ablations
 
 python plot_results.py \
-    --group fr en \
+    --group fr en mmlu \
     --experiment_path $main_path/datamix_1._eng_Latn_4n_20b \
     $main_path/datamix_1._fra_Latn_4n_20b \
     $main_path/datamix_.25_fra_Latn_.75_eng_Latn_4n_20b \
