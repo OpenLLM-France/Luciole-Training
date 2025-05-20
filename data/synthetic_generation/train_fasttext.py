@@ -1,4 +1,4 @@
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 import os
 from fasttext import train_supervised
 from plot_generation import extract_educational_json
@@ -89,6 +89,11 @@ if __name__ == "__main__":
         action='store_true',
         help="Whether to normalize the text."
     )
+    parser.add_argument(
+        "--from_parquet",
+        action='store_true',
+        help="read from parquet files."
+    )
     args = parser.parse_args()
 
     epoch = args.epoch
@@ -98,20 +103,25 @@ if __name__ == "__main__":
     input_path = args.input_path
     label = args.label
     normalize = args.normalize
+    from_parquet = args.from_parquet
 
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(os.path.join(output_path, "model"), exist_ok=True)
     os.makedirs(os.path.join(output_path, "data"), exist_ok=True)
 
     # Preprocess dataset
-    ds = load_from_disk(os.path.join(input_path, "default"))['train']
+    if args.from_parquet:
+        ds = load_dataset("parquet", data_files={'train': os.path.join(input_path,'*.parquet')})['train']
+    else:
+        ds = load_from_disk(input_path)['train']
+
     ds = ds.map(lambda x: extract_educational_json(x["generation"]))
     if "text" not in ds.column_names:
         ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
     ds = ds.map(lambda x: {"text": x["text"].replace("\n", " ") if x["text"] else ""})
     if normalize:
         ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
-    ds = ds.train_test_split(test_size=10000, seed=42, shuffle=True)
+    ds = ds.train_test_split(test_size=1000, seed=42, shuffle=True)
 
     # Write txt file
     train_data = os.path.join(output_path, f"data/train_{label}.txt")
