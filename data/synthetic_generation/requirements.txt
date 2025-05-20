@@ -1,0 +1,9 @@
+distilabel[vllm]
+flash-attn --no-build-isolation
+pynvml
+hf_xet
+beautifulsoup4
+scikit-learn
+matplotlib
+seaborn
+fasttext

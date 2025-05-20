@@ -50,7 +50,7 @@ if __name__ == "__main__":
         default=2
     )
     parser.add_argument(
-        "--normalize",
+        "--normalize_text",
         action='store_true',
         help="Whether to normalize the text."
     )
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     output_path = args.output_path
     input_path = args.input_path
     label = args.label
-    normalize = args.normalize
+    normalize_text = args.normalize_text
     from_parquet = args.from_parquet
 
     os.makedirs(output_path, exist_ok=True)
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         if "text" not in ds.column_names:
             ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
         ds = ds.map(lambda x: {"text": x["text"][:2000].replace("\n", " ") if x["text"] else ""})
-        if normalize:
+        if normalize_text:
             ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
         ds = ds.filter(lambda x: x[label] is not None)
         print(ds[0])
