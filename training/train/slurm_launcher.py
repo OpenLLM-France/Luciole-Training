@@ -23,7 +23,7 @@ def create_slurm_script(
     # Choix des paramètres en fonction du mode
     if mode == "debug":
         qos = "qos_gpu_h100-dev"
-        time = "00:10:00"
+        time = "00:15:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
@@ -38,6 +38,9 @@ def create_slurm_script(
     train_path = Path(__file__).resolve().parent
 
     logger.info(f"Train script path: {train_path}/train.py")
+
+    if arch == "llama":  # backward compatibility
+        arch = "llama1b"
 
     args = f"{config} --arch {arch} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node} {'--fp8' if fp8 else ''}"
 
@@ -153,7 +156,12 @@ def submit_job(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="mock.json")
-    parser.add_argument("--arch", default="llama", type=str, choices=["llama", "mamba"])
+    parser.add_argument(
+        "--arch",
+        default="llama1b",
+        type=str,
+        choices=["llama", "llama1b", "llama8b", "mamba"],
+    )
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--gpus_per_node", default=4, type=int)

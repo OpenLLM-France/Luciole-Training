@@ -37,7 +37,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
-    parser.add_argument("--arch", default="llama", type=str, choices=["llama", "mamba"])
+    parser.add_argument(
+        "--arch", default="llama1b", type=str, choices=["llama1b", "llama8b", "mamba"]
+    )
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--num_gpus_per_node", default=4, type=int)
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     )
 
     if args.mode == "debug":
-        max_steps = 50
+        max_steps = 5
         resume_if_exists = False
         every_n_train_steps = max_steps
     else:
@@ -87,13 +89,19 @@ if __name__ == "__main__":
     logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
     logger.info(f"Resume training if possible: {resume_if_exists}")
 
-    if arch == "llama":
+    if arch.startswith("llama"):
         # Llama config
-        from nemo.collections.llm.gpt.model.llama import (
-            Llama32Config1B,
-        )  # Llama31Config8B
-
-        model_config = Llama32Config1B()  # Llama31Config8B()
+        if arch == "llama1b":
+            from nemo.collections.llm.gpt.model.llama import (
+                Llama32Config1B as LlamaConfig,
+            )
+        elif arch == "llama8b":
+            from nemo.collections.llm.gpt.model.llama import (
+                Llama31Config8B as LlamaConfig,
+            )
+        else:
+            raise ValueError(f"Unsupported llama model : {arch}")
+        model_config = LlamaConfig()
         model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
     elif arch == "mamba":
         # Mamba Config
@@ -118,8 +126,8 @@ if __name__ == "__main__":
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
-        val_check_interval=1000,  # 5 if args.mode == "debug" else 1000,
-        limit_val_batches=0,  # 1 if args.mode == "debug" else 0,
+        val_check_interval=5 if args.mode == "debug" else 1000,
+        limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
         fp8=args.fp8,
     )
 
