@@ -1,40 +1,18 @@
-from datasets import load_from_disk
-import re
+from datasets import load_from_disk, load_dataset
 from collections import Counter
-import json
 import argparse
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-import warnings
+from utils import extract_educational_json
 
-def extract_educational_json(text: str) -> dict:
-    pattern = re.compile(r'\{[^{}]*\}', re.DOTALL)
-    matches = pattern.findall(text)
-
-    keys = ["educational_score", "topic", "is_ad", "is_toxic"]
-    default_output = {k: None for k in keys}
-
-    if not matches:
-        warnings.warn("No JSON match found", UserWarning)
-        return default_output
-
-    try:
-        data_dict = json.loads(matches[0])
-        for k in keys:
-            default_output[k] = data_dict.get(k, None)
-        return default_output
-    except json.JSONDecodeError:
-        warnings.warn("Failed to extract JSON", UserWarning)
-        return default_output
-
-def plot_label_crosstab(ds, col1_name, col2_name, expe_path, output_name):
+def plot_label_crosstab(ds, col1_name, col2_name, output_path, output_name):
     """
     input_1: tuple (name, list/array) for first column (e.g. predicted)
     input_2: tuple (name, list/array) for second column (e.g. true labels)
-    expe_path: folder path to save the plot
+    output_path: folder path to save the plot
     output_name: file name (without extension)
     """
 
@@ -55,18 +33,18 @@ def plot_label_crosstab(ds, col1_name, col2_name, expe_path, output_name):
     plt.tight_layout()
 
     # Save plot
-    os.makedirs(os.path.join(expe_path, "out"), exist_ok=True)
-    plt.savefig(os.path.join(expe_path, "out", f"crosstab_{output_name}.png"))
+    os.makedirs(output_path, exist_ok=True)
+    plt.savefig(os.path.join(output_path, f"crosstab_{output_name}.png"))
     plt.close()
 
 
-def plot_histograms(ds, expe_path):
+def plot_histograms(ds, output_path):
     """
     Plots histograms or bar charts for the specified metrics in the dataset.
 
     Args:
         ds: A dataset (e.g., pandas DataFrame or Hugging Face Dataset).
-        expe_path: Path to save the output plot.
+        output_path: Path to save the output plot.
         metrics: List of fields to plot. Numeric fields are plotted as histograms,
                  categorical and boolean fields as bar charts.
     """
@@ -110,8 +88,8 @@ def plot_histograms(ds, expe_path):
         axs[i].set_title(metric.replace('_', ' ').title())
 
     plt.tight_layout()
-    os.makedirs(os.path.join(expe_path, "out"), exist_ok=True)
-    plt.savefig(os.path.join(expe_path, "out", "hist.png"))
+    os.makedirs(output_path, exist_ok=True)
+    plt.savefig(os.path.join(output_path, "hist.png"))
     plt.show()
 
 
@@ -121,19 +99,31 @@ if __name__ == "__main__":
         "--expe_path",
         type=str,
     )
+    argparser.add_argument(
+        "--output_path",
+        type=str,
+    )
+    argparser.add_argument(
+        "--from_parquet",
+        action='store_true',
+        help="read from parquet files."
+    )
     args = argparser.parse_args()
     expe_path = args.expe_path
+    output_path = args.output_path
 
-    ds = load_from_disk(os.path.join(expe_path, "default"))['train']
+    if args.from_parquet:
+        ds = load_dataset("parquet", data_files={'train': os.path.join(expe_path, '*.parquet')})['train']
+    else:
+        ds = load_from_disk(expe_path)['train']
+
     ds = ds.map(lambda x: extract_educational_json(x["generation"]))
     print(ds[0])
 
-    plot_label_crosstab(ds, 'educational_score', 'toxicity_score', expe_path, "toxic_edu")
-    plot_label_crosstab(ds, 'educational_score', 'is_toxic', expe_path, "toxic_edu")
-    plot_label_crosstab(ds, 'educational_score', 'is_ad', expe_path, "ad_edu")
-    plot_label_crosstab(ds, 'educational_score', 'topic', expe_path, "edu_topic")
-    plot_label_crosstab(ds, 'is_toxic', 'topic', expe_path, "toxic_topic")
-    plot_label_crosstab(ds, 'toxicity_score', 'topic', expe_path, "toxic_topic")
+    plot_label_crosstab(ds, 'educational_score', 'is_toxic', output_path, "toxic_edu")
+    plot_label_crosstab(ds, 'educational_score', 'is_ad', output_path, "ad_edu")
+    plot_label_crosstab(ds, 'educational_score', 'topic', output_path, "edu_topic")
+    plot_label_crosstab(ds, 'is_toxic', 'topic', output_path, "toxic_topic")
 
     plot_histograms(ds, expe_path)
 
