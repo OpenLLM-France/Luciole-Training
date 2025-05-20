@@ -14,6 +14,7 @@ pip install bs4
 pip install scikit-learn
 pip install matplotlib
 pip install seaborn
+pip install fasttext
 ```
 
 ### Use it
