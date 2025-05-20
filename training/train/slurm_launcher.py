@@ -4,12 +4,21 @@ import os
 import logging
 import shutil
 from pathlib import Path
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 def create_slurm_script(
-    job_name, nodes, mode, config, output_dir, email, gpus_per_node=4, fp8=False, arch="llama"
+    job_name,
+    nodes,
+    mode,
+    config,
+    output_dir,
+    email,
+    gpus_per_node=4,
+    fp8=False,
+    arch="llama",
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
@@ -29,7 +38,6 @@ def create_slurm_script(
     train_path = Path(__file__).resolve().parent
 
     logger.info(f"Train script path: {train_path}/train.py")
-
 
     args = f"{config} --arch {arch} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node} {'--fp8' if fp8 else ''}"
 
@@ -93,11 +101,14 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train.py {args}
     return script
 
 
-def submit_job(config, arch, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, fp8):
-    # config = os.path.join("../datamix", config)
+def submit_job(
+    config, arch, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, fp8
+):
     if not os.path.exists(config):
-        raise RuntimeError(f"Config : {config} does not exist")
-    
+        tested_config = os.path.join("../ablations/datamix", config)
+        if not os.path.exists(tested_config):
+            raise RuntimeError(f"Config : {config} does not exist")
+        config = tested_config
     config_name = os.path.splitext(os.path.basename(config))[0]
     job_name = f"{arch}_{config_name}_{nodes}n_{mode}"
     if fp8:
@@ -116,7 +127,7 @@ def submit_job(config, arch, name_prefix, nodes, num_gpus_per_node, mode, output
         email,
         gpus_per_node=num_gpus_per_node,
         fp8=fp8,
-        arch=arch
+        arch=arch,
     )
 
     logger.info(f"Experiment name : {job_name}")

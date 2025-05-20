@@ -24,13 +24,16 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
 
     def to_nb_tokens(x):
-        if x == "debug": return x
+        if x == "debug":
+            return x
         x = x.replace("b", " * 1_000_000_000")
         x = x.replace("m", " * 1_000_000")
         try:
             return int(eval(x))
         except Exception as e:
-            raise ValueError(f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)") from e
+            raise ValueError(
+                f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)"
+            ) from e
 
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
@@ -86,12 +89,16 @@ if __name__ == "__main__":
 
     if arch == "llama":
         # Llama config
-        from nemo.collections.llm.gpt.model.llama import Llama32Config1B # Llama31Config8B
-        model_config = Llama32Config1B() # Llama31Config8B()
+        from nemo.collections.llm.gpt.model.llama import (
+            Llama32Config1B,
+        )  # Llama31Config8B
+
+        model_config = Llama32Config1B()  # Llama31Config8B()
         model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
     elif arch == "mamba":
         # Mamba Config
         from nemo.collections.llm.gpt.model.ssm import BaseMambaConfig1_3B
+
         model_config = BaseMambaConfig1_3B(
             tokenizer_library="huggingface",
             tokenizer_name=tokenizer_name,
@@ -100,7 +107,7 @@ if __name__ == "__main__":
         model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
-    
+
     opt = distributed_fused_adam_with_cosine_annealing(max_lr=3e-4)
 
     trainer = create_trainer(
@@ -111,9 +118,9 @@ if __name__ == "__main__":
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
-        val_check_interval=1000, #5 if args.mode == "debug" else 1000,
-        limit_val_batches=0, #1 if args.mode == "debug" else 0,
-        fp8 = args.fp8,
+        val_check_interval=1000,  # 5 if args.mode == "debug" else 1000,
+        limit_val_batches=0,  # 1 if args.mode == "debug" else 0,
+        fp8=args.fp8,
     )
 
     nemo_logger = create_logger(
