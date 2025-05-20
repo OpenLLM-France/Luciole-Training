@@ -1,7 +1,6 @@
 from distilabel.models.llms import TransformersLLM, vLLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps.tasks import TextGeneration
-from distilabel.steps import LoadDataFromDicts, LoadDataFromDisk
 from distilabel.steps import StepResources
 from datetime import datetime
 import random
@@ -38,40 +37,48 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         default="/lustre/fsmisc/dataset/HuggingFace_Models/meta-llama/Llama-3.1-8B-Instruct",
+        help="Model you want to use. It can be on HF or local."
     )
     argparser.add_argument(
         "--data_language",
         type=str,
         default="en",
+        choices=['en', 'fra_Latn', 'esp_Latn', 'ita_Latn'],
+        help='Dataset language. "en" corresponds to fineweb-edu. Otherwise, from fineweb-2.'
     )
     argparser.add_argument(
         "--nsamples",
         type=int,
         default=200,
+        help='Number of samples you want to annotate. Usually, we need 400k samples to train a fasttext classfier.'
     )
     argparser.add_argument(
         "--gpus",
         type=int,
         default=1,
+        help='Number of gpus to use. It will use tensor parallelism, then data parallelism.'
     )
     argparser.add_argument(
         "--prompt_name",
         type=str,
         default="en",
+        help='Name of the prompt you want to use. Prompts are defined in "prompt/". You can add new ones. Use the <text> to insert the web page extract (first 2000 characters will be used).'
     )
     argparser.add_argument(
         "--output_dir",
         type=str,
         default=os.path.join(main_path, "synthetic_data"),
+        help="Output directory. Name of the dataset is generated automatically."
     )
     argparser.add_argument(
         "--use_cache",
         action="store_true",
+        help="Activate if you want to use cache. The process may be stuck when activated..."
     )
     argparser.add_argument(
         "--disable_thinking",
         action="store_true",
-        help="Disable the thinking process."
+        help="Disable the thinking process for qwen model."
     )
     argparser.add_argument(
         "--vllm",
@@ -86,10 +93,9 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
 
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
-    if not args.disable_thinking and "Qwen" in model_name:
-        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{to_shorthand(args.nsamples)}_think_{date}"
-    else:
-        output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{to_shorthand(args.nsamples)}_{date}"
+    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{data_language}_{to_shorthand(args.nsamples)}_{date}"
+    if (not args.disable_thinking) and ("Qwen" in model_name):
+        output_name += "_think" 
     print(output_name)
 
     with open(f"prompt/{prompt_name}.txt", 'r', encoding='utf-8') as file:
@@ -114,7 +120,7 @@ if __name__ == "__main__":
     print_memory_usage("After loading dataset")
 
     # Define the pipeline
-    with Pipeline(name="annotation") as pipeline:
+    with Pipeline() as pipeline:
         chat_template = chat_template if args.disable_thinking else None
         if args.vllm:
             llm = vLLM(
@@ -148,7 +154,7 @@ if __name__ == "__main__":
     distiset = pipeline.run(dataset=dataset, use_cache=args.use_cache)
 
     distiset.save_to_disk(
-        os.path.join(output_dir, f'{data_language}_data', output_name),
+        os.path.join(output_dir, output_name),
         save_card=True,
         save_pipeline_config=True,
         save_pipeline_log=True

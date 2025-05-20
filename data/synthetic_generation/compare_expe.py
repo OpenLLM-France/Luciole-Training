@@ -1,14 +1,10 @@
-from datasets import load_from_disk, concatenate_datasets
-import re
-from collections import Counter
-import json
+from datasets import load_from_disk
 import argparse
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
-from plot_generation import extract_educational_json
+from utils import extract_educational_json
 
 def plot_label_crosstab(data, output_name):
 
