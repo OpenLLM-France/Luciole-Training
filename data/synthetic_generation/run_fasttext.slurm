@@ -3,7 +3,7 @@
 #SBATCH --output=slurm/log_%x-%j.out 
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16  
+#SBATCH --cpus-per-task=40  
 #SBATCH --time=01:00:00 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos=qos_cpu-dev
