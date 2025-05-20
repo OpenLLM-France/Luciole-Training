@@ -8,17 +8,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import warnings
 
-def extract_educational_json(text: str) -> dict | None:
+def extract_educational_json(text: str) -> dict:
     pattern = re.compile(r'\{[^{}]*\}', re.DOTALL)
-
     matches = pattern.findall(text)
-    match = matches[0] 
+
+    keys = ["educational_score", "topic", "is_ad", "is_toxic"]
+    default_output = {k: None for k in keys}
+
+    if not matches:
+        warnings.warn("No JSON match found", UserWarning)
+        return default_output
+
     try:
-        data_dict = json.loads(match)
-        return data_dict
+        data_dict = json.loads(matches[0])
+        for k in keys:
+            default_output[k] = data_dict.get(k, None)
+        return default_output
     except json.JSONDecodeError:
-        return None
+        warnings.warn("Failed to extract JSON", UserWarning)
+        return default_output
 
 def plot_label_crosstab(ds, col1_name, col2_name, expe_path, output_name):
     """

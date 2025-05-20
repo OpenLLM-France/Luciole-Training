@@ -5,6 +5,7 @@ from plot_generation import extract_educational_json
 import argparse
 import re
 import json
+import warnings
 
 def print_results(N, p, r):
     print('-'*7)
@@ -21,6 +22,7 @@ def extract_text(text: str) -> dict | None:
     try:
         return match
     except json.JSONDecodeError:
+        warnings.warn("Failed to extract text", UserWarning)
         return ""
 
 import re
@@ -111,16 +113,18 @@ if __name__ == "__main__":
 
     # Preprocess dataset
     if args.from_parquet:
-        ds = load_dataset("parquet", data_files={'train': os.path.join(input_path,'*.parquet')})['train']
+        ds = load_dataset("parquet", data_files={'train': os.path.join(input_path, '*.parquet')})['train']
     else:
         ds = load_from_disk(input_path)['train']
 
     ds = ds.map(lambda x: extract_educational_json(x["generation"]))
+    ds = ds.filter(lambda x: x[label] is not None)
     if "text" not in ds.column_names:
         ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
-    ds = ds.map(lambda x: {"text": x["text"].replace("\n", " ") if x["text"] else ""})
+    ds = ds.map(lambda x: {"text": x["text"][:2000].replace("\n", " ") if x["text"] else ""})
     if normalize:
         ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
+    print(ds[0])
     ds = ds.train_test_split(test_size=1000, seed=42, shuffle=True)
 
     # Write txt file
