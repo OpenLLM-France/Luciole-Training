@@ -31,7 +31,7 @@ if __name__ == "__main__":
         "--label",
         type=str,
         default="educational_score",
-        choices=["educational_score", "toxicity_score", "topic"],
+        choices=["educational_score", "is_toxic", "is_ad", "topic"],
         help="Label to use for classification."
     )
     parser.add_argument(
@@ -74,33 +74,37 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(output_path, "model"), exist_ok=True)
     os.makedirs(os.path.join(output_path, "data"), exist_ok=True)
 
-    # Preprocess dataset
-    if args.from_parquet:
-        ds = load_dataset("parquet", data_files={'train': os.path.join(input_path, '*.parquet')})['train']
-    else:
-        ds = load_from_disk(input_path)['train']
-
-    ds = ds.map(lambda x: extract_educational_json(x["generation"]))
-    if "text" not in ds.column_names:
-        ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
-    ds = ds.map(lambda x: {"text": x["text"][:2000].replace("\n", " ") if x["text"] else ""})
-    if normalize:
-        ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
-    ds = ds.filter(lambda x: x[label] is not None)
-    print(ds[0])
-    ds = ds.train_test_split(test_size=1000, seed=42, shuffle=True)
-
-    # Write txt file
     train_data = os.path.join(output_path, f"data/train_{label}.txt")
     valid_data = os.path.join(output_path, f"data/valid_{label}.txt")
 
-    with open(train_data, "w") as f:
-        for sample in ds["train"]:
-            f.write(f"__label__{str(sample[label]).lower()} {sample['text']}\n")
+    if os.path.exists(train_data) and os.path.exists(valid_data):
+        print(f"The files {train_data} and {valid_data} already exist.")
+    else:
+        print(f"The files {train_data} and {valid_data} do not exist.")
+        # Preprocess dataset
+        if args.from_parquet:
+            ds = load_dataset("parquet", data_files={'train': os.path.join(input_path, '*.parquet')})['train']
+        else:
+            ds = load_from_disk(input_path)['train']
 
-    with open(valid_data, "w") as f:
-        for sample in ds["test"]:
-            f.write(f"__label__{str(sample[label]).lower()} {sample['text']}\n")
+        ds = ds.map(lambda x: extract_educational_json(x["generation"]))
+        if "text" not in ds.column_names:
+            ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
+        ds = ds.map(lambda x: {"text": x["text"][:2000].replace("\n", " ") if x["text"] else ""})
+        if normalize:
+            ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
+        ds = ds.filter(lambda x: x[label] is not None)
+        print(ds[0])
+        ds = ds.train_test_split(test_size=1000, seed=42, shuffle=True)
+
+        # Write txt file
+        with open(train_data, "w") as f:
+            for sample in ds["train"]:
+                f.write(f"__label__{str(sample[label]).replace(" ", "_").lower()} {sample['text']}\n")
+
+        with open(valid_data, "w") as f:
+            for sample in ds["test"]:
+                f.write(f"__label__{str(sample[label]).replace(" ", "_").lower()} {sample['text']}\n")
 
     model_name = f"{label}_ngram{ngrams}_epoch{epoch}_lr{lr}"
 
