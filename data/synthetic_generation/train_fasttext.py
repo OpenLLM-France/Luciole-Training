@@ -1,11 +1,8 @@
 from datasets import load_from_disk, load_dataset
 import os
 from fasttext import train_supervised
-from plot_generation import extract_educational_json
+from utils import extract_educational_json, extract_text, normalize_text
 import argparse
-import re
-import json
-import warnings
 
 def print_results(N, p, r):
     print('-'*7)
@@ -13,40 +10,6 @@ def print_results(N, p, r):
     print("P@{}\t{:.3f}".format(1, p))
     print("R@{}\t{:.3f}".format(1, r))
     print('-'*7)
-
-def extract_text(text: str) -> dict | None:
-    pattern = re.compile(r'Web page:\n\n(.*?)\n\n---', re.DOTALL)
-
-    matches = pattern.findall(text)
-    match = matches[0] 
-    try:
-        return match
-    except json.JSONDecodeError:
-        warnings.warn("Failed to extract text", UserWarning)
-        return ""
-
-import re
-
-def normalize_text(text: str) -> str:
-    text = text.lower()
-    
-    # Apply the sequence of substitutions
-    text = re.sub(r"'", " ' ", text)
-    text = re.sub(r'"', '', text)
-    text = re.sub(r'\.', ' . ', text)
-    text = re.sub(r'<br\s*/?>', ' ', text)
-    text = re.sub(r',', ' , ', text)
-    text = re.sub(r'\(', ' ( ', text)
-    text = re.sub(r'\)', ' ) ', text)
-    text = re.sub(r'!', ' ! ', text)
-    text = re.sub(r'\?', ' ? ', text)
-    text = re.sub(r';', ' ', text)
-    text = re.sub(r':', ' ', text)
-
-    # Collapse multiple spaces into one
-    text = re.sub(r'\s+', ' ', text).strip()
-    
-    return text
 
 if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT", '')
