@@ -100,11 +100,11 @@ if __name__ == "__main__":
         # Write txt file
         with open(train_data, "w") as f:
             for sample in ds["train"]:
-                f.write(f"__label__{str(sample[label]).replace(" ", "_").lower()} {sample['text']}\n")
+                f.write(f"__label__{str(sample[label]).replace(' ', '_').lower()} {sample['text']}\n")
 
         with open(valid_data, "w") as f:
             for sample in ds["test"]:
-                f.write(f"__label__{str(sample[label]).replace(" ", "_").lower()} {sample['text']}\n")
+                f.write(f"__label__{str(sample[label]).replace(' ', '_').lower()} {sample['text']}\n")
 
     model_name = f"{label}_ngram{ngrams}_epoch{epoch}_lr{lr}"
 
