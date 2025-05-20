@@ -19,3 +19,6 @@ input_path=/linkhome/rech/gendjf01/uzq54wg/.cache/distilabel/pipelines/pipeline_
 output_path=$OpenLLM_OUTPUT/fasttext_classifiers/Qwen3-32B_content_edu_400k
 
 python train_fasttext.py --input_path $input_path --output_path $output_path --label educational_score --from_parquet
+python train_fasttext.py --input_path $input_path --output_path $output_path --label is_toxic --from_parquet
+python train_fasttext.py --input_path $input_path --output_path $output_path --label is_ad --from_parquet
+python train_fasttext.py --input_path $input_path --output_path $output_path --label topic --from_parquet

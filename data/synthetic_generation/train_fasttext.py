@@ -81,12 +81,12 @@ if __name__ == "__main__":
         ds = load_from_disk(input_path)['train']
 
     ds = ds.map(lambda x: extract_educational_json(x["generation"]))
-    ds = ds.filter(lambda x: x[label] is not None)
     if "text" not in ds.column_names:
         ds = ds.map(lambda x: {"text": extract_text(x["instruction"])})
     ds = ds.map(lambda x: {"text": x["text"][:2000].replace("\n", " ") if x["text"] else ""})
     if normalize:
         ds = ds.map(lambda x: {"text": normalize_text(x["text"])})
+    ds = ds.filter(lambda x: x[label] is not None)
     print(ds[0])
     ds = ds.train_test_split(test_size=1000, seed=42, shuffle=True)
 
