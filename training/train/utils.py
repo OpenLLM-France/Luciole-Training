@@ -44,9 +44,13 @@ def read_datamix_file(file):
 
     # Read tokenizer
     try:
-        with open(os.path.join(loaded_data["data_path"], "tokenizer_name.txt"), "r") as f:
+        with open(
+            os.path.join(loaded_data["data_path"], "tokenizer_name.txt"), "r"
+        ) as f:
             tokenizer_name = f.read().strip()
             logger.info(f"Find tokenizer: {tokenizer_name}")
     except FileNotFoundError:
-        raise FileNotFoundError(f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step.")
+        raise FileNotFoundError(
+            f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step."
+        )
     return data_paths, tokenizer_name

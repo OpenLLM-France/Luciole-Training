@@ -4,6 +4,7 @@ from typing import Optional
 
 from nemo import lightning as nl
 from nemo.lightning.pytorch.plugins.mixed_precision import MegatronMixedPrecision
+
 # from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_mixed
 from nemo.lightning.pytorch.optim import (
     CosineAnnealingScheduler,
@@ -114,6 +115,7 @@ def bf16_mixed():
         grad_reduce_in_fp32=True,
     )
 
+
 def bf16_with_fp8_mixed():
     """FP8 recipes are experimental and have not been tested for training convergence."""
     cfg = MegatronMixedPrecision(
@@ -121,12 +123,12 @@ def bf16_with_fp8_mixed():
         params_dtype=torch.bfloat16,
         pipeline_dtype=torch.bfloat16,
         autocast_enabled=False,
-        fp8 = 'hybrid',
-        fp8_margin = 0,
-        fp8_amax_history_len = 1024,
-        fp8_amax_compute_algo = "max",
-        fp8_params = True,
-        grad_reduce_in_fp32 = False # NVIDIA recommends False for FP8
+        fp8="hybrid",
+        fp8_margin=0,
+        fp8_amax_history_len=1024,
+        fp8_amax_compute_algo="max",
+        fp8_params=True,
+        grad_reduce_in_fp32=False,  # NVIDIA recommends False for FP8
     )
     logger.info(f"bf16_with_fp8_mixed:\n{vars(cfg)}")
     return cfg
@@ -207,9 +209,9 @@ def create_trainer(
         plugins=bf16_with_fp8_mixed() if fp8 else bf16_mixed(),
         strategy=strategy,
         use_distributed_sampler=False,
-        val_check_interval=val_check_interval, 
-        limit_val_batches=limit_val_batches,  
-        num_sanity_val_steps=2, # not sure it works
+        val_check_interval=val_check_interval,
+        limit_val_batches=limit_val_batches,
+        num_sanity_val_steps=2,  # not sure it works
     )
 
     return trainer
