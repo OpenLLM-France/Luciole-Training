@@ -11,14 +11,16 @@ logger = logging.getLogger(__name__)
 
 def create_slurm_script(
     job_name,
-    nodes,
-    mode,
-    config,
-    output_dir,
     email,
-    gpus_per_node=4,
-    fp8=False,
-    arch="llama",
+    output_dir,
+    config,
+    arch,
+    num_nodes,
+    gpus_per_node,
+    mode,
+    fp8,
+    tensor_parallelism,
+    pipeline_parallelism,
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug":
@@ -42,12 +44,18 @@ def create_slurm_script(
     if arch == "llama":  # backward compatibility
         arch = "llama1b"
 
-    args = f"{config} --arch {arch} --num_nodes {nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node} {'--fp8' if fp8 else ''}"
+    args = f"{config} --arch {arch} --num_nodes {num_nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}"
+    if fp8:
+        args += " --fp8"
+    if tensor_parallelism:
+        args += f" --tensor_parallelism {tensor_parallelism}"
+    if pipeline_parallelism:
+        args += f" --pipeline_parallelism {pipeline_parallelism}"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
-#SBATCH --nodes={nodes}
+#SBATCH --nodes={num_nodes}
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
@@ -63,7 +71,7 @@ echo "Job name: {job_name}"
 echo "Qos: {qos}"
 echo "Time limit: {time}"
 echo "Mode: {mode}"
-echo "Nodes: {nodes}"
+echo "Nodes: {num_nodes}"
 echo "Output dir: {output_dir}"
 
 cwd=$(pwd)
@@ -104,39 +112,42 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train.py {args}
     return script
 
 
-def submit_job(
-    config, arch, name_prefix, nodes, num_gpus_per_node, mode, output_dir, email, fp8
-):
+def submit_job(**kwargs):
+    config = kwargs["config"]
     if not os.path.exists(config):
         tested_config = os.path.join("../ablations/datamix", config)
         if not os.path.exists(tested_config):
-            raise RuntimeError(f"Config : {config} does not exist")
+            raise RuntimeError(f"Config: {config} does not exist")
         config = tested_config
+
     config_name = os.path.splitext(os.path.basename(config))[0]
-    job_name = f"{arch}_{config_name}_{nodes}n_{mode}"
-    if fp8:
-        job_name += "_fp8"
-    if name_prefix:
-        job_name = f"{name_prefix}_{job_name}"
+    job_name_parts = [
+        kwargs["arch"],
+        config_name,
+        f'{kwargs["num_nodes"]}n',
+        kwargs["mode"],
+    ]
+    if kwargs.get("fp8"):
+        job_name_parts.append("fp8")
+    if kwargs.get("name_prefix"):
+        job_name_parts.insert(0, kwargs["name_prefix"])
+    job_name = "_".join(job_name_parts)
 
-    xp_output_dir = os.path.join(output_dir, job_name)
+    xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
+    os.makedirs(xp_output_dir, exist_ok=True)
 
-    slurm_script = create_slurm_script(
-        job_name,
-        nodes,
-        mode,
-        config,
-        xp_output_dir,
-        email,
-        gpus_per_node=num_gpus_per_node,
-        fp8=fp8,
-        arch=arch,
-    )
+    args = {
+        **kwargs,
+        "job_name": job_name,
+        "config": config,
+        "output_dir": xp_output_dir,
+    }
+    args.pop("name_prefix")
+    slurm_script = create_slurm_script(**args)
 
     logger.info(f"Experiment name : {job_name}")
     logger.info(f"Experiment path : {xp_output_dir}")
 
-    # Écrire le script dans un fichier temporaire
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
     os.makedirs(xp_output_dir, exist_ok=True)
     with open(sbatch_script_path, "w") as fout:
@@ -150,7 +161,7 @@ def submit_job(
         subprocess.run(["sbatch", sbatch_script_path], check=True)
         logger.info("Job submitted")
     except subprocess.CalledProcessError as e:
-        print(f"Job submission failed: {e}")
+        logger.error(f"Job submission failed: {e}")
 
 
 if __name__ == "__main__":
@@ -163,25 +174,22 @@ if __name__ == "__main__":
         choices=["llama", "llama1b", "llama8b", "mamba"],
     )
     parser.add_argument("--name_prefix", default="", type=str)
-    parser.add_argument("--num_nodes", default=1, type=int)
-    parser.add_argument("--gpus_per_node", default=4, type=int)
-    parser.add_argument("--mode", default="debug", type=str)
-    parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--email", default=None)
     parser.add_argument("--output_dir", default="")
     parser.add_argument(
         "--output_path",
         default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
     )
+    parser.add_argument("--num_nodes", default=1, type=int)
+    parser.add_argument("--gpus_per_node", default=4, type=int)
+    parser.add_argument("--mode", default="debug", type=str)
+    parser.add_argument("--fp8", default=False, action="store_true")
+    parser.add_argument("--tensor_parallelism", default=None, type=int)
+    parser.add_argument("--pipeline_parallelism", default=None, type=int)
     args = parser.parse_args()
-    submit_job(
-        args.config,
-        args.arch,
-        args.name_prefix,
-        args.num_nodes,
-        args.gpus_per_node,
-        args.mode,
-        os.path.join(args.output_path, args.output_dir),
-        args.email,
-        args.fp8,
-    )
+
+    args_dict = vars(args)
+    args_dict["output_dir"] = os.path.join(args.output_path, args.output_dir)
+    args_dict.pop("output_path")
+
+    submit_job(**args_dict)
