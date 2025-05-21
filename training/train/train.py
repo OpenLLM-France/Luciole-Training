@@ -48,8 +48,10 @@ if __name__ == "__main__":
         "--output_dir",
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
     )
-    parser.add_argument("--batch_size", default=512, type=int)
-    parser.add_argument("--seq_length", default=2048, type=int)
+    parser.add_argument("--batch_size", default=None, type=int)
+    parser.add_argument("--seq_length", default=None, type=int)
+    parser.add_argument("--tensor_parallelism", default=None, type=int)
+    parser.add_argument("--pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
     args = parser.parse_args()
 
@@ -60,11 +62,28 @@ if __name__ == "__main__":
 
     data_paths, tokenizer_name = read_datamix_file(args.config)
 
+    batch_size = args.batch_size
+    seq_length = args.seq_length
+
+    if batch_size is None:
+        if arch == "llama1b":
+            batch_size = 512
+        elif arch == "llama8b":
+            batch_size = 1024
+    if seq_length is None:
+        if arch == "llama1b":
+            seq_length = 2048
+        elif arch == "llama8b":
+            seq_length = 4096
+
+    pipeline_parallelism = args.pipeline_parallelism if args.pipeline_parallelism else 1
+    tensor_parallelism = args.tensor_parallelism if args.tensor_parallelism else 1
+
     data = create_data(
         data_paths,
         tokenizer_name=tokenizer_name,
-        batch_size=args.batch_size,
-        seq_length=args.seq_length,
+        batch_size=batch_size,
+        seq_length=seq_length,
     )
 
     if args.mode == "debug":
@@ -73,21 +92,24 @@ if __name__ == "__main__":
         every_n_train_steps = max_steps
     else:
         number_of_tokens = args.mode
-        max_steps = number_of_tokens // (args.seq_length * args.batch_size)
+        max_steps = number_of_tokens // (seq_length * batch_size)
         resume_if_exists = True
-        every_n_train_steps = 2_500_000_000 // (args.seq_length * args.batch_size)
+        every_n_train_steps = 2_500_000_000 // (seq_length * batch_size)
 
     logger.info(f"Job name: {args.name}")
+    logger.info(f"Architecture: {arch}")
     logger.info(f"Output dir: {args.output_dir}")
     logger.info(f"Mode: {args.mode}")
-    logger.info(f"Batch size: {args.batch_size}")
-    logger.info(f"Sequence length: {args.seq_length}")
+    logger.info(f"Batch size: {batch_size}")
+    logger.info(f"Sequence length: {seq_length}")
     logger.info(f"Number of nodes: {args.num_nodes}")
     logger.info(f"Tokenizer: {tokenizer_name}")
     logger.info(f"Config file: {args.config}")
     logger.info(f"Max steps: {max_steps}")
     logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
     logger.info(f"Resume training if possible: {resume_if_exists}")
+    logger.info(f"Tensor_parallelism: {tensor_parallelism}")
+    logger.info(f"Pipeline_parallelism: {pipeline_parallelism}")
 
     if arch.startswith("llama"):
         # Llama config
@@ -119,8 +141,8 @@ if __name__ == "__main__":
     opt = distributed_fused_adam_with_cosine_annealing(max_lr=3e-4)
 
     trainer = create_trainer(
-        tensor_parallelism=1,
-        pipeline_parallelism=1,
+        tensor_parallelism=tensor_parallelism,
+        pipeline_parallelism=pipeline_parallelism,
         pipeline_parallelism_type=torch.bfloat16,
         max_steps=max_steps,
         num_gpus_per_node=args.num_gpus_per_node,
