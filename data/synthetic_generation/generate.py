@@ -43,7 +43,7 @@ if __name__ == "__main__":
         "--data_language",
         type=str,
         default="en",
-        choices=['en', 'fra_Latn', 'esp_Latn', 'ita_Latn'],
+        choices=['en', 'fra_Latn', 'spa_Latn', 'ita_Latn', 'deu_Latn'],
         help='Dataset language. "en" corresponds to fineweb-edu. Otherwise, from fineweb-2.'
     )
     argparser.add_argument(
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     if data_language == "en":
         data_path = "HuggingFaceFW/fineweb-edu-llama3-annotations"
-    elif data_language in ["fra_Latn"]:
+    elif data_language in ['fra_Latn', 'spa_Latn', 'ita_Latn', 'deu_Latn']:
         data_path = os.path.join(main_path, f"data/raw_datasets_ablation/fineweb2/data/{data_language}/train")
     else:
         raise ValueError("Unsupported data language. Use 'en' or 'fra_Latn'.")
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     print_memory_usage("After loading dataset")
 
     # Define the pipeline
-    with Pipeline() as pipeline:
+    with Pipeline(output_name) as pipeline:
         chat_template = chat_template if args.disable_thinking else None
         if args.vllm:
             llm = vLLM(
