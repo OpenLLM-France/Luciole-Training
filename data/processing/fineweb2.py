@@ -8,6 +8,7 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
+from datatrove.pipeline.filters import FastTextClassifierFilter
 
 
 class FinewebDocumentCleaning(BaseFilter):
@@ -67,6 +68,21 @@ class Rehydrater(PipelineStep):
             doc.metadata["cluster_size_group"] = cluster_size_group
             yield doc
 
+def post_process_fasttext(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
+    """
+    `data` is a generator of Document. You must also return a generator of Document (yield)
+    You can optionally use `rank` and `world_size` for sharding
+    """
+    for doc in data:
+        edu_score = doc.metadata.pop('edu_score')
+        doc.metadata['edu_score'] = sum(int(label.split('__label__')[-1]) * prob for label, prob in edu_score.items())
+        doc.metadata['is_toxic'] = doc.metadata['is_toxic']['__label__true']
+        doc.metadata['is_ad'] = doc.metadata['is_ad']['__label__true']
+        topic = doc.metadata.pop('topic')
+        doc.metadata['top_topic'] = max(topic, key=topic.get).replace("__label__", "")
+        yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -84,11 +100,47 @@ if __name__ == "__main__":
     ################
     ## Collect data
     ################
+    
+    if language == "fra_Latn": # Available only for french right now...
+        fasttext_filters = [
+            FastTextClassifierFilter(
+                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/is_toxic_ngram2_epoch5_lr0.1.bin"),
+                keep_labels = ("true", 0),
+                newline_replacement = " ",
+                save_labels_in_metadata = True,
+                filter_name = "is_toxic"
+            ),
+            FastTextClassifierFilter(
+                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/is_ad_ngram2_epoch5_lr0.1.bin"),
+                keep_labels = ("true", 0),
+                newline_replacement = " ",
+                save_labels_in_metadata = True,
+                filter_name = "is_ad"
+            ),
+            FastTextClassifierFilter(
+                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/topic_ngram2_epoch5_lr0.1.bin"),
+                keep_labels = ("history", 0),
+                newline_replacement = " ",
+                save_labels_in_metadata = True,
+                filter_name = "topic",
+            ),
+            FastTextClassifierFilter(
+                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/educational_score_ngram2_epoch5_lr0.1.bin"),
+                keep_labels = ("0", 0),
+                newline_replacement = " ",
+                save_labels_in_metadata = True,
+                filter_name = "edu_score"
+            ),
+            post_process_fasttext,
+        ]
+    else:
+        fasttext_filters = []
 
     pipeline = [
         ParquetReader(
             f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"
         ),
+        *fasttext_filters,
         FinewebDocumentCleaning(),
         JsonlWriter(
             f"{DATA_PATH}/{dataset_name}/data/{language}/train",
@@ -170,22 +222,3 @@ if __name__ == "__main__":
     )
     pii_executor.run()
 
-    # ## Extract potential copyrights - there are not remove from the data!
-    # if args.run_copyrights:
-    #     pipeline = [
-    #         JsonlReader(f"{output_path}/data/{language}/train"),
-    #         RegexFilter(
-    #             regex_exp=r"(Copyright|copyright|©|All\s+rights\s+reserved)",
-    #             exclusion_writer=JsonlWriter(
-    #                 f"{output_path}/data/{language}/potential_copyrights"
-    #             ),
-    #         ),
-    #     ]
-    #     copyright_executor = create_executor(
-    #         pipeline,
-    #         local=args.local,
-    #         logging_dir=f"{output_path}/logs/{language}/potential_copyrights",
-    #         job_name=dataset_name,
-    #         depends=split_executor,
-    #     )
-    #     copyright_executor.run()
