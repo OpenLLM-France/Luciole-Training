@@ -47,163 +47,60 @@ _space_internal = "▁"
 
 
 def build_tokenizer(
+    split_pattern: str = r"[^\r\n\p{L}'\-\p{N}]?[\p{L}'\-]+|\p{N}| ?[^\s\p{L}'\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
     dropout: Optional[float] = None,
-    individual_digits: Optional[bool] = True,
-    space_behaviour: Optional[str] = "prefix_all",
-    separate_punctuation: Optional[bool] = True,
-    add_space_after: Optional[str] = "\n\t([{/<'’\"«“‘‚‹—–―",
-    char_to_isolate: Optional[str] = None,  # ")]'\"»”’›—–―,;:!?",
-    do_not_split_spaces: Optional[bool] = False,
+    add_prefix_space: bool = True,
     fuse_unk: Optional[float] = True,
-    byte_fallback: Optional[bool] = True,
 ):
     """
     Build a tokenizer.
     :return: The tokenizer.
-
+    :param split_pattern: The pattern to split the text.
+                          By default, same as GPT-4 / Llama3 (explained in https://arxiv.org/abs/2402.01035, figure 3)
+                          - with dashes and apostrophes treated as letters.
+                          - with digits splitted individually (instead of modeling numbers with up to 3 digits)
     :param dropout: Dropout rate for BPE
-    :param individual_digits: Split digits individually
-    :param space_behaviour:
-        - "prefix_sos": Add a prefix space at the start of the text
-        - "prefix_all": Add a prefix space after each linebreaks, tabulations, ...
-                        What is defined in add_space_after (not just after the start of string)
-        - "split": Do not mix space with other characters
-    :param separate_punctuation: Make sure not to mix punctuation marks with alphanumeric characters
-    :param add_space_after: Characters after which to enforce a space, when space_behaviour="prefix_all"
-    :param char_to_isolate: Characters to isolate, when either space_behaviour="prefix_all" or separate_punctuation=True
+    :param add_prefix_space: Add a prefix space at the start of the text
+    :param split_pattern: Characters to isolate, when either space_behaviour="prefix_all" or separate_punctuation=True
     :param do_not_split_spaces: Experimental (not working)
     :param fuse_unk: Fuse unknown tokens (useless, as there should not be out-of-vocabulary tokens)
     """
 
-    if separate_punctuation and not char_to_isolate:
-        # punctsV3 (Lucie-7B)
-        char_to_isolate = rf"{_space_internal}?" + rf"[^\w\s{_space_internal}'\-]+"  # r"[\p{P}\+÷×\-]+"
-        # punctsV4 = GPT-4, Llama2, ...
-        char_to_isolate = r"[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"
-        # punctsV5 = Olivier & Jérôme
-        # v1 -- not working char_to_isolate = r"[\p{L}'\-]+|\p{N}| ?[^\s\p{L}'\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"
-        char_to_isolate = r"[^\r\n\p{L}'\-\p{N}]?[\p{L}'\-]+|\p{N}| ?[^\s\p{L}'\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"
-    
-    elif char_to_isolate and space_behaviour == "prefix_all":
-        # V1 alt (Lucie-7B)
-        char_to_isolate = rf"{_space_internal}?" + r"\p{P}*[" + re.escape(char_to_isolate) + r"]+\p{P}*"
-        separate_punctuation = True
-
-    assert space_behaviour in {"prefix_sos", "prefix_all", "split"}
-
     tokenizer = tokenizers.Tokenizer(
         tokenizers.models.BPE(
             dropout=dropout,
-            unk_token="<unk>",  # None,
+            unk_token="<unk>",
             fuse_unk=fuse_unk,
             byte_fallback=True,
         )
     )
 
-    add_prefix_space = space_behaviour != "split"
-
-    input_space = tokenizers.Regex(r"[ \u00A0]")
-
     normalizers = [
-        tokenizers.normalizers.NFC(),  # Note: This replaces unbreakable space "\u00A0" -> " "
+        tokenizers.normalizers.NFC(),
         tokenizers.normalizers.Replace(tokenizers.Regex(r"[\r\x00]"), ""),
-    ] + (
-        [
-            # Note: placeholders cannot be handled (using tokenizers.Regex(r"[\t\n]"))
-            # tokenizers.normalizers.Replace(tokenizers.Regex(rf"({re.escape(c)})(?=[^{re.escape(c)}])"), c + " ")
-            tokenizers.normalizers.Replace(tokenizers.Regex(rf"{re.escape(c)}(?=[ \w])"), c + " ")
-            for c in add_space_after
+    ]
+
+    pretokenizers = [
+        tokenizers.pre_tokenizers.Split(tokenizers.Regex(split_pattern), behavior="isolated"),
+    ]
+
+    tokenizer.normalizer = tokenizers.normalizers.Sequence(normalizers)
+
+    tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Sequence(
+        pretokenizers + [
+            tokenizers.pre_tokenizers.Metaspace(
+                replacement=_space_internal, prepend_scheme="first" if add_prefix_space else "never", split=False
+            ),
         ]
-        if (space_behaviour == "prefix_all")
-        else ([tokenizers.normalizers.Replace(input_space, _space_internal)] if space_behaviour == "split" else [])
     )
 
-    pretokenizers = (
-        [
-            # V2
-            tokenizers.pre_tokenizers.Split(tokenizers.Regex(char_to_isolate), behavior="isolated"),
-            # used in V1
-            # tokenizers.pre_tokenizers.Split(tokenizers.Regex(r"[\n\t]"), behavior="isolated"),
-        ]
-        if (separate_punctuation and space_behaviour != "split")
-        else (
-            (
-                [
-                    tokenizers.pre_tokenizers.Split(tokenizers.Regex(rf"[{_space_internal}\n\t]"), behavior="isolated"),
-                ]
-                + (
-                    [tokenizers.pre_tokenizers.Split(tokenizers.Regex(char_to_isolate), behavior="isolated")]
-                    if separate_punctuation
-                    else []
-                )
-            )
-            if space_behaviour == "split"
-            else []
-        )
-    ) + [
-        # tokenizers.pre_tokenizers.Digits(individual_digits=individual_digits),
-        # # TODO: should we do like Llama3: numbers up to 3 digits, and contractions
-        # # Split by R2L digits
-        # tokenizers.pre_tokenizers.Split(tokenizers.Regex(r"\d{1,3}(?=(\d{3})*\b)"),
-        #     behavior="isolated", invert = False),
-        # # Below: Existing steps from Llama 3's tokenizer
-        # tokenizers.pre_tokenizers.Split(tokenizers.Regex(r"(?i:'s|'t|'re|'ve|'m|'ll|'d|j'|l'|d'|t'|s'|qu')\
-        # |[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"),
-        #     behavior="isolated", invert=False),
-        # # TODO: try again Byte-Level pre-encoding ?
-        # tokenizers.pre_tokenizers.ByteLevel(add_prefix_space=False, trim_offsets=True, use_regex=False)
-    ]
-    if not byte_fallback:
-        pretokenizers += [
-            tokenizers.pre_tokenizers.ByteLevel(add_prefix_space=False, trim_offsets=True, use_regex=False)
-        ]
-
-    if not do_not_split_spaces:
-        tokenizer.normalizer = tokenizers.normalizers.Sequence(normalizers)
-
-        tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Sequence(
-            pretokenizers + (
-                (
-                    [
-                        tokenizers.pre_tokenizers.Metaspace(
-                            replacement=_space_internal, prepend_scheme="first" if add_prefix_space else "never", split=False
-                        ),
-                    ]
-                )
-                if space_behaviour != "split"
-                else []
-            )
-        )
-
-    else:  # Mistral + digits
-        tokenizer.normalizer = tokenizers.normalizers.Sequence(
-            normalizers
-            + [
-                tokenizers.normalizers.Replace(input_space, _space_internal),
-                tokenizers.normalizers.Prepend(_space_internal),
-            ]
-        )
-
-        tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Sequence(pretokenizers)
-
     tokenizer.decoder = tokenizers.decoders.Sequence(
-        ([
-            # tokenizers.decoders.Replace("▁", " "),
-            # tokenizers.decoders.ByteFallback(),
+        [
             tokenizers.decoders.ByteFallback(),
-        ] if byte_fallback else []) + [
             tokenizers.decoders.Metaspace(
                 replacement=_space_internal, prepend_scheme="first" if add_prefix_space else "never", split=False
             ),
             tokenizers.decoders.Fuse(),
-        ]
-        + (
-            [tokenizers.decoders.Replace(c + " ", c) for c in add_space_after]
-            if (space_behaviour == "prefix_all")
-            else []
-        )
-        + [
-            # tokenizers.decoders.Strip(content=" ", left=1, right=0),
         ]
     )
 
@@ -328,7 +225,7 @@ def fit_tokenizer(
 
 
 def refit_tokenizer(
-    tokenizer: transformers.PreTrainedTokenizerFast,
+    tokenizer,
     it,
     len_it=None,
     vocab_size=32000,
@@ -346,8 +243,6 @@ def refit_tokenizer(
     """
 
     new_special_tokens = get_special_tokens(special_tokens_map=tokenizer.special_tokens_map, **special_tokens_options)
-
-    tokenizer._tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Digits(individual_digits=True)
 
     tokenizer = tokenizer.train_new_from_iterator(
         batchify_iterator(it, batch_size=batch_size),
@@ -417,150 +312,6 @@ def set_infinite_length(tokenizer):
     return tokenizer
 
 
-def add_consecutive_spaces(
-    tokenizer_file,
-    consecutive_spaces=10,
-    consecutive_tabs=6,
-    consecutive_linebreaks=4,
-    trick_tokenizer=False,
-):
-    tokenizer = json.load(open(tokenizer_file, encoding="utf8"))
-    tokens = tokenizer["model"]["vocab"]
-
-    merges = tokenizer["model"]["merges"]
-    merges_as_list = isinstance(merges[0], list)
-
-    # Add consecutive spaces in the vocabulary
-    # n = 2
-    # assert n <= max_length
-    # for token, val in tokens.copy().items():
-    #     if token.startswith("<unused"):
-    #         while "▁" * n in tokens.keys():
-    #             n += 1
-    #         if n > max_length:
-    #             break
-    #         tokens.pop(token)
-    #         tokens["▁" * n] = val
-    #         n += 1
-    #     elif n > 2:
-    #         break
-    # # Re-sort tokens
-    # tokenizer["model"]["vocab"] = dict(sorted(tokens.items(), key=lambda x: x[1]))
-
-    # Add consecutive spaces in the merges
-    for n, char in (
-        (consecutive_spaces, _space_internal),
-        (consecutive_tabs, "\t"),
-        (consecutive_linebreaks, "\n"),
-    ):
-        # Make all the possible combinations
-        all_spaces = [char * i for i in range(1, n + 1)]
-
-        # Check that all the spaces are in the tokens
-        for s in all_spaces:
-            assert s in tokens, f"'{s}' not in tokens"
-        assert (char * n) in tokens, f"'{char * n}' not in tokens"
-        # assert (char * (n + 1)) not in tokens, f"'{char}' * {n+1} in tokens"
-
-        # Safety (make sure all merges produce valid tokens)
-        all_spaces = [s for s in all_spaces if s in tokens]
-
-        if len(all_spaces) < 2:
-            continue
-
-        all_pairs = list(itertools.product(all_spaces, repeat=2))
-        new_merges = sorted(
-            [[a, b] if merges_as_list else f"{a} {b}" for a, b in all_pairs],
-            key=(lambda x: (-len(x[0]), -len(x[1])))
-            if merges_as_list
-            else (lambda x: (-len(x.split(" ")[0]), -len(x.split(" ")[1]))),
-        )
-        if merges_as_list:
-            new_merges = [m for m in new_merges if m[0] + m[1] in all_spaces]
-        else:
-            new_merges = [m for m in new_merges if m.replace(" ", "") in all_spaces]
-        tokenizer["model"]["merges"] = merges = merges + [m for m in new_merges if m not in merges]
-
-
-    if trick_tokenizer:
-
-        # Replace "Metaspace" pre_tokenizer by "Replace" normalizer
-        pre_tokenizer = tokenizer["pre_tokenizer"]
-        isseq_pre_tokenizer = pre_tokenizer["type"] == "Sequence"
-        has_metaspace = (
-            ("Metaspace" in [p["type"] for p in pre_tokenizer["pretokenizers"]])
-            if isseq_pre_tokenizer
-            else (pre_tokenizer["type"] == "Metaspace")
-        )
-        if has_metaspace:
-            add_prefix_space = (
-                [
-                    p["prepend_scheme"] in ["first", "always"]
-                    for p in pre_tokenizer["pretokenizers"]
-                    if p["type"] == "Metaspace"
-                ][0]
-                if isseq_pre_tokenizer
-                else pre_tokenizer["prepend_scheme"] in ["first", "always"]
-            )
-
-            # Add Replace in the normalizer
-            normalizer = tokenizer["normalizer"]
-            isseq_normalizer = normalizer["type"] == "Sequence"
-            new_normalizers = ([{"type": "Prepend", "prepend": " "}] if add_prefix_space else []) + [
-                {"type": "Replace", "pattern": {"Regex": "[ \\u00A0]"}, "content": _space_internal},
-            ]
-            if isseq_normalizer:
-                normalizer["normalizers"] += new_normalizers
-            else:
-                normalizer = {
-                    "type": "Sequence",
-                    "normalizers": [normalizer] + new_normalizers,
-                }
-            tokenizer["normalizer"] = normalizer
-            # Remove Metaspace from the pre_tokenizer
-            if isseq_pre_tokenizer:
-                pre_tokenizer = {
-                    "type": "Sequence",
-                    "pretokenizers": [p for p in pre_tokenizer["pretokenizers"] if p["type"] != "Metaspace"],
-                }
-            else:
-                pre_tokenizer = None
-
-        # Remove pre_tokenizer that will be useless afterwards
-        for type in (
-            "Digits",
-            "Split",
-        ):
-            has_pretokenizer = (
-                (type in [p["type"] for p in pre_tokenizer["pretokenizers"]])
-                if isseq_pre_tokenizer
-                else (pre_tokenizer["type"] == type)
-            )
-            if has_pretokenizer:
-                # Remove Split from the pre_tokenizer
-                if isseq_pre_tokenizer:
-                    pre_tokenizer = {
-                        "type": "Sequence",
-                        "pretokenizers": [p for p in pre_tokenizer["pretokenizers"] if p["type"] != type],
-                    }
-                else:
-                    pre_tokenizer = None
-
-        if isseq_pre_tokenizer:
-            if pre_tokenizer["pretokenizers"] == []:
-                pre_tokenizer = None
-            elif len(pre_tokenizer["pretokenizers"]) == 1:
-                pre_tokenizer = pre_tokenizer["pretokenizers"][0]
-        tokenizer["pre_tokenizer"] = pre_tokenizer
-
-    json.dump(
-        tokenizer,
-        open(tokenizer_file, "w", encoding="utf8"),
-        indent=2,
-        ensure_ascii=False,
-    )
-
-
 if __name__ == "__main__":
     import argparse
     import os
@@ -577,23 +328,17 @@ if __name__ == "__main__":
         description="Train a tokenizer.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("parquet_file", nargs="+", help="Parquet files")
+    parser.add_argument("parquet_file", nargs="+", help="Parquet files (with a column 'text') to train the tokenizer")
     parser.add_argument(
         "--vocab_size",
         type=int,
         default=65024,
-        help="Size of output vocabulary (ex: 32000, 65024, ...)",
+        help="Size of output vocabulary (For efficiency, try to use multiple of powers of 2. For ex: 32000, 65024, 128000, ...)",
     )
     parser.add_argument(
         "--base",
         default=None,
         help="Base tokenizer (ex: mistralai/Mistral-7B-v0.1)",
-    )
-    parser.add_argument(
-        "--individual_digits",
-        default=True,
-        type=str2bool,
-        help="Split digits individually (ex: 1999 -> 1┃9┃9┃9)",
     )
     parser.add_argument(
         "--consecutive_spaces",
@@ -614,24 +359,6 @@ if __name__ == "__main__":
         help="Maximum number of consecutive linebreaks (in a same token)",
     )
     parser.add_argument(
-        "--space_behaviour",
-        default="prefix_sos",
-        choices=["prefix_all", "prefix_sos", "split"],
-        help="How to deal with whitespaces",
-    )
-    parser.add_argument(
-        "--separate_punctuation",
-        default=True,
-        type=str2bool,
-        help="Make sure not to mix spaces and punctuations with alphanumeric characters",
-    )
-    parser.add_argument(
-        "--byte_fallback",
-        default=True,
-        type=str2bool,
-        help="Use byte fallback (to avoid unknown tokens)",
-    )
-    parser.add_argument(
         "--enforce_alphabet",
         default=False,
         type=str2bool,
@@ -649,7 +376,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Overwrite output folder if it already exists",
     )
-    parser.add_argument("--debug", default=False, action="store_true", help="Debug mode")
+    parser.add_argument("--debug", default=False, action="store_true", help="Debug mode (try on a tiny set)")
     parser.add_argument(
         "--no_verbose",
         dest="verbose",
@@ -661,21 +388,9 @@ if __name__ == "__main__":
     if args.verbose:
         print("Configure base tokenizer")
 
-    name_tokenizer = os.path.basename(args.base) if args.base else "Lucie6NFC"
+    name_tokenizer = os.path.basename(args.base) if args.base else "fromscratch"
     name_tokenizer += f"-{args.vocab_size}"
     name_tokenizer += f"-sp{args.consecutive_spaces}-{args.consecutive_tabs}-{args.consecutive_linebreaks}"
-    if not args.base:
-        if args.enforce_alphabet:
-            name_tokenizer += "-chosenchars"
-        if args.individual_digits:
-            name_tokenizer += "-digits"
-        if args.separate_punctuation:
-            name_tokenizer += "-punctsLlamaNew" # NOCOMMIT
-        elif args.space_behaviour == "prefix_all":
-            name_tokenizer += "-sependpunctsV2"
-        if not args.byte_fallback:
-            name_tokenizer += "-bytelevel"
-        name_tokenizer += f"-{args.space_behaviour.replace('_', '').replace('prefixall', 'prefixallV2')}"
 
     example_sentence = (
         "   [INST] Coucou [/INST] Hello [INST] "
@@ -686,7 +401,6 @@ if __name__ == "__main__":
     info = {}
 
     if args.debug:
-        name_dataset = "dummy"
         example_training_sentences = [
             "   Mais en Français, comment   est-ce que ça se passera?\n\ns hey... ow ...?",
             "1999 2000 1999   2000 199 200 en François en Français\n\ns ra? ow...? hey...",
@@ -697,6 +411,7 @@ if __name__ == "__main__":
             yield from example_training_sentences
 
         trainset = debug_texts_iterator()
+        name_dataset = "dummy"
     else:
         path_components = os.path.commonprefix(args.parquet_file).split("/")
 
@@ -706,7 +421,6 @@ if __name__ == "__main__":
             name = path_components[-2]
 
         trainset = DataIterator("default", "parquet", data_files=args.parquet_file, name=name)
-
         name_dataset = trainset.name
 
     if not args.output:
@@ -757,12 +471,7 @@ if __name__ == "__main__":
 
         else:
             # From scratch
-            tok = build_tokenizer(
-                individual_digits=args.individual_digits,
-                separate_punctuation=args.separate_punctuation,
-                space_behaviour=args.space_behaviour,
-                byte_fallback=args.byte_fallback,
-            )
+            tok = build_tokenizer()
 
             # Print options and stress test
             print(json.dumps(json.loads(tok.to_str())["normalizer"], indent=2))
@@ -836,24 +545,24 @@ if __name__ == "__main__":
         }
         tokenizer_config.update(
             {
-                "additional_special_tokens": [],
-                "clean_up_tokenization_spaces": False,
+                # "additional_special_tokens": [],
+                # "clean_up_tokenization_spaces": False,
                 "add_bos_token": True,
                 "add_eos_token": False,
                 "bos_token": _special_tokens_map["bos_token"]["content"],
                 "eos_token": _special_tokens_map["eos_token"]["content"],
                 "pad_token": _special_tokens_map["pad_token"]["content"],
                 "unk_token": _special_tokens_map["unk_token"]["content"],
-                "model_max_length": 1000000000000000000000000000000,
-                "legacy": True,
-                "spaces_between_special_tokens": False,
+                # "model_max_length": 1000000000000000000000000000000,
+                # "legacy": True,
+                # "spaces_between_special_tokens": False,
                 "tokenizer_class": (
                     "LlamaTokenizer"
-                    if tokenizer_config.get("tokenizer_class") in [None, "PreTrainedTokenizerFast"]
+                    if tokenizer_config.get("tokenizer_class") in [None, "PreTrainedTokenizerFast", "PreTrainedTokenizer"]
                     else tokenizer_config["tokenizer_class"]
                 ),
-                "sp_model_kwargs": {},
-                "use_default_system_prompt": False,
+                # "sp_model_kwargs": {},
+                # "use_default_system_prompt": False,
             }
         )
         with open(f"{args.output}/tokenizer_config.json", "w", encoding="utf8") as f:
@@ -875,13 +584,7 @@ if __name__ == "__main__":
 
         tokenizer.save_pretrained(args.output)
 
-    add_consecutive_spaces(
-        os.path.join(args.output, "tokenizer.json"),
-        consecutive_spaces=args.consecutive_spaces,
-        consecutive_tabs=args.consecutive_tabs,
-        consecutive_linebreaks=args.consecutive_linebreaks,
-    )
-
+    # Check tokenizer can be loaded
     tokenizer = transformers.AutoTokenizer.from_pretrained(args.output)
 
     # tokenizer.save_pretrained(args.output + "_check")
