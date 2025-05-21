@@ -16,8 +16,8 @@ module load anaconda-py3/2024.06
 module load cuda/12.4.1
 conda activate distilabel-test
 
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
-
+language=$1
 model_name=$DSDIR/HuggingFace_Models/Qwen/Qwen3-32B
+output_dir=$OpenLLM_OUTPUT/synthetic_data/fineweb_edu_annotation
 
-VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language fra_Latn --prompt content_edu --disable_thinking --vllm --gpus 4 --nsamples 400000 --use_cache
+VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language $language --output_dir $output_dir --prompt content_edu --disable_thinking --vllm --gpus 4 --nsamples 400000 --use_cache
