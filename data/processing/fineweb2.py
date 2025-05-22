@@ -119,20 +119,28 @@ def post_process_fasttext(
     You can optionally use `rank` and `world_size` for sharding
     """
     for doc in data:
-        edu_score = doc.metadata.pop('edu_score')
-        doc.metadata['edu_score'] = sum(int(label.split('__label__')[-1]) * prob for label, prob in edu_score.items())
-        doc.metadata['is_toxic'] = doc.metadata['is_toxic']['__label__true']
-        # doc.metadata['is_ad'] = doc.metadata['is_ad']['__label__true']
-        topic = doc.metadata.pop('topic')
-        doc.metadata['topic'] = max(topic, key=topic.get).replace("__label__", "")
+        # Handle educational score if present
+        edu_score = doc.metadata.pop('edu_score', None)
+        if edu_score is not None:
+            doc.metadata['edu_score'] = sum(
+                int(label.split('__label__')[-1]) * prob for label, prob in edu_score.items()
+            )
+        # Handle toxicity if present
+        is_toxic = doc.metadata.pop('is_toxic', None)
+        if is_toxic is not None:
+            doc.metadata['is_toxic'] = is_toxic['__label__true']
+        # Handle topic if present
+        topic = doc.metadata.pop('topic', None)
+        if topic is not None:
+            doc.metadata['topic'] = max(topic, key=topic.get).replace("__label__", "")
         yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--language", type=str, default="fra_Latn", help="Language to process")
     parser.add_argument("--add_prefix", action='store_true', help="Add a prefix with domain source and date")
-    parser.add_argument("--toxicity_threshold", type=float, default=0.9)
-    parser.add_argument("--edu_threshold", type=float, default=1.0)
+    parser.add_argument("--toxicity_max", type=float, default=0.9)
+    parser.add_argument("--edu_min", type=float, default=1.0)
     parser.add_argument("--no_fasttext", action='store_true')
     args = parser.parse_args()
     DATA_PATH = get_data_path(args)
@@ -140,10 +148,10 @@ if __name__ == "__main__":
 
     dataset_name = "fineweb2_filtered"
     language = args.language
-    toxicity_threshold = args.toxicity_threshold
-    edu_threshold = args.edu_threshold
+    toxicity_max = args.toxicity_max
+    edu_min = args.edu_min
     add_prefix = args.add_prefix
-    output_name = f"output_edu{edu_threshold:.2f}_tox{toxicity_threshold:.2f}"
+    output_name = f"output_edu{edu_min:.2f}_tox{toxicity_max:.2f}"
     if add_prefix:
         output_name += '_prefix'
     output_dir = f"{DATA_PATH}/{dataset_name}/{language}/{output_name}"
@@ -156,7 +164,7 @@ if __name__ == "__main__":
         fasttext_filters = [
             FastTextClassifierFilter(
                 model_url = os.path.join(FASTTEXT_PATH, f"Qwen3-32B_content_edu_{language}/model/is_toxic_ngram2_epoch5_lr0.1.bin"),
-                keep_labels = ("true", toxicity_threshold),
+                remove_labels = ("true", toxicity_max),
                 newline_replacement = " ",
                 save_labels_in_metadata = True,
                 filter_name = "is_toxic",
@@ -178,7 +186,7 @@ if __name__ == "__main__":
             ),
             post_process_fasttext,
             LambdaFilter(
-                filter_function = partial(lambda doc, edu_threshold: doc.metadata['edu_score'] > edu_threshold, edu_threshold=edu_threshold),
+                filter_function = partial(lambda doc, edu_min: doc.metadata['edu_score'] > edu_min, edu_min=edu_min),
                 exclusion_writer = JsonlWriter(f"{output_dir}/removed/low_edu_score"),
             )
         ]
