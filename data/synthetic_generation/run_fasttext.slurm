@@ -24,7 +24,7 @@ train_all_labels() {
     python train_fasttext.py \
       --input_path "$input_path" \
       --output_path "$output_path" \
-      --label "$label" \
+      --label "$label"
   done
 }
 
