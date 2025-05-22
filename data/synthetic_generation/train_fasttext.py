@@ -59,6 +59,11 @@ if __name__ == "__main__":
         action='store_true',
         help="read from parquet files."
     )
+    parser.add_argument(
+        "--quantize",
+        action='store_true',
+        help="Add a quantize version of the model."
+    )
     args = parser.parse_args()
 
     epoch = args.epoch
@@ -122,6 +127,7 @@ if __name__ == "__main__":
     print_results(*model.test(valid_data))
     model.save_model(os.path.join(output_path, "model",  f"{model_name}.bin"))
 
-    model.quantize(input=train_data, qnorm=True, retrain=True, cutoff=100000)
-    print_results(*model.test(valid_data))
-    model.save_model(os.path.join(output_path, "model",  f"{model_name}.ftz"))
+    if args.quantize:
+        model.quantize(input=train_data, qnorm=True, retrain=True, cutoff=100000)
+        print_results(*model.test(valid_data))
+        model.save_model(os.path.join(output_path, "model",  f"{model_name}.ftz"))

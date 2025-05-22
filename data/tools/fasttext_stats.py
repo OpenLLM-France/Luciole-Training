@@ -43,13 +43,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fasttext Stats")
     parser.add_argument("--reader_type", type=str, default="jsonl", choices=["jsonl", "parquet"], help="")
     parser.add_argument("--data_path", type=str, help="")
-    parser.add_argument("--output_path", type=str, help="")
+    parser.add_argument("--output_dir", type=str, help="")
     parser.add_argument("--sample_rate", type=float, default=1.0, help="Sample rate")
 
     args = parser.parse_args()
     reader_type = args.reader_type
     data_path = args.data_path
-    output_path = args.output_path
+    output_dir = args.output_dir
+    output_folder = os.path.join(output_dir, f"fasttext_stats_{args.sample_rate}/output")
 
     if reader_type == "jsonl":
         reader = JsonlReader(data_path)
@@ -65,8 +66,8 @@ if __name__ == "__main__":
                 rate=args.sample_rate,
             ),
             FasttextStats(
-                output_folder=os.path.join(output_path, f"fasttext_stats_{args.sample_rate}/output"),
-                groups_to_compute=["summary", "histogram", "fqdn", "topic"],
+                output_folder=output_folder,
+                groups_to_compute=["summary", "histogram", "fqdn", "top_topic"],
             ),
         ],
         sbatch_args={"account": "qgz@cpu"},
@@ -77,14 +78,14 @@ if __name__ == "__main__":
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
         job_name=f"fasttext-stats",
-        logging_dir=os.path.join(output_path, f"fasttext_stats_{args.sample_rate}/logs_compute"),
+        logging_dir=os.path.join(output_dir, f"fasttext_stats_{args.sample_rate}/logs_compute"),
     )
 
     merger = SlurmPipelineExecutor(
         pipeline=[
             StatsMerger(
-                input_folder=os.path.join(output_path, f"fasttext_stats_{args.sample_rate}/output"),
-                output_folder=os.path.join(output_path, f"fasttext_stats_{args.sample_rate}/output"),
+                input_folder=output_folder,
+                output_folder=output_folder,
                 remove_input=False,
                 ),
         ],
@@ -95,7 +96,7 @@ if __name__ == "__main__":
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        logging_dir=os.path.join(output_path, f"fasttext_stats_{args.sample_rate}/logs_merge"),
+        logging_dir=os.path.join(output_dir, f"fasttext_stats_{args.sample_rate}/logs_merge"),
         job_name=f"merging-fasttext-stats",
         depends=compute,
     )
