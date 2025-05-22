@@ -1,0 +1,13 @@
+#General knowledges
+{"benchmark": "meta_mmlu_fra_cf", "task_type": "mcq", "num_classes": 4}
+{"benchmark": "mlmm_arc_fra_cf:challenge", "task_type": "mcq", "num_classes": 4}
+{"benchmark": "mintaka_fra", "task_type": "generative", "num_classes": null}
+# Reading Comprehension 
+{"benchmark": "belebele_fra_Latn_cf", "task_type": "mcq", "num_classes": 4}
+{"benchmark": "fquadv2_fra", "task_type": "generative", "num_classes": null}
+# Reasoning
+{"benchmark": "xcodah_fra_cf", "task_type": "mcq", "num_classes": 5}
+{"benchmark": "xcsqa_fra_cf", "task_type": "mcq", "num_classes": 4}
+# Natural Language Understanding
+{"benchmark": "mlmm_hellaswag_fra_cf", "task_type": "mcq", "num_classes": 4}
+{"benchmark": "xnli2.0_fra_cf", "task_type": "classification", "num_classes": 3}
