@@ -1,15 +1,59 @@
 from utils import *
-from pii_utils import PhoneNumberPII, MorePIIFormatter
-from datatrove.pipeline.readers import ParquetReader, JsonlReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.base import PipelineStep
-from datatrove.pipeline.formatters import PIIFormatter
+from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII, MorePIIFormatter
 from datatrove.data import DocumentsPipeline
+from datatrove.pipeline.filters import FastTextClassifierFilter
+from datatrove.pipeline.filters import LambdaFilter
+from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
-from datatrove.pipeline.filters.base_filter import BaseFilter
-from datatrove.pipeline.filters import FastTextClassifierFilter
+from datatrove.pipeline.base import PipelineStep
+from functools import partial
 
+class PrefixFilter(BaseFilter):
+    name = "🕰️ Add Prefix"
+
+    LANG_SETTINGS = {
+        'fra_Latn': {
+            'locale': 'fr_FR.UTF-8',
+            'prompt': lambda fqdn, date: f"Source : {fqdn}\nDate : {date}\n---\n",
+        },
+        'spa_Latn': {
+            'locale': 'es_ES.UTF-8',
+            'prompt': lambda fqdn, date: f"Fuente: {fqdn}\nFecha: {date}\n---\n",
+        },
+        'deu_Latn': {
+            'locale': 'de_DE.UTF-8',
+            'prompt': lambda fqdn, date: f"Quelle: {fqdn}\nDatum: {date}\n---\n",
+        },
+        'ita_Latn': {
+            'locale': 'it_IT.UTF-8',
+            'prompt': lambda fqdn, date: f"Fonte: {fqdn}\nData: {date}\n---\n",
+        },
+    }
+
+    def __init__(
+        self,
+        exclusion_writer: DiskWriter | None = None,
+        language: str = "fra_Latn",
+    ):
+        super().__init__(exclusion_writer)
+        self.language = language
+
+    def filter(self, doc: Document) -> bool:
+        import tldextract
+        from datetime import datetime
+        import locale
+
+        setting = self.LANG_SETTINGS[self.language]
+
+        fqdn = tldextract.extract(doc.metadata['url']).fqdn
+        locale.setlocale(locale.LC_TIME, setting['locale'])  # May require system support
+        dt = datetime.strptime(doc.metadata['date'], "%Y-%m-%dT%H:%M:%SZ")
+        formatted_date = dt.strftime("%d %B %Y")  # e.g., "24 mai 2013"
+        doc.text = setting['prompt'](fqdn, formatted_date) + doc.text.strip()
+        return True
 
 class FinewebDocumentCleaning(BaseFilter):
     name = "🧹 FineWeb Document Cleaning"
@@ -45,8 +89,7 @@ class FinewebDocumentCleaning(BaseFilter):
         doc.text = "\n".join(kept_lines)
         return True
 
-
-class Rehydrater(PipelineStep):
+class AssignCluster(PipelineStep):
     @staticmethod
     def get_cluster_size_group(cluster_size):
         if cluster_size in [1, 2, 3, 4]:
@@ -79,106 +122,71 @@ def post_process_fasttext(
         edu_score = doc.metadata.pop('edu_score')
         doc.metadata['edu_score'] = sum(int(label.split('__label__')[-1]) * prob for label, prob in edu_score.items())
         doc.metadata['is_toxic'] = doc.metadata['is_toxic']['__label__true']
-        doc.metadata['is_ad'] = doc.metadata['is_ad']['__label__true']
+        # doc.metadata['is_ad'] = doc.metadata['is_ad']['__label__true']
         topic = doc.metadata.pop('topic')
-        doc.metadata['top_topic'] = max(topic, key=topic.get).replace("__label__", "")
+        doc.metadata['topic'] = max(topic, key=topic.get).replace("__label__", "")
         yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
-    parser.add_argument(
-        "--language", type=str, default="fra_Latn", help="Language to process"
-    )
-    parser.add_argument("--run-copyrights", action="store_true", help="Run copyrights")
-
+    parser.add_argument("--language", type=str, default="fra_Latn", help="Language to process")
+    parser.add_argument("--add_prefix", action='store_true', help="Add a prefix with domain source and date")
+    parser.add_argument("--toxicity_threshold", type=float, default=0.9)
+    parser.add_argument("--edu_threshold", type=float, default=1.0)
+    parser.add_argument("--no_fasttext", action='store_true')
     args = parser.parse_args()
     DATA_PATH = get_data_path(args)
+    FASTTEXT_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation")
 
-    dataset_name = "fineweb2"
+    dataset_name = "fineweb2_filtered"
     language = args.language
+    toxicity_threshold = args.toxicity_threshold
+    edu_threshold = args.edu_threshold
+    add_prefix = args.add_prefix
+    output_name = f"output_edu{edu_threshold:.2f}_tox{toxicity_threshold:.2f}"
+    if add_prefix:
+        output_name += '_prefix'
+    output_dir = f"{DATA_PATH}/{dataset_name}/{language}/{output_name}"
 
     ################
-    ## Collect data
+    # FastText classifier
     ################
-    
-    if language == "fra_Latn": # Available only for french right now...
+
+    if (not args.no_fasttext) and (language in ["fra_Latn", "ita_Latn", "spa_Latn", "deu_Latn"]): 
         fasttext_filters = [
             FastTextClassifierFilter(
-                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/is_toxic_ngram2_epoch5_lr0.1.bin"),
-                keep_labels = ("true", 0),
+                model_url = os.path.join(FASTTEXT_PATH, f"Qwen3-32B_content_edu_{language}/model/is_toxic_ngram2_epoch5_lr0.1.bin"),
+                keep_labels = ("true", toxicity_threshold),
                 newline_replacement = " ",
                 save_labels_in_metadata = True,
-                filter_name = "is_toxic"
+                filter_name = "is_toxic",
+                exclusion_writer = JsonlWriter(f"{output_dir}/removed/is_toxic"),
             ),
             FastTextClassifierFilter(
-                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/is_ad_ngram2_epoch5_lr0.1.bin"),
-                keep_labels = ("true", 0),
-                newline_replacement = " ",
-                save_labels_in_metadata = True,
-                filter_name = "is_ad"
-            ),
-            FastTextClassifierFilter(
-                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/topic_ngram2_epoch5_lr0.1.bin"),
-                keep_labels = ("history", 0),
-                newline_replacement = " ",
-                save_labels_in_metadata = True,
-                filter_name = "topic",
-            ),
-            FastTextClassifierFilter(
-                model_url = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/Qwen3-32B_content_edu_400k/model/educational_score_ngram2_epoch5_lr0.1.bin"),
+                model_url = os.path.join(FASTTEXT_PATH, f"Qwen3-32B_content_edu_{language}/model/educational_score_ngram2_epoch5_lr0.1.bin"),
                 keep_labels = ("0", 0),
                 newline_replacement = " ",
                 save_labels_in_metadata = True,
                 filter_name = "edu_score"
             ),
+            FastTextClassifierFilter(
+                model_url = os.path.join(FASTTEXT_PATH, f"Qwen3-32B_content_edu_{language}/model/topic_ngram2_epoch5_lr0.1.bin"),
+                keep_labels = ("history", 0),
+                newline_replacement = " ",
+                save_labels_in_metadata = True,
+                filter_name = "topic",
+            ),
             post_process_fasttext,
+            LambdaFilter(
+                filter_function = partial(lambda doc, edu_threshold: doc.metadata['edu_score'] > edu_threshold, edu_threshold=edu_threshold),
+                exclusion_writer = JsonlWriter(f"{output_dir}/removed/low_edu_score"),
+            )
         ]
     else:
         fasttext_filters = []
 
-    pipeline = [
-        ParquetReader(
-            f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"
-        ),
-        *fasttext_filters,
-        FinewebDocumentCleaning(),
-        JsonlWriter(
-            f"{DATA_PATH}/{dataset_name}/data/{language}/train",
-            max_file_size = int(2e9)
-        ),
-    ]
-    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
-
-    main_processing_executor = create_executor(
-        pipeline,
-        local=args.local,
-        logging_dir=f"{DATA_PATH}/{dataset_name}/logs/{language}/train",
-        job_name=dataset_name,
-    )
-
     ################
-    ## Split by clusters
-    ################
-    pipeline = [
-        JsonlReader(f"{DATA_PATH}/{dataset_name}/data/{language}/train"),
-        Rehydrater(),
-        JsonlWriter(
-            f"{DATA_PATH}/{dataset_name}/data/{language}/clusters",
-            output_filename="${cluster_size_group}/${rank}.jsonl.gz",
-            max_file_size = int(2e9)  
-        ),
-    ]
-
-    split_executor = create_executor(
-        pipeline,
-        local=args.local,
-        logging_dir=f"{DATA_PATH}/{dataset_name}/logs/{language}/clusters",
-        job_name=dataset_name,
-        depends=main_processing_executor
-    )
-
-    ################
-    ## PII Cleaning
+    # PII
     ################
 
     pii_cleaning = [
@@ -191,9 +199,6 @@ if __name__ == "__main__":
         pii_cleaning.append(MorePIIFormatter())
     elif args.language == "deu_Latn":
         pii_cleaning.append(PhoneNumberPII("DE"))
-    elif args.language == "eng_Latn":
-        pii_cleaning.append(PhoneNumberPII("US"))
-        pii_cleaning.append(PhoneNumberPII("GB"))
     elif args.language == "spa_Latn":
         pii_cleaning.append(PhoneNumberPII("ES"))
     elif args.language == "ita_Latn":
@@ -203,22 +208,32 @@ if __name__ == "__main__":
     else:
         pii_cleaning = []
 
+    ################
+    # Pipeline
+    ################
+
     pipeline = [
-        JsonlReader(f"{DATA_PATH}/{dataset_name}/data/{language}/clusters"),
+        ParquetReader(
+            f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"
+        ),
+        FinewebDocumentCleaning(),
+        *fasttext_filters,
         *pii_cleaning,
+        AssignCluster(),
+        *([PrefixFilter(language=language)] if args.add_prefix else []),
         JsonlWriter(
-            f"{DATA_PATH}/{dataset_name}/data/{language}/clean_pii",
+            f"{output_dir}/data",
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
             max_file_size = int(2e9)  
         ),
     ]
+    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
-    pii_executor = create_executor(
+    main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{DATA_PATH}/{dataset_name}/logs/{language}/clean_pii",
+        logging_dir=f"{output_dir}/logs",
         job_name=dataset_name,
-        depends=split_executor
     )
-    pii_executor.run()
 
+    main_processing_executor.run()
