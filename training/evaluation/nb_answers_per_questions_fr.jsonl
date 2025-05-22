@@ -1,39 +1,19 @@
-{
-  "fr": {
-    "General knowledges": [
-      {"benchmark": "meta_mmlu_fra_cf", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "mlmm_arc_fra_cf:challenge", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "mintaka_fra", "task_type": "generative", "num_classes": null}
-    ],
-    "Reading Comprehension": [
-      {"benchmark": "belebele_fra_Latn_cf", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "fquadv2_fra", "task_type": "generative", "num_classes": null}
-    ],
-    "Reasoning": [
-      {"benchmark": "xcodah_fra_cf", "task_type": "mcq", "num_classes": 5},
-      {"benchmark": "xcsqa_fra_cf", "task_type": "mcq", "num_classes": 4}
-    ],
-    "Natural Language Understanding": [
-      {"benchmark": "mlmm_hellaswag_fra_cf", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "xnli2.0_fra_cf", "task_type": "classification", "num_classes": 3}
-    ]
-  },
-  "en": {
-    "Commonsense Reasoning": [
-      {"benchmark": "openbookqa", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "piqa", "task_type": "qa", "num_classes": 2},
-    ],
-    "Language Understanding": [
-      {"benchmark": "hellaswag", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "winogrande", "task_type": "qa", "num_classes": 2}
-    ],
-     "World Knowledge": [
-      {"benchmark": "arc:easy", "task_type": "mcq", "num_classes": 4},
-      {"benchmark": "arc:challenge", "task_type": "mcq", "num_classes": 4}
-      {"benchmark": "triviaqa", "task_type": "qa", "num_classes": 4}
-    ],
-    "Reading Comprehension": [
-      {"benchmark": "boolq", "task_type": "qa", "num_classes": 2}
-    ]
-  }
-}
+[
+{"task": "meta_mmlu_fra_cf","task_type":"General knowledges", "category": "mcq", "num_classes": 4, "language": "fr"},
+{"task": "mlmm_arc_fra_cf:challenge", "task_type":"General knowledges","category": "mcq", "num_classes": 4, "language": "fr"},
+{"task": "mintaka_fra", "task_type":"General knowledges","category": "generative", "num_classes": null, "language": "fr"},
+{"task": "belebele_fra_Latn_cf", "task_type":"Reading Comprehension","category": "mcq", "num_classes": 4, "language": "fr"},
+{"task": "fquadv2_fra", "task_type":"Reading Comprehension","category": "generative", "num_classes": null, "language": "fr"},
+{"task": "xcodah_fra_cf", "task_type":"Reasoning", "category": "mcq", "num_classes": 5, "language": "fr"},
+{"task": "xcsqa_fra_cf", "task_type":"Reasoning",  "category": "mcq", "num_classes": 4, "language": "fr"},
+{"task": "mlmm_hellaswag_fra_cf", "task_type":"Natural Language Understanding",  "category": "mcq", "num_classes": 4, "language": "fr"},
+{"task": "xnli2.0_fra_cf", "task_type":"Natural Language Understanding", "category": "classification", "num_classes": 3, "language": "fr"},
+{"task": "openbookqa", "task_type":"Commonsense Reasoning", "category": "mcq", "num_classes": 4, "language": "en"},
+{"task": "piqa", "task_type":"Commonsense Reasoning", "category": "qa", "num_classes": 2, "language": "en"},
+{"task": "hellaswag", "task_type":"Language Understanding","category": "mcq", "num_classes": 4, "language": "en"},
+{"task": "winogrande","task_type":"Language Understanding", "category": "qa", "num_classes": 2, "language": "en"},
+{"task": "arc:easy", "task_type":"World Knowledge", "category": "mcq", "num_classes": 4, "language": "en"},
+{"task": "arc:challenge", "task_type":"World Knowledge", "category": "mcq", "num_classes": 4, "language": "en"},
+{"task": "triviaqa", "task_type":"World Knowledge", "category": "qa", "num_classes": 4, "language": "en"},
+{"task": "boolq", "task_type":"Reading Comprehension", "category": "qa", "num_classes": 2, "language": "en"}
+]
