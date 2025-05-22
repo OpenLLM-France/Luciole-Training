@@ -20,6 +20,16 @@ def read_datamix_file(file):
 
         with open(file, "r") as f:
             loaded_data = yaml.safe_load(f)
+    elif file.endswith(".bin"):
+        loaded_data = {
+            "data_path": os.path.dirname(file),
+            "train": [
+                {
+                    "name": os.path.splitext(os.path.basename(file))[0],
+                    "weight": 1.0,
+                }
+            ],
+        }
     else:
         raise RuntimeError(f"Config should be a json or a yaml, got {file}")
 
