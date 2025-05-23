@@ -164,11 +164,10 @@ if __name__ == "__main__":
         fasttext_filters = [
             FastTextClassifierFilter(
                 model_url = os.path.join(FASTTEXT_PATH, f"Qwen3-32B_content_edu_{language}/model/is_toxic_ngram2_epoch5_lr0.1.bin"),
-                remove_labels = ("true", toxicity_max),
+                keep_labels = ("true", 0),
                 newline_replacement = " ",
                 save_labels_in_metadata = True,
                 filter_name = "is_toxic",
-                exclusion_writer = JsonlWriter(f"{output_dir}/removed/is_toxic"),
             ),
             FastTextClassifierFilter(
                 model_url = os.path.join(FASTTEXT_PATH, f"Qwen3-32B_content_edu_{language}/model/educational_score_ngram2_epoch5_lr0.1.bin"),
@@ -186,9 +185,13 @@ if __name__ == "__main__":
             ),
             post_process_fasttext,
             LambdaFilter(
+                filter_function = partial(lambda doc, toxicity_max: doc.metadata['is_toxic'] < toxicity_max, toxicity_max=toxicity_max),
+                exclusion_writer = JsonlWriter(f"{output_dir}/removed/is_toxic"),
+            ),
+            LambdaFilter(
                 filter_function = partial(lambda doc, edu_min: doc.metadata['edu_score'] > edu_min, edu_min=edu_min),
                 exclusion_writer = JsonlWriter(f"{output_dir}/removed/low_edu_score"),
-            )
+            ),
         ]
     else:
         fasttext_filters = []
