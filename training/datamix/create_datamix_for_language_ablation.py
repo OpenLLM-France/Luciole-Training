@@ -3,9 +3,6 @@ import argparse
 import pandas as pd
 import json
 
-main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data")
-
-
 def convert_args_to_dataframe(language_weights):
     out = []
     for i in range(0, len(language_weights), 2):
@@ -32,6 +29,8 @@ def convert_args_to_dataframe(language_weights):
 
 
 if __name__ == "__main__":
+    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"))
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--language_weights",
@@ -39,10 +38,16 @@ if __name__ == "__main__":
         nargs="+",
     )
     parser.add_argument(
-        "--input_dir",
+        "--data_path",
         type=str,
-        default="tokens_ablation",
+        default=os.path.join(main_path, "data/tokens_ablation"),
         help="Path to the data directory",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=os.path.join(main_path, "ablations/datamix"),
+        help="Output_dir",
     )
     parser.add_argument(
         "--suffix",
@@ -58,7 +63,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     language_weights = args.language_weights
-    input_dir = args.input_dir
+    data_path = args.data_path
+    output_dir = args.output_dir
     suffix = args.suffix
     no_rehydratation = args.no_rehydratation
     if no_rehydratation:
@@ -76,7 +82,7 @@ if __name__ == "__main__":
 
         # Load stats and normalize the total tokens by datasets
         stats_df = pd.read_csv(
-            os.path.join(main_path, input_dir, "stats/all_stats_merged.csv")
+            os.path.join(data_path, "stats/all_stats_merged.csv")
         )
         if no_rehydratation:
             total_tokens_ref = "total_tokens"
@@ -92,7 +98,7 @@ if __name__ == "__main__":
         df["name"] = df["name"] + "_text_document"
 
         out = {
-            "data_path": os.path.join(main_path, input_dir),
+            "data_path": data_path,
             "train": df[["name", "weight"]].to_dict(orient="records"),
             "validation": [
                 {"name": "wikipedia_fr_text_document", "weight": 0.5},
@@ -101,7 +107,7 @@ if __name__ == "__main__":
         }
 
         # Save the output to a JSON file
-        with open(f"../datamix/{output_name}", "w") as f:
+        with open(os.path.join(output_dir, output_name), "w") as f:
             json.dump(out, f, indent=4)
 
     else:
