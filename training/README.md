@@ -1,4 +1,4 @@
-# Ablations
+# Training
 
 Add in your `.bashprofile`: 
 ```bash
@@ -9,12 +9,12 @@ export OpenLLM_OUTPUT=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output
 
 First, you should have tokenize your dataset and run statistics before! Refer to the [README in `../data`](../data/README.md).
 
-In `data/tools/`, you can use `create_datamix.py` to create a new datamix in `datamix/`. It will create a folder with a summary of your datamix and a `datamix_xxx.json` file that you can use for training.
+In `datamix/`, you can use `create_datamix.py` to create a new datamix. It will create a folder with a summary of your datamix and a `datamix_xxx.json` file that you can use for training.
 
 For example:
 ```bash
-cd data/tools/
-python create_datamix.py --data_path path/to/your/tokenized/datasets --code .5 --es 0. --de 0. --it 0.
+cd datamix/
+python create_datamix.py --data_path path/to/your/tokenized/datasets --starcoder 1.
 ```
 
 ## Train a small 1B model
