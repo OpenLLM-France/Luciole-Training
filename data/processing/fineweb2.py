@@ -1,14 +1,14 @@
 from utils import *
-from datatrove.pipeline.readers import ParquetReader
+from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII, MorePIIFormatter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter
-from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from datatrove.pipeline.base import PipelineStep
+from datatrove.pipeline.filters import LambdaFilter
 from functools import partial
 
 class PrefixFilter(BaseFilter):
@@ -122,9 +122,11 @@ def post_process_fasttext(
         # Handle educational score if present
         edu_score = doc.metadata.pop('edu_score', None)
         if edu_score is not None:
-            doc.metadata['edu_score'] = sum(
+            edu_score_mean = sum(
                 int(label.split('__label__')[-1]) * prob for label, prob in edu_score.items()
             )
+            doc.metadata['edu_score_mean'] = edu_score_mean
+            doc.metadata['edu_score'] = str(int(round(edu_score_mean)))
         # Handle toxicity if present
         is_toxic = doc.metadata.pop('is_toxic', None)
         if is_toxic is not None:
@@ -139,22 +141,22 @@ if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--language", type=str, default="fra_Latn", help="Language to process")
     parser.add_argument("--add_prefix", action='store_true', help="Add a prefix with domain source and date")
-    parser.add_argument("--toxicity_max", type=float, default=0.9)
-    parser.add_argument("--edu_min", type=float, default=1.0)
     parser.add_argument("--no_fasttext", action='store_true')
+    parser.add_argument("--quality_criteria", type=str, default="cluster_size", choices=['cluster_size', 'edu_score'], help="")
     args = parser.parse_args()
     DATA_PATH = get_data_path(args)
     FASTTEXT_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation")
 
     dataset_name = "fineweb2_filtered"
     language = args.language
-    toxicity_max = args.toxicity_max
-    edu_min = args.edu_min
     add_prefix = args.add_prefix
-    output_name = f"output_edu{edu_min:.2f}_tox{toxicity_max:.2f}"
-    if add_prefix:
-        output_name += '_prefix'
-    output_dir = f"{DATA_PATH}/{dataset_name}/{language}/{output_name}"
+    quality_criteria = args.quality_criteria
+
+    # Name  
+    # output_name = "output"
+    # if add_prefix:
+    #     output_name += '_wprefix'
+    output_dir = f"{DATA_PATH}/{dataset_name}/{language}"
 
     ################
     # FastText classifier
@@ -184,14 +186,14 @@ if __name__ == "__main__":
                 filter_name = "topic",
             ),
             post_process_fasttext,
-            LambdaFilter(
-                filter_function = partial(lambda doc, toxicity_max: doc.metadata['is_toxic'] < toxicity_max, toxicity_max=toxicity_max),
-                exclusion_writer = JsonlWriter(f"{output_dir}/removed/is_toxic"),
-            ),
-            LambdaFilter(
-                filter_function = partial(lambda doc, edu_min: doc.metadata['edu_score'] > edu_min, edu_min=edu_min),
-                exclusion_writer = JsonlWriter(f"{output_dir}/removed/low_edu_score"),
-            ),
+            # LambdaFilter(
+            #     filter_function = partial(lambda doc, toxicity_max: doc.metadata['is_toxic'] < toxicity_max, toxicity_max=toxicity_max),
+            #     exclusion_writer = JsonlWriter(f"{output_dir}/removed/is_toxic"),
+            # ),
+            # LambdaFilter(
+            #     filter_function = partial(lambda doc, edu_min: doc.metadata['edu_score'] > edu_min, edu_min=edu_min),
+            #     exclusion_writer = JsonlWriter(f"{output_dir}/removed/low_edu_score"),
+            # ),
         ]
     else:
         fasttext_filters = []
@@ -220,31 +222,53 @@ if __name__ == "__main__":
         pii_cleaning = []
 
     ################
-    # Pipeline
+    # Annotation
     ################
 
     pipeline = [
         ParquetReader(
             f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"
         ),
-        FinewebDocumentCleaning(),
         *fasttext_filters,
-        *pii_cleaning,
         AssignCluster(),
-        *([PrefixFilter(language=language)] if args.add_prefix else []),
         JsonlWriter(
-            f"{output_dir}/data",
-            output_filename="${cluster_size_group}/${rank}.jsonl.gz",
+            f"{output_dir}/annotated_output/data",
             max_file_size = int(2e9)  
         ),
     ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
-    main_processing_executor = create_executor(
+    annotation_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{output_dir}/logs",
+        logging_dir=f"{output_dir}/annotated_output/logs",
         job_name=dataset_name,
     )
 
-    main_processing_executor.run()
+    ################
+    # Clean and split
+    ################
+
+    pipeline = [
+        JsonlReader(
+            f"{output_dir}/annotated_output/data"
+        ),
+        FinewebDocumentCleaning(),
+        *([PrefixFilter(language=language)] if args.add_prefix else []),
+        *pii_cleaning,
+        JsonlWriter(
+            f"{output_dir}/split_by_{quality_criteria}/data",
+            output_filename="${quality_criteria}/${rank}.jsonl.gz",
+            max_file_size = int(2e9)  
+        ),
+    ]
+
+    split_executor = create_executor(
+        pipeline,
+        local=args.local,
+        logging_dir=f"{output_dir}/split_by_{quality_criteria}/logs",
+        job_name=dataset_name,
+        depends=annotation_executor
+    )
+
+    split_executor.run()
