@@ -4,7 +4,7 @@ import pandas as pd
 import json
 from pprint import pprint
 import hashlib
-
+from collections import OrderedDict
 
 def hash_dict(d):
     # Convert dict to a JSON string with sorted keys for consistency
@@ -30,6 +30,13 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Name of the output file",
+    )
+    parser.add_argument(
+        '--rehydratation_weight',
+        type=float,            
+        nargs=7,
+        default=[1, 2, 3, 3, 5, 8, 1],
+        help='Rehydratation_weights for cluster sizes: ["1", "2", "3", "4", "5-100", "100-1000", "1000+"]'
     )
     unique_values = (
         set(dataset_info["language"])
@@ -70,6 +77,15 @@ if __name__ == "__main__":
     stats_df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
     df = dataset_info.merge(stats_df, how="left", on="dataset")
 
+    if True:
+        rehydratation_mapping = OrderedDict(
+            zip(["1", "2", "3", "4", "5-100", "100-1000", "1000+"], args["rehydratation_weight"])
+        )
+
+        df = df.drop(labels=['rehydratation_weight', 'total_tokens_rehydrated'], axis=1)
+        df['rehydratation_weight'] = df.apply(lambda x: rehydratation_mapping.get(x['cluster_size'], 1), axis=1)
+        df['total_tokens_rehydrated'] = df['total_tokens'] * df['rehydratation_weight'] 
+
     total_tokens_ref = "total_tokens_rehydrated"
     df["total_tokens_upsampled"] = df[total_tokens_ref] * df["upsampling"]
     df["weight"] = df["total_tokens_upsampled"].transform(lambda x: x / x.sum())
@@ -101,9 +117,9 @@ if __name__ == "__main__":
         # Save datamix
         with open(f"{output_dir}/datamix_{name}.json", "w") as f:
             json.dump(out, f, indent=4)
-        # Save Hash
-        with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
-            pass
+        # # Save Hash
+        # with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
+        #     pass
         # Save datamix
         with open(f"{output_dir}/args.json", "w") as f:
             json.dump(args, f, indent=4)
