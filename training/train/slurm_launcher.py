@@ -23,9 +23,12 @@ def create_slurm_script(
     pipeline_parallelism,
 ):
     # Choix des paramètres en fonction du mode
-    if mode == "debug" or mode == "benchmark":
+    if mode == "debug":
         qos = "qos_gpu_h100-dev"
         time = "00:15:00"
+    elif mode == "benchmark":
+        qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
+        time = "00:30:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
@@ -40,9 +43,6 @@ def create_slurm_script(
     train_path = Path(__file__).resolve().parent
 
     logger.info(f"Train script path: {train_path}/train.py")
-
-    if arch == "llama":  # backward compatibility
-        arch = "llama1b"
 
     args = f"{config} --arch {arch} --num_nodes {num_nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}"
     if fp8:
@@ -191,6 +191,12 @@ if __name__ == "__main__":
     parser.add_argument("--tensor_parallelism", default=None, type=int)
     parser.add_argument("--pipeline_parallelism", default=None, type=int)
     args = parser.parse_args()
+
+    if args.arch == "llama":  # backward compatibility
+        logger.warning(
+            "llama architecture is equal to llama1b, please switch to llama1b for more clarity"
+        )
+        args.arch = "llama1b"
 
     args_dict = vars(args)
     args_dict["output_dir"] = os.path.join(args.output_path, args.output_dir)
