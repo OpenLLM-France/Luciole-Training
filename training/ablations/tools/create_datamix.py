@@ -11,19 +11,23 @@ def hash_dict(d):
     dict_str = json.dumps(d, sort_keys=True)
     return hashlib.sha256(dict_str.encode()).hexdigest()
 
-
-main_path = os.getenv("OpenLLM_OUTPUT")
-default_data_path = os.path.join(main_path, "data/tokens_ablation/")
-
 dataset_info = pd.read_csv("datasets_info.csv")
 
 if __name__ == "__main__":
+    main_path = os.getenv("OpenLLM_OUTPUT")
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--data_path",
         type=str,
-        default=default_data_path,
+        default=os.path.join(main_path, "data/tokens_ablation"),
         help="Path to the data directory",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=os.path.join(main_path, "ablations/datamix"),
+        help="Output_dir",
     )
     parser.add_argument(
         "--name",
@@ -59,9 +63,10 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
     print("Arguments:")
     pprint(args)
-    # hash = hash_dict(args)
-    # print(f"\nHash: {hash}")
+    hash = hash_dict(args)
+    print(f"\nHash: {hash}")
     data_path = args["data_path"]
+    output_dir = args["output_dir"]
     name = args["name"]
 
     # Read args and define each data weight
@@ -113,14 +118,14 @@ if __name__ == "__main__":
 
     if name is not None:
         # Save the output to a JSON file
-        output_dir = f"../datamix/{name}"
+        output_dir = os.path.join(output_dir, name)
         os.makedirs(output_dir, exist_ok=True)
         # Save datamix
         with open(f"{output_dir}/datamix_{name}.json", "w") as f:
             json.dump(out, f, indent=4)
-        # # Save Hash
-        # with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
-        #     pass
+        # Save Hash
+        with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
+            pass
         # Save datamix
         with open(f"{output_dir}/args.json", "w") as f:
             json.dump(args, f, indent=4)
