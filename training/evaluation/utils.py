@@ -115,6 +115,8 @@ def read_json_results(file):
     results = data["results"]
     df = pd.DataFrame.from_dict(results, orient="index").reset_index(names="task")
     df["model_name"] = model_name
+    match = re.match(r"results_(.*)\.json", file.name)
+    df["timestamp"] = match.group(1) if match else None
     return df
 
 
@@ -123,14 +125,7 @@ def read_experiment_results(main_dir):
     experiment_name = main_dir.name
 
     json_files = main_dir.rglob("results_*.json")  # recursively finds all .json files
-
-    dfs = []
-    for file in json_files:
-        df_part = read_json_results(file)
-        match = re.match(r"results_(.*)\.json", file.name)
-        df_part["timestamp"] = match.group(1) if match else None
-        dfs.append(df_part)
-    df = pd.concat(dfs, ignore_index=True)
+    df = pd.concat([read_json_results(file) for file in json_files], ignore_index=True)
 
     # Fix date and deduplicate
     df["timestamp"] = (
