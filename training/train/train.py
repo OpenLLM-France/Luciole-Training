@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
 
     def to_nb_tokens(x):
-        if x == "debug":
+        if x == "debug" or x == "benchmark":
             return x
         x = x.replace("b", " * 1_000_000_000")
         x = x.replace("m", " * 1_000_000")
@@ -86,8 +86,8 @@ if __name__ == "__main__":
         seq_length=seq_length,
     )
 
-    if args.mode == "debug":
-        max_steps = 5
+    if args.mode in ["debug", "benchmark"]:
+        max_steps = 1 if args.mode == "debug" else 10
         resume_if_exists = False
         every_n_train_steps = max_steps
     else:
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
-        val_check_interval=5 if args.mode == "debug" else 1000,
+        val_check_interval=5 if args.mode in ["debug", "benchmark"] else 1000,
         limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
         fp8=args.fp8,
     )
@@ -168,3 +168,41 @@ if __name__ == "__main__":
         optim=opt,
         resume=create_autoresume(resume_if_exists=resume_if_exists),
     )
+
+    if args.mode in ["debug", "benchmark"]:
+        import os
+        import re
+        import json
+
+        files = os.listdir(output_dir)
+        pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
+        for file in files:
+            if file.startswith("log_"):
+                with open(os.path.join(output_dir, file), "r") as f:
+                    log_content = f.read()
+                iteration_timing = {
+                    int(match[0]): float(match[1])
+                    for match in re.findall(pattern, log_content)
+                }
+                mean = sum(list(iteration_timing.values())[2:]) / (
+                    len(iteration_timing) - 2
+                )
+                log_id = file.replace("log_", "")
+                log_id = log_id.replace(".out", "")
+                with open(
+                    os.path.join(output_dir, f"stats_{name}_{log_id}.json"), "w"
+                ) as jsonfile:
+                    json_data = {
+                        **vars(args),
+                        "steps": list(iteration_timing.values()),
+                        "mean": mean,
+                    }
+                    json_data["batch_size"], json_data["seq_length"] = (
+                        batch_size,
+                        seq_length,
+                    )
+                    (
+                        json_data["tensor_parallelism"],
+                        json_data["pipeline_parallelism"],
+                    ) = tensor_parallelism, pipeline_parallelism
+                    json.dump(json_data, jsonfile, indent=2)

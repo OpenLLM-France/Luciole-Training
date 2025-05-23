@@ -23,14 +23,14 @@ def create_slurm_script(
     pipeline_parallelism,
 ):
     # Choix des paramètres en fonction du mode
-    if mode == "debug":
+    if mode == "debug" or mode == "benchmark":
         qos = "qos_gpu_h100-dev"
         time = "00:15:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
     else:
-        raise ValueError(f"Unkown mode {mode}, should be debug or 20b or 35b.")
+        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, 20b or 35b.")
 
     email_line = ""
     if email:
@@ -131,6 +131,10 @@ def submit_job(**kwargs):
         job_name_parts.append("fp8")
     if kwargs.get("name_prefix"):
         job_name_parts.insert(0, kwargs["name_prefix"])
+    if kwargs.get("tensor_parallelism"):
+        job_name_parts.append(f"tp{kwargs['tensor_parallelism']}")
+    if kwargs.get("pipeline_parallelism"):
+        job_name_parts.append(f"pp{kwargs['pipeline_parallelism']}")
     job_name = "_".join(job_name_parts)
 
     xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
