@@ -38,37 +38,38 @@ if __name__ == "__main__":
         default=[1, 2, 3, 3, 5, 8, 1],
         help='Rehydratation_weights for cluster sizes: ["1", "2", "3", "4", "5-100", "100-1000", "1000+"]'
     )
-    unique_values = (
-        set(dataset_info["language"])
-        | set(dataset_info["dataset"])
-        | set(dataset_info["category"])
-    )
-    unique_values = list(unique_values)
-    for key in unique_values:
+    unique_category_and_language = set(dataset_info["language"]) | set(dataset_info["category"])
+    if set(dataset_info["dataset"]) & unique_category_and_language:
+        raise ValueError(f"Overlap between dataset and language/category!!!")
+    for key in list(unique_category_and_language):
         parser.add_argument(
             f"--{key}",
             type=float,
             default=1.0,
+            help="Category/language that you can upsample or downsample  (default value to 1)"
+        )
+    for key in dataset_info["dataset"]:
+        parser.add_argument(
+            f"--{key}",
+            type=float,
+            default=0.,
+            help="Dataset weight (default value to 0!)"
         )
 
     args = vars(parser.parse_args())
     print("Arguments:")
     pprint(args)
-    hash = hash_dict(args)
-    print(f"\nHash: {hash}")
+    # hash = hash_dict(args)
+    # print(f"\nHash: {hash}")
     data_path = args["data_path"]
     name = args["name"]
 
     # Read args and define each data weight
     def compute_upsampling(row):
-        unique_values = {
-            row["language"],
-            row["dataset"],
-            row["category"],
-        }  # a set: unique only
-        product = 1.0
-        for value in unique_values:
-            product *= args.get(value, 1.0)  # default to 1.0 if value not found
+        if row["language"] != row["category"]:
+            product = args.get(row["dataset"]) * args.get(row["language"]) * args.get(row["category"])
+        else:
+            product = args.get(row["dataset"]) * args.get(row["language"])
         return product
 
     dataset_info["upsampling"] = dataset_info.apply(compute_upsampling, axis=1)
