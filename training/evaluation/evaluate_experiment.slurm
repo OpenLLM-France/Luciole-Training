@@ -20,6 +20,8 @@ conda activate eval-env
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+# rm -f $HF_HOME/datasets/*.lock
+# rm -f $HF_HOME/modules/datasets_modules/datasets/*.lock
 export HF_HUB_OFFLINE=1
 
 path_to_experiment=$1
