@@ -90,6 +90,10 @@ task_group_mapping = {
         ("lighteval|fquadv2_fra|0", "f1_fra"),
         ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
         ("lighteval|mintaka_fra|0", "f1_fra"),
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|mgsm_fra|0", "exact_match_fra_full"),
+        ("lighteval|xwinograd_fra_cf|0", "acc_norm"),
+        ("lighteval|xwinograd_fra_cf|0", "acc_"),
     ],
 }
 
@@ -121,6 +125,7 @@ def read_json_results(file):
 
 
 def read_experiment_results(main_dir):
+    print(main_dir)
     main_dir = Path(main_dir)
     experiment_name = main_dir.name
 
