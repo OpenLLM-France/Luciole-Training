@@ -7,11 +7,10 @@ from utils import task_group_mapping, get_task_info, read_experiment_results
 
 def plot_task(ax, df, task, metric, xlog=False, no_std=False):
     df = df[df["task"] == task]
-    df = df.sort_values("tokens")
 
-    pivot_df = df.pivot(index="tokens", columns="experiment_name", values=metric)
-    stderr_df = df.pivot(
-        index="tokens", columns="experiment_name", values=metric + "_stderr"
+    pivot_df = df.pivot_table(index="tokens", columns="experiment_name", values=metric, sort=False)
+    stderr_df = df.pivot_table(
+        index="tokens", columns="experiment_name", values=metric + "_stderr", sort=False
     )
 
     for col in pivot_df.columns:
@@ -111,12 +110,12 @@ if __name__ == "__main__":
 
     dfs = []
     for path in args.experiment_path:
-        dfs.append(read_experiment_results(path))
+        dfs.append(
+            read_experiment_results(path)
+        )
     df = pd.concat(dfs)
 
     columns = ["task", "experiment_name", "step", "samples", "tokens"]
-    df_sorted = df.sort_values("timestamp")
-    df = df_sorted.drop_duplicates(subset=columns, keep="last")
 
     for g in args.group:
         output_file = (
