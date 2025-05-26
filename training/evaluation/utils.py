@@ -125,7 +125,10 @@ def read_experiment_results(main_dir):
     experiment_name = main_dir.name
 
     json_files = main_dir.rglob("results_*.json")  # recursively finds all .json files
-    df = pd.concat([read_json_results(file) for file in json_files], ignore_index=True)
+    if json_files:
+        df = pd.concat([read_json_results(file) for file in json_files], ignore_index=True)
+    else:
+        raise FileNotFoundError(f"No JSON result files found in {main_dir}")
 
     # Fix date and deduplicate
     df["timestamp"] = (
