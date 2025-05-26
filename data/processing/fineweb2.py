@@ -246,6 +246,24 @@ if __name__ == "__main__":
     )
 
     ################
+    # Writer
+    ################
+    if quality_criteria == "edu_score":
+        writer = JsonlWriter(
+            f"{output_dir}/split_by_edu_score/data",
+            output_filename="edu_${edu_score}/${rank}.jsonl.gz",
+            max_file_size = int(2e9)  
+        )
+    elif quality_criteria == "cluster_size":
+        writer = JsonlWriter(
+            f"{output_dir}/split_by_cluster_size/data",
+            output_filename="${cluster_size}/${rank}.jsonl.gz",
+            max_file_size = int(2e9)  
+        )
+    else:
+        raise NotImplementedError()
+    
+    ################
     # Clean and split
     ################
 
@@ -256,11 +274,7 @@ if __name__ == "__main__":
         FinewebDocumentCleaning(),
         *([PrefixFilter(language=language)] if args.add_prefix else []),
         *pii_cleaning,
-        JsonlWriter(
-            f"{output_dir}/split_by_{quality_criteria}/data",
-            output_filename="${quality_criteria}/${rank}.jsonl.gz",
-            max_file_size = int(2e9)  
-        ),
+        writer,
     ]
 
     split_executor = create_executor(
