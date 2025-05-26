@@ -1,0 +1,11 @@
+# Culture 
+lighteval|global_mmlu_all_fra_cf|0|1
+
+# Maths 
+lighteval|mgsm_fra|0|1
+
+# Traduction 
+lighteval|xwinograd_fra_cf|0|1
+
+#General Knowledge
+#lighteval|mkqa_fra|0|0

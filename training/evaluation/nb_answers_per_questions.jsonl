@@ -7,6 +7,9 @@
 {"task": "xcsqa_fra_cf", "task_type":"Reasoning",  "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "mlmm_hellaswag_fra_cf", "task_type":"Natural Language Understanding",  "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "xnli2.0_fra_cf", "task_type":"Natural Language Understanding", "category": "classification", "num_classes": 3, "language": "fr"}
+{"task": "global_mmlu_all_fra_cf", "task_type":"Culture",  "category": "mcq", "num_classes": 4, "language": "fr"}
+{"task": "xwinograd_fra_cf", "task_type":"Translation",  "category": "mcq", "num_classes": 2, "language": "fr"}
+{"task": "mgsm_fra", "task_type":"Maths & Reasoning",  "category": "generative", "num_classes": null, "language": "fr"}
 {"task": "openbookqa", "task_type":"Commonsense Reasoning", "category": "mcq", "num_classes": 4, "language": "en"}
 {"task": "piqa", "task_type":"Commonsense Reasoning", "category": "qa", "num_classes": 2, "language": "en"}
 {"task": "hellaswag", "task_type":"Language Understanding","category": "mcq", "num_classes": 4, "language": "en"}
