@@ -144,6 +144,6 @@ def read_experiment_results(main_dir):
 
     # Remove duplicates
     columns = ["task", "experiment_name", "step", "samples", "tokens"]
-    df_sorted = df.sort_values("timestamp")
+    df_sorted = df.sort_values(["timestamp", "tokens"])
     df = df_sorted.drop_duplicates(subset=columns, keep="last")
     return df
