@@ -6,11 +6,9 @@
 #SBATCH --hint=nomultithread 
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
-#SBATCH --partition=prepost
 
-# Requires nemo installation - on Jeanzay for now
 module purge
-module load arch/h100 nemo/2.1.0
+module nemo/2.2.1
 
 data_path=$OpenLLM_OUTPUT/data/$1
 
