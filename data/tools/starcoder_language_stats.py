@@ -7,8 +7,8 @@ from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.stats import StatsMerger
 
-class LanguageStats(BaseStats):
 
+class LanguageStats(BaseStats):
     name = "🔗 Language code counter"
 
     def __init__(
@@ -18,10 +18,13 @@ class LanguageStats(BaseStats):
         histogram_rounding: int = 3,
         top_k_config: TopKConfig = DEFAULT_TOP_K_CONFIG,
     ) -> None:
-        BaseStats.__init__(self, output_folder, groups_to_compute, histogram_rounding, top_k_config)
+        BaseStats.__init__(
+            self, output_folder, groups_to_compute, histogram_rounding, top_k_config
+        )
 
     def extract_stats(self, doc: Document) -> dict[str, int | float]:
         import re
+
         file_path = doc.metadata.get("file_path", None)
 
         # Define the regex pattern
@@ -35,7 +38,8 @@ class LanguageStats(BaseStats):
         return {
             f"language_{language}": 1,
         }
-    
+
+
 TOTAL_TASKS = 10
 
 if __name__ == "__main__":
@@ -49,19 +53,19 @@ if __name__ == "__main__":
         pipeline=[
             JsonlReader(data_path),
             LanguageStats(
-                output_folder=os.path.join(output_path, f"summary_stats/output"),
-                groups_to_compute=['summary'],
+                output_folder=os.path.join(output_path, "summary_stats/output"),
+                groups_to_compute=["summary"],
             ),
         ],
         sbatch_args={"account": "qgz@cpu"},
         tasks=TOTAL_TASKS,
         cpus_per_task=2,
-        time = "05:00:00",
+        time="05:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        job_name=f"summary-stats",
-        logging_dir=os.path.join(output_path, f"summary_stats/logs_compute"),
+        job_name="summary-stats",
+        logging_dir=os.path.join(output_path, "summary_stats/logs_compute"),
     )
 
     # compute.run()
@@ -69,20 +73,20 @@ if __name__ == "__main__":
     merger = SlurmPipelineExecutor(
         pipeline=[
             StatsMerger(
-                input_folder=os.path.join(output_path, f"summary_stats/output"),
-                output_folder=os.path.join(output_path, f"summary_stats/output"),
+                input_folder=os.path.join(output_path, "summary_stats/output"),
+                output_folder=os.path.join(output_path, "summary_stats/output"),
                 remove_input=False,
-                ),
+            ),
         ],
         sbatch_args={"account": "qgz@cpu"},
         tasks=TOTAL_TASKS,
         cpus_per_task=2,
-        time = "01:00:00",
+        time="01:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        logging_dir=os.path.join(output_path, f"summary_stats/logs_merge"),
-        job_name=f"merging-stats",
+        logging_dir=os.path.join(output_path, "summary_stats/logs_merge"),
+        job_name="merging-stats",
         depends=compute,
     )
 

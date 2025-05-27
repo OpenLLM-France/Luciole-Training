@@ -1,6 +1,6 @@
 import os
 
-from utils import *
+from utils import create_parser, get_data_path, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import ParquetReader, HuggingFaceDatasetReader
 from datatrove.pipeline.filters import LambdaFilter
@@ -8,10 +8,7 @@ from datatrove.pipeline.writers import JsonlWriter
 
 if __name__ == "__main__":
     parser = create_parser()
-    parser.add_argument(
-        "--olmo",
-        action="store_true", help="Read from olmo 2"
-    )
+    parser.add_argument("--olmo", action="store_true", help="Read from olmo 2")
     args = parser.parse_args()
     DATA_PATH = get_data_path(args)
 
@@ -25,7 +22,6 @@ if __name__ == "__main__":
                 {"name": "starcoder", "split": "train"},
                 streaming=True,
             ),
-
             JsonlWriter(f"{output_path}/output"),
         ]
     else:

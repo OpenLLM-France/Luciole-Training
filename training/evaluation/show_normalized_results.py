@@ -1,12 +1,11 @@
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
-import math
 import argparse
 from utils import task_group_mapping, get_task_info, read_experiment_results
 
+
 def normalize_within_range(value, lower_bound, higher_bound):
     return (value - lower_bound) / (higher_bound - lower_bound)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -44,15 +43,17 @@ if __name__ == "__main__":
 
     for task, metric in task_group_mapping[group]:
         task_info = get_task_info(task)
-        lower_bound = task_info['random']
-        task_type = task_info['task_type']
-        higher_bound = 1.
+        lower_bound = task_info["random"]
+        task_type = task_info["task_type"]
+        higher_bound = 1.0
         raw_score = df[df["task"] == task][metric]
-        assert len(raw_score) == 1 
+        assert len(raw_score) == 1
         raw_score = raw_score.iloc[0]
         if raw_score < lower_bound:
             norm_score = 0
         else:
-            norm_score = normalize_within_range(raw_score, lower_bound, higher_bound) * 100
+            norm_score = (
+                normalize_within_range(raw_score, lower_bound, higher_bound) * 100
+            )
 
         print(f"{task_type} - {task} - {metric}: {norm_score:.2f}")

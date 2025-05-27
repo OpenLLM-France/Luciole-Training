@@ -4,13 +4,15 @@ import os
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.filters.sampler_filter import SamplerFilter
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
-from datatrove.pipeline.stats import WordStats, LineStats, DocStats, StatsMerger
+from datatrove.pipeline.stats import WordStats, StatsMerger
 
 parser = argparse.ArgumentParser(description="Summary Stats")
-parser.add_argument("--reader_type", type=str, default="jsonl", choices=["jsonl", "parquet"], help="")
+parser.add_argument(
+    "--reader_type", type=str, default="jsonl", choices=["jsonl", "parquet"], help=""
+)
 parser.add_argument("--data_path", type=str, help="")
 parser.add_argument("--output_path", type=str, help="")
-parser.add_argument("--language", type=str, default= "fr", help="")
+parser.add_argument("--language", type=str, default="fr", help="")
 parser.add_argument("--sample_rate", type=float, default=1.0, help="Sample rate")
 
 TOTAL_TASKS = 50
@@ -38,8 +40,10 @@ if __name__ == "__main__":
             ),
             WordStats(
                 language=language,
-                output_folder=os.path.join(output_path, f"summary_stats_{args.sample_rate}/output"),
-                groups_to_compute=['summary'],
+                output_folder=os.path.join(
+                    output_path, f"summary_stats_{args.sample_rate}/output"
+                ),
+                groups_to_compute=["summary"],
             ),
             # LineStats(
             #     output_folder=os.path.join(output_path, "stats/output"),
@@ -53,12 +57,14 @@ if __name__ == "__main__":
         sbatch_args={"account": "qgz@cpu"},
         tasks=TOTAL_TASKS,
         cpus_per_task=2,
-        time = "05:00:00",
+        time="05:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        job_name=f"summary-stats",
-        logging_dir=os.path.join(output_path, f"summary_stats_{args.sample_rate}/logs_compute"),
+        job_name="summary-stats",
+        logging_dir=os.path.join(
+            output_path, f"summary_stats_{args.sample_rate}/logs_compute"
+        ),
     )
 
     # compute.run()
@@ -66,20 +72,26 @@ if __name__ == "__main__":
     merger = SlurmPipelineExecutor(
         pipeline=[
             StatsMerger(
-                input_folder=os.path.join(output_path, f"summary_stats_{args.sample_rate}/output"),
-                output_folder=os.path.join(output_path, f"summary_stats_{args.sample_rate}/output"),
-                remove_input=False,
+                input_folder=os.path.join(
+                    output_path, f"summary_stats_{args.sample_rate}/output"
                 ),
+                output_folder=os.path.join(
+                    output_path, f"summary_stats_{args.sample_rate}/output"
+                ),
+                remove_input=False,
+            ),
         ],
         sbatch_args={"account": "qgz@cpu"},
         tasks=TOTAL_TASKS,
         cpus_per_task=2,
-        time = "01:00:00",
+        time="01:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
-        logging_dir=os.path.join(output_path, f"summary_stats_{args.sample_rate}/logs_merge"),
-        job_name=f"merging-stats",
+        logging_dir=os.path.join(
+            output_path, f"summary_stats_{args.sample_rate}/logs_merge"
+        ),
+        job_name="merging-stats",
         depends=compute,
     )
 

@@ -1,6 +1,6 @@
 import os
 
-from utils import *
+from utils import create_parser, get_data_path, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -17,10 +17,12 @@ if __name__ == "__main__":
     dataset_name = "fineweb_edu"
     output_path = os.path.join(DATA_PATH, dataset_name)
 
-    pipeline=[
-            ParquetReader("hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"),
-            JsonlWriter(f"{output_path}/output"),
-        ]
+    pipeline = [
+        ParquetReader(
+            "hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"
+        ),
+        JsonlWriter(f"{output_path}/output"),
+    ]
     pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
 
     main_processing_executor = create_executor(

@@ -1,6 +1,4 @@
-import itertools
 import json
-import re
 from typing import Optional
 
 import tokenizers
@@ -40,7 +38,11 @@ _special_tokens_map = {
 }
 
 _special_tokens = [
-    s["content"] for s in [_special_tokens_map[k] for k in ["unk_token", "bos_token", "eos_token", "pad_token"]]
+    s["content"]
+    for s in [
+        _special_tokens_map[k]
+        for k in ["unk_token", "bos_token", "eos_token", "pad_token"]
+    ]
 ]
 
 _space_internal = "▁"
@@ -81,15 +83,20 @@ def build_tokenizer(
     ]
 
     pretokenizers = [
-        tokenizers.pre_tokenizers.Split(tokenizers.Regex(split_pattern), behavior="isolated"),
+        tokenizers.pre_tokenizers.Split(
+            tokenizers.Regex(split_pattern), behavior="isolated"
+        ),
     ]
 
     tokenizer.normalizer = tokenizers.normalizers.Sequence(normalizers)
 
     tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Sequence(
-        pretokenizers + [
+        pretokenizers
+        + [
             tokenizers.pre_tokenizers.Metaspace(
-                replacement=_space_internal, prepend_scheme="first" if add_prefix_space else "never", split=False
+                replacement=_space_internal,
+                prepend_scheme="first" if add_prefix_space else "never",
+                split=False,
             ),
         ]
     )
@@ -98,7 +105,9 @@ def build_tokenizer(
         [
             tokenizers.decoders.ByteFallback(),
             tokenizers.decoders.Metaspace(
-                replacement=_space_internal, prepend_scheme="first" if add_prefix_space else "never", split=False
+                replacement=_space_internal,
+                prepend_scheme="first" if add_prefix_space else "never",
+                split=False,
             ),
             tokenizers.decoders.Fuse(),
         ]
@@ -176,7 +185,10 @@ def fit_tokenizer(
         import csv
 
         tsv_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), os.path.pardir, "assets", "count_unicode_characters.tsv"
+            os.path.dirname(os.path.realpath(__file__)),
+            os.path.pardir,
+            "assets",
+            "count_unicode_characters.tsv",
         )
         initial_alphabet = []
         exemples_removed = {}
@@ -197,7 +209,11 @@ def fit_tokenizer(
                     continue
                 if (
                     len(cat) == 2
-                    and (cat[1] in ["c", "o"] and cat[0] not in ["N", "P"] and cat not in ["Sc", "So"])
+                    and (
+                        cat[1] in ["c", "o"]
+                        and cat[0] not in ["N", "P"]
+                        and cat not in ["Sc", "So"]
+                    )
                     or cat in ["Cf", "Mn"]
                 ):  # Discard oriental characters
                     # len_bytes = len(c.encode("utf-8"))
@@ -220,7 +236,9 @@ def fit_tokenizer(
         limit_alphabet=1000,
         initial_alphabet=initial_alphabet or [],
     )
-    tokenizer.train_from_iterator(batchify_iterator(it, batch_size=batch_size), trainer=bpe_trainer, length=len_it)
+    tokenizer.train_from_iterator(
+        batchify_iterator(it, batch_size=batch_size), trainer=bpe_trainer, length=len_it
+    )
     return tokenizer
 
 
@@ -242,7 +260,9 @@ def refit_tokenizer(
     :return: The fitted tokenizer.
     """
 
-    new_special_tokens = get_special_tokens(special_tokens_map=tokenizer.special_tokens_map, **special_tokens_options)
+    new_special_tokens = get_special_tokens(
+        special_tokens_map=tokenizer.special_tokens_map, **special_tokens_options
+    )
 
     tokenizer = tokenizer.train_new_from_iterator(
         batchify_iterator(it, batch_size=batch_size),
@@ -292,7 +312,8 @@ def test_tokenizer(tokenizer, sentence):
 
     # Just for display
     tokens_strings = [
-        t.replace(" ", "▁").replace("Ġ", "▁").replace("\n", "\\n").replace("\t", "\\t") for t in tokens_strings
+        t.replace(" ", "▁").replace("Ġ", "▁").replace("\n", "\\n").replace("\t", "\\t")
+        for t in tokens_strings
     ]
 
     return tokens_strings, tokenizer.decode(tokens)
@@ -328,7 +349,11 @@ if __name__ == "__main__":
         description="Train a tokenizer.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("parquet_file", nargs="+", help="Parquet files (with a column 'text') to train the tokenizer")
+    parser.add_argument(
+        "parquet_file",
+        nargs="+",
+        help="Parquet files (with a column 'text') to train the tokenizer",
+    )
     parser.add_argument(
         "--vocab_size",
         type=int,
@@ -376,7 +401,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Overwrite output folder if it already exists",
     )
-    parser.add_argument("--debug", default=False, action="store_true", help="Debug mode (try on a tiny set)")
+    parser.add_argument(
+        "--debug",
+        default=False,
+        action="store_true",
+        help="Debug mode (try on a tiny set)",
+    )
     parser.add_argument(
         "--no_verbose",
         dest="verbose",
@@ -420,7 +450,9 @@ if __name__ == "__main__":
         else:
             name = path_components[-2]
 
-        trainset = DataIterator("default", "parquet", data_files=args.parquet_file, name=name)
+        trainset = DataIterator(
+            "default", "parquet", data_files=args.parquet_file, name=name
+        )
         name_dataset = trainset.name
 
     if not args.output:
@@ -483,7 +515,9 @@ if __name__ == "__main__":
                 "a.(b+c)-d÷e×f belle-mère grand-mother",
             ]:
                 print(s.replace("\n", "\\n"))
-                tokens = tok.pre_tokenizer.pre_tokenize_str(tok.normalizer.normalize_str(s))
+                tokens = tok.pre_tokenizer.pre_tokenize_str(
+                    tok.normalizer.normalize_str(s)
+                )
                 tokens = [t[0] for t in tokens]
                 print(tokens)
 
@@ -497,7 +531,9 @@ if __name__ == "__main__":
                 enforce_alphabet=args.enforce_alphabet,
             )
             tok.save(os.path.join(args.output, "tokenizer.json"))
-            tok = transformers.PreTrainedTokenizerFast(tokenizer_file=os.path.join(args.output, "tokenizer.json"))
+            tok = transformers.PreTrainedTokenizerFast(
+                tokenizer_file=os.path.join(args.output, "tokenizer.json")
+            )
             tok.save_pretrained(args.output)
 
         training_time = time.time() - tic
@@ -513,7 +549,9 @@ if __name__ == "__main__":
             {
                 "training_time": training_time,
                 "vocab_size": tokenizer.vocab_size,
-                "example_after": {example_sentence: test_tokenizer(tokenizer, example_sentence)},
+                "example_after": {
+                    example_sentence: test_tokenizer(tokenizer, example_sentence)
+                },
             }
         )
 
@@ -528,8 +566,12 @@ if __name__ == "__main__":
         with open(f"{args.output}/special_tokens_map.json", "w", encoding="utf8") as f:
             json.dump(_special_tokens_map, f, indent=2, ensure_ascii=False)
 
-        tokenizer_dict = json.load(open(f"{args.output}/tokenizer.json", encoding="utf8"))
-        tokenizer_dict["added_tokens"] = [t for t in tokenizer_dict["added_tokens"] if t["content"] in _special_tokens]
+        tokenizer_dict = json.load(
+            open(f"{args.output}/tokenizer.json", encoding="utf8")
+        )
+        tokenizer_dict["added_tokens"] = [
+            t for t in tokenizer_dict["added_tokens"] if t["content"] in _special_tokens
+        ]
         with open(f"{args.output}/tokenizer.json", "w", encoding="utf8") as f:
             json.dump(
                 tokenizer_dict,
@@ -537,7 +579,9 @@ if __name__ == "__main__":
                 indent=2,
                 ensure_ascii=False,
             )
-        tokenizer_config = json.load(open(f"{args.output}/tokenizer_config.json", encoding="utf8"))
+        tokenizer_config = json.load(
+            open(f"{args.output}/tokenizer_config.json", encoding="utf8")
+        )
         tokenizer_config["added_tokens_decoder"] = {
             k: v
             for k, v in tokenizer_config["added_tokens_decoder"].items()
@@ -558,7 +602,8 @@ if __name__ == "__main__":
                 # "spaces_between_special_tokens": False,
                 "tokenizer_class": (
                     "LlamaTokenizer"
-                    if tokenizer_config.get("tokenizer_class") in [None, "PreTrainedTokenizerFast", "PreTrainedTokenizer"]
+                    if tokenizer_config.get("tokenizer_class")
+                    in [None, "PreTrainedTokenizerFast", "PreTrainedTokenizer"]
                     else tokenizer_config["tokenizer_class"]
                 ),
                 # "sp_model_kwargs": {},

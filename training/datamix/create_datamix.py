@@ -7,12 +7,15 @@ import hashlib
 from collections import OrderedDict
 import re
 
+
 def hash_dict(d):
     # Convert dict to a JSON string with sorted keys for consistency
     dict_str = json.dumps(d, sort_keys=True)
     return hashlib.sha256(dict_str.encode()).hexdigest()
 
+
 dataset_info = pd.read_csv("datasets_info.csv")
+
 
 def catch_name_and_cluster_size(name):
     pattern = r"(fineweb2_.*)_((cluster|edu)_.*)"
@@ -21,17 +24,23 @@ def catch_name_and_cluster_size(name):
         return match.group(1), match.group(2)
     else:
         return name, None
-    
+
+
 def apply_rehydratation(df, rehydratation_mapping):
-    df[['dataset', 'group']] = df['name'].apply(lambda x: pd.Series(catch_name_and_cluster_size(x)))
-    df['rehydratation_weight'] = df.apply(lambda x: rehydratation_mapping.get(x['group'], 1), axis=1)
-    df['total_tokens_rehydrated'] = df['total_tokens'] * df['rehydratation_weight'] 
+    df[["dataset", "group"]] = df["name"].apply(
+        lambda x: pd.Series(catch_name_and_cluster_size(x))
+    )
+    df["rehydratation_weight"] = df.apply(
+        lambda x: rehydratation_mapping.get(x["group"], 1), axis=1
+    )
+    df["total_tokens_rehydrated"] = df["total_tokens"] * df["rehydratation_weight"]
 
     df["group"] = pd.Categorical(
         df["group"], categories=list(rehydratation_mapping.keys()), ordered=True
     )
-    df = df.sort_values('group')
+    df = df.sort_values("group")
     return df
+
 
 if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
@@ -56,35 +65,37 @@ if __name__ == "__main__":
         help="Name of the output file",
     )
     parser.add_argument(
-        '--split_by',
-        type=str,            
+        "--split_by",
+        type=str,
         default="cluster_size",
-        choices = ["cluster_size", "edu_score"],
-        help='Split by cluster size or by educational score'
+        choices=["cluster_size", "edu_score"],
+        help="Split by cluster size or by educational score",
     )
     parser.add_argument(
-        '--rehydratation_weight',
-        type=float,            
+        "--rehydratation_weight",
+        type=float,
         nargs="+",
         default=None,
-        help='Rehydratation_weights for cluster sizes or educational scores'
+        help="Rehydratation_weights for cluster sizes or educational scores",
     )
-    unique_category_and_language = set(dataset_info["language"]) | set(dataset_info["category"])
+    unique_category_and_language = set(dataset_info["language"]) | set(
+        dataset_info["category"]
+    )
     if set(dataset_info["dataset"]) & unique_category_and_language:
-        raise ValueError(f"Overlap between dataset and language/category!!!")
+        raise ValueError("Overlap between dataset and language/category!!!")
     for key in list(unique_category_and_language):
         parser.add_argument(
             f"--{key}",
             type=float,
             default=1.0,
-            help="Category/language that you can upsample or downsample  (default value to 1)"
+            help="Category/language that you can upsample or downsample  (default value to 1)",
         )
     for key in dataset_info["dataset"]:
         parser.add_argument(
             f"--{key}",
             type=float,
-            default=0.,
-            help="Dataset weight (default value to 0!)"
+            default=0.0,
+            help="Dataset weight (default value to 0!)",
         )
 
     args = parser.parse_args()
@@ -97,7 +108,11 @@ if __name__ == "__main__":
     # Read args and define each data weight
     def compute_upsampling(row):
         if row["language"] != row["category"]:
-            product = getattr(args, row["dataset"]) * getattr(args, row["language"]) * getattr(args, row["category"])
+            product = (
+                getattr(args, row["dataset"])
+                * getattr(args, row["language"])
+                * getattr(args, row["category"])
+            )
         else:
             product = getattr(args, row["dataset"]) * getattr(args, row["language"])
         return product
@@ -107,18 +122,30 @@ if __name__ == "__main__":
     # Apply rehydratation if any
     stats_df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
     if split_by == "cluster_size":
-        rehydratation_keys = ["cluster_1", "cluster_2", "cluster_3", "cluster_4", "cluster_5-100", "cluster_100-1000", "cluster_1000+"]
-        rehydratation_weight = [1, 2, 3, 3, 5, 8, 1] if rehydratation_weight is None else rehydratation_weight
+        rehydratation_keys = [
+            "cluster_1",
+            "cluster_2",
+            "cluster_3",
+            "cluster_4",
+            "cluster_5-100",
+            "cluster_100-1000",
+            "cluster_1000+",
+        ]
+        rehydratation_weight = (
+            [1, 2, 3, 3, 5, 8, 1]
+            if rehydratation_weight is None
+            else rehydratation_weight
+        )
     elif split_by == "edu_score":
         rehydratation_keys = ["edu_0", "edu_1", "edu_2", "edu_3", "edu_4"]
-        rehydratation_weight = [0, 1, 2, 3, 4] if rehydratation_weight is None else rehydratation_weight
+        rehydratation_weight = (
+            [0, 1, 2, 3, 4] if rehydratation_weight is None else rehydratation_weight
+        )
     else:
         raise ValueError(f"Unknown split_by: {split_by}")
     assert len(rehydratation_keys) == len(rehydratation_weight)
 
-    rehydratation_mapping = OrderedDict(
-        zip(rehydratation_keys, rehydratation_weight)
-    )
+    rehydratation_mapping = OrderedDict(zip(rehydratation_keys, rehydratation_weight))
     stats_df = apply_rehydratation(stats_df, rehydratation_mapping)
     df = dataset_info.merge(stats_df, how="inner", on="dataset")
 

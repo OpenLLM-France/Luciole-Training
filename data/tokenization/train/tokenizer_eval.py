@@ -17,8 +17,8 @@ for language in ["en", "fr", "de", "es", "it"]:
         "config": f"Wikipedia-{language}",
         "max_num_words": 500_000_000,
     }
-evaluation_datasets[f"Wikipedia:ar"] = {
-    "repo": f"wikimedia/wikipedia",
+evaluation_datasets["Wikipedia:ar"] = {
+    "repo": "wikimedia/wikipedia",
     "config": "20231101.ar",
     "max_num_words": 500_000_000,
 }
@@ -71,12 +71,16 @@ if __name__ == "__main__":
         all_byte_tokens = []
 
     else:
-        tokenizer = transformers.AutoTokenizer.from_pretrained(args.tokenizer, trust_remote_code=True)
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            args.tokenizer, trust_remote_code=True
+        )
         tokenizer = set_infinite_length(tokenizer)
 
         all_byte_tokens = [
             i
-            for i, t in enumerate(tokenizer.convert_ids_to_tokens(range(tokenizer.vocab_size)))
+            for i, t in enumerate(
+                tokenizer.convert_ids_to_tokens(range(tokenizer.vocab_size))
+            )
             if re.match(r"<0x.*>$", t)
         ]
 
@@ -103,7 +107,9 @@ if __name__ == "__main__":
 
     # EVALUATION
     for name, dataset_kwargs in tqdm.tqdm(evaluation_datasets.items()):
-        if args.regex is not None and not re.match(re.escape(args.regex), name, re.IGNORECASE):
+        if args.regex is not None and not re.match(
+            re.escape(args.regex), name, re.IGNORECASE
+        ):
             print(f"Skipping eval of {args.tokenizer} on {name} (regex mismatch)")
             continue
         if name in already_computed:
@@ -164,13 +170,17 @@ if __name__ == "__main__":
             elif hasattr(tokenizer, "decode_batch"):
                 token_str = tokenizer.decode_batch([[t] for t in tokens])
             elif hasattr(tokenizer, "decode"):
-                token_str = tokenizer.decode(tokens, allowed_special={'<|endoftext|>'})
+                token_str = tokenizer.decode(tokens, allowed_special={"<|endoftext|>"})
             else:
-                raise ValueError(f"Cannot detect Tokenizer decoding method (available methods: {dir(tokenizer)})")
+                raise ValueError(
+                    f"Cannot detect Tokenizer decoding method (available methods: {dir(tokenizer)})"
+                )
             total_num_tokens_space += sum(not t.strip(" ▁") for t in token_str)
             total_num_tokens_linebreak += sum(not t.strip("\n") for t in token_str)
             total_num_tokens_tab += sum(not t.strip("\t") for t in token_str)
-            total_num_tokens_digit += sum(not re.sub(r"[0-9]", "", t) for t in token_str)
+            total_num_tokens_digit += sum(
+                not re.sub(r"[0-9]", "", t) for t in token_str
+            )
             total_num_tokens_single_byte += sum(t in all_byte_tokens for t in tokens)
 
         use_batch = args.batch_size > 1

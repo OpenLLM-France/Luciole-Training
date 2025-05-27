@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 import json
 
+
 def convert_args_to_dataframe(language_weights):
     out = []
     for i in range(0, len(language_weights), 2):
@@ -81,9 +82,7 @@ if __name__ == "__main__":
         language_df = convert_args_to_dataframe(language_weights)
 
         # Load stats and normalize the total tokens by datasets
-        stats_df = pd.read_csv(
-            os.path.join(data_path, "stats/all_stats_merged.csv")
-        )
+        stats_df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
         if no_rehydratation:
             total_tokens_ref = "total_tokens"
         else:
