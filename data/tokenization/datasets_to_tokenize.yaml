@@ -210,11 +210,23 @@ datasets:
     path: gallica_press/1_low_ocr_scores
 
   # Lucie datasets
+  - name: amendementsparlement
+    path: lucie_dataset/amendementsparlement/output
+
   - name: claire
     path: lucie_dataset/claire/output
 
+  - name: croissantaligned
+    path: lucie_dataset/croissantaligned/output
+
+  - name: discourspublics
+    path: lucie_dataset/discourspublics/output
+
   - name: europarl
     path: lucie_dataset/europarl/output
+
+  - name: europarlaligned
+    path: lucie_dataset/europarlaligned/output
 
   - name: eurovoc
     path: lucie_dataset/eurovoc/output
@@ -224,6 +236,12 @@ datasets:
 
   - name: hal
     path: lucie_dataset/hal/output
+
+  - name: interventionsparlement
+    path: lucie_dataset/interventionsparlement/output
+
+  - name: questionsecritesparlement
+    path: lucie_dataset/questionsecritesparlement/output
 
   - name: theses
     path: lucie_dataset/theses/output
