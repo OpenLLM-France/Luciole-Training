@@ -7,7 +7,9 @@ import pandas as pd
 import matplotlib.ticker as mtick
 
 
-def plot_training_and_gpu_hours(df, output_folder=""):
+def plot_training_and_gpu_hours(
+    df, plot_name="plot.png", plot_title="", output_folder=""
+):
     fig, axes = plt.subplots(1, 2, figsize=(18, 6), sharex=True)
 
     metrics = [
@@ -18,6 +20,9 @@ def plot_training_and_gpu_hours(df, output_folder=""):
             "Consumed GPU hours (in thousand)",
         ),
     ]
+
+    handles = []
+    labels = []
 
     for ax, (y, title, ylabel) in zip(axes, metrics):
         sns.lineplot(data=df, x="num_nodes", y=y, hue="config", marker="o", ax=ax)
@@ -38,6 +43,7 @@ def plot_training_and_gpu_hours(df, output_folder=""):
         ax.set_title(title)
         ax.set_xlabel("Number of Nodes")
         ax.set_ylabel(ylabel)
+        ax.set_ylim(0)
         ax.grid(True)
 
         if y == "consumed_gpu_hours":
@@ -47,65 +53,35 @@ def plot_training_and_gpu_hours(df, output_folder=""):
                 )
             )
 
-    plt.tight_layout()
-    output_path = (
-        f"{output_folder}/training_and_gpu_hours.png"
-        if output_folder
-        else "training_and_gpu_hours.png"
+        # Get legend handles/labels only once
+        if not handles:
+            handles, labels = ax.get_legend_handles_labels()
+
+        ax.get_legend().remove()  # Remove individual legends
+
+    # Add shared legend to the right
+    fig.legend(
+        handles,
+        labels,
+        title="",
+        loc="center left",
+        bbox_to_anchor=(0.92, 0.5),
+        borderaxespad=0.0,
+        fontsize="medium",
+        title_fontsize="large",
     )
-    plt.savefig(output_path)
+
+    # plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to make space for the legend
+    # plt.tight_layout()
+    fig.suptitle(plot_title, fontsize=16)
+    output_path = f"{output_folder}/{plot_name}" if output_folder else plot_name
+    plt.savefig(output_path, bbox_inches="tight")
     plt.close()
 
 
-def plot_curves(
-    y="mean_step_timing", title=None, ylabel=None, ylim=None, output_folder=""
-):
-    plt.figure(figsize=(10, 6))
-    sns.lineplot(data=df, x="num_nodes", y=y, hue="config", marker="o")
-    for config_name, group in df.groupby("config"):
-        last_point = group.sort_values("num_nodes").iloc[-1]
-        plt.text(
-            last_point["num_nodes"] + 0.5,
-            last_point[y],
-            f"{last_point[y]:.2f}"
-            if last_point[y] < 1000
-            else f"{last_point[y]/1000:.0f}k",
-            fontsize=12,
-            va="center",
-            ha="left",
-        )
-    plt.title(title)
-    plt.xlabel("Number of Nodes")
-    plt.ylabel(ylabel)
-    ax = plt.gca()
-    ax.yaxis.set_major_formatter(
-        mtick.FuncFormatter(lambda x, _: f"{x/1000:.1f}k" if x >= 1000 else f"{x:g}")
-    )
-    if ylim:
-        plt.ylim(ylim)
-    plt.grid(True)
-    plt.tight_layout()
-    output_path = (
-        f"{output_folder}/{title.lower().replace(' ', '_')}.png"
-        if output_folder
-        else f"{title.lower().replace(' ', '_')}.png"
-    )
-    plt.savefig(output_path)
-    plt.close()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input_folder")
-    parser.add_argument("--output_folder", default="")
-    args = parser.parse_args()
-
-    input_folder = args.input_folder
-    output_folder = args.output_folder
-
-    folders = os.listdir(input_folder)
-
+def load_data(input_folder):
     data = []
+    folders = os.listdir(input_folder)
 
     for folder in folders:
         xp_folder = os.path.join(input_folder, folder)
@@ -119,7 +95,10 @@ if __name__ == "__main__":
                 with open(stat_file, "r") as f:
                     json_data = json.load(f)
                     data.append(json_data)
+    return data
 
+
+def convert_data(data):
     records = []
     for entry in data:
         number_of_steps_per_trillion_tokens = 1e12 / (
@@ -144,11 +123,66 @@ if __name__ == "__main__":
                     * 4
                     / 3600
                 ),
+                "arch": entry["arch"],
+                "tp": entry["tensor_parallelism"],
+                "pp": entry["pipeline_parallelism"],
+                "fp8": entry["fp8"],
+                "seq_length": entry["seq_length"],
+                "cp": entry.get(
+                    "context_parallelism", 1
+                ),  # default to 1 if not present
                 "config": config_key,
             }
         )
 
     df = pd.DataFrame(records)
     df = df.sort_values(by="config")
+    return df
 
-    plot_training_and_gpu_hours(df, output_folder=output_folder)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_folder")
+    parser.add_argument("--output_folder", default="")
+    args = parser.parse_args()
+
+    input_folder = args.input_folder
+    output_folder = args.output_folder
+
+    data = load_data(input_folder)
+
+    df = convert_data(data)
+
+    plot_training_and_gpu_hours(
+        df, plot_name="all.png", plot_title="", output_folder=output_folder
+    )
+
+    tp_df = df[
+        (df["arch"] == "llama8b")
+        & (df["pp"] == 1)
+        & (df["fp8"] == False)  # noqa E712
+        & (df["seq_length"] == 4096)
+        & (df["cp"] == 1)
+    ]
+    plot_training_and_gpu_hours(
+        tp_df,
+        plot_name="tp.png",
+        plot_title="Impact of tensor parallelism on training",
+        output_folder=output_folder,
+    )
+
+    arch_df = df[(df["arch"] == "llama8b") & (df["tp"] == 1) & (df["fp8"] == False)]  # noqa E712
+    plot_training_and_gpu_hours(
+        arch_df,
+        plot_name="seq_length.png",
+        plot_title="Impact of Seq Length on training",
+        output_folder=output_folder,
+    )
+
+    arch_df = df[(df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1)]
+    plot_training_and_gpu_hours(
+        arch_df,
+        plot_name="arch_fp8.png",
+        plot_title="Impact of Architecture and FP8 on training",
+        output_folder=output_folder,
+    )
