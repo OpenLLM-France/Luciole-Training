@@ -43,6 +43,7 @@ def plot_task(ax, df, task, metric, xlog=False, no_std=False):
 def plot_list_of_tasks(
     df, list_of_tasks_to_plot, output_file=None, title=None, xlog=False, no_std=False
 ):
+    list_of_tasks_to_plot = [task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())]
     num_tasks = len(list_of_tasks_to_plot)
     num_plots = num_tasks + 1  # +1 for the legend
 
