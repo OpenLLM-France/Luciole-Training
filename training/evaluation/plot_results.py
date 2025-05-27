@@ -6,6 +6,9 @@ import argparse
 from utils import task_group_mapping, get_task_info, read_experiment_results
 
 def plot_task(ax, df, task, metric, xlog=False, no_std=False):
+    if task not in df["task"].unique():
+        print(f"Task '{task}' not found in the DataFrame.")
+        return None
     df = df[df["task"] == task]
 
     pivot_df = df.pivot_table(index="tokens", columns="experiment_name", values=metric, sort=False)
