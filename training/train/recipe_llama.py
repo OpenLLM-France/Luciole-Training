@@ -148,6 +148,7 @@ def create_trainer(
     limit_val_batches: int = 0,
     callbacks: Optional[list[Callback]] = None,
     fp8: bool = False,
+    expert_parallelism: int = None,
 ):
     """
     Configure the NeMo Lightning Trainer for Llama3.2 1B model.
@@ -178,7 +179,7 @@ def create_trainer(
     Note:
         This configuration uses extensive parallelism to handle the large model size efficiently.
     """
-    strategy = nl.MegatronStrategy(
+    strategy_args = dict(
         tensor_model_parallel_size=tensor_parallelism,
         pipeline_model_parallel_size=pipeline_parallelism,
         pipeline_dtype=pipeline_parallelism_type,
@@ -196,6 +197,11 @@ def create_trainer(
             average_in_collective=True,
         ),
     )
+
+    if expert_parallelism is not None:
+        strategy_args["expert_model_parallel_size"] = expert_parallelism
+
+    strategy = nl.MegatronStrategy(**strategy_args)
 
     trainer = nl.Trainer(
         accelerator="gpu",

@@ -38,7 +38,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
     parser.add_argument(
-        "--arch", default="llama1b", type=str, choices=["llama1b", "llama8b", "mamba"]
+        "--arch",
+        default="llama1b",
+        type=str,
+        choices=["llama1b", "llama8b", "mamba", "mixtral8x7"],
     )
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
@@ -52,6 +55,8 @@ if __name__ == "__main__":
     parser.add_argument("--seq_length", default=None, type=int)
     parser.add_argument("--tensor_parallelism", default=None, type=int)
     parser.add_argument("--pipeline_parallelism", default=None, type=int)
+    parser.add_argument("--context_parallelism", default=1, type=int)
+    parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
     args = parser.parse_args()
 
@@ -65,16 +70,20 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     seq_length = args.seq_length
 
-    if batch_size is None:
+    if batch_size is None and seq_length is None:
         if arch == "llama1b":
             batch_size = 512
-        elif arch == "llama8b":
-            batch_size = 1024
-    if seq_length is None:
-        if arch == "llama1b":
             seq_length = 2048
         elif arch == "llama8b":
+            batch_size = 1024
             seq_length = 4096
+        elif arch == "mixtral8x7":
+            batch_size = 512
+            seq_length = 4096
+    elif batch_size is None:
+        batch_size = 4_194_304 // seq_length
+    elif seq_length is None:
+        seq_length = 4_194_304 // batch_size
 
     pipeline_parallelism = args.pipeline_parallelism if args.pipeline_parallelism else 1
     tensor_parallelism = args.tensor_parallelism if args.tensor_parallelism else 1
@@ -111,6 +120,9 @@ if __name__ == "__main__":
     logger.info(f"Tensor_parallelism: {tensor_parallelism}")
     logger.info(f"Pipeline_parallelism: {pipeline_parallelism}")
 
+    expert_parallelism = None
+    virtual_pipeline_parallelism = args.virtual_pipeline_parallelism
+
     if arch.startswith("llama"):
         # Llama config
         if arch == "llama1b":
@@ -135,6 +147,18 @@ if __name__ == "__main__":
             share_embeddings_and_output_weights=True,
         )
         model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
+    elif arch == "mixtral8x7":
+        from nemo.collections.llm.gpt.model.mixtral import (
+            MixtralConfig8x7B,
+            MixtralModel,
+        )
+
+        virtual_pipeline_parallelism = 8  # 8
+        pipeline_parallelism = 4
+        expert_parallelism = 8  # 8
+
+        model_config = MixtralConfig8x7B()
+        model = MixtralModel(model_config, tokenizer=data.tokenizer)
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
 
@@ -144,6 +168,8 @@ if __name__ == "__main__":
         tensor_parallelism=tensor_parallelism,
         pipeline_parallelism=pipeline_parallelism,
         pipeline_parallelism_type=torch.bfloat16,
+        context_parallelism=args.context_parallelism,
+        virtual_pipeline_parallelism=virtual_pipeline_parallelism,
         max_steps=max_steps,
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
@@ -151,6 +177,7 @@ if __name__ == "__main__":
         val_check_interval=5 if args.mode in ["debug", "benchmark"] else 1000,
         limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
         fp8=args.fp8,
+        expert_parallelism=expert_parallelism,
     )
 
     nemo_logger = create_logger(
@@ -194,8 +221,8 @@ if __name__ == "__main__":
                 ) as jsonfile:
                     json_data = {
                         **vars(args),
-                        "steps": list(iteration_timing.values()),
-                        "mean": mean,
+                        "step_timings": list(iteration_timing.values()),
+                        "mean_step_timings": mean,
                     }
                     json_data["batch_size"], json_data["seq_length"] = (
                         batch_size,

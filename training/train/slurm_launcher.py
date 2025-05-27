@@ -21,14 +21,14 @@ def create_slurm_script(
     fp8,
     tensor_parallelism,
     pipeline_parallelism,
+    seq_length,
+    context_parallelism,
+    virtual_pipeline_parallelism,
 ):
     # Choix des paramètres en fonction du mode
-    if mode == "debug":
-        qos = "qos_gpu_h100-dev"
-        time = "00:15:00"
-    elif mode == "benchmark":
+    if mode == "debug" or mode == "benchmark":
         qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "00:30:00"
+        time = "00:20:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
@@ -51,6 +51,12 @@ def create_slurm_script(
         args += f" --tensor_parallelism {tensor_parallelism}"
     if pipeline_parallelism:
         args += f" --pipeline_parallelism {pipeline_parallelism}"
+    if seq_length:
+        args += f" --seq_length {seq_length}"
+    if context_parallelism:
+        args += f" --context_parallelism {context_parallelism}"
+    if virtual_pipeline_parallelism:
+        args += f" --virtual_pipeline_parallelism {virtual_pipeline_parallelism}"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
@@ -88,6 +94,7 @@ export NCCL_NVLS_ENABLE=0
 export NVTE_DP_AMAX_REDUCE_INTERVAL=0
 export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
+export CEEMS_ENABLE_PERF_EVENTS=1
 
 module purge
 module load arch/h100 nemo/2.1.0
@@ -135,6 +142,10 @@ def submit_job(**kwargs):
         job_name_parts.append(f"tp{kwargs['tensor_parallelism']}")
     if kwargs.get("pipeline_parallelism"):
         job_name_parts.append(f"pp{kwargs['pipeline_parallelism']}")
+    if kwargs.get("context_parallelism"):
+        job_name_parts.append(f"cp{kwargs['context_parallelism']}")
+    if kwargs.get("virtual_pipeline_parallelism"):
+        job_name_parts.append(f"vpp{kwargs['virtual_pipeline_parallelism']}")
     job_name = "_".join(job_name_parts)
 
     xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
@@ -175,7 +186,7 @@ if __name__ == "__main__":
         "--arch",
         default="llama1b",
         type=str,
-        choices=["llama", "llama1b", "llama8b", "mamba"],
+        choices=["llama", "llama1b", "llama8b", "mamba", "mixtral8x7"],
     )
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--email", default=None)
@@ -188,8 +199,13 @@ if __name__ == "__main__":
     parser.add_argument("--gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", default="debug", type=str)
     parser.add_argument("--fp8", default=False, action="store_true")
-    parser.add_argument("--tensor_parallelism", default=None, type=int)
-    parser.add_argument("--pipeline_parallelism", default=None, type=int)
+    parser.add_argument("--tensor_parallelism", "--tp", default=None, type=int)
+    parser.add_argument("--pipeline_parallelism", "--pp", default=None, type=int)
+    parser.add_argument("--context_parallelism", "--cp", default=None, type=int)
+    parser.add_argument(
+        "--virtual_pipeline_parallelism", "--vpp", default=None, type=int
+    )
+    parser.add_argument("--seq_length", default=None, type=int)
     args = parser.parse_args()
 
     if args.arch == "llama":  # backward compatibility
