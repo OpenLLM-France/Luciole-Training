@@ -26,7 +26,9 @@ def get_datasets(config_names=None, high_quality=False, streaming=True, **kwargs
     config_names = [norm_config_name(c) for c in config_names]
 
     for config_name in config_names:
-        yield from decompose_datasets(config_name, high_quality=high_quality, streaming=streaming, **kwargs)
+        yield from decompose_datasets(
+            config_name, high_quality=high_quality, streaming=streaming, **kwargs
+        )
 
 
 def decompose_datasets(dataset, **kwargs):
@@ -91,17 +93,23 @@ def decompose_config(config_names=None, streaming=True, high_quality=False, **kw
             if "/" + c + "/" in parquet_file:
                 has_found_parquet = True
                 if "v1.1" in parquet_file:
-                    assert parquet_file not in all_parquets_v1, f"Multiple config for {parquet_file}"
+                    assert (
+                        parquet_file not in all_parquets_v1
+                    ), f"Multiple config for {parquet_file}"
                     all_parquets_v1.append(parquet_file)
                 else:
-                    assert parquet_file not in all_parquets_latest, f"Multiple config for {parquet_file}"
+                    assert (
+                        parquet_file not in all_parquets_latest
+                    ), f"Multiple config for {parquet_file}"
                     all_parquets_latest.append(parquet_file)
         if high_quality and len(all_parquets_latest) > 0:
             all_parquets = all_parquets_latest
         else:
             all_parquets = all_parquets_v1
         print(f"Found {len(all_parquets)} parquets for config '{c}' ({high_quality=})")
-        assert has_found_parquet, f"Cannot find parquet for config '{c}' (parquet_files={parquet_files[:5]})"
+        assert (
+            has_found_parquet
+        ), f"Cannot find parquet for config '{c}' (parquet_files={parquet_files[:5]})"
 
     for parquet_files in sorted(all_parquets):
         if isinstance(parquet_files, str):
@@ -111,10 +119,18 @@ def decompose_config(config_names=None, streaming=True, high_quality=False, **kw
             name = "--".join(name.split("/")[-5:])
             # Change from           hf://datasets/OpenLLM-France/Lucie-Training-Dataset@f3dff6f941eecc0c0a57dc0579610355a98d7c9c/data/XXX
             # to  https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset/resolve/f3dff6f941eecc0c0a57dc0579610355a98d7c9c/data/XXX
-            parquet_file = parquet_file.replace("hf://", "https://huggingface.co/").replace("@", "/resolve/")
+            parquet_file = parquet_file.replace(
+                "hf://", "https://huggingface.co/"
+            ).replace("@", "/resolve/")
             print(f"Loading {parquet_file} -> '{name}'")
             yield DataIterator(
-                datasets.load_dataset("parquet", data_files=parquet_file, streaming=streaming, split="train", **kwargs),
+                datasets.load_dataset(
+                    "parquet",
+                    data_files=parquet_file,
+                    streaming=streaming,
+                    split="train",
+                    **kwargs,
+                ),
                 name=name,
             )
 
@@ -129,7 +145,9 @@ def get_all_config_names(allow_subset=False):
 
         # Add language combinations
         _languages += [
-            ",".join(combo) for r in range(1, len(_languages) + 1) for combo in itertools.permutations(_languages, r)
+            ",".join(combo)
+            for r in range(1, len(_languages) + 1)
+            for combo in itertools.permutations(_languages, r)
         ]
 
         # Try to deliver subsets if possible
@@ -195,7 +213,9 @@ class DataIterator:
 
         self.dataset_iter = self.hf_dataset.__iter__()
         self.max_num_words = max_num_words
-        self.skip_number = (int(num_words / max_num_words) - 1) if num_words and max_num_words else 0
+        self.skip_number = (
+            (int(num_words / max_num_words) - 1) if num_words and max_num_words else 0
+        )
         self.streaming = streaming
         self.given_name = name
         self.key = "text"
@@ -261,7 +281,12 @@ def main():
         default=["all"],
         help="Which dataset to test",
     )
-    parser.add_argument("--high-quality", default=False, action="store_true", help="Use lastly curated data")
+    parser.add_argument(
+        "--high-quality",
+        default=False,
+        action="store_true",
+        help="Use lastly curated data",
+    )
     parser.add_argument(
         "--folder",
         type=str,
@@ -315,7 +340,9 @@ def main():
             global_stats[k] += v
 
     # Data loading
-    all_datasets = [get_datasets(name, high_quality=args.high_quality) for name in args.dataset]
+    all_datasets = [
+        get_datasets(name, high_quality=args.high_quality) for name in args.dataset
+    ]
     # Split: dataset -> (parquet) subsets
     all_datasets = [list(decompose_datasets(ds)) for ds in all_datasets]
     # Flatten
@@ -330,8 +357,16 @@ def main():
         name = it.name
         name_slug = simple_slugify(name)
         main_prefix_example_files = None
-        main_stat_filename = os.path.join(args.folder, f"stats_{name_slug}.json") if args.folder else None
-        if main_stat_filename and os.path.isfile(main_stat_filename) and args.only_dump_examples:
+        main_stat_filename = (
+            os.path.join(args.folder, f"stats_{name_slug}.json")
+            if args.folder
+            else None
+        )
+        if (
+            main_stat_filename
+            and os.path.isfile(main_stat_filename)
+            and args.only_dump_examples
+        ):
             stats = json.load(open(main_stat_filename, encoding="utf8"))
             num_billion_words = stats["num words"] / 1_000_000_000
             main_prefix_example_files = f"{num_billion_words:06.3f}B_{name_slug}"
@@ -460,7 +495,9 @@ def test_iterator(
                 num_chars[k] += len(v)
 
         if num_dumped < num_examples and folder and (not long_examples or nw > 50_000):
-            example_folder = os.path.join(folder, "long_examples" if long_examples else "examples")
+            example_folder = os.path.join(
+                folder, "long_examples" if long_examples else "examples"
+            )
             os.makedirs(example_folder, exist_ok=True)
             filename = os.path.join(example_folder, f"{prefix_example_files}")
             if num_examples > 1:
@@ -476,7 +513,9 @@ def test_iterator(
     if only_dump_examples:
         return {}
     if num_docs <= 0:
-        raise RuntimeError("No page found, or iterations stopped before completion (stats are not full)")
+        raise RuntimeError(
+            "No page found, or iterations stopped before completion (stats are not full)"
+        )
     toc = time.time()
     stats = {
         "time to iterate (sec)": toc - tic,

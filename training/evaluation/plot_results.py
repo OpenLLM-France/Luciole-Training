@@ -5,13 +5,16 @@ import math
 import argparse
 from utils import task_group_mapping, get_task_info, read_experiment_results
 
+
 def plot_task(ax, df, task, metric, xlog=False, no_std=False):
     if task not in df["task"].unique():
         print(f"Task '{task}' not found in the DataFrame.")
         return None
     df = df[df["task"] == task]
 
-    pivot_df = df.pivot_table(index="tokens", columns="experiment_name", values=metric, sort=False)
+    pivot_df = df.pivot_table(
+        index="tokens", columns="experiment_name", values=metric, sort=False
+    )
     stderr_df = df.pivot_table(
         index="tokens", columns="experiment_name", values=metric + "_stderr", sort=False
     )
@@ -32,7 +35,14 @@ def plot_task(ax, df, task, metric, xlog=False, no_std=False):
     task_infos = get_task_info(task)
     if task_infos is not None:
         xmin, xmax = ax.get_xlim()
-        ax.hlines(task_infos['random'], xmin, xmax, colors='gray', linestyles='dashed', label="random")
+        ax.hlines(
+            task_infos["random"],
+            xmin,
+            xmax,
+            colors="gray",
+            linestyles="dashed",
+            label="random",
+        )
 
     ax.set_xlabel("B tokens")
     ax.set_ylabel(metric)
@@ -40,10 +50,13 @@ def plot_task(ax, df, task, metric, xlog=False, no_std=False):
     if xlog:
         ax.set_xscale("log")
 
+
 def plot_list_of_tasks(
     df, list_of_tasks_to_plot, output_file=None, title=None, xlog=False, no_std=False
 ):
-    list_of_tasks_to_plot = [task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())]
+    list_of_tasks_to_plot = [
+        task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
+    ]
     num_tasks = len(list_of_tasks_to_plot)
     num_plots = num_tasks + 1  # +1 for the legend
 
@@ -60,8 +73,8 @@ def plot_list_of_tasks(
         plot_task(axes[i], df, task, metric, xlog=xlog, no_std=no_std)
 
         handles, labels = axes[i].get_legend_handles_labels()
-        for h, l in zip(handles, labels):
-            legend_dict[l] = h  # If duplicate, keeps last
+        for handle, label in zip(handles, labels):
+            legend_dict[label] = handle  # If duplicate, keeps last
 
     # Dedicated subplot for legend
     legend_ax = axes[-1]
@@ -114,9 +127,7 @@ if __name__ == "__main__":
 
     dfs = []
     for path in args.experiment_path:
-        dfs.append(
-            read_experiment_results(path)
-        )
+        dfs.append(read_experiment_results(path))
     df = pd.concat(dfs)
 
     columns = ["task", "experiment_name", "step", "samples", "tokens"]
@@ -131,7 +142,7 @@ if __name__ == "__main__":
             output_file=output_file,
             title=None,
             xlog=args.xlog,
-            no_std=args.no_std
+            no_std=args.no_std,
         )
 
     if not args.output_path:

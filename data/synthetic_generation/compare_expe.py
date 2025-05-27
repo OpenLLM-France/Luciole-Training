@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from utils import extract_educational_json
 
-def plot_label_crosstab(data, output_name):
 
+def plot_label_crosstab(data, output_name):
     # Create DataFrame
     df = pd.DataFrame(data)
     columns = df.columns
@@ -18,14 +18,15 @@ def plot_label_crosstab(data, output_name):
     # Plot heatmap
     plt.figure(figsize=(8, 6))
     sns.heatmap(cross_tab, annot=True, fmt="d", cmap="Blues")
-    plt.title(f"Cross-tabulation")
-    plt.xlabel(columns[0].split('/')[-1])
-    plt.ylabel(columns[1].split('/')[-1])
+    plt.title("Cross-tabulation")
+    plt.xlabel(columns[0].split("/")[-1])
+    plt.ylabel(columns[1].split("/")[-1])
     plt.tight_layout()
 
     # Save plot
     plt.savefig(output_name)
     plt.close()
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -50,8 +51,8 @@ if __name__ == "__main__":
 
     out = {}
     for expe_path in [expe_1, expe_2]:
-        ds = load_from_disk(os.path.join(expe_path, "default"))['train']
+        ds = load_from_disk(os.path.join(expe_path, "default"))["train"]
         ds = ds.map(lambda x: extract_educational_json(x["generation"]))
-        out[expe_path] = ds['educational_score']
+        out[expe_path] = ds["educational_score"]
 
     plot_label_crosstab(out, output_name)

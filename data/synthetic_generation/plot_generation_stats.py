@@ -8,6 +8,7 @@ import seaborn as sns
 import numpy as np
 from utils import extract_educational_json
 
+
 def plot_label_crosstab(ds, col1_name, col2_name, output_path, output_name):
     """
     input_1: tuple (name, list/array) for first column (e.g. predicted)
@@ -48,7 +49,7 @@ def plot_histograms(ds, output_path):
         metrics: List of fields to plot. Numeric fields are plotted as histograms,
                  categorical and boolean fields as bar charts.
     """
-    metrics = ['educational_score', 'toxicity_score', 'topic', 'is_ad', 'is_toxic']
+    metrics = ["educational_score", "toxicity_score", "topic", "is_ad", "is_toxic"]
     n_plots = len(metrics)
     fig, axs = plt.subplots(n_plots, 1, figsize=(8, 4 * n_plots))
     if n_plots == 1:
@@ -56,9 +57,9 @@ def plot_histograms(ds, output_path):
 
     for i, metric in enumerate(metrics):
         if metric not in ds.column_names:
-            axs[i].text(0.5, 0.5, f'{metric} not found', ha='center', va='center')
-            axs[i].set_title(f'{metric} (missing)')
-            axs[i].axis('off')
+            axs[i].text(0.5, 0.5, f"{metric} not found", ha="center", va="center")
+            axs[i].set_title(f"{metric} (missing)")
+            axs[i].axis("off")
             continue
 
         values = ds[metric]
@@ -69,23 +70,29 @@ def plot_histograms(ds, output_path):
         # Determine type
         if all(isinstance(v, bool) for v in values):
             counts = Counter(values)
-            axs[i].bar(['False', 'True'], [counts.get(False, 0), counts.get(True, 0)], alpha=0.7)
-            axs[i].set_xlabel('Value')
-            axs[i].set_ylabel('Frequency')
+            axs[i].bar(
+                ["False", "True"],
+                [counts.get(False, 0), counts.get(True, 0)],
+                alpha=0.7,
+            )
+            axs[i].set_xlabel("Value")
+            axs[i].set_ylabel("Frequency")
 
         elif all(isinstance(v, (int, float, np.integer, np.floating)) for v in values):
-            axs[i].hist(values, bins=6, range=(0, 6), alpha=0.7, align='left', rwidth=0.8)
-            axs[i].set_xlabel('Score')
-            axs[i].set_ylabel('Frequency')
+            axs[i].hist(
+                values, bins=6, range=(0, 6), alpha=0.7, align="left", rwidth=0.8
+            )
+            axs[i].set_xlabel("Score")
+            axs[i].set_ylabel("Frequency")
 
         else:
             counts = Counter(values)
             axs[i].bar(counts.keys(), counts.values(), alpha=0.7)
-            axs[i].set_xlabel('Category')
-            axs[i].set_ylabel('Frequency')
-            axs[i].tick_params(axis='x', rotation=90)
+            axs[i].set_xlabel("Category")
+            axs[i].set_ylabel("Frequency")
+            axs[i].tick_params(axis="x", rotation=90)
 
-        axs[i].set_title(metric.replace('_', ' ').title())
+        axs[i].set_title(metric.replace("_", " ").title())
 
     plt.tight_layout()
     os.makedirs(output_path, exist_ok=True)
@@ -104,26 +111,25 @@ if __name__ == "__main__":
         type=str,
     )
     argparser.add_argument(
-        "--from_parquet",
-        action='store_true',
-        help="read from parquet files."
+        "--from_parquet", action="store_true", help="read from parquet files."
     )
     args = argparser.parse_args()
     expe_path = args.expe_path
     output_path = args.output_path
 
     if args.from_parquet:
-        ds = load_dataset("parquet", data_files={'train': os.path.join(expe_path, '*.parquet')})['train']
+        ds = load_dataset(
+            "parquet", data_files={"train": os.path.join(expe_path, "*.parquet")}
+        )["train"]
     else:
-        ds = load_from_disk(expe_path)['train']
+        ds = load_from_disk(expe_path)["train"]
 
     ds = ds.map(lambda x: extract_educational_json(x["generation"]))
     print(ds[0])
 
-    plot_label_crosstab(ds, 'educational_score', 'is_toxic', output_path, "toxic_edu")
-    plot_label_crosstab(ds, 'educational_score', 'is_ad', output_path, "ad_edu")
-    plot_label_crosstab(ds, 'educational_score', 'topic', output_path, "edu_topic")
-    plot_label_crosstab(ds, 'is_toxic', 'topic', output_path, "toxic_topic")
+    plot_label_crosstab(ds, "educational_score", "is_toxic", output_path, "toxic_edu")
+    plot_label_crosstab(ds, "educational_score", "is_ad", output_path, "ad_edu")
+    plot_label_crosstab(ds, "educational_score", "topic", output_path, "edu_topic")
+    plot_label_crosstab(ds, "is_toxic", "topic", output_path, "toxic_topic")
 
     plot_histograms(ds, expe_path)
-

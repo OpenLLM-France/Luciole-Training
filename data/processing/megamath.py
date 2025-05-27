@@ -1,6 +1,6 @@
 import os
 
-from utils import *
+from utils import create_parser, get_data_path, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -11,7 +11,13 @@ if __name__ == "__main__":
         "--name",
         type=str,
         default="megamath-web",
-        choices=['megamath-web', 'megamath-web-pro', 'megamath-translated-code', 'megamath-code', 'megamath-text-code-block'],
+        choices=[
+            "megamath-web",
+            "megamath-web-pro",
+            "megamath-translated-code",
+            "megamath-code",
+            "megamath-text-code-block",
+        ],
         help="Name of the dataset to process.",
     )
     args = parser.parse_args()

@@ -1,11 +1,10 @@
 import os
 
-from utils import *
+from utils import create_parser, get_data_path, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LambdaFilter
-from datatrove.pipeline.filters import PerplexityFilter, ExtremeTokenizerFilter
 from datatrove.data import DocumentsPipeline
 
 # Tried GopherQualityFilter with fineweb-2 config file for french
@@ -16,6 +15,7 @@ mapping = {
     "monographies": "PleIAs/French-PD-Books",
     "press": "PleIAs/French-PD-Newspapers",
 }
+
 
 def prepare_metadata_header(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
@@ -81,9 +81,9 @@ if __name__ == "__main__":
     )
     main_processing_executor.run()
 
-        # PerplexityFilter(
-        #     model_dataset="wikipedia", 
-        #     language='fr', 
-        #     label_only=True
-        # ),
-        # ExtremeTokenizerFilter("OpenLLM-France/Lucie-7B"),
+    # PerplexityFilter(
+    #     model_dataset="wikipedia",
+    #     language='fr',
+    #     label_only=True
+    # ),
+    # ExtremeTokenizerFilter("OpenLLM-France/Lucie-7B"),

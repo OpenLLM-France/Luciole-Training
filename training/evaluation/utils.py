@@ -2,7 +2,6 @@ from pathlib import Path
 import json
 import pandas as pd
 import re
-import json
 import warnings
 
 task_group_mapping = {
@@ -30,7 +29,10 @@ task_group_mapping = {
         ("lighteval|meta_mmlu_fra_cf:high_school_computer_science|0", "acc_norm"),
         ("lighteval|meta_mmlu_fra_cf:high_school_european_history|0", "acc_norm"),
         ("lighteval|meta_mmlu_fra_cf:high_school_geography|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_government_and_politics|0", "acc_norm"),
+        (
+            "lighteval|meta_mmlu_fra_cf:high_school_government_and_politics|0",
+            "acc_norm",
+        ),
         ("lighteval|meta_mmlu_fra_cf:high_school_macroeconomics|0", "acc_norm"),
         ("lighteval|meta_mmlu_fra_cf:high_school_mathematics|0", "acc_norm"),
         ("lighteval|meta_mmlu_fra_cf:high_school_microeconomics|0", "acc_norm"),
@@ -98,12 +100,13 @@ task_group_mapping = {
 }
 
 df_info = pd.read_json("nb_answers_per_questions.jsonl", lines=True)
-df_info['random'] = 1./df_info['num_classes']
-task_info_mapping = df_info.fillna(0.).set_index("task").to_dict(orient="index")
+df_info["random"] = 1.0 / df_info["num_classes"]
+task_info_mapping = df_info.fillna(0.0).set_index("task").to_dict(orient="index")
+
 
 def get_task_info(task):
-    key_full = task.split('|')[1]
-    key_base = key_full.split(':')[0]
+    key_full = task.split("|")[1]
+    key_base = key_full.split(":")[0]
 
     task_infos = task_info_mapping.get(key_full)
     if task_infos is None:
@@ -111,6 +114,7 @@ def get_task_info(task):
     if task_infos is None:
         warnings.warn(f"No info found for task '{task.split('|')[1].split(':')[0]}'")
     return task_infos
+
 
 def read_json_results(file):
     with open(file, "r") as file:
@@ -131,7 +135,9 @@ def read_experiment_results(main_dir):
 
     json_files = main_dir.rglob("results_*.json")  # recursively finds all .json files
     if json_files:
-        df = pd.concat([read_json_results(file) for file in json_files], ignore_index=True)
+        df = pd.concat(
+            [read_json_results(file) for file in json_files], ignore_index=True
+        )
     else:
         raise FileNotFoundError(f"No JSON result files found in {main_dir}")
 
