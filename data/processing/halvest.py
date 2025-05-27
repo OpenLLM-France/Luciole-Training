@@ -12,7 +12,7 @@ if __name__ == "__main__":
         help="Language to load",
     )
     args = parser.parse_args()
-    language = args.args.language
+    language = args.language
 
     DATA_PATH = get_data_path(args)
 

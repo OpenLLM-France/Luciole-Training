@@ -14,12 +14,12 @@ if __name__=="__main__":
         help=".yaml file that contains the datasets you want to tokenize. See for example datasets_to_tokenize.yaml."
     )
     parser.add_argument(
-        "--input_dir", type=str, default="raw_datasets_ablation",
-        help="Input directory (in $OpenLLM_OUTPUT/data) that contains the processed datasets you want to tokenize. "
+        "--input_dir", type=str, default=os.path.join(MAIN_PATH, "raw_datasets_ablation"),
+        help="Input directory that contains the processed datasets you want to tokenize. "
     )
     parser.add_argument(
-        "--output_dir", type=str, default="tokens_ablation",
-        help="Output directory (in $OpenLLM_OUTPUT/data) that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error)."
+        "--output_dir", type=str, default=os.path.join(MAIN_PATH, "tokens_ablation"),
+        help="Output directory that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error)."
     )
     parser.add_argument(
         "--tokenizer_name", type=str, default="OpenLLM-France/Lucie-7B",
@@ -27,13 +27,10 @@ if __name__=="__main__":
     )
     args = parser.parse_args()
     yaml_file = args.yaml_file
-    input_dir = args.input_dir
-    output_dir = args.output_dir
+    raw_dataset_path = args.input_dir
+    tokens_dataset_path = args.output_dir
     tokenizer_name = args.tokenizer_name
 
-    # Define the path
-    raw_dataset_path = os.path.join(MAIN_PATH, input_dir)
-    tokens_dataset_path = os.path.join(MAIN_PATH, output_dir)
     os.makedirs(tokens_dataset_path, exist_ok=True)
 
     # Check if tokenizer name is already register, and if it match

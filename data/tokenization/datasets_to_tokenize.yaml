@@ -208,3 +208,22 @@ datasets:
 
   - name: gallica_press_removed
     path: gallica_press/1_low_ocr_scores
+
+  # Lucie datasets
+  - name: claire
+    path: lucie_dataset/claire/output
+
+  - name: europarl
+    path: lucie_dataset/europarl/output
+
+  - name: eurovoc
+    path: lucie_dataset/eurovoc/output
+
+  - name: gutenberg
+    path: lucie_dataset/gutenberg/output
+
+  - name: hal
+    path: lucie_dataset/hal/output
+
+  - name: theses
+    path: lucie_dataset/theses/output
