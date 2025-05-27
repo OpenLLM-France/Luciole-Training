@@ -58,7 +58,7 @@ to add sampling step (it only processes 5\% of the full dataset) after reading t
 You have some preprocessed datasets in `$OpenLLM_OUTPUT/data/raw_datasets` or in `$OpenLLM_OUTPUT/data/raw_datasets_ablation` and you want to tokenize them...
 
 1. Specify the datasets you want to tokenize in `datasets_to_tokenize.yaml` (you can duplicate and rename this file if you want). There should have two entries for each dataset:
-- path: the path of the dataset in `$OpenLLM_OUTPUT/data/raw_datasets(_ablation)`
+- path: the relative path of the dataset (for example in `$OpenLLM_OUTPUT/data/raw_datasets(_ablation)`)
 - name: the associated name of the dataset after tokenization
 
 For example:
@@ -76,10 +76,9 @@ options:
   --yaml_file YAML_FILE
                         .yaml file that contains the datasets you want to tokenize. See for example datasets_to_tokenize.yaml. (default: datasets_to_tokenize.yaml)
   --input_dir INPUT_DIR
-                        Relative input path (in $OpenLLM_OUTPUT/data) that contains the processed datasets you want to tokenize. (default: raw_datasets_ablation)
+                        Input directory that contains the processed datasets you want to tokenize. (default: $OpenLLM_OUTPUT/data/raw_datasets_ablation)
   --output_dir OUTPUT_DIR
-                        Relative output path (in $OpenLLM_OUTPUT/data) that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one
-                        output_dir (it will raise an error). (default: tokens_ablation)
+                        Output directory that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error). (default: $OpenLLM_OUTPUT/data/tokens_ablation)
   --tokenizer_name TOKENIZER_NAME
                         The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir. (default: OpenLLM-France/Lucie-7B)
 ```
@@ -89,7 +88,7 @@ It will create one sbatch per dataset, using prepost partition.
 ```bash
 sbatch run_statistics.slurm OUTPUT_DIR
 ```
-where `OUTPUT_DIR` is the relative path of your tokenized datasets (in $OpenLLM_OUTPUT/data).
+where `OUTPUT_DIR` is the absolute path of your tokenized datasets.
 It will create a folder `stats` in the tokenized data folder, with the statistics of each tokens file.
 
 4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../training/README.md).
