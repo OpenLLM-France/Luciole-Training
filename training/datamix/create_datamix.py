@@ -153,12 +153,9 @@ if __name__ == "__main__":
         # Save datamix
         with open(f"{output_dir}/datamix_{name}.json", "w") as f:
             json.dump(out, f, indent=4)
-        # Save Hash
-        with open(f"{output_dir}/{hash}", "w", encoding="utf-8") as f:
-            pass
         # Save datamix
         with open(f"{output_dir}/args.json", "w") as f:
-            json.dump(args, f, indent=4)
+            json.dump(vars(args), f, indent=4)
         # Save Language proportions
         language_df.to_csv(f"{output_dir}/language_proportion.csv")
         category_df.to_csv(f"{output_dir}/category_proportion.csv")
