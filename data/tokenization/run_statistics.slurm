@@ -6,6 +6,7 @@
 #SBATCH --hint=nomultithread 
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
+#SBATCH --partition=prepost
 
 # Requires nemo installation - on Jeanzay for now
 module purge
