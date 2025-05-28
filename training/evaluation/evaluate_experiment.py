@@ -4,7 +4,7 @@ import argparse
 
 SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=eval
-#SBATCH --output={log_dir}/log_%j.out
+#SBATCH --output={log_dir}/eval_log_%j.out
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -61,6 +61,7 @@ def main():
     hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
     output_dir = experiment_path / "evaluation"
     output_dir.mkdir(parents=True, exist_ok=True)
+    task_to_evaluate = Path(args.task_to_evaluate)
 
     checkpoints = [d for d in hf_ckpt_dir.iterdir() if d.is_dir()]
 
@@ -74,13 +75,13 @@ def main():
             model_name=ckpt_name,
             output_dir=output_dir,
             log_dir=log_dir,
-            task_to_evaluate=Path(args.task_to_evaluate).resolve(),
+            task_to_evaluate=task_to_evaluate.resolve(),
             extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
             if args.multilingual
             else "",
         )
 
-        job_filename = output_dir / f"job_{ckpt_name}.sh"
+        job_filename = output_dir / f"job_{ckpt_name}_{task_to_evaluate.stem}.slurm"
         with open(job_filename, "w") as f:
             f.write(job_script)
 

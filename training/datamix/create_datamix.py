@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default=os.path.join(main_path, "data/tokens_ablation"),
+        default=os.path.join(main_path, "data/tokenized_data/tokens_ablation"),
         help="Path to the data directory",
     )
     parser.add_argument(
@@ -146,6 +146,8 @@ if __name__ == "__main__":
     assert len(rehydratation_keys) == len(rehydratation_weight)
 
     rehydratation_mapping = OrderedDict(zip(rehydratation_keys, rehydratation_weight))
+    print("Rehydratation mapping: ")
+    pprint(rehydratation_mapping)
     stats_df = apply_rehydratation(stats_df, rehydratation_mapping)
     df = dataset_info.merge(stats_df, how="inner", on="dataset")
 
