@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=eval
-#SBATCH --output=log_%x-%j.out
+#SBATCH --output=slurm/log_%x-%j.out
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -44,7 +44,7 @@ output_dir="$path_to_experiment/evaluation"
 mkdir -p "$output_dir"
 echo "Output directory: $output_dir"
 
-log_dir="$output_dir/slurm"
+log_dir="$output_dir/slurm_$SLURM_JOB_ID"
 mkdir -p "$log_dir"
 echo "Log directory: $log_dir"
 
