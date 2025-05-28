@@ -62,7 +62,8 @@ if __name__ == "__main__":
         runs = os.listdir(xp_path)
         for run in runs:
             run_path = os.path.join(xp_path, run)
-            run_output_path = os.path.join(xp_output_path, run)
-            convert_checkpoint_folder(run_path, run_output_path)
+            if os.path.exists(os.path.join(run_path, "checkpoints")):
+                run_output_path = os.path.join(xp_output_path, run)
+                convert_checkpoint_folder(run_path, run_output_path)
 
     logger.info(f"Finished converting {experiment_path}!")

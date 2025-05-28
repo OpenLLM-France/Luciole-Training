@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import os
+import re
 import logging
 import shutil
 from pathlib import Path
@@ -119,13 +120,30 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train.py {args}
     return script
 
 
+def write_launch_slurm(slurm_path, slurm_content):
+    with open(slurm_path, "w") as fout:
+        fout.write(slurm_content)
+    logger.info(f"Generated slurm script : {slurm_path}")
+    try:
+        result = subprocess.run(
+            ["sbatch", slurm_path], check=True, capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Job submission failed: {e}")
+        exit(1)
+    match = re.search(r"Submitted batch job (\d+)", result.stdout)
+    if match:
+        job_id = int(match.group(1))
+    else:
+        raise ValueError("Failed to parse job ID from sbatch output.")
+    logger.info(f"Job submitted {job_id}")
+    return job_id
+
+
 def submit_job(**kwargs):
     config = kwargs["config"]
     if not os.path.exists(config):
-        tested_config = os.path.join("../ablations/datamix", config)
-        if not os.path.exists(tested_config):
-            raise RuntimeError(f"Config: {config} does not exist")
-        config = tested_config
+        raise RuntimeError(f"Config : {config} does not exist")
 
     config_name = os.path.splitext(os.path.basename(config))[0]
     job_name_parts = [
@@ -164,24 +182,17 @@ def submit_job(**kwargs):
     logger.info(f"Experiment path : {xp_output_dir}")
 
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
-    os.makedirs(xp_output_dir, exist_ok=True)
-    with open(sbatch_script_path, "w") as fout:
-        fout.write(slurm_script)
-    logger.info(f"Generated slurm script : {sbatch_script_path}")
 
     shutil.copy2(config, xp_output_dir)
     logger.info(f"Copied datamix file : {config} to {xp_output_dir}")
 
-    try:
-        subprocess.run(["sbatch", sbatch_script_path], check=True)
-        logger.info("Job submitted")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Job submission failed: {e}")
+    job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+    return job_id, xp_output_dir
 
 
-if __name__ == "__main__":
+def create_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="mock.json")
+    parser.add_argument("--config", default="../datamix/mock.json")
     parser.add_argument(
         "--arch",
         default="llama1b",
@@ -206,16 +217,25 @@ if __name__ == "__main__":
         "--virtual_pipeline_parallelism", "--vpp", default=None, type=int
     )
     parser.add_argument("--seq_length", default=None, type=int)
-    args = parser.parse_args()
+    return parser
 
+
+def pre_submit(args):
     if args.arch == "llama":  # backward compatibility
         logger.warning(
             "llama architecture is equal to llama1b, please switch to llama1b for more clarity"
         )
-        args.arch = "llama1b"
+    args.arch = "llama1b"
 
     args_dict = vars(args)
     args_dict["output_dir"] = os.path.join(args.output_path, args.output_dir)
     args_dict.pop("output_path")
 
-    submit_job(**args_dict)
+    job_id, xp_output_dir = submit_job(**args_dict)
+    return job_id, xp_output_dir
+
+
+if __name__ == "__main__":
+    parser = create_parser()
+    args = parser.parse_args()
+    pre_submit(args)
