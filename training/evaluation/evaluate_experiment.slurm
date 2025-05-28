@@ -62,7 +62,7 @@ for checkpoint_dir in *; do
 
     accelerate launch --multi_gpu --num_processes=4 -m \
         lighteval accelerate \
-        "pretrained=$checkpoint_dir,dtype="bfloat16",max_gen_toks=256" \
+        "pretrained=$checkpoint_dir,dtype="bfloat16"" \
         "$task_to_evaluate" \
         --output-dir $output_dir \
         $extra_arg \
