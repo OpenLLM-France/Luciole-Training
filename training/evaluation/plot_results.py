@@ -14,10 +14,10 @@ def plot_task(ax, df, task, metric, xlog=False, no_std=False):
 
     pivot_df = df.pivot_table(
         index="tokens", columns="experiment_name", values=metric, sort=False
-    )
+    ).sort_values("tokens")
     stderr_df = df.pivot_table(
         index="tokens", columns="experiment_name", values=metric + "_stderr", sort=False
-    )
+    ).sort_values("tokens")
 
     for col in pivot_df.columns:
         mean = pivot_df[col].dropna()

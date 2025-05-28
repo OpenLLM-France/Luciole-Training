@@ -129,7 +129,7 @@ def read_json_results(file):
 
 
 def read_experiment_results(main_dir):
-    print(main_dir)
+    print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
     experiment_name = main_dir.name
 
