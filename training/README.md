@@ -77,7 +77,7 @@ module purge
 module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
-pip install lighteval[extended_tasks,math,multilingual]==0.8.1
+pip install lighteval[extended_tasks,math,multilingual,vllm]==0.8.1
 pip install hf-xet
 pip install matplotlib
 ```
@@ -104,8 +104,8 @@ conda activate eval-env
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
-lighteval accelerate "pretrained=gpt2" "tasks/en.txt"
-lighteval accelerate "pretrained=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
+lighteval accelerate "pretrained=gpt2" "tasks/en.txt" --max-samples 1000
+lighteval accelerate "pretrained=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
 ```
 
 #### Evaluate all the checkpoints of your experiment:
