@@ -3,8 +3,6 @@ import subprocess
 import yaml
 import argparse
 
-MAIN_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data")
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -18,13 +16,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input_dir",
         type=str,
-        default=os.path.join(MAIN_PATH, "raw_datasets_ablation"),
+        default=os.path.join(
+            os.getenv("OpenLLM_OUTPUT"), "data/raw_data/data_for_ablation"
+        ),
         help="Input directory that contains the processed datasets you want to tokenize. ",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default=os.path.join(MAIN_PATH, "tokens_ablation"),
+        default=os.path.join(
+            os.getenv("OpenLLM_OUTPUT"), "data/tokenized_data/tokens_ablation"
+        ),
         help="Output directory that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error).",
     )
     parser.add_argument(
