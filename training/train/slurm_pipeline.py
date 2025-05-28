@@ -51,7 +51,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task):
 
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
-#SBATCH --output={xp_output_dir}/evaluation/log_%j.out
+#SBATCH --output={xp_output_dir}/evaluation/slurm_logs/pipeline_log_%j.out
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1

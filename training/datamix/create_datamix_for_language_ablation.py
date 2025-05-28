@@ -41,7 +41,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default=os.path.join(main_path, "data/tokens_ablation"),
+        default=os.path.join(main_path, "data/tokenized_data/tokens_ablation"),
         help="Path to the data directory",
     )
     parser.add_argument(
