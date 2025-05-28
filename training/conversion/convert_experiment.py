@@ -29,7 +29,7 @@ def convert_checkpoint_folder(input_path, ouput_path):
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
         checkpoint_output_path = os.path.join(ouput_path, checkpoint)
         convert_dist_to_llama.convert_checkpoint(
-            checkpoint_path, checkpoint_output_path
+            checkpoint_path, checkpoint_output_path.replace("=", "_")
         )
 
 
@@ -64,6 +64,6 @@ if __name__ == "__main__":
             run_path = os.path.join(xp_path, run)
             if os.path.exists(os.path.join(run_path, "checkpoints")):
                 run_output_path = os.path.join(xp_output_path, run)
-                convert_checkpoint_folder(run_path, run_output_path)
+                convert_checkpoint_folder(run_path, xp_output_path)
 
     logger.info(f"Finished converting {experiment_path}!")
