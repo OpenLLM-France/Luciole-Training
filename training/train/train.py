@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     if batch_size is None and seq_length is None:
         if arch == "llama1b":
-            batch_size = 512
+            batch_size = 1024
             seq_length = 2048
         elif arch == "llama8b":
             batch_size = 1024
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         number_of_tokens = args.mode
         max_steps = number_of_tokens // (seq_length * batch_size)
         resume_if_exists = True
-        every_n_train_steps = 2_500_000_000 // (seq_length * batch_size)
+        every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
     logger.info(f"Job name: {args.name}")
     logger.info(f"Architecture: {arch}")
@@ -122,13 +122,15 @@ if __name__ == "__main__":
 
     expert_parallelism = None
     virtual_pipeline_parallelism = args.virtual_pipeline_parallelism
-
+    optimizer_warmup_steps = 2000
     if arch.startswith("llama"):
         # Llama config
         if arch == "llama1b":
             from nemo.collections.llm.gpt.model.llama import (
                 Llama32Config1B as LlamaConfig,
             )
+
+            optimizer_warmup_steps = 500
         elif arch == "llama8b":
             from nemo.collections.llm.gpt.model.llama import (
                 Llama31Config8B as LlamaConfig,
@@ -162,7 +164,9 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
 
-    opt = distributed_fused_adam_with_cosine_annealing(max_lr=3e-4)
+    opt = distributed_fused_adam_with_cosine_annealing(
+        max_lr=3e-4, warmup_steps=optimizer_warmup_steps
+    )
 
     trainer = create_trainer(
         tensor_parallelism=tensor_parallelism,

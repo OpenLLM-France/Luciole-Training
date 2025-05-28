@@ -6,7 +6,7 @@ from slurm_launcher import create_parser, pre_submit, write_launch_slurm, logger
 
 
 def create_slurm_script(job_id, xp_output_dir):
-    job_name = f"convertion_of_{job_id}"
+    job_name = f"conversion_of_{job_id}"
     set_env_path = Path(__file__).resolve().parent.parent
     set_env_path = f"{set_env_path}/set_env.sh"
     experiment_dir = xp_output_dir
@@ -37,7 +37,7 @@ python -m torch.distributed.launch --nproc_per_node 1 {convert_script_path}/conv
 
 def submit_conversion(job_id, xp_output_dir):
     slurm_script = create_slurm_script(job_id, xp_output_dir)
-    sbatch_script_path = os.path.join(xp_output_dir, "conversion/convertion.slurm")
+    sbatch_script_path = os.path.join(xp_output_dir, "conversion/conversion.slurm")
     os.makedirs(os.path.join(xp_output_dir, "conversion"), exist_ok=True)
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
     return job_id
