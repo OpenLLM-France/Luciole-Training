@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=eval
 #SBATCH --output=slurm/log_%x-%j.out
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=64
@@ -20,8 +20,6 @@ conda activate eval-env
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
-# rm -f $HF_HOME/datasets/*.lock
-# rm -f $HF_HOME/modules/datasets_modules/datasets/*.lock
 export HF_HUB_OFFLINE=1
 
 path_to_experiment=$1
@@ -60,11 +58,11 @@ for checkpoint_dir in *; do
 
     echo "Processing checkpoint: $checkpoint_dir"
 
-    accelerate launch --multi_gpu --num_processes=4 -m \
-        lighteval accelerate \
+    lighteval vllm \
         "pretrained=$checkpoint_dir,dtype="bfloat16"" \
         "$task_to_evaluate" \
         --output-dir $output_dir \
+        --max-samples 1000 \
         $extra_arg \
         > "$log_dir/$checkpoint_dir.out" 2>&1
 done
