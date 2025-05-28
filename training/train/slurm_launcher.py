@@ -225,7 +225,7 @@ def pre_submit(args):
         logger.warning(
             "llama architecture is equal to llama1b, please switch to llama1b for more clarity"
         )
-    args.arch = "llama1b"
+        args.arch = "llama1b"
 
     args_dict = vars(args)
     args_dict["output_dir"] = os.path.join(args.output_path, args.output_dir)
