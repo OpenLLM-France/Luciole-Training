@@ -1,11 +1,9 @@
 import os
-import re
-import subprocess
 from pathlib import Path
-from slurm_launcher import create_parser, pre_submit, write_launch_slurm, logger
+from slurm_launcher import create_parser, pre_submit, write_launch_slurm
 
 
-def create_slurm_script(job_id, xp_output_dir):
+def create_slurm_conversion_script(job_id, xp_output_dir):
     job_name = f"conversion_of_{job_id}"
     set_env_path = Path(__file__).resolve().parent.parent
     set_env_path = f"{set_env_path}/set_env.sh"
@@ -36,42 +34,46 @@ python -m torch.distributed.launch --nproc_per_node 1 {convert_script_path}/conv
 
 
 def submit_conversion(job_id, xp_output_dir):
-    slurm_script = create_slurm_script(job_id, xp_output_dir)
+    slurm_script = create_slurm_conversion_script(job_id, xp_output_dir)
     sbatch_script_path = os.path.join(xp_output_dir, "conversion/conversion.slurm")
     os.makedirs(os.path.join(xp_output_dir, "conversion"), exist_ok=True)
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
     return job_id
 
 
-def submit_evaluation(job_id, xp_output_dir, task="en.txt"):
+def create_slurm_eval_script(job_id, xp_output_dir, task):
+    job_name = f"evaluation_of_{job_id}"
+    experiment_dir = xp_output_dir
     path_to_evaluation = Path(__file__).resolve().parent.parent
     path_to_evaluation = f"{path_to_evaluation}/evaluation"
-    language = "" if task == "en" else "multilingual"
-
-    sbatch_script = os.path.join(path_to_evaluation, "evaluate_experiment.slurm")
     task_path = os.path.join(path_to_evaluation, "tasks", task)
-    logger.info(
-        f"Submitting evaluation with task: {task} and experiment: {xp_output_dir}"
+    multilingual = False if task == "en" else True
+
+    script = f"""#!/bin/bash
+#SBATCH --job-name={job_name}
+#SBATCH --output={xp_output_dir}/evaluation/log_%j.out
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:05:00
+#SBATCH --hint=nomultithread
+#SBATCH --qos=qos_cpu-dev
+#SBATCH --account=qgz@cpu
+#SBATCH --dependency=afterok:{job_id}
+
+python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} {"--multilingual" if multilingual else ""}
+"""
+    return script
+
+
+def submit_evaluation(job_id, xp_output_dir, task="en.txt"):
+    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task)
+    sbatch_script_path = os.path.join(
+        xp_output_dir, f"evaluation/evaluation_{os.path.splitext(task)[0]}.slurm"
     )
-    result = subprocess.run(
-        [
-            "sbatch",
-            f"--dependency=afterok:{job_id}",
-            "--job-name=eval",
-            f"--output={os.path.join(xp_output_dir, 'evaluation', 'log_%x')}",
-            sbatch_script,
-            xp_output_dir,
-            task_path,
-            language,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    match = re.search(r"Submitted batch job (\d+)", result.stdout)
-    if match:
-        job_id = int(match.group(1))
-    logger.info(f"Evaluation submitted {job_id}")
+    os.makedirs(os.path.join(xp_output_dir, "evaluation"), exist_ok=True)
+    job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+    return job_id
 
 
 if __name__ == "__main__":
