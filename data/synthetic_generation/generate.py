@@ -70,7 +70,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--output_dir",
         type=str,
-        default=os.path.join(main_path, "synthetic_data"),
+        default=os.path.join(main_path, "data/synthetic_data"),
         help="Output directory. Name of the dataset is generated automatically.",
     )
     argparser.add_argument(

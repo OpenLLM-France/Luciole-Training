@@ -18,6 +18,6 @@ conda activate distilabel-test
 
 language=$1
 model_name=$DSDIR/HuggingFace_Models/Qwen/Qwen3-32B
-output_dir=$OpenLLM_OUTPUT/synthetic_data/fineweb_edu_annotation
+output_dir=$OpenLLM_OUTPUT/data/synthetic_data/fineweb_edu_annotation
 
 VLLM_USE_V1=0 python generate.py --model_name $model_name --data_language $language --output_dir $output_dir --prompt content_edu --disable_thinking --vllm --gpus 4 --nsamples 400000 --use_cache

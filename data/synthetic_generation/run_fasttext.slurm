@@ -29,21 +29,21 @@ train_all_labels() {
 }
 
 # Fra
-input_path=$OpenLLM_OUTPUT/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_fra_Latn_400k_2025-05-21T10-04-59.003164/default
+input_path=$OpenLLM_OUTPUT/data/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_fra_Latn_400k_2025-05-21T10-04-59.003164/default
 output_path=$OpenLLM_OUTPUT/fasttext_classifiers/fineweb_edu_annotation/Qwen3-32B_content_edu_fra_Latn
 train_all_labels $input_path $output_path
 
 # Deu
-input_path=$OpenLLM_OUTPUT/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_deu_Latn_400k_2025-05-21T10-04-59.003467/default
+input_path=$OpenLLM_OUTPUT/data/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_deu_Latn_400k_2025-05-21T10-04-59.003467/default
 output_path=$OpenLLM_OUTPUT/fasttext_classifiers/fineweb_edu_annotation/Qwen3-32B_content_edu_deu_Latn
 train_all_labels $input_path $output_path
 
 # Ita
-input_path=$OpenLLM_OUTPUT/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_ita_Latn_400k_2025-05-21T10-05-32.610020/default
+input_path=$OpenLLM_OUTPUT/data/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_ita_Latn_400k_2025-05-21T10-05-32.610020/default
 output_path=$OpenLLM_OUTPUT/fasttext_classifiers/fineweb_edu_annotation/Qwen3-32B_content_edu_ita_Latn
 train_all_labels $input_path $output_path
 
 # Ita
-input_path=$OpenLLM_OUTPUT/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_spa_Latn_400k_2025-05-21T10-04-52.498525/default
+input_path=$OpenLLM_OUTPUT/data/synthetic_data/fineweb_edu_annotation/Qwen3-32B_content_edu_spa_Latn_400k_2025-05-21T10-04-52.498525/default
 output_path=$OpenLLM_OUTPUT/fasttext_classifiers/fineweb_edu_annotation/Qwen3-32B_content_edu_spa_Latn
 train_all_labels $input_path $output_path
