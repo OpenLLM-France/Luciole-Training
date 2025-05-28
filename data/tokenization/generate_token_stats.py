@@ -47,10 +47,13 @@ def merge_stats(data_path):
 
 
 if __name__ == "__main__":
-    main_path = os.getenv("OpenLLM_OUTPUT")
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_path", default=f"{main_path}/data/tokens")
+    parser.add_argument(
+        "--data_path",
+        default=os.path.join(
+            os.getenv("OpenLLM_OUTPUT"), "data/tokenized_data/tokens_ablation"
+        ),
+    )
     parser.add_argument(
         "--force",
         action="store_true",

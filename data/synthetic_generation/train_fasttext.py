@@ -24,7 +24,7 @@ if __name__ == "__main__":
         type=str,
         default=os.path.join(
             main_path,
-            "synthetic_data/fra_Latn_data/Qwen3-32B_multi_task_2025-05-16T16-26-25.365295",
+            "data/synthetic_data/fra_Latn_data/Qwen3-32B_multi_task_2025-05-16T16-26-25.365295",
         ),
         help="Path to the input dataset.",
     )

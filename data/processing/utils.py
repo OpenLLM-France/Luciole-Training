@@ -5,9 +5,11 @@ from datatrove.pipeline.filters import SamplerFilter
 
 import os
 
-MAIN_DATA_PATH = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets")
+MAIN_DATA_PATH = os.path.join(
+    os.getenv("OpenLLM_OUTPUT"), "data/raw_data/full_datasets"
+)
 ABLATION_DATA_PATH = os.path.join(
-    os.getenv("OpenLLM_OUTPUT"), "data", "raw_datasets_ablation"
+    os.getenv("OpenLLM_OUTPUT"), "data/raw_data/data_for_ablation"
 )
 
 
