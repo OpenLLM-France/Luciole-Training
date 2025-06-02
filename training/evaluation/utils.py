@@ -71,7 +71,7 @@ def read_experiment_results(main_dir):
         .drop_duplicates(subset=["expe_name", "tokens", "task", "metric"], keep="last")
         .drop("timestamp", axis=1)
     )
-    return df_latest
+    return df_latest[["expe_name", "tokens", "task", "metric", "score"]]
 
 
 # Function to fit regression for each group

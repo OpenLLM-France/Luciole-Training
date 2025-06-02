@@ -44,7 +44,7 @@ def calculate_agg_score(df):
 
         all_results.append(results_final)
     df = pd.concat(all_results, ignore_index=True)
-    return df
+    return df[["expe_name", "tokens", "task", "metric", "score"]]
 
 
 if __name__ == "__main__":

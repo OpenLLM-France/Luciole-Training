@@ -2,6 +2,7 @@ import os
 import math
 import argparse
 from utils import process_results, read_experiment_results
+from agg_score import calculate_agg_score
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import cycle
@@ -30,6 +31,7 @@ task_group_mapping = {
         ("lighteval|xnli2.0_fra_cf|0", "acc_"),
         ("lighteval|fquadv2_fra|0", "f1_fra"),
         ("lighteval|mintaka_fra|0", "f1_fra"),
+        ("fr", "agg"),
     ],
 }
 
@@ -153,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_path",
         type=str,
-        default=None,
+        default="out/",
         help="Output path where your plot are storred",
     )
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
@@ -163,12 +165,16 @@ if __name__ == "__main__":
         os.makedirs(args.output_path, exist_ok=True)
 
     df = pd.concat([read_experiment_results(path) for path in args.experiment_path])
+    df_agg = calculate_agg_score(df).dropna()
+    df = pd.concat([df, df_agg])
+
     df = process_results(df)
+    print(df)
 
     for g in args.group:
         os.makedirs(os.path.join(args.output_path, g), exist_ok=True)
         output_file = (
-            os.path.join(args.output_path, g, "plot.png") if args.output_path else None
+            os.path.join(args.output_path, f"{g}.png") if args.output_path else None
         )
         plot_list_of_tasks(
             df, task_group_mapping[g], output_file, xlog=args.xlog, fit=args.fit
