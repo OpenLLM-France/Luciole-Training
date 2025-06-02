@@ -2,10 +2,42 @@ from pathlib import Path
 import json
 import pandas as pd
 import re
-import warnings
 from sklearn.linear_model import LinearRegression
 import numpy as np
 from sklearn.metrics import r2_score
+
+task_group_mapping = {
+    "en": [
+        ("helm|boolq|0", "pem"),
+        ("lighteval|triviaqa|0", "qem"),
+        ("lighteval|arc:easy|0", "acc"),
+        ("lighteval|arc:easy|0", "acc_norm"),
+        ("leaderboard|arc:challenge|0", "acc"),
+        ("leaderboard|arc:challenge|0", "acc_norm"),
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|openbookqa|0", "acc_norm"),
+        ("lighteval|piqa|0", "acc_norm"),
+    ],
+    "fr": [
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
+        ("lighteval|xcodah_fra_cf|0", "acc_norm"),
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm"),
+        ("lighteval|xnli2.0_fra_cf|0", "acc_norm"),
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|fquadv2_fra|0", "f1_fra"),
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|mintaka_fra|0", "f1_fra"),
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|mgsm_fra|0", "exact_match_fra_full"),
+        ("lighteval|xwinograd_fra_cf|0", "acc_norm"),
+        ("lighteval|xwinograd_fra_cf|0", "acc_"),
+    ],
+}
 
 
 def read_json_file(file_path):
@@ -75,35 +107,6 @@ def read_experiment_results(main_dir):
     return df_latest
 
 
-def read_info_baseline():
-    df_info = pd.read_json("nb_answers_per_questions.jsonl", lines=True)
-    df_info["random"] = 1.0 / df_info["num_classes"]
-    task_info_mapping = df_info.set_index("task").to_dict(orient="index")
-    return task_info_mapping
-
-
-def get_info(task, task_info_mapping):
-    if task == "all":
-        return {}
-    key_full = task.split("|")[1]
-    key_base = key_full.split(":")[0]
-
-    task_infos = task_info_mapping.get(key_full)
-    if task_infos is None:
-        task_infos = task_info_mapping.get(key_base)
-    if task_infos is None:
-        warnings.warn(f"No info found for task '{task.split('|')[1].split(':')[0]}'")
-        return {}
-    return task_infos
-
-
-def normalize_within_range(value, lower_bound, higher_bound):
-    if value < lower_bound:
-        return 0
-    else:
-        return (value - lower_bound) / (higher_bound - lower_bound) * 100
-
-
 # Function to fit regression for each group
 def compute_regression(group):
     group = group[group["tokens"] > 0]  # adjust to your x column name
@@ -134,19 +137,11 @@ def compute_regression(group):
     )
 
 
-def process_results(path):
-    df = read_experiment_results(path)
+def process_results(df):
+    # Groupby expe, task and metric and fit regression
     group_df = (
         df.groupby(["task", "metric", "expe_name"])
         .apply(compute_regression)
         .reset_index()
     )
     return group_df
-    # # Load task info mapping
-    # task_info_mapping = read_info_baseline()
-    # df_info = df['task'].apply(lambda t: get_info(t, task_info_mapping)).apply(pd.Series)
-    # df = df.join(df_info)
-    # # Normalize
-    # df['norm_score'] = df.apply(lambda x: normalize_within_range(x['score'], x['random'], 1.), axis=1)
-    # # Fit linear regression
-    # return df

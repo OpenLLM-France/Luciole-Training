@@ -1,44 +1,11 @@
 import os
 import math
 import argparse
-from utils import process_results
+from utils import task_group_mapping, process_results, read_experiment_results
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import cycle
 import pandas as pd
-
-task_group_mapping = {
-    "en": [
-        ("helm|boolq|0", "pem"),
-        ("lighteval|triviaqa|0", "qem"),
-        ("lighteval|arc:easy|0", "acc"),
-        ("lighteval|arc:easy|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc"),
-        ("leaderboard|arc:challenge|0", "acc_norm"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|openbookqa|0", "acc_norm"),
-        ("lighteval|piqa|0", "acc_norm"),
-    ],
-    "fr": [
-        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
-        ("lighteval|xcodah_fra_cf|0", "acc_norm"),
-        ("lighteval|xcsqa_fra_cf|0", "acc_norm"),
-        ("lighteval|xnli2.0_fra_cf|0", "acc_norm"),
-        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
-        ("lighteval|fquadv2_fra|0", "f1_fra"),
-        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
-        ("lighteval|mintaka_fra|0", "f1_fra"),
-        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|mgsm_fra|0", "exact_match_fra_full"),
-        ("lighteval|xwinograd_fra_cf|0", "acc_norm"),
-        ("lighteval|xwinograd_fra_cf|0", "acc_"),
-    ],
-}
 
 
 def assign_colors(df):
@@ -169,11 +136,13 @@ if __name__ == "__main__":
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
-    df = pd.concat([process_results(path) for path in args.experiment_path])
+    df = pd.concat([read_experiment_results(path) for path in args.experiment_path])
+    df = process_results(df)
 
     for g in args.group:
+        os.makedirs(os.path.join(args.output_path, g), exist_ok=True)
         output_file = (
-            os.path.join(args.output_path, f"{g}.png") if args.output_path else None
+            os.path.join(args.output_path, g, "plot.png") if args.output_path else None
         )
         plot_list_of_tasks(
             df, task_group_mapping[g], output_file, xlog=args.xlog, fit=args.fit
