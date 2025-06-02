@@ -1,11 +1,37 @@
 import os
 import math
 import argparse
-from utils import task_group_mapping, process_results, read_experiment_results
+from utils import process_results, read_experiment_results
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import cycle
 import pandas as pd
+
+task_group_mapping = {
+    "en": [
+        ("helm|boolq|0", "pem"),
+        ("lighteval|triviaqa|0", "qem"),
+        ("lighteval|arc:easy|0", "acc"),
+        ("lighteval|arc:easy|0", "acc_norm"),
+        ("leaderboard|arc:challenge|0", "acc"),
+        ("leaderboard|arc:challenge|0", "acc_norm"),
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|openbookqa|0", "acc_norm"),
+        ("lighteval|piqa|0", "acc_norm"),
+    ],
+    "fr": [
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm_pmi"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_pmi"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
+        ("lighteval|xcodah_fra_cf|0", "acc_norm_token"),
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm_pmi"),
+        ("lighteval|xnli2.0_fra_cf|0", "acc_"),
+        ("lighteval|fquadv2_fra|0", "f1_fra"),
+        ("lighteval|mintaka_fra|0", "f1_fra"),
+    ],
+}
 
 
 def assign_colors(df):
