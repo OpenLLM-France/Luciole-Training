@@ -26,9 +26,19 @@ def create_slurm_conversion_script(job_id, xp_output_dir):
 #SBATCH --dependency=afterok:{job_id}
 
 source {set_env_path}
+MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
+MASTER_PORT=6000
 
+DISTRIBUTED_ARGS=" \
+        --nproc_per_node 1 \
+        --nnodes $SLURM_NNODES \
+        --node_rank $SLURM_PROCID \
+        --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
+        --rdzv_backend c10d \
+        --max_restarts 0 \
+       "
 echo $1
-python -m torch.distributed.launch --nproc_per_node 1 {convert_script_path}/convert_experiment.py {experiment_dir}
+srun torchrun $DISTRIBUTED_ARGS {convert_script_path}/convert_experiment.py {experiment_dir}
 """
     return script
 
