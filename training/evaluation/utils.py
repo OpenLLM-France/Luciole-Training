@@ -3,108 +3,88 @@ import json
 import pandas as pd
 import re
 import warnings
-
-task_group_mapping = {
-    "mmlu": [
-        ("lighteval|meta_mmlu_fra_cf:abstract_algebra|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:anatomy|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:astronomy|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:business_ethics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:clinical_knowledge|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:college_biology|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:college_chemistry|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:college_computer_science|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:college_mathematics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:college_medicine|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:college_physics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:computer_security|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:conceptual_physics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:econometrics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:electrical_engineering|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:elementary_mathematics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:formal_logic|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:global_facts|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_biology|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_chemistry|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_computer_science|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_european_history|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_geography|0", "acc_norm"),
-        (
-            "lighteval|meta_mmlu_fra_cf:high_school_government_and_politics|0",
-            "acc_norm",
-        ),
-        ("lighteval|meta_mmlu_fra_cf:high_school_macroeconomics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_mathematics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_microeconomics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_physics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_psychology|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_statistics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_us_history|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:high_school_world_history|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:human_aging|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:human_sexuality|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:international_law|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:jurisprudence|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:logical_fallacies|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:machine_learning|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:management|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:marketing|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:medical_genetics|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:miscellaneous|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:moral_disputes|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:moral_scenarios|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:nutrition|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:philosophy|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:prehistory|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:professional_accounting|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:professional_law|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:professional_medicine|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:professional_psychology|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:public_relations|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:security_studies|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:sociology|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:us_foreign_policy|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:virology|0", "acc_norm"),
-        ("lighteval|meta_mmlu_fra_cf:world_religions|0", "acc_norm"),
-    ],
-    "en": [
-        ("helm|boolq|0", "pem"),
-        ("lighteval|triviaqa|0", "qem"),
-        ("lighteval|arc:easy|0", "acc"),
-        ("lighteval|arc:easy|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc"),
-        ("leaderboard|arc:challenge|0", "acc_norm"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|openbookqa|0", "acc_norm"),
-        ("lighteval|piqa|0", "acc_norm"),
-    ],
-    "fr": [
-        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
-        ("lighteval|xcodah_fra_cf|0", "acc_norm"),
-        ("lighteval|xcsqa_fra_cf|0", "acc_norm"),
-        ("lighteval|xnli2.0_fra_cf|0", "acc_norm"),
-        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
-        ("lighteval|fquadv2_fra|0", "f1_fra"),
-        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
-        ("lighteval|mintaka_fra|0", "f1_fra"),
-        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|mgsm_fra|0", "exact_match_fra_full"),
-        ("lighteval|xwinograd_fra_cf|0", "acc_norm"),
-        ("lighteval|xwinograd_fra_cf|0", "acc_"),
-    ],
-}
-
-df_info = pd.read_json("nb_answers_per_questions.jsonl", lines=True)
-df_info["random"] = 1.0 / df_info["num_classes"]
-task_info_mapping = df_info.fillna(0.0).set_index("task").to_dict(orient="index")
+from sklearn.linear_model import LinearRegression
+import numpy as np
+from sklearn.metrics import r2_score
 
 
-def get_task_info(task):
+def read_json_file(file_path):
+    file_path = Path(file_path)
+    with open(file_path, "r") as f:
+        data = json.load(f)
+
+    df = (
+        pd.DataFrame(data["results"])
+        .stack()
+        .reset_index(name="score")
+        .rename(columns={"level_0": "metric", "level_1": "task"})
+    )
+
+    # Filter out metrics ending in "_stderr"
+    df = df[~df["metric"].str.endswith("_stderr")]
+
+    # Add model name and timestamp
+    df["model_name"] = data["config_general"]["model_name"]
+    df["tokens"] = (
+        (df["model_name"].str.extract(r"-consumed_samples_([0-9.]+)")[0].astype(float))
+        * 2048
+        / 10**9
+    )
+
+    match = re.match(r"results_(.*)\.json", file_path.name)
+    timestamp = match.group(1) if match else None
+    df["timestamp"] = timestamp
+
+    # Reorder columns
+    df = df[["tokens", "timestamp", "task", "metric", "score"]]
+    return df
+
+
+def read_experiment_results(main_dir):
+    print(f"Processing {main_dir}...")
+    main_dir = Path(main_dir)
+
+    json_files = list(main_dir.rglob("results_*.json"))
+    if not json_files:
+        raise FileNotFoundError(f"No JSON result files found in {main_dir}")
+
+    # Read files and store relative path + DataFrame
+    dataframes = []
+    for file in json_files:
+        relative_path = file.relative_to(main_dir)
+        # Extract portion before "/evaluation/"
+        parts = relative_path.parts
+        eval_index = parts.index("evaluation")
+        expe_name = Path(*parts[:eval_index]).name
+        df = read_json_file(file)
+        df["expe_name"] = expe_name
+        dataframes.append(df)
+
+    # Concatenate all DataFrames
+    df = pd.concat(dataframes, ignore_index=True)
+
+    # Remove duplicates
+    df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%dT%H-%M-%S.%f")
+
+    # Keep the most recent row for each (model_name, tokens, task, metric) tuple
+    df_latest = (
+        df.sort_values("timestamp")
+        .drop_duplicates(subset=["expe_name", "tokens", "task", "metric"], keep="last")
+        .drop("timestamp", axis=1)
+    )
+    return df_latest
+
+
+def read_info_baseline():
+    df_info = pd.read_json("nb_answers_per_questions.jsonl", lines=True)
+    df_info["random"] = 1.0 / df_info["num_classes"]
+    task_info_mapping = df_info.set_index("task").to_dict(orient="index")
+    return task_info_mapping
+
+
+def get_info(task, task_info_mapping):
+    if task == "all":
+        return {}
     key_full = task.split("|")[1]
     key_base = key_full.split(":")[0]
 
@@ -113,51 +93,60 @@ def get_task_info(task):
         task_infos = task_info_mapping.get(key_base)
     if task_infos is None:
         warnings.warn(f"No info found for task '{task.split('|')[1].split(':')[0]}'")
+        return {}
     return task_infos
 
 
-def read_json_results(file):
-    with open(file, "r") as file:
-        data = json.load(file)
-    model_name = data["config_general"]["model_name"]
-    results = data["results"]
-    df = pd.DataFrame.from_dict(results, orient="index").reset_index(names="task")
-    df["model_name"] = model_name
-    match = re.match(r"results_(.*)\.json", file.name)
-    df["timestamp"] = match.group(1) if match else None
-    return df
-
-
-def read_experiment_results(main_dir):
-    print(f"Processing {main_dir}...")
-    main_dir = Path(main_dir)
-    experiment_name = main_dir.name
-
-    json_files = main_dir.rglob("results_*.json")  # recursively finds all .json files
-    if json_files:
-        df = pd.concat(
-            [read_json_results(file) for file in json_files], ignore_index=True
-        )
+def normalize_within_range(value, lower_bound, higher_bound):
+    if value < lower_bound:
+        return 0
     else:
-        raise FileNotFoundError(f"No JSON result files found in {main_dir}")
+        return (value - lower_bound) / (higher_bound - lower_bound) * 100
 
-    # Fix date and deduplicate
-    df["timestamp"] = (
-        df["timestamp"]
-        .str.replace("T", " ")
-        .str.replace(r"(\d{2})-(\d{2})-(\d{2}\.\d+)", r"\1:\2:\3", regex=True)
-    )
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    # Post process some columns
-    df["experiment_name"] = experiment_name
-    df["step"] = df["model_name"].str.extract(r"--step_([0-9.]+)-")[0].astype(float)
-    df["samples"] = (
-        df["model_name"].str.extract(r"-consumed_samples_([0-9.]+)")[0].astype(float)
-    )
-    df["tokens"] = df["samples"] * 2048 / 10**9
 
-    # Remove duplicates
-    columns = ["task", "experiment_name", "step", "samples", "tokens"]
-    df_sorted = df.sort_values(["timestamp", "tokens"])
-    df = df_sorted.drop_duplicates(subset=columns, keep="last")
-    return df
+# Function to fit regression for each group
+def compute_regression(group):
+    group = group[group["tokens"] > 0]  # adjust to your x column name
+
+    if len(group) < 2:
+        return pd.DataFrame(
+            [{"slope": np.nan, "intercept": np.nan, "tokens": [], "score": []}]
+        )
+
+    group = group.sort_values("tokens")
+    x = group["tokens"].values.reshape(-1, 1)
+    y = group["score"].values
+
+    model = LinearRegression()
+    model.fit(np.log(x), y)
+    y_pred = model.predict(np.log(x))
+
+    return pd.DataFrame(
+        [
+            {
+                "slope": model.coef_[0],
+                "intercept": model.intercept_,
+                "r2": r2_score(y, y_pred),
+                "tokens": x.flatten().tolist(),
+                "score": y.tolist(),
+            }
+        ]
+    )
+
+
+def process_results(path):
+    df = read_experiment_results(path)
+    group_df = (
+        df.groupby(["task", "metric", "expe_name"])
+        .apply(compute_regression)
+        .reset_index()
+    )
+    return group_df
+    # # Load task info mapping
+    # task_info_mapping = read_info_baseline()
+    # df_info = df['task'].apply(lambda t: get_info(t, task_info_mapping)).apply(pd.Series)
+    # df = df.join(df_info)
+    # # Normalize
+    # df['norm_score'] = df.apply(lambda x: normalize_within_range(x['score'], x['random'], 1.), axis=1)
+    # # Fit linear regression
+    # return df
