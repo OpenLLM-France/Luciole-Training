@@ -1,58 +1,103 @@
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
 import math
 import argparse
-from utils import task_group_mapping, get_task_info, read_experiment_results
+from utils import process_results
+import matplotlib.pyplot as plt
+import numpy as np
+from itertools import cycle
+import pandas as pd
+
+task_group_mapping = {
+    "en": [
+        ("helm|boolq|0", "pem"),
+        ("lighteval|triviaqa|0", "qem"),
+        ("lighteval|arc:easy|0", "acc"),
+        ("lighteval|arc:easy|0", "acc_norm"),
+        ("leaderboard|arc:challenge|0", "acc"),
+        ("leaderboard|arc:challenge|0", "acc_norm"),
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|openbookqa|0", "acc_norm"),
+        ("lighteval|piqa|0", "acc_norm"),
+    ],
+    "fr": [
+        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
+        ("lighteval|xcodah_fra_cf|0", "acc_norm"),
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm"),
+        ("lighteval|xnli2.0_fra_cf|0", "acc_norm"),
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|fquadv2_fra|0", "f1_fra"),
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|mintaka_fra|0", "f1_fra"),
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|mgsm_fra|0", "exact_match_fra_full"),
+        ("lighteval|xwinograd_fra_cf|0", "acc_norm"),
+        ("lighteval|xwinograd_fra_cf|0", "acc_"),
+    ],
+}
 
 
-def plot_task(ax, df, task, metric, xlog=False, no_std=False):
-    if task not in df["task"].unique():
-        print(f"Task '{task}' not found in the DataFrame.")
-        return None
-    df = df[df["task"] == task]
+def assign_colors(df):
+    unique_experiments = df["expe_name"].unique()
+    colors = cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+    return {name: next(colors) for name in unique_experiments}
 
-    pivot_df = df.pivot_table(
-        index="tokens", columns="experiment_name", values=metric, sort=False
-    ).sort_values("tokens")
-    stderr_df = df.pivot_table(
-        index="tokens", columns="experiment_name", values=metric + "_stderr", sort=False
-    ).sort_values("tokens")
 
-    for col in pivot_df.columns:
-        mean = pivot_df[col].dropna()
-        stderr = stderr_df[col].dropna()
+def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
+    df = df[(df["task"] == task) & (df["metric"] == metric)]
 
-        # Align indices in case they differ slightly after dropna
-        common_index = mean.index.intersection(stderr.index)
-        mean = mean.loc[common_index]
-        stderr = stderr.loc[common_index]
+    for _, row in df.iterrows():
+        color = color_map[row["expe_name"]]
 
-        ax.plot(mean.index, mean.values, marker="+", label=col, alpha=0.8)
-        if not no_std:
-            ax.fill_between(mean.index, mean - stderr, mean + stderr, alpha=0.1)
+        if fit:
+            ax.plot(row["tokens"], row["score"], alpha=0.3, linestyle="--", color=color)
 
-    task_infos = get_task_info(task)
-    if task_infos is not None:
-        xmin, xmax = ax.get_xlim()
-        ax.hlines(
-            task_infos["random"],
-            xmin,
-            xmax,
-            colors="gray",
-            linestyles="dashed",
-            label="random",
-        )
+            # Plot regression line
+            xaxis = np.linspace(1, 35, 100)
+            y_pred = row["intercept"] + row["slope"] * np.log(xaxis)
+            ax.plot(
+                xaxis,
+                y_pred,
+                linestyle="-",
+                alpha=0.8,
+                color=color,
+                label=row["expe_name"],
+            )
+
+            if not np.isnan(row["r2"]):
+                ax.text(
+                    xaxis[-1],
+                    y_pred[-1],
+                    f"$R^2$={row['r2']:.3f}",
+                    color=color,
+                    fontsize=8,
+                    ha="left",
+                    va="center",
+                )
+        else:
+            ax.plot(
+                row["tokens"],
+                row["score"],
+                marker="+",
+                alpha=0.8,
+                color=color,
+                label=row["expe_name"],
+            )
 
     ax.set_xlabel("B tokens")
     ax.set_ylabel(metric)
     ax.set_title(task)
+
     if xlog:
         ax.set_xscale("log")
 
 
 def plot_list_of_tasks(
-    df, list_of_tasks_to_plot, output_file=None, title=None, xlog=False, no_std=False
+    df, list_of_tasks_to_plot, output_file=None, title=None, xlog=False, fit=False
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
@@ -66,27 +111,26 @@ def plot_list_of_tasks(
     fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
     axes = axes.flatten()
 
-    # Use a dictionary to avoid duplicate labels
+    color_map = assign_colors(df)  # Global color map
+
+    # Keep track of labels added to the legend
     legend_dict = {}
 
     for i, (task, metric) in enumerate(list_of_tasks_to_plot):
-        plot_task(axes[i], df, task, metric, xlog=xlog, no_std=no_std)
+        plot_task(axes[i], df, task, metric, color_map=color_map, xlog=xlog, fit=fit)
 
         handles, labels = axes[i].get_legend_handles_labels()
         for handle, label in zip(handles, labels):
-            legend_dict[label] = handle  # If duplicate, keeps last
+            legend_dict[label] = handle
 
     # Dedicated subplot for legend
     legend_ax = axes[-1]
     legend_ax.axis("off")
     legend_ax.legend(
-        legend_dict.values(),
-        legend_dict.keys(),
-        title="Experiment name",
-        loc="center",
+        legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
     )
 
-    # Hide any other unused subplots if any
+    # Hide any unused subplots
     for j in range(len(list_of_tasks_to_plot), len(axes) - 1):
         fig.delaxes(axes[j])
 
@@ -120,29 +164,19 @@ if __name__ == "__main__":
         help="Output path where your plot are storred",
     )
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
-    parser.add_argument("--no_std", action="store_true", help="Remove std")
+    parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
     args = parser.parse_args()
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
-    dfs = []
-    for path in args.experiment_path:
-        dfs.append(read_experiment_results(path))
-    df = pd.concat(dfs)
-
-    columns = ["task", "experiment_name", "step", "samples", "tokens"]
+    df = pd.concat([process_results(path) for path in args.experiment_path])
 
     for g in args.group:
         output_file = (
             os.path.join(args.output_path, f"{g}.png") if args.output_path else None
         )
         plot_list_of_tasks(
-            df,
-            task_group_mapping[g],
-            output_file=output_file,
-            title=None,
-            xlog=args.xlog,
-            no_std=args.no_std,
+            df, task_group_mapping[g], output_file, xlog=args.xlog, fit=args.fit
         )
 
     if not args.output_path:
