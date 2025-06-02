@@ -6,4 +6,4 @@
 {"task": "lighteval|xcodah_fra_cf|0", "metric":"acc_norm_token", "task_type":"RES", "category": "mcq", "num_classes": 5, "language": "fr"}
 {"task": "lighteval|xcsqa_fra_cf|0", "metric":"acc_norm_pmi", "task_type":"RES",  "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|mlmm_hellaswag_fra_cf|0", "metric":"acc_norm_token", "task_type":"NLU",  "category": "mcq", "num_classes": 4, "language": "fr"}
-{"task": "lighteval|xnli2.0_fra_cf|0", "metric":"acc_", "task_type":"NLU", "category": "classification", "num_classes": 3, "language": "en"}
+{"task": "lighteval|xnli2.0_fra_cf|0", "metric":"acc_", "task_type":"NLU", "category": "classification", "num_classes": 3, "language": "fr"}
