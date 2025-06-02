@@ -6,36 +6,6 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 from sklearn.metrics import r2_score
 
-task_group_mapping = {
-    "en": [
-        ("helm|boolq|0", "pem"),
-        ("lighteval|triviaqa|0", "qem"),
-        ("lighteval|arc:easy|0", "acc"),
-        ("lighteval|arc:easy|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc"),
-        ("leaderboard|arc:challenge|0", "acc_norm"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|openbookqa|0", "acc_norm"),
-        ("lighteval|piqa|0", "acc_norm"),
-    ],
-    "fr": [
-        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm_pmi"),
-        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_pmi"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("lighteval|xcodah_fra_cf|0", "acc_norm_token"),
-        ("lighteval|xcsqa_fra_cf|0", "acc_norm_pmi"),
-        ("lighteval|xnli2.0_fra_cf|0", "acc_"),
-        ("lighteval|fquadv2_fra|0", "f1_fra"),
-        ("lighteval|mintaka_fra|0", "f1_fra"),
-        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|mgsm_fra|0", "exact_match_fra_full"),
-        ("lighteval|xwinograd_fra_cf|0", "acc_norm"),
-        ("lighteval|xwinograd_fra_cf|0", "acc_"),
-    ],
-}
-
 
 def read_json_file(file_path):
     file_path = Path(file_path)
