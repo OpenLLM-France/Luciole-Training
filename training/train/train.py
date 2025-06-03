@@ -9,7 +9,7 @@ from recipe_llama import (
     create_logger,
     create_autoresume,
 )
-from utils import read_datamix_file, save_stats
+from utils import read_datamix_file, save_stats, write_completion
 
 from dataloader import create_data
 
@@ -240,6 +240,7 @@ if __name__ == "__main__":
             strategy_args=strategy_args,
             data_args=data_args,
         )
+        write_completion(output_dir)
     # finally:
     #     if dist.is_available() and dist.is_initialized():
     #         dist.barrier()

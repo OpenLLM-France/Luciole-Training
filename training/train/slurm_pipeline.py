@@ -9,12 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 def create_slurm_conversion_script(job_id, xp_output_dir):
-    job_name = f"conversion_of_{job_id}"
+    job_name = f"conversion_of_{os.path.basename(xp_output_dir)}"
     set_env_path = Path(__file__).resolve().parent.parent
     set_env_path = f"{set_env_path}/set_env.sh"
     experiment_dir = xp_output_dir
     convert_script_path = Path(__file__).resolve().parent.parent
     convert_script_path = f"{convert_script_path}/conversion"
+    dependency = f"#SBATCH --dependency=afterok:{job_id}" if job_id else ""
 
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
@@ -28,7 +29,7 @@ def create_slurm_conversion_script(job_id, xp_output_dir):
 #SBATCH --qos=qos_gpu_h100-dev
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
-#SBATCH --dependency=afterok:{job_id}
+{dependency}
 
 source {set_env_path}
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -49,6 +50,13 @@ srun torchrun $DISTRIBUTED_ARGS {convert_script_path}/convert_experiment.py {exp
 
 
 def submit_conversion(job_id, xp_output_dir):
+    if os.path.exists(
+        os.path.join(xp_output_dir, "huggingface_checkpoints", "completed.txt")
+    ):
+        logger.info(
+            f"Checkpoints already converted in {xp_output_dir}, skipping job submission. If you want to force submission, remove 'huggingface_checkpoints/completed.txt'"
+        )
+        return None
     slurm_script = create_slurm_conversion_script(job_id, xp_output_dir)
     sbatch_script_path = os.path.join(xp_output_dir, "conversion/conversion.slurm")
     os.makedirs(os.path.join(xp_output_dir, "conversion"), exist_ok=True)
@@ -63,6 +71,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task):
     path_to_evaluation = f"{path_to_evaluation}/evaluation"
     task_path = os.path.join(path_to_evaluation, "tasks", task)
     multilingual = False if task == "en" else True
+    dependency = f"#SBATCH --dependency=afterok:{job_id}" if job_id else ""
 
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
@@ -74,7 +83,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task):
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
-#SBATCH --dependency=afterok:{job_id}
+{dependency}
 
 python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} {"--multilingual" if multilingual else ""}
 """
