@@ -168,6 +168,15 @@ def submit_job(**kwargs):
     job_name = "_".join(job_name_parts)
 
     xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
+
+    if kwargs["mode"] != "debug" and os.path.exists(
+        os.path.join(xp_output_dir, "completed.txt")
+    ):
+        logger.info(
+            f"Experiment {xp_output_dir} already exists, skipping job submission. If you want to force submission, remove 'completed.txt'"
+        )
+        return None, xp_output_dir
+
     os.makedirs(xp_output_dir, exist_ok=True)
 
     args = {

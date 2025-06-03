@@ -67,3 +67,5 @@ if __name__ == "__main__":
                 convert_checkpoint_folder(run_path, xp_output_path)
 
     logger.info(f"Finished converting {experiment_path}!")
+    with open(os.path.join(xp_output_path, "completed.txt"), "w") as f:
+        f.write("")

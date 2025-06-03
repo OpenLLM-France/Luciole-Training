@@ -68,7 +68,6 @@ def read_datamix_file(file):
 
 
 def save_stats(output_dir, args, strategy_args, data_args):
-    import os
     import re
     import json
 
@@ -98,6 +97,11 @@ def save_stats(output_dir, args, strategy_args, data_args):
 
 def is_main_process():
     return not dist.is_available() or not dist.is_initialized() or dist.get_rank() == 0
+
+
+def write_completion(output_dir):
+    with open(os.path.join(output_dir, "completed.txt"), "w") as f:
+        f.write("")
 
 
 def suppress_non_main_logging():
