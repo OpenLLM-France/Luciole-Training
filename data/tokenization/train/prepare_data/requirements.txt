@@ -1,0 +1,4 @@
+datatrove
+pandas
+pyarrow
+regex
