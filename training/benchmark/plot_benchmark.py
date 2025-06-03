@@ -104,11 +104,10 @@ def convert_data(data):
         number_of_steps_per_trillion_tokens = 1e12 / (
             entry["batch_size"] * entry["seq_length"]
         )
-        config_key = f"{entry['arch']}_tp{entry['tensor_parallelism']}_pp{entry['pipeline_parallelism']}_fp8{entry['fp8']}_seq_length{entry['seq_length']}"
-        if "context_parallelism" in entry:
-            config_key += f"_cp{entry['context_parallelism']}"
-        else:
-            config_key += "_cp1"
+        config_key = f"{entry['arch']}_tp{entry['tensor_model_parallel_size']}_pp{entry['pipeline_model_parallel_size']}_fp8{entry['fp8']}"
+        config_key += (
+            f"_seq_length{entry['seq_length']}_cp{entry['context_parallel_size']}"
+        )
         records.append(
             {
                 "num_nodes": entry["num_nodes"],
@@ -124,13 +123,11 @@ def convert_data(data):
                     / 3600
                 ),
                 "arch": entry["arch"],
-                "tp": entry["tensor_parallelism"],
-                "pp": entry["pipeline_parallelism"],
+                "tp": entry["tensor_model_parallel_size"],
+                "pp": entry["pipeline_model_parallel_size"],
                 "fp8": entry["fp8"],
                 "seq_length": entry["seq_length"],
-                "cp": entry.get(
-                    "context_parallelism", 1
-                ),  # default to 1 if not present
+                "cp": entry["context_parallel_size"],
                 "config": config_key,
             }
         )
