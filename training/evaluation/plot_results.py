@@ -33,6 +33,18 @@ task_group_mapping = {
         ("lighteval|mintaka_fra|0", "f1_fra"),
         ("fr", "agg"),
     ],
+    "agg": [
+        ("AGG_EN", "agg"),
+        ("AGG_EN_GK", "agg"),
+        ("AGG_EN_NLU", "agg"),
+        ("AGG_EN_RES", "agg"),
+        ("AGG_FR", "agg"),
+        ("AGG_FR_GEN", "agg"),
+        ("AGG_FR_GK", "agg"),
+        ("AGG_FR_NLU", "agg"),
+        ("AGG_FR_RC", "agg"),
+        ("AGG_FR_RES", "agg"),
+    ],
 }
 
 
@@ -207,7 +219,7 @@ if __name__ == "__main__":
                 and not ("mmlu" in task[0] and "average" not in task[0])
             ]
         else:
-            task_group_mapping[g]
+            list_of_tasks_to_plot = task_group_mapping[g]
         output_file = (
             os.path.join(args.output_path, f"{g}.png") if args.output_path else None
         )
