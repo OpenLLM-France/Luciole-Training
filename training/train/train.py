@@ -1,5 +1,6 @@
 import argparse
 import torch
+import json
 import logging
 
 from recipe_llama import (
@@ -7,10 +8,9 @@ from recipe_llama import (
     distributed_fused_adam_with_cosine_annealing,
     create_logger,
     create_autoresume,
+    DistributedDataParallelConfig,
 )
-from utils import (
-    read_datamix_file,
-)
+from utils import read_datamix_file, save_stats
 
 from dataloader import create_data
 
@@ -62,7 +62,6 @@ if __name__ == "__main__":
 
     arch = args.arch
     num_nodes = args.num_nodes
-    name = args.name
     output_dir = args.output_dir
 
     data_paths, tokenizer_name = read_datamix_file(args.config)
@@ -87,15 +86,11 @@ if __name__ == "__main__":
     elif seq_length is None:
         seq_length = 4_194_304 // batch_size
 
-    pipeline_parallelism = args.pipeline_parallelism if args.pipeline_parallelism else 1
-    tensor_parallelism = args.tensor_parallelism if args.tensor_parallelism else 1
-
-    data = create_data(
-        data_paths,
-        tokenizer_name=tokenizer_name,
-        batch_size=batch_size,
-        seq_length=seq_length,
+    data_args = dict(
+        batch_size=batch_size, seq_length=seq_length, tokenizer_name=tokenizer_name
     )
+
+    data = create_data(data_paths, **data_args)
 
     if args.mode in ["debug", "benchmark"]:
         max_steps = 1 if args.mode == "debug" else 10
@@ -107,24 +102,31 @@ if __name__ == "__main__":
         resume_if_exists = True
         every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
-    logger.info(f"Job name: {args.name}")
-    logger.info(f"Architecture: {arch}")
-    logger.info(f"Output dir: {args.output_dir}")
-    logger.info(f"Mode: {args.mode}")
-    logger.info(f"Batch size: {batch_size}")
-    logger.info(f"Sequence length: {seq_length}")
-    logger.info(f"Number of nodes: {args.num_nodes}")
-    logger.info(f"Tokenizer: {tokenizer_name}")
-    logger.info(f"Config file: {args.config}")
-    logger.info(f"Max steps: {max_steps}")
-    logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
-    logger.info(f"Resume training if possible: {resume_if_exists}")
-    logger.info(f"Tensor_parallelism: {tensor_parallelism}")
-    logger.info(f"Pipeline_parallelism: {pipeline_parallelism}")
+    strategy_args = dict(
+        tensor_model_parallel_size=args.tensor_parallelism
+        if args.tensor_parallelism
+        else 1,
+        pipeline_model_parallel_size=args.pipeline_parallelism
+        if args.pipeline_parallelism
+        else 1,
+        pipeline_dtype=torch.bfloat16,
+        virtual_pipeline_model_parallel_size=args.virtual_pipeline_parallelism,
+        context_parallel_size=args.context_parallelism,
+        sequence_parallel=False,
+        gradient_as_bucket_view=True,
+        ckpt_async_save=True,
+        ckpt_parallel_load=True,
+        ddp=DistributedDataParallelConfig(
+            check_for_nan_in_grad=True,
+            grad_reduce_in_fp32=True,
+            overlap_grad_reduce=True,
+            overlap_param_gather=True,
+            average_in_collective=True,
+        ),
+    )
 
-    expert_parallelism = None
-    virtual_pipeline_parallelism = args.virtual_pipeline_parallelism
     optimizer_warmup_steps = 2000
+
     if arch.startswith("llama"):
         if arch == "llama1b":
             from nemo.collections.llm.gpt.model.llama import (
@@ -162,7 +164,9 @@ if __name__ == "__main__":
                 hybrid_override_pattern="*-".join(["M-" * 5] * 5),
                 num_layers=58,
             )
-            tensor_parallelism = 4
+            strategy_args["tensor_model_parallel_size"] = (
+                args.tensor_parallelism if args.tensor_parallelism else 4
+            )
         model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
     elif arch == "mixtral8x7":
         from nemo.collections.llm.gpt.model.mixtral import (
@@ -170,25 +174,40 @@ if __name__ == "__main__":
             MixtralModel,
         )
 
-        virtual_pipeline_parallelism = 8  # 8
-        pipeline_parallelism = 4  # 4
-        expert_parallelism = 8  # 8
-
         model_config = MixtralConfig8x7B()
         model = MixtralModel(model_config, tokenizer=data.tokenizer)
+
+        strategy_args["virtual_pipeline_model_parallel_size"] = 8
+        strategy_args["pipeline_model_parallel_size"] = 4
+        strategy_args["expert_model_parallel_size"] = 8
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
+
+    args_dict = vars(args)
+    for key in [
+        "tensor_parallelism",
+        "pipeline_parallelism",
+        "context_parallelism",
+        "virtual_pipeline_parallelism",
+        "batch_size",
+        "seq_length",
+    ]:
+        args_dict.pop(key, None)
+
+    logger.info("Args:\n" + json.dumps(args_dict, indent=2))
+    logger.info("Strategy Args:\n" + json.dumps(strategy_args, indent=2, default=str))
+    logger.info("Data Args:\n" + json.dumps(data_args, indent=2, default=str))
+
+    logger.info(f"Max steps: {max_steps}")
+    logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
+    logger.info(f"Resume training if possible: {resume_if_exists}")
 
     opt = distributed_fused_adam_with_cosine_annealing(
         max_lr=3e-4, warmup_steps=optimizer_warmup_steps
     )
 
     trainer = create_trainer(
-        tensor_parallelism=tensor_parallelism,
-        pipeline_parallelism=pipeline_parallelism,
-        pipeline_parallelism_type=torch.bfloat16,
-        context_parallelism=args.context_parallelism,
-        virtual_pipeline_parallelism=virtual_pipeline_parallelism,
+        strategy_args=strategy_args,
         max_steps=max_steps,
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
@@ -196,12 +215,11 @@ if __name__ == "__main__":
         val_check_interval=5 if args.mode in ["debug", "benchmark"] else 1000,
         limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
         fp8=args.fp8,
-        expert_parallelism=expert_parallelism,
     )
 
     nemo_logger = create_logger(
         dir=output_dir,
-        name=name,
+        name=args.name,
         every_n_train_steps=every_n_train_steps,
     )
 
@@ -216,39 +234,6 @@ if __name__ == "__main__":
     )
 
     if args.mode in ["debug", "benchmark"]:
-        import os
-        import re
-        import json
-
-        files = os.listdir(output_dir)
-        pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-        for file in files:
-            if file.startswith("log_"):
-                with open(os.path.join(output_dir, file), "r") as f:
-                    log_content = f.read()
-                iteration_timing = {
-                    int(match[0]): float(match[1])
-                    for match in re.findall(pattern, log_content)
-                }
-                mean = sum(list(iteration_timing.values())[2:]) / (
-                    len(iteration_timing) - 2
-                )
-                log_id = file.replace("log_", "")
-                log_id = log_id.replace(".out", "")
-                with open(
-                    os.path.join(output_dir, f"stats_{name}_{log_id}.json"), "w"
-                ) as jsonfile:
-                    json_data = {
-                        **vars(args),
-                        "step_timings": list(iteration_timing.values()),
-                        "mean_step_timings": mean,
-                    }
-                    json_data["batch_size"], json_data["seq_length"] = (
-                        batch_size,
-                        seq_length,
-                    )
-                    (
-                        json_data["tensor_parallelism"],
-                        json_data["pipeline_parallelism"],
-                    ) = tensor_parallelism, pipeline_parallelism
-                    json.dump(json_data, jsonfile, indent=2)
+        save_stats(
+            output_dir, args=args_dict, strategy_args=strategy_args, data_args=data_args
+        )
