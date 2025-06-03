@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     if batch_size is None and seq_length is None:
         if arch == "llama1b" or arch == "mamba1b":
-            batch_size = 1024
+            batch_size = 512
             seq_length = 2048
         elif arch == "llama8b" or arch == "mambahybrid8b":
             batch_size = 1024
