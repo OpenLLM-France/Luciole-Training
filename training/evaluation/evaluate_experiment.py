@@ -11,7 +11,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --cpus-per-task=16
 #SBATCH --time=01:00:00
 #SBATCH --hint=nomultithread
-#SBATCH --qos=qos_gpu_h100-dev
+#SBATCH --qos=qos_gpu_h100-t3
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 
