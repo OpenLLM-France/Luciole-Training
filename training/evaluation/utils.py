@@ -50,11 +50,16 @@ def read_experiment_results(main_dir):
     # Read files and store relative path + DataFrame
     dataframes = []
     for file in json_files:
-        relative_path = file.relative_to(main_dir)
-        # Extract portion before "/evaluation/"
-        parts = relative_path.parts
-        eval_index = parts.index("evaluation")
-        expe_name = Path(*parts[:eval_index]).name
+        file_path = Path(file)
+        parts = file_path.parts
+        try:
+            eval_index = parts.index("evaluation")
+            expe_name = parts[
+                eval_index - 1
+            ]  # Name of the folder just before 'evaluation'
+        except ValueError:
+            expe_name = "unknown"
+
         df = read_json_file(file)
         df["expe_name"] = expe_name
         dataframes.append(df)
