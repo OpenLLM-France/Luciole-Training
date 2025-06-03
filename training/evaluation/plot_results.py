@@ -61,7 +61,13 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
         color = color_map[row["expe_name"]]
 
         if fit:
-            ax.plot(row["tokens"], row["score"], alpha=0.3, linestyle="--", color=color)
+            ax.plot(
+                row["tokens"],
+                row["score"],
+                alpha=np.clip(1 - row["r2"], 0.2, 0.8),
+                linestyle=":",
+                color=color,
+            )
 
             # Plot regression line
             xaxis = np.linspace(1, 35, 100)
@@ -70,21 +76,20 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
                 xaxis,
                 y_pred,
                 linestyle="-",
-                alpha=0.8,
+                alpha=np.clip(row["r2"], 0.2, 0.8),
                 color=color,
                 label=row["expe_name"],
             )
 
-            if not np.isnan(row["r2"]):
-                ax.text(
-                    xaxis[-1],
-                    y_pred[-1],
-                    f"$R^2$={row['r2']:.3f}",
-                    color=color,
-                    fontsize=8,
-                    ha="left",
-                    va="center",
-                )
+            ax.text(
+                xaxis[-1],
+                y_pred[-1],
+                f"$R^2$={row['r2']:.2f}",
+                color=color,
+                fontsize=8,
+                ha="left",
+                va="center",
+            )
         else:
             ax.plot(
                 row["tokens"],
@@ -156,6 +161,10 @@ def plot_list_of_tasks(
     # Dedicated subplot for legend
     legend_ax = axes[-1]
     legend_ax.axis("off")
+    # Set legend handle alpha to 1.0
+    for handle in legend_dict.values():
+        handle.set_alpha(1.0)
+
     legend_ax.legend(
         legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
     )
