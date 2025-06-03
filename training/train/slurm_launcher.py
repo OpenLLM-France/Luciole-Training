@@ -198,7 +198,14 @@ def create_parser():
         "--arch",
         default="llama1b",
         type=str,
-        choices=["llama", "llama1b", "llama8b", "mamba", "mixtral8x7"],
+        choices=[
+            "llama",
+            "llama1b",
+            "llama8b",
+            "mamba1b",
+            "mixtral8x7",
+            "mambahybrid8b",
+        ],
     )
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--email", default=None)

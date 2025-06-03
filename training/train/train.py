@@ -41,7 +41,7 @@ if __name__ == "__main__":
         "--arch",
         default="llama1b",
         type=str,
-        choices=["llama1b", "llama8b", "mamba", "mixtral8x7"],
+        choices=["llama1b", "llama8b", "mamba1b", "mixtral8x7", "mambahybrid8b"],
     )
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
@@ -71,15 +71,17 @@ if __name__ == "__main__":
     seq_length = args.seq_length
 
     if batch_size is None and seq_length is None:
-        if arch == "llama1b":
+        if arch == "llama1b" or arch == "mamba1b":
             batch_size = 1024
             seq_length = 2048
-        elif arch == "llama8b":
+        elif arch == "llama8b" or arch == "mambahybrid8b":
             batch_size = 1024
             seq_length = 4096
         elif arch == "mixtral8x7":
             batch_size = 512
             seq_length = 4096
+        else:
+            raise ValueError(f"Unsupported model : {arch}")
     elif batch_size is None:
         batch_size = 4_194_304 // seq_length
     elif seq_length is None:
@@ -124,7 +126,6 @@ if __name__ == "__main__":
     virtual_pipeline_parallelism = args.virtual_pipeline_parallelism
     optimizer_warmup_steps = 2000
     if arch.startswith("llama"):
-        # Llama config
         if arch == "llama1b":
             from nemo.collections.llm.gpt.model.llama import (
                 Llama32Config1B as LlamaConfig,
@@ -139,15 +140,29 @@ if __name__ == "__main__":
             raise ValueError(f"Unsupported llama model : {arch}")
         model_config = LlamaConfig()
         model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
-    elif arch == "mamba":
-        # Mamba Config
-        from nemo.collections.llm.gpt.model.ssm import BaseMambaConfig1_3B
+    elif arch.startswith("mamba"):
+        if arch == "mamba1b":
+            from nemo.collections.llm.gpt.model.ssm import (
+                BaseMambaConfig1_3B as MambaConfig,
+            )
 
-        model_config = BaseMambaConfig1_3B(
-            tokenizer_library="huggingface",
-            tokenizer_name=tokenizer_name,
-            share_embeddings_and_output_weights=True,
-        )
+            model_config = MambaConfig(
+                tokenizer_library="huggingface",
+                tokenizer_name=tokenizer_name,
+                share_embeddings_and_output_weights=True,
+            )
+        elif arch == "mambahybrid8b":
+            from nemo.collections.llm.gpt.model.ssm import (
+                NVIDIAMambaHybridConfig8B as MambaConfig,
+            )
+
+            model_config = MambaConfig(
+                tokenizer_library="huggingface",
+                tokenizer_name=tokenizer_name,
+                hybrid_override_pattern="*-".join(["M-" * 5] * 5),
+                num_layers=58,
+            )
+            tensor_parallelism = 4
         model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
     elif arch == "mixtral8x7":
         from nemo.collections.llm.gpt.model.mixtral import (
@@ -156,7 +171,7 @@ if __name__ == "__main__":
         )
 
         virtual_pipeline_parallelism = 8  # 8
-        pipeline_parallelism = 4
+        pipeline_parallelism = 4  # 4
         expert_parallelism = 8  # 8
 
         model_config = MixtralConfig8x7B()
