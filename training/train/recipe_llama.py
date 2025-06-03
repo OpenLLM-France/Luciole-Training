@@ -10,7 +10,6 @@ from nemo.lightning.pytorch.optim import (
     CosineAnnealingScheduler,
     MegatronOptimizerModule,
 )
-from megatron.core.distributed import DistributedDataParallelConfig
 from megatron.core.optimizer import OptimizerConfig
 from lightning.pytorch.callbacks.callback import Callback
 from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
@@ -135,12 +134,7 @@ def bf16_with_fp8_mixed():
 
 
 def create_trainer(
-    tensor_parallelism: int = 1,
-    pipeline_parallelism: int = 1,
-    pipeline_parallelism_type: Optional[torch.dtype] = None,
-    virtual_pipeline_parallelism: Optional[int] = None,
-    context_parallelism: int = 1,
-    sequence_parallelism: bool = False,
+    strategy_args: dict = None,
     num_nodes: int = 1,
     num_gpus_per_node: int = 8,
     max_steps: int = 1168251,
@@ -148,7 +142,6 @@ def create_trainer(
     limit_val_batches: int = 0,
     callbacks: Optional[list[Callback]] = None,
     fp8: bool = False,
-    expert_parallelism: int = None,
 ):
     """
     Configure the NeMo Lightning Trainer for Llama3.2 1B model.
@@ -179,27 +172,6 @@ def create_trainer(
     Note:
         This configuration uses extensive parallelism to handle the large model size efficiently.
     """
-    strategy_args = dict(
-        tensor_model_parallel_size=tensor_parallelism,
-        pipeline_model_parallel_size=pipeline_parallelism,
-        pipeline_dtype=pipeline_parallelism_type,
-        virtual_pipeline_model_parallel_size=virtual_pipeline_parallelism,
-        context_parallel_size=context_parallelism,
-        sequence_parallel=sequence_parallelism,
-        gradient_as_bucket_view=True,
-        ckpt_async_save=True,
-        ckpt_parallel_load=True,
-        ddp=DistributedDataParallelConfig(
-            check_for_nan_in_grad=True,
-            grad_reduce_in_fp32=True,
-            overlap_grad_reduce=True,
-            overlap_param_gather=True,
-            average_in_collective=True,
-        ),
-    )
-
-    if expert_parallelism is not None:
-        strategy_args["expert_model_parallel_size"] = expert_parallelism
 
     strategy = nl.MegatronStrategy(**strategy_args)
 

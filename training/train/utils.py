@@ -64,3 +64,36 @@ def read_datamix_file(file):
             f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step."
         )
     return data_paths, tokenizer_name
+
+
+def save_stats(output_dir, args, strategy_args, data_args):
+    import os
+    import re
+    import json
+
+    files = os.listdir(output_dir)
+    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
+    for file in files:
+        if file.startswith("log_"):
+            with open(os.path.join(output_dir, file), "r") as f:
+                log_content = f.read()
+            iteration_timing = {
+                int(match[0]): float(match[1])
+                for match in re.findall(pattern, log_content)
+            }
+            mean = sum(list(iteration_timing.values())[2:]) / (
+                len(iteration_timing) - 2
+            )
+            log_id = file.replace("log_", "")
+            log_id = log_id.replace(".out", "")
+            with open(
+                os.path.join(output_dir, f"stats_{args['name']}_{log_id}.json"), "w"
+            ) as jsonfile:
+                json_data = {
+                    **args,
+                    **data_args,
+                    **strategy_args,
+                    "step_timings": list(iteration_timing.values()),
+                    "mean_step_timings": mean,
+                }
+                json.dump(json_data, jsonfile, indent=2)
