@@ -229,8 +229,11 @@ if __name__ == "__main__":
             ]
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
+
+        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}.png'
+
         output_file = (
-            os.path.join(args.output_path, f"{g}.png") if args.output_path else None
+            os.path.join(args.output_path, filename) if args.output_path else None
         )
         plot_list_of_tasks(
             df, list_of_tasks_to_plot, output_file, xlog=args.xlog, fit=args.fit
