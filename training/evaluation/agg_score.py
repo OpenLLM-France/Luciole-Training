@@ -26,22 +26,36 @@ def calculate_agg_score(df):
             lambda x: normalize_within_range(x["score"], x["random"], 1.0), axis=1
         )
         # Group by task type
-        results_task = df_group.groupby(["language", "task_type"]).agg(
-            {"norm_score": lambda x: x.mean(skipna=False)}
+        results_task = (
+            df_group.groupby(["language", "task_type"])
+            .agg({"norm_score": lambda x: x.mean(skipna=False)})
+            .reset_index()
         )
-        # Final results and reformat
+        # Group by language
         results_final = (
             results_task.groupby("language")
             .agg({"norm_score": lambda x: x.mean(skipna=False)})
             .reset_index()
         )
+
+        # Reformat
+        results_task["expe_name"] = expe_name
+        results_task["tokens"] = tokens
+        results_task["metric"] = "agg"
+        results_task["task"] = (
+            "AGG_"
+            + results_task["language"].str.upper()
+            + "_"
+            + results_task["task_type"].str.upper()
+        )
+        results_task = results_task.rename(columns={"norm_score": "score"})
+        all_results.append(results_task)
+
         results_final["expe_name"] = expe_name
         results_final["tokens"] = tokens
         results_final["metric"] = "agg"
-        results_final = results_final.rename(
-            columns={"language": "task", "norm_score": "score"}
-        )
-
+        results_final["task"] = "AGG_" + results_final["language"].str.upper()
+        results_final = results_final.rename(columns={"norm_score": "score"})
         all_results.append(results_final)
     df = pd.concat(all_results, ignore_index=True)
     return df[["expe_name", "tokens", "task", "metric", "score"]]
