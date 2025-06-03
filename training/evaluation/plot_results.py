@@ -92,11 +92,34 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
 
 
 def plot_list_of_tasks(
-    df, list_of_tasks_to_plot, output_file=None, title=None, xlog=False, fit=False
+    df,
+    list_of_tasks_to_plot,
+    output_file=None,
+    title=None,
+    xlog=False,
+    fit=False,
+    max_subplot=15,
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
     ]
+    n_tasks = len(list_of_tasks_to_plot)
+    if n_tasks > max_subplot:
+        print("Splitting results in different figures...")
+        for i, chunk_list in enumerate(
+            [
+                list_of_tasks_to_plot[i : i + max_subplot]
+                for i in range(0, n_tasks, max_subplot)
+            ]
+        ):
+            if output_file:
+                base, ext = os.path.splitext(output_file)
+                chunk_output_file = f"{base}_part{i}{ext}"
+            else:
+                chunk_output_file = None
+            plot_list_of_tasks(df, chunk_list, chunk_output_file, title, xlog, fit)
+        return
+
     num_tasks = len(list_of_tasks_to_plot)
     num_plots = num_tasks + 1  # +1 for the legend
 
@@ -148,8 +171,8 @@ if __name__ == "__main__":
         "--group",
         type=str,
         nargs="+",
-        choices=list(task_group_mapping.keys()),
-        default=["en"],
+        choices=["all"] + list(task_group_mapping.keys()),
+        default=["all"],
         help="List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want.",
     )
     parser.add_argument(
@@ -169,15 +192,27 @@ if __name__ == "__main__":
     df = pd.concat([df, df_agg])
 
     df = process_results(df)
-    print(df)
 
     for g in args.group:
-        os.makedirs(os.path.join(args.output_path, g), exist_ok=True)
+        if g == "all":
+            list_of_tasks_to_plot = list(
+                df[["task", "metric"]]
+                .drop_duplicates()
+                .itertuples(index=False, name=None)
+            )
+            list_of_tasks_to_plot = [
+                task
+                for task in list_of_tasks_to_plot
+                if (task[0] != "all")
+                and not ("mmlu" in task[0] and "average" not in task[0])
+            ]
+        else:
+            task_group_mapping[g]
         output_file = (
             os.path.join(args.output_path, f"{g}.png") if args.output_path else None
         )
         plot_list_of_tasks(
-            df, task_group_mapping[g], output_file, xlog=args.xlog, fit=args.fit
+            df, list_of_tasks_to_plot, output_file, xlog=args.xlog, fit=args.fit
         )
 
     if not args.output_path:

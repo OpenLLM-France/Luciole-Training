@@ -1,9 +1,17 @@
 {"task": "lighteval|meta_mmlu_fra_cf:_average|0", "metric":"acc_norm_pmi", "task_type":"GK", "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|mlmm_arc_fra_cf:challenge|0", "metric":"acc_norm_pmi", "task_type":"GK","category": "mcq", "num_classes": 4, "language": "fr"}
-{"task": "lighteval|mintaka_fra|0", "metric":"f1_fra", "task_type":"GK","category": "generative", "num_classes": null, "language": "fr"}
+{"task": "lighteval|mintaka_fra|0", "metric":"f1_fra", "task_type":"GEN","category": "generative", "num_classes": null, "language": "fr"}
 {"task": "lighteval|belebele_fra_Latn_cf|0", "metric":"acc_norm_token", "task_type":"RC","category": "mcq", "num_classes": 4, "language": "fr"}
-{"task": "lighteval|fquadv2_fra|0", "metric":"f1_fra", "task_type":"RC","category": "generative", "num_classes": null, "language": "fr"}
+{"task": "lighteval|fquadv2_fra|0", "metric":"f1_fra", "task_type":"GEN","category": "generative", "num_classes": null, "language": "fr"}
 {"task": "lighteval|xcodah_fra_cf|0", "metric":"acc_norm_token", "task_type":"RES", "category": "mcq", "num_classes": 5, "language": "fr"}
 {"task": "lighteval|xcsqa_fra_cf|0", "metric":"acc_norm_pmi", "task_type":"RES",  "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|mlmm_hellaswag_fra_cf|0", "metric":"acc_norm_token", "task_type":"NLU",  "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|xnli2.0_fra_cf|0", "metric":"acc_", "task_type":"NLU", "category": "classification", "num_classes": 3, "language": "fr"}
+{"task": "lighteval|openbookqa|0", "metric":"acc", "task_type":"RES", "category": "mcq", "num_classes": 4, "language": "en"}
+{"task": "lighteval|piqa|0", "metric":"acc", "task_type":"RES", "category": "qa", "num_classes": 2, "language": "en"}
+{"task": "leaderboard|hellaswag|0", "metric":"acc", "task_type":"NLU","category": "mcq", "num_classes": 4, "language": "en"}
+{"task": "leaderboard|winogrande|0", "metric":"acc","task_type":"NLU", "category": "qa", "num_classes": 2, "language": "en"}
+{"task": "lighteval|arc:easy|0", "metric":"acc", "task_type":"GK", "category": "mcq", "num_classes": 4, "language": "en"}
+{"task": "leaderboard|arc:challenge|0", "metric":"acc", "task_type":"GK", "category": "mcq", "num_classes": 4, "language": "en"}
+{"task": "lighteval|triviaqa|0", "metric":"qem", "task_type":"GK", "category": "qa", "num_classes": 4, "language": "en"}
+{"task": "helm|boolq|0", "metric":"pem", "task_type":"NLU", "category": "qa", "num_classes": 2, "language": "en"}
