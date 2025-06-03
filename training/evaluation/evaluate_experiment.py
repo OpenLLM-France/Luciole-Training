@@ -14,6 +14,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --qos=qos_gpu_h100-t3
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
+{dependency}
 
 set -e
 
@@ -54,7 +55,11 @@ def main():
         action="store_true",
         help="Use multilingual task configuration.",
     )
-
+    parser.add_argument(
+        "--dependency",
+        default=None,
+        help="A dependency after which it should launch the evals",
+    )
     args = parser.parse_args()
 
     experiment_path = Path(args.experiment_path)
@@ -78,6 +83,9 @@ def main():
             task_to_evaluate=task_to_evaluate.resolve(),
             extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
             if args.multilingual
+            else "",
+            dependency=f"#SBATCH --dependency=afterok:{args.dependency}"
+            if args.dependency
             else "",
         )
 
