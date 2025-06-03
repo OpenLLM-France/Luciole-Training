@@ -50,6 +50,7 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
                 read_metadata=False,
             ),
             SamplerFilter(rate=rate, seed=42),
+            remove_metadata,
             ParquetWriter(f"{output_path}/fineweb_edu"),
         ]
     elif language == "code":
@@ -67,8 +68,8 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
                 if "max_stars_count" in doc.metadata
                 else True,
             ),
-            remove_metadata,
             SamplerFilter(rate=rate, seed=42),
+            remove_metadata,
             ParquetWriter(f"{output_path}/starcoder"),
         ]
 
@@ -86,6 +87,7 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
                 read_metadata=False,
             ),
             SamplerFilter(rate=rate, seed=42),
+            remove_metadata,
             ParquetWriter(f"{output_path}/fineweb2_{language}"),
         ]
 
