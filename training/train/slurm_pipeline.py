@@ -1,6 +1,11 @@
 import os
+import subprocess
+import logging
 from pathlib import Path
 from slurm_launcher import create_parser, pre_submit, write_launch_slurm
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def create_slurm_conversion_script(job_id, xp_output_dir):
@@ -89,7 +94,17 @@ def submit_evaluation(job_id, xp_output_dir, task="en.txt"):
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
-    job_id, xp_output_dir = pre_submit(args)
-    job_id = submit_conversion(job_id, xp_output_dir)
-    submit_evaluation(job_id, xp_output_dir, task="en.txt")
-    submit_evaluation(job_id, xp_output_dir, task="fr.txt")
+    try:
+        job_id, xp_output_dir = pre_submit(args)
+        conversion_id = submit_conversion(job_id, xp_output_dir)
+        submit_evaluation(conversion_id, xp_output_dir, task="en.txt")
+        submit_evaluation(conversion_id, xp_output_dir, task="fr.txt")
+    except Exception:
+        for jid in [job_id, conversion_id]:
+            try:
+                subprocess.run(["scancel", str(jid)], check=True)
+                logger.info(f"Cancelled job {jid}")
+            except subprocess.CalledProcessError as cancel_err:
+                logger.warning(f"Failed to cancel job {jid}: {cancel_err}")
+        logger.error("Job were cancelled because an error was raised!")
+        raise

@@ -1,6 +1,7 @@
 import os
 import torch
 import logging
+import torch.distributed as dist
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,29 +72,44 @@ def save_stats(output_dir, args, strategy_args, data_args):
     import re
     import json
 
-    files = os.listdir(output_dir)
+    strategy_args.pop("ddp")
+    strategy_args["pipeline_dtype"] = str(strategy_args["pipeline_dtype"])
+    job_id = os.environ.get("SLURM_JOB_ID")
     pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-    for file in files:
-        if file.startswith("log_"):
-            with open(os.path.join(output_dir, file), "r") as f:
-                log_content = f.read()
-            iteration_timing = {
-                int(match[0]): float(match[1])
-                for match in re.findall(pattern, log_content)
-            }
-            mean = sum(list(iteration_timing.values())[2:]) / (
-                len(iteration_timing) - 2
-            )
-            log_id = file.replace("log_", "")
-            log_id = log_id.replace(".out", "")
-            with open(
-                os.path.join(output_dir, f"stats_{args['name']}_{log_id}.json"), "w"
-            ) as jsonfile:
-                json_data = {
-                    **args,
-                    **data_args,
-                    **strategy_args,
-                    "step_timings": list(iteration_timing.values()),
-                    "mean_step_timings": mean,
-                }
-                json.dump(json_data, jsonfile, indent=2)
+    file = f"log_{job_id}.out"
+    with open(os.path.join(output_dir, file), "r") as f:
+        log_content = f.read()
+    iteration_timing = {
+        int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
+    }
+    mean = sum(list(iteration_timing.values())[2:]) / (len(iteration_timing) - 2)
+    with open(
+        os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
+    ) as jsonfile:
+        json_data = {
+            **args,
+            **data_args,
+            **strategy_args,
+            "step_timings": list(iteration_timing.values()),
+            "mean_step_timings": mean,
+        }
+        json.dump(json_data, jsonfile, indent=2)
+
+
+def is_main_process():
+    return not dist.is_available() or not dist.is_initialized() or dist.get_rank() == 0
+
+
+def suppress_non_main_logging():
+    """Sets all existing and future loggers to only log from the main process."""
+    dist.init_process_group(backend="nccl")
+    if is_main_process():
+        logging_level = logging.INFO
+    else:
+        logging_level = logging.CRITICAL + 1  # Effectively disables logging
+
+    logging.getLogger().setLevel(logging.CRITICAL)
+
+    for name in logging.root.manager.loggerDict:
+        logger = logging.getLogger(name)
+        logger.setLevel(logging_level)
