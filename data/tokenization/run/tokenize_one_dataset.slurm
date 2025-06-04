@@ -10,6 +10,9 @@
 # Requires nemo installation - on Jeanzay for now
 module purge
 module load arch/a100 nemo/2.2.1
+export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+
 export TOKENIZERS_PARALLELISM=false
 
 INPUT_FOLDER=$1
