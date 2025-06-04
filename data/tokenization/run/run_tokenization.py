@@ -10,16 +10,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--yaml_file",
         type=str,
-        default="datasets_to_tokenize.yaml",
+        default="configs/ablations_v0.yaml",
         help=".yaml file that contains the datasets you want to tokenize. See for example datasets_to_tokenize.yaml.",
-    )
-    parser.add_argument(
-        "--input_dir",
-        type=str,
-        default=os.path.join(
-            os.getenv("OpenLLM_OUTPUT"), "data/raw_data/data_for_ablation"
-        ),
-        help="Input directory that contains the processed datasets you want to tokenize. ",
     )
     parser.add_argument(
         "--output_dir",
@@ -37,7 +29,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     yaml_file = args.yaml_file
-    raw_dataset_path = args.input_dir
     tokens_dataset_path = args.output_dir
     tokenizer_name = args.tokenizer_name
 
@@ -57,42 +48,41 @@ if __name__ == "__main__":
 
     # Load the YAML content
     with open(yaml_file, "r") as f:
-        datasets = yaml.safe_load(f)["datasets"]
+        yaml_data = yaml.safe_load(f)
 
     # Iterate through each dataset entry
-    for dataset in datasets:
-        name = dataset.get("name")
-        datapath = dataset.get("path")
+    for dataset_group in yaml_data["dataset_groups"]:
+        root_path = dataset_group["root_path"]
+        for dataset in dataset_group["datasets"]:
+            name = dataset["name"]
+            relative_path = dataset["path"]
 
-        if not name or not datapath:
-            continue  # Skip if required fields are missing
+            raw_path = os.path.join(root_path, relative_path)
+            output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
 
-        raw_path = os.path.join(raw_dataset_path, datapath)
-        output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
+            if os.path.isdir(raw_path):
+                if not os.path.isfile(output_idx):
+                    print("--------------------------------------")
+                    print(f"🚀 Processing dataset: {name}")
+                    print(f"📂 Path: {raw_path}")
+                    print("--------------------------------------")
 
-        if os.path.isdir(raw_path):
-            if not os.path.isfile(output_idx):
-                print("--------------------------------------")
-                print(f"🚀 Processing dataset: {name}")
-                print(f"📂 Path: {raw_path}")
-                print("--------------------------------------")
-
-                # Submit job using sbatch
-                subprocess.run(
-                    [
-                        "sbatch",
-                        f"--job-name=tok_{name}",
-                        "tokenize_one_dataset.slurm",
-                        raw_path,
-                        os.path.join(tokens_dataset_path, name),
-                        tokenizer_name,
-                    ]
-                )
+                    # Submit job using sbatch
+                    subprocess.run(
+                        [
+                            "sbatch",
+                            f"--job-name=tok_{name}",
+                            "tokenize_one_dataset.slurm",
+                            raw_path,
+                            os.path.join(tokens_dataset_path, name),
+                            tokenizer_name,
+                        ]
+                    )
+                else:
+                    print("--------------------------------------")
+                    print(f"⏩ Skipping {name}, already processed.")
+                    print("--------------------------------------")
             else:
                 print("--------------------------------------")
-                print(f"⏩ Skipping {name}, already processed.")
+                print(f"❌ Raw dataset not found for {name} at {raw_path}.")
                 print("--------------------------------------")
-        else:
-            print("--------------------------------------")
-            print(f"❌ Raw dataset not found for {name} at {raw_path}.")
-            print("--------------------------------------")
