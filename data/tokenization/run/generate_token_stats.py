@@ -5,11 +5,10 @@ import re
 import glob
 import pandas as pd
 import argparse
+from nemo_patch import indexed_dataset
 
 
 def extract_token_lengths(data_path, name):
-    from nemo.collections.nlp.data.language_modeling.megatron import indexed_dataset
-
     suffix = "_text_document"
     dataset = indexed_dataset.MMapIndexedDataset(os.path.join(data_path, name + suffix))
     return [len(data) for data in dataset]
