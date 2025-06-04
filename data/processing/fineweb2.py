@@ -1,4 +1,4 @@
-from utils import create_parser, get_data_path, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII, MorePIIFormatter
@@ -162,8 +162,8 @@ if __name__ == "__main__":
         choices=["cluster_size", "edu_score"],
         help="",
     )
-    args = parser.parse_args()
-    DATA_PATH = get_data_path(args)
+    args = parse_args(parser)
+    DATA_PATH = args.data_path
     FASTTEXT_PATH = os.path.join(
         os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
     )
@@ -218,14 +218,6 @@ if __name__ == "__main__":
                 filter_name="topic",
             ),
             post_process_fasttext,
-            # LambdaFilter(
-            #     filter_function = partial(lambda doc, toxicity_max: doc.metadata['is_toxic'] < toxicity_max, toxicity_max=toxicity_max),
-            #     exclusion_writer = JsonlWriter(f"{output_dir}/removed/is_toxic"),
-            # ),
-            # LambdaFilter(
-            #     filter_function = partial(lambda doc, edu_min: doc.metadata['edu_score'] > edu_min, edu_min=edu_min),
-            #     exclusion_writer = JsonlWriter(f"{output_dir}/removed/low_edu_score"),
-            # ),
         ]
     else:
         fasttext_filters = []
@@ -263,7 +255,7 @@ if __name__ == "__main__":
         AssignCluster(),
         JsonlWriter(f"{output_dir}/annotated_output/data", max_file_size=int(2e9)),
     ]
-    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
+    add_sampler_filter(pipeline, args.sample_rate)
 
     annotation_executor = create_executor(
         pipeline,
@@ -284,7 +276,7 @@ if __name__ == "__main__":
     elif quality_criteria == "cluster_size":
         writer = JsonlWriter(
             f"{output_dir}/split_by_cluster_size/data",
-            output_filename="${cluster_size}/${rank}.jsonl.gz",
+            output_filename="${cluster_size_group}/${rank}.jsonl.gz",
             max_file_size=int(2e9),
         )
     else:
