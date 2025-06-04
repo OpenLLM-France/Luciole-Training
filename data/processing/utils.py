@@ -92,7 +92,7 @@ def parse_args(parser):
     if args.sample_rate < 1.0:
         base_dir = os.path.dirname(args.data_path)
         args.data_path = os.path.join(
-            base_dir, f"sample_datasets_rate_{args.sample_rate:.2f}"
+            base_dir, f"subsampled_data_rate_{args.sample_rate:.2f}"
         )
         print(f"data_path overwritten: {args.data_path}")
     return args
