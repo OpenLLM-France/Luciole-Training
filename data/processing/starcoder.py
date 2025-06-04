@@ -1,7 +1,6 @@
 import os
 
-from utils import create_parser, get_data_path, create_executor, add_sampler_filter
-
+from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import ParquetReader, HuggingFaceDatasetReader
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.writers import JsonlWriter
@@ -9,8 +8,8 @@ from datatrove.pipeline.writers import JsonlWriter
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--olmo", action="store_true", help="Read from olmo 2")
-    args = parser.parse_args()
-    DATA_PATH = get_data_path(args)
+    args = parse_args(parser)
+    DATA_PATH = args.data_path
 
     dataset_name = "starcoder" + ("_olmo" if args.olmo else "")
     output_path = os.path.join(DATA_PATH, dataset_name)
@@ -39,7 +38,8 @@ if __name__ == "__main__":
             ),
             JsonlWriter(f"{output_path}/1_high_stars_count"),
         ]
-    pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
+
+    add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,
