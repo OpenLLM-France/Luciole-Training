@@ -7,11 +7,59 @@ import pandas as pd
 import matplotlib.ticker as mtick
 
 
+def create_config_name(entry):
+    parts = []
+
+    if "arch" in entry:
+        parts.append(f"{entry['arch']}")
+
+    if "tp" in entry:
+        parts.append(f"tp{int(entry['tp'])}")
+
+    if "pp" in entry:
+        parts.append(f"pp{int(entry['pp'])}")
+
+    if "cp" in entry:
+        parts.append(f"cp{int(entry['cp'])}")
+
+    if "precision" in entry:
+        parts.append(entry["precision"])
+
+    if "seq_length" in entry:
+        parts.append(f"seq_length{int(entry['seq_length'])}")
+
+    if "batch_size" in entry:
+        parts.append(f"batch_size{int(entry['batch_size'])}")
+
+    return "_".join(parts)
+
+
 def plot_training_and_gpu_hours(
     df, plot_name="plot.png", plot_title="", output_folder=""
 ):
-    fig, axes = plt.subplots(1, 2, figsize=(18, 6), sharex=True)
+    # Find columns with only one unique value
+    constant_columns = df.loc[:, df.nunique() == 1]
 
+    # Log the dropped columns and their constant values
+    dropped_info = {
+        col: constant_columns[col].iloc[0] for col in constant_columns.columns
+    }
+    print(dropped_info)
+
+    # Drop those columns from the DataFrame
+    df = df.drop(columns=constant_columns.columns)
+
+    # Create config names
+    df["config"] = df.apply(create_config_name, axis=1)
+
+    # Check for duplicate (config, num_nodes) pairs
+    duplicates = df[df.duplicated(subset=["config", "num_nodes"], keep=False)]
+    if not duplicates.empty:
+        print("\n⚠️  Warning: The following config values are duplicated:")
+        print(duplicates[["config", "num_nodes"]])
+        print(df)
+    # Create the plots
+    fig, axes = plt.subplots(1, 2, figsize=(18, 6), sharex=True)
     metrics = [
         ("training_time", "Training Time for 1T Tokens", "Training time (in days)"),
         (
@@ -25,12 +73,12 @@ def plot_training_and_gpu_hours(
     labels = []
 
     for ax, (y, title, ylabel) in zip(axes, metrics):
-        sns.lineplot(data=df, x="num_nodes", y=y, hue="config", marker="o", ax=ax)
+        sns.lineplot(data=df, x="num_gpus", y=y, hue="config", marker="o", ax=ax)
 
         for config_name, group in df.groupby("config"):
-            last_point = group.sort_values("num_nodes").iloc[-1]
+            last_point = group.sort_values("num_gpus").iloc[-1]
             ax.text(
-                last_point["num_nodes"] + 0.5,
+                last_point["num_gpus"] + 0.5,
                 last_point[y],
                 f"{last_point[y]:.2f}"
                 if last_point[y] < 1000
@@ -41,7 +89,7 @@ def plot_training_and_gpu_hours(
             )
 
         ax.set_title(title)
-        ax.set_xlabel("Number of Nodes")
+        ax.set_xlabel("Number of GPUs")
         ax.set_ylabel(ylabel)
         ax.set_ylim(0)
         ax.grid(True)
@@ -53,26 +101,40 @@ def plot_training_and_gpu_hours(
                 )
             )
 
-        # Get legend handles/labels only once
         if not handles:
             handles, labels = ax.get_legend_handles_labels()
 
-        ax.get_legend().remove()  # Remove individual legends
+        ax.get_legend().remove()
 
-    # Add shared legend to the right
+    # Add shared legend
     fig.legend(
         handles,
         labels,
         title="",
-        loc="center left",
+        loc="upper left",
         bbox_to_anchor=(0.92, 0.5),
         borderaxespad=0.0,
         fontsize="medium",
         title_fontsize="large",
     )
 
-    # plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to make space for the legend
-    # plt.tight_layout()
+    # Add dropped info as annotation near the legend
+    if dropped_info:
+        info_str = "\n".join(f"- {k}: {v}" for k, v in dropped_info.items())
+        legend_lines = len(labels)
+        legend_height = 0.03 * legend_lines  # adjust this scaling if needed
+        annotation_y = max(0.5 - legend_height - 0.05, 0.05)
+        fig.text(
+            0.92,
+            annotation_y,
+            f"Constant params:\n{info_str}",
+            ha="left",
+            va="top",
+            fontsize=10,
+            transform=fig.transFigure,
+        )
+
+    # Final layout & save
     fig.suptitle(plot_title, fontsize=16)
     output_path = f"{output_folder}/{plot_name}" if output_folder else plot_name
     plt.savefig(output_path, bbox_inches="tight")
@@ -104,13 +166,10 @@ def convert_data(data):
         number_of_steps_per_trillion_tokens = 1e12 / (
             entry["batch_size"] * entry["seq_length"]
         )
-        config_key = f"{entry['arch']}_tp{entry['tensor_model_parallel_size']}_pp{entry['pipeline_model_parallel_size']}_fp8{entry['fp8']}"
-        config_key += (
-            f"_seq_length{entry['seq_length']}_cp{entry['context_parallel_size']}"
-        )
         records.append(
             {
                 "num_nodes": entry["num_nodes"],
+                "num_gpus": entry["num_nodes"] * 4,
                 "mean_step_timing": entry["mean_step_timings"],
                 "training_time": entry["mean_step_timings"]
                 * number_of_steps_per_trillion_tokens
@@ -125,15 +184,14 @@ def convert_data(data):
                 "arch": entry["arch"],
                 "tp": entry["tensor_model_parallel_size"],
                 "pp": entry["pipeline_model_parallel_size"],
-                "fp8": entry["fp8"],
+                "precision": "fp8" if entry["fp8"] else "bf16",
                 "seq_length": entry["seq_length"],
                 "cp": entry["context_parallel_size"],
-                "config": config_key,
+                "batch_size": entry["batch_size"],
             }
         )
 
     df = pd.DataFrame(records)
-    df = df.sort_values(by="config")
     return df
 
 
@@ -157,10 +215,11 @@ if __name__ == "__main__":
     tp_df = df[
         (df["arch"] == "llama8b")
         & (df["pp"] == 1)
-        & (df["fp8"] == False)  # noqa E712
+        & (df["precision"] == "bf16")  # noqa E712
         & (df["seq_length"] == 4096)
         & (df["cp"] == 1)
     ]
+    tp_df = tp_df.sort_values(by="tp")
     plot_training_and_gpu_hours(
         tp_df,
         plot_name="tp.png",
@@ -168,15 +227,19 @@ if __name__ == "__main__":
         output_folder=output_folder,
     )
 
-    arch_df = df[(df["arch"] == "llama8b") & (df["tp"] == 1) & (df["fp8"] == False)]  # noqa E712
+    seq_df = df[
+        (df["arch"] == "llama8b") & (df["tp"] == 1) & (df["precision"] == "bf16")
+    ]  # noqa E712
+    seq_df = seq_df.sort_values(by="seq_length")
     plot_training_and_gpu_hours(
-        arch_df,
+        seq_df,
         plot_name="seq_length.png",
         plot_title="Impact of Seq Length on training",
         output_folder=output_folder,
     )
 
     arch_df = df[(df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1)]
+    arch_df = arch_df.sort_values(by="arch")
     plot_training_and_gpu_hours(
         arch_df,
         plot_name="arch_fp8.png",
