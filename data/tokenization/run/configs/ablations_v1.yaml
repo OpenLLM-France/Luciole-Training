@@ -1,0 +1,23 @@
+dataset_groups:
+  - root_path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets
+    datasets:
+      # Fineweb2 french split by edu_score
+      - name: fineweb2_filtered_fra_Latn_edu_0
+        path: fineweb2_filtered/fra_Latn/split_by_edu_score/data/edu_0
+
+      - name: fineweb2_filtered_fra_Latn_edu_1
+        path: fineweb2_filtered/fra_Latn/split_by_edu_score/data/edu_1
+
+      - name: fineweb2_filtered_fra_Latn_edu_2
+        path: fineweb2_filtered/fra_Latn/split_by_edu_score/data/edu_2
+
+      - name: fineweb2_filtered_fra_Latn_edu_3
+        path: fineweb2_filtered/fra_Latn/split_by_edu_score/data/edu_3
+
+      - name: fineweb2_filtered_fra_Latn_edu_4
+        path: fineweb2_filtered/fra_Latn/split_by_edu_score/data/edu_4
+
+  - root_path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/subsampled_data_rate_0.05
+    datasets:
+      - name: dclm_dolmino_subsampled_0.05
+        path: dclm_dolmino/output
