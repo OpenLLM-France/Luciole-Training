@@ -253,6 +253,9 @@ if __name__ == "__main__":
         ParquetReader(f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train"),
         *fasttext_filters,
         AssignCluster(),
+        FinewebDocumentCleaning(),
+        *([PrefixFilter(language=language)] if args.add_prefix else []),
+        *pii_cleaning,
         JsonlWriter(f"{output_dir}/annotated_output/data", max_file_size=int(2e9)),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
@@ -288,9 +291,6 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(f"{output_dir}/annotated_output/data"),
-        FinewebDocumentCleaning(),
-        *([PrefixFilter(language=language)] if args.add_prefix else []),
-        *pii_cleaning,
         writer,
     ]
 
