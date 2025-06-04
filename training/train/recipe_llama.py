@@ -142,6 +142,7 @@ def create_trainer(
     limit_val_batches: int = 0,
     callbacks: Optional[list[Callback]] = None,
     fp8: bool = False,
+    log_every_n_steps=10,
 ):
     """
     Configure the NeMo Lightning Trainer for Llama3.2 1B model.
@@ -181,7 +182,7 @@ def create_trainer(
         callbacks=callbacks,
         devices=num_gpus_per_node,
         limit_test_batches=50,
-        log_every_n_steps=10,
+        log_every_n_steps=log_every_n_steps,
         max_steps=max_steps,
         num_nodes=num_nodes,
         plugins=bf16_with_fp8_mixed() if fp8 else bf16_mixed(),
