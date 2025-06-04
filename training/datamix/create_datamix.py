@@ -42,6 +42,15 @@ def apply_rehydratation(df, rehydratation_mapping):
     return df
 
 
+def to_nb_tokens(x):
+    x = x.replace("b", " * 1_000_000_000")
+    x = x.replace("m", " * 1_000_000")
+    try:
+        return int(eval(x))
+    except Exception as e:
+        raise ValueError(f"Invalid value for --mode: {x} (a number of tokens)") from e
+
+
 if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
 
@@ -62,6 +71,12 @@ if __name__ == "__main__":
         "--name",
         type=str,
         default=None,
+        help="Name of the output file",
+    )
+    parser.add_argument(
+        "--target_tokens",
+        type=str,
+        default="35b",
         help="Name of the output file",
     )
     parser.add_argument(
@@ -155,6 +170,15 @@ if __name__ == "__main__":
     df["total_tokens_upsampled"] = df["total_tokens_rehydrated"] * df["upsampling"]
     df["weight"] = df["total_tokens_upsampled"].transform(lambda x: x / x.sum())
     df = df[df["weight"] > 0]
+
+    # Calculating number of epochs per dataset
+    df["epochs"] = df["weight"] * to_nb_tokens(args.target_tokens) / df["total_tokens"]
+    overtrained = df[df["epochs"] > 1]
+    if not overtrained.empty:
+        print(
+            "\nWarning: The following datasets will be trained for more than one epoch:"
+        )
+        print(overtrained[["name", "total_tokens", "epochs"]])
 
     # Merge
     df["name"] = df["name"] + "_text_document"
