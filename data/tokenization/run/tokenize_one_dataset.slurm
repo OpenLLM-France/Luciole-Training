@@ -1,15 +1,15 @@
 #!/bin/bash
 #SBATCH --output=slurm/%x.out 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=25
-#SBATCH --time=10:00:00 
+#SBATCH --cpus-per-task=40
+#SBATCH --time=20:00:00 
 #SBATCH --hint=nomultithread 
 #SBATCH --account=qgz@cpu
-#SBATCH --partition=prepost
+#SBATCH --partition=cpu_p1
 
 # Requires nemo installation - on Jeanzay for now
 module purge
-module load arch/h100 nemo/2.1.0
+module load arch/a100 nemo/2.2.1
 export TOKENIZERS_PARALLELISM=false
 
 INPUT_FOLDER=$1
@@ -30,5 +30,5 @@ python preprocess_data_for_megatron.py \
     --use-fast \
     --append-eod \
     --apply-ftfy \
-    --workers=25 \
+    --workers=40 \
     --log-interval 10000
