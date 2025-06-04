@@ -23,13 +23,14 @@ def create_slurm_script(
     tensor_parallelism,
     pipeline_parallelism,
     seq_length,
+    batch_size,
     context_parallelism,
     virtual_pipeline_parallelism,
 ):
     # Choix des paramètres en fonction du mode
-    if mode == "debug" or mode == "benchmark":
+    if mode == "debug" or mode.startswith("benchmark"):
         qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "00:20:00"
+        time = "00:45:00" if mode == "benchmark100" else "00:20:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
@@ -54,6 +55,8 @@ def create_slurm_script(
         args += f" --pipeline_parallelism {pipeline_parallelism}"
     if seq_length:
         args += f" --seq_length {seq_length}"
+    if batch_size:
+        args += f" --batch_size {batch_size}"
     if context_parallelism:
         args += f" --context_parallelism {context_parallelism}"
     if virtual_pipeline_parallelism:
@@ -234,6 +237,7 @@ def create_parser():
         "--virtual_pipeline_parallelism", "--vpp", default=None, type=int
     )
     parser.add_argument("--seq_length", default=None, type=int)
+    parser.add_argument("--batch_size", default=None, type=int)
     return parser
 
 

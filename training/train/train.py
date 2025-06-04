@@ -20,7 +20,7 @@ from megatron.core.distributed import DistributedDataParallelConfig
 if __name__ == "__main__":
 
     def to_nb_tokens(x):
-        if x == "debug" or x == "benchmark":
+        if x == "debug" or x == "benchmark" or x == "benchmark100":
             return x
         x = x.replace("b", " * 1_000_000_000")
         x = x.replace("m", " * 1_000_000")
@@ -92,9 +92,10 @@ if __name__ == "__main__":
 
     data = create_data(data_paths, **data_args)
 
-    if args.mode in ["debug", "benchmark"]:
+    if args.mode in ["debug", "benchmark", "benchmark100"]:
         max_steps = 1 if args.mode == "debug" else 10
-        resume_if_exists = args.mode == "benchmark"
+        max_steps = 100 if args.mode == "benchmark100" else max_steps
+        resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
     else:
         number_of_tokens = args.mode
@@ -212,9 +213,14 @@ if __name__ == "__main__":
         num_gpus_per_node=args.num_gpus_per_node,
         num_nodes=num_nodes,
         callbacks=[TimingCallback()],
-        val_check_interval=5 if args.mode in ["debug", "benchmark"] else 1000,
+        val_check_interval=5
+        if args.mode in ["debug", "benchmark", "benchmark100"]
+        else 1000,
         limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
         fp8=args.fp8,
+        log_every_n_steps=1
+        if args.mode in ["debug", "benchmark", "benchmark100"]
+        else 10,
     )
 
     nemo_logger = create_logger(
