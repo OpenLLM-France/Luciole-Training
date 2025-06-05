@@ -2,15 +2,15 @@ from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.readers import WarcReader
 from datatrove.pipeline.writers.jsonl import JsonlWriter
 import os
-from datatrove.pipeline.filters.base_filter import BaseFilter
-from datatrove.pipeline.writers.disk_base import DiskWriter
-from datatrove.pipeline.extractors.megamath import MegamathExtractor
+from datatrove.pipeline.extractors.megamath import MegamathReformatter
+from datatrove.pipeline.extractors import Trafilatura
 from datatrove.pipeline.filters.open_web_math_filter import OpenWebMathFilter
-from datatrove.data import Document
+from datatrove.pipeline.filters import LanguageFilter
 import json
 
 DUMP_TO_PROCESS = "CC-MAIN-2024-42"
-TOTAL_TASKS = 100
+TOTAL_TASKS = 10
+
 OUTPUT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"), "data/raw_data/math_extraction/dataset"
 )
@@ -23,28 +23,21 @@ with open(
     "r",
 ) as file:
     data = json.load(file)
-domain_subset = set(data.keys())
+domain_subset = {domain for domain, count in data.items() if count >= 100}
 
+# def copy_html(
+#     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+# ) -> DocumentsPipeline:
+#     for doc in data:
+#         doc.metadata['html'] = doc.text
+#         yield doc
 
-class DomainFilter(BaseFilter):
-    name = "🇫🇷 Domain Filter"
-
-    def __init__(self, exclusion_writer: DiskWriter = None, domain_subset: set = None):
-        from tldextract import TLDExtract
-
-        super().__init__(exclusion_writer)
-        self.tld_extractor = TLDExtract()
-        self.domain_subset = domain_subset
-
-    def filter(self, doc: Document) -> bool | tuple[bool, str]:
-        url = doc.metadata.get("url")
-        if not url:
-            return False, "missing_url"
-        fqdn = self.tld_extractor.extract_str(url).fqdn
-        if fqdn not in self.domain_subset:
-            return False, "not_french_domain"
-        return True
-
+# def use_html(
+#     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+# ) -> DocumentsPipeline:
+#     for doc in data:
+#         doc.text = doc.metadata.pop('html', "")
+#         yield doc
 
 main_processing_executor = SlurmPipelineExecutor(
     pipeline=[
@@ -52,15 +45,13 @@ main_processing_executor = SlurmPipelineExecutor(
             f"/lustre/fsmisc/dataset/CommonCrawl/{DUMP_TO_PROCESS}/segments/",
             glob_pattern="*/warc/*",  # we want the warc files
             default_metadata={"dump": DUMP_TO_PROCESS},
-            limit=-1,
+            domain_subset=domain_subset,
+            limit=1000,
         ),
-        DomainFilter(domain_subset=domain_subset),
-        OpenWebMathFilter(
-            exclusion_writer=JsonlWriter(
-                f"{OUTPUT_PATH}/extract/removed_data/openwebmath"
-            )
-        ),
-        MegamathExtractor(),
+        OpenWebMathFilter(),  # for now it's the best proxy we have
+        MegamathReformatter(),
+        Trafilatura(),
+        LanguageFilter(languages="fr"),
         JsonlWriter(f"{OUTPUT_PATH}/extract/data"),
     ],
     sbatch_args={"account": "qgz@cpu"},
