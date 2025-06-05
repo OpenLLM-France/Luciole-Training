@@ -22,6 +22,11 @@ evaluation_datasets["Wikipedia:ar"] = {
     "config": "20231101.ar",
     "max_num_words": 500_000_000,
 }
+evaluation_datasets["eus"] = {
+    "repo": "HuggingFaceFW/fineweb-2",
+    "config": "eus_Latn",
+    "max_num_words": 500_000_000,
+}
 for language in ["en", "fr", "de", "es"]:
     evaluation_datasets[f"Europarl:{language}"] = {
         "config": f"Europarl-{language}",
