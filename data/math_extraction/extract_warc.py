@@ -9,7 +9,7 @@ from datatrove.pipeline.filters import LanguageFilter
 import json
 
 DUMP_TO_PROCESS = "CC-MAIN-2024-42"
-TOTAL_TASKS = 10
+TOTAL_TASKS = 100
 
 OUTPUT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"), "data/raw_data/math_extraction/dataset"
@@ -18,7 +18,7 @@ OUTPUT_PATH = os.path.join(
 with open(
     os.path.join(
         os.getenv("OpenLLM_OUTPUT"),
-        "data/raw_data/math_extraction/fqdn_counts/merged.json",
+        "data/raw_data/math_extraction/fqdn_counts_science/merged.json",
     ),
     "r",
 ) as file:
@@ -46,12 +46,14 @@ main_processing_executor = SlurmPipelineExecutor(
             glob_pattern="*/warc/*",  # we want the warc files
             default_metadata={"dump": DUMP_TO_PROCESS},
             domain_subset=domain_subset,
-            limit=1000,
+            limit=-1,
         ),
         OpenWebMathFilter(),  # for now it's the best proxy we have
         MegamathReformatter(),
-        Trafilatura(),
-        LanguageFilter(languages="fr"),
+        Trafilatura(output_format="markdown"),
+        LanguageFilter(
+            languages="fr", language_threshold=0.65, keep_top_pairs_threshold=1
+        ),  # "en", "es", "de", "it"
         JsonlWriter(f"{OUTPUT_PATH}/extract/data"),
     ],
     sbatch_args={"account": "qgz@cpu"},
