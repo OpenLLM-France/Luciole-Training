@@ -219,7 +219,7 @@ if __name__ == "__main__":
         & (df["seq_length"] == 4096)
         & (df["cp"] == 1)
     ]
-    tp_df = tp_df.sort_values(by="tp")
+    tp_df = tp_df.sort_values(by=["tp", "batch_size"])
     plot_training_and_gpu_hours(
         tp_df,
         plot_name="tp.png",
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     seq_df = df[
         (df["arch"] == "llama8b") & (df["tp"] == 1) & (df["precision"] == "bf16")
     ]  # noqa E712
-    seq_df = seq_df.sort_values(by="seq_length")
+    seq_df = seq_df.sort_values(by=["seq_length", "batch_size", "pp", "cp"])
     plot_training_and_gpu_hours(
         seq_df,
         plot_name="seq_length.png",
@@ -238,11 +238,27 @@ if __name__ == "__main__":
         output_folder=output_folder,
     )
 
-    arch_df = df[(df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1)]
-    arch_df = arch_df.sort_values(by="arch")
+    arch_df = df[
+        (df["pp"] == 1)
+        & (df["tp"] == 1)
+        & (df["cp"] == 1)
+        & ((df["batch_size"] == 1024) | (df["arch"] == "llama1b"))
+    ]
+    arch_df = arch_df.sort_values(by=["arch", "precision"])
     plot_training_and_gpu_hours(
         arch_df,
         plot_name="arch_fp8.png",
+        plot_title="Impact of Architecture and FP8 on training",
+        output_folder=output_folder,
+    )
+
+    arch_df = df[
+        (df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1) & (df["arch"] == "llama8b")
+    ]
+    arch_df = arch_df.sort_values(by=["precision", "batch_size"])
+    plot_training_and_gpu_hours(
+        arch_df,
+        plot_name="batch_size_fp8.png",
         plot_title="Impact of Architecture and FP8 on training",
         output_folder=output_folder,
     )
