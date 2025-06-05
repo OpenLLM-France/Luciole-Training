@@ -10,6 +10,8 @@ from datatrove.data import Document
 from datatrove.pipeline.base import PipelineStep
 import os
 
+TASKS = 100
+
 
 class PrefixFilter(BaseFilter):
     name = "🕰️ Add Prefix"
@@ -149,7 +151,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--language", type=str, default="fra_Latn", help="Language to process"
     )
-    parser.add_argument("--tasks", type=int, default=50, help="Number of tasks to use")
     parser.add_argument(
         "--add_prefix",
         action="store_true",
@@ -263,7 +264,7 @@ if __name__ == "__main__":
 
     annotation_executor = create_executor(
         pipeline,
-        tasks=args.tasks,
+        tasks=TASKS,
         local=args.local,
         logging_dir=f"{output_dir}/annotated_output/logs",
         job_name=dataset_name,
@@ -298,7 +299,7 @@ if __name__ == "__main__":
 
     split_executor = create_executor(
         pipeline,
-        tasks=args.tasks,
+        tasks=TASKS,
         local=args.local,
         logging_dir=f"{output_dir}/split_by_{quality_criteria}/logs",
         job_name=dataset_name,
