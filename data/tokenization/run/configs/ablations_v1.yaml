@@ -17,6 +17,28 @@ dataset_groups:
       - name: fineweb2_filtered_fra_Latn_edu_4
         path: fineweb2_filtered/fra_Latn/split_by_edu_score/data/edu_4
 
+      # Fineweb2 french split by cluster_size
+      - name: fineweb2_fra_Latn_cluster_1
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-1
+
+      - name: fineweb2_fra_Latn_cluster_1000+
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-1000+
+
+      - name: fineweb2_fra_Latn_cluster_100-1000
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-100-1000
+
+      - name: fineweb2_fra_Latn_cluster_2
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-2
+
+      - name: fineweb2_fra_Latn_cluster_3
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-3
+
+      - name: fineweb2_fra_Latn_cluster_4
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-4
+
+      - name: fineweb2_fra_Latn_cluster_5-100
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-5-100
+
   - root_path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/subsampled_data_rate_0.05
     datasets:
       - name: dclm_dolmino_subsampled_0.05
