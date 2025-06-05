@@ -50,7 +50,7 @@ main_processing_executor = SlurmPipelineExecutor(
         ),
         OpenWebMathFilter(),  # for now it's the best proxy we have
         MegamathReformatter(),
-        Trafilatura(output_format="markdown"),
+        Trafilatura(),
         LanguageFilter(
             languages="fr", language_threshold=0.65, keep_top_pairs_threshold=1
         ),  # "en", "es", "de", "it"
