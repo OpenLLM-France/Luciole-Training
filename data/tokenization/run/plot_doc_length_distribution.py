@@ -50,7 +50,8 @@ if __name__ == "__main__":
     ]
 
     patterns = [
-        "fineweb2_fra.*",
+        "fineweb2_fra.*cluster.*",
+        "fineweb2_fra.*edu.*",
         "fineweb2_ita.*",
         "fineweb2_deu.*",
         "fineweb2_spa.*",
@@ -65,7 +66,7 @@ if __name__ == "__main__":
         matched_names_set.update(matched_names)
 
         output_path = os.path.join(
-            data_path, "figs", pattern.replace(".*", "") + ".png"
+            data_path, "figs", "dist_" + pattern.replace(".*", "") + ".png"
         )
         if os.path.exists(output_path) and not args.force:
             print(f"Plot already exists for pattern: {pattern}, skipping.")
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     # Non-matching
     non_matching_names = [name for name in names if name not in matched_names_set]
     for name in non_matching_names:
-        output_path = os.path.join(data_path, "figs", f"{name}.png")
+        output_path = os.path.join(data_path, "figs", f"dist_{name}.png")
         if os.path.exists(output_path) and not args.force:
             print(f"Plot already exists for: {name}, skipping.")
             continue

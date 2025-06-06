@@ -14,7 +14,8 @@ module load arch/a100 nemo/2.2.1
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
-data_path=$OpenLLM_OUTPUT/data/tokenized_data/$1
+data_path=$1
+extra_args=$2
 
-python generate_token_stats.py --data_path $data_path $2
-python plot_doc_length_distribution.py --data_path $data_path $2 
+python generate_token_stats.py --data_path $data_path $extra_args
+python plot_doc_length_distribution.py --data_path $data_path $extra_args 
