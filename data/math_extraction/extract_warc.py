@@ -25,20 +25,6 @@ with open(
     data = json.load(file)
 domain_subset = {domain for domain, count in data.items() if count >= 100}
 
-# def copy_html(
-#     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
-# ) -> DocumentsPipeline:
-#     for doc in data:
-#         doc.metadata['html'] = doc.text
-#         yield doc
-
-# def use_html(
-#     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
-# ) -> DocumentsPipeline:
-#     for doc in data:
-#         doc.text = doc.metadata.pop('html', "")
-#         yield doc
-
 main_processing_executor = SlurmPipelineExecutor(
     pipeline=[
         WarcReader(
@@ -52,9 +38,15 @@ main_processing_executor = SlurmPipelineExecutor(
         MegamathReformatter(),
         Trafilatura(),
         LanguageFilter(
-            languages="fr", language_threshold=0.65, keep_top_pairs_threshold=1
-        ),  # "en", "es", "de", "it"
-        JsonlWriter(f"{OUTPUT_PATH}/extract/data"),
+            languages=["fr", "en", "es", "de", "it", "pt", "nl"],
+            language_threshold=0.65,
+            keep_top_pairs_threshold=1,
+        ),
+        JsonlWriter(
+            f"{OUTPUT_PATH}/extract/data",
+            output_filename="${language}/${rank}.jsonl.gz",
+            max_file_size=int(2e9),  # 2GB per file
+        ),
     ],
     sbatch_args={"account": "qgz@cpu"},
     tasks=TOTAL_TASKS,
