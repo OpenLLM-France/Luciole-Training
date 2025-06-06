@@ -61,12 +61,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     data_path = args.data_path
 
-    # Look for all files matching the pattern *_text_document.idx
-    files = glob.glob(os.path.join(data_path, "*_text_document.idx"))
-    names = [
-        re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1)
-        for f in files
-    ]
+    if data_path.endswith("_text_document.idx"):
+        names = [os.path.basename(data_path).replace("_text_document.idx", "")]
+        data_path = os.path.dirname(data_path)
+    else:
+        # Look for all files matching the pattern *_text_document.idx
+        files = glob.glob(os.path.join(data_path, "*_text_document.idx"))
+        names = [
+            re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1)
+            for f in files
+        ]
 
     for name in names:
         stats_path = os.path.join(data_path, "stats", f"{name}.json")

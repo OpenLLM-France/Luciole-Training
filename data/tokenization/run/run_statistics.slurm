@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --output=slurm/%x.out 
+#SBATCH --output=slurm/%x-%j.out 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --time=00:30:00 
+#SBATCH --time=10:00:00 
 #SBATCH --hint=nomultithread 
-#SBATCH --qos=qos_cpu-dev
+#SBATCH --qos=qos_cpu-t3
 #SBATCH --account=qgz@cpu
 #SBATCH --partition=cpu_p1
 
@@ -18,4 +18,4 @@ data_path=$1
 extra_args=$2
 
 python generate_token_stats.py --data_path $data_path $extra_args
-python plot_doc_length_distribution.py --data_path $data_path $extra_args 
+# python plot_doc_length_distribution.py --data_path $data_path $extra_args 
