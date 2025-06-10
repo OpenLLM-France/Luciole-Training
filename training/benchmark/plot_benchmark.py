@@ -259,6 +259,6 @@ if __name__ == "__main__":
     plot_training_and_gpu_hours(
         arch_df,
         plot_name="batch_size_fp8.png",
-        plot_title="Impact of Architecture and FP8 on training",
+        plot_title="Impact of Precision and Batch_size on training",
         output_folder=output_folder,
     )

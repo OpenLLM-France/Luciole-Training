@@ -2,6 +2,7 @@ import argparse
 import torch
 import json
 import logging
+import pytorch_lightning as pl
 
 from recipe_llama import (
     create_trainer,
@@ -54,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("--context_parallelism", default=1, type=int)
     parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
+    parser.add_argument("--seed", default=1234, type=int)
     args = parser.parse_args()
 
     # suppress_non_main_logging()
@@ -86,11 +88,17 @@ if __name__ == "__main__":
     elif seq_length is None:
         seq_length = 4_194_304 // batch_size
 
+    pl.seed_everything(args.seed, workers=True)
+
     data_args = dict(
-        batch_size=batch_size, seq_length=seq_length, tokenizer_name=tokenizer_name
+        paths=data_paths,
+        global_batch_size=batch_size,
+        seq_length=seq_length,
+        tokenizer_name=tokenizer_name,
+        seed=args.seed,
     )
 
-    data = create_data(data_paths, **data_args)
+    data = create_data(data_args)
 
     if args.mode in ["debug", "benchmark", "benchmark100"]:
         max_steps = 1 if args.mode == "debug" else 10
@@ -239,14 +247,14 @@ if __name__ == "__main__":
         resume=create_autoresume(resume_if_exists=resume_if_exists),
     )
 
-    if args.mode in ["debug", "benchmark"]:
+    if args.mode in ["debug"] or args.mode.startswith("benchmark"):
         save_stats(
             output_dir,
             args=args_dict,
             strategy_args=strategy_args,
             data_args=data_args,
         )
-        write_completion(output_dir)
+    write_completion(output_dir)
     # finally:
     #     if dist.is_available() and dist.is_initialized():
     #         dist.barrier()

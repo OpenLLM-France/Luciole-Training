@@ -6,17 +6,17 @@ from nemo.collections import llm
 import fiddle as fdl
 
 
-def create_data(data_path, tokenizer_name, batch_size=512, seq_length=2048):
-    tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
+def create_data(data_args: dict):
+    tokenizer = get_tokenizer(
+        tokenizer_name=data_args.pop("tokenizer_name"), use_fast=True
+    )
     data = PreTrainingDataModule(
-        paths=data_path,
-        global_batch_size=batch_size,
         micro_batch_size=1,
         num_workers=8,
         pin_memory=True,
-        seq_length=seq_length,  # 8192 for llama 32 1b
         tokenizer=tokenizer,
         split="1,0,0",
+        **data_args,
     )
     return data
 
