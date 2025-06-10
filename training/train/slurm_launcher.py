@@ -26,6 +26,7 @@ def create_slurm_script(
     batch_size,
     context_parallelism,
     virtual_pipeline_parallelism,
+    seed,
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug" or mode.startswith("benchmark"):
@@ -61,6 +62,8 @@ def create_slurm_script(
         args += f" --context_parallelism {context_parallelism}"
     if virtual_pipeline_parallelism:
         args += f" --virtual_pipeline_parallelism {virtual_pipeline_parallelism}"
+    if seed:
+        args += f" --seed {seed}"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
@@ -153,9 +156,12 @@ def submit_job(**kwargs):
     job_name_parts = [
         kwargs["arch"],
         config_name,
-        f'{kwargs["num_nodes"]}n',
         kwargs["mode"],
     ]
+    if kwargs.get("seed"):
+        job_name_parts.append(f"s{kwargs['seed']}")
+    if kwargs["mode"].startswith("benchmark"):
+        job_name_parts.append(f"{kwargs['num_nodes']}n")
     if kwargs.get("fp8"):
         job_name_parts.append("fp8")
     if kwargs.get("name_prefix"):
@@ -238,6 +244,7 @@ def create_parser():
     )
     parser.add_argument("--seq_length", default=None, type=int)
     parser.add_argument("--batch_size", default=None, type=int)
+    parser.add_argument("--seed", default=None, type=int)
     return parser
 
 
