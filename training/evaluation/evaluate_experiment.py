@@ -35,7 +35,7 @@ lighteval vllm \\
     "pretrained={model_name},dtype=bfloat16" \\
     "{task_to_evaluate}" \\
     --output-dir {output_dir} \\
-    --max-samples 1000 \\
+    --max-samples {max_samples} \\
     {extra_arg}
 """
 
@@ -54,6 +54,12 @@ def main():
         "--multilingual",
         action="store_true",
         help="Use multilingual task configuration.",
+    )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=1000,
+        help="Maximum number of samples to evaluate.",
     )
     parser.add_argument(
         "--dependency",
@@ -81,6 +87,7 @@ def main():
             output_dir=output_dir,
             log_dir=log_dir,
             task_to_evaluate=task_to_evaluate.resolve(),
+            max_samples=args.max_samples,
             extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
             if args.multilingual
             else "",
