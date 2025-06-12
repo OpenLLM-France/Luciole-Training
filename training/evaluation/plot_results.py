@@ -202,17 +202,29 @@ if __name__ == "__main__":
         default="out/",
         help="Output path where your plot are storred",
     )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=1000,
+        help="Max samples",
+    )
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
     parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
     args = parser.parse_args()
+    max_samples = str(args.max_samples) if args.max_samples > 0 else "None"
+
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
     df = pd.concat([read_experiment_results(path) for path in args.experiment_path])
     df_agg = calculate_agg_score(df).dropna()
     df = pd.concat([df, df_agg])
-
     df = process_results(df)
+    df = df[df["max_samples"] == max_samples]
+
+    if df.empty:
+        print("No results found for the given experiments.")
+        exit(0)
 
     for g in args.group:
         if g == "all":

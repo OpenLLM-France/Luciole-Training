@@ -24,6 +24,7 @@ def read_json_file(file_path):
 
     # Add model name and timestamp
     df["model_name"] = data["config_general"]["model_name"]
+    df["max_samples"] = str(data["config_general"]["max_samples"])
     df["tokens"] = (
         (df["model_name"].str.extract(r"-consumed_samples_([0-9.]+)")[0].astype(float))
         * 2048
@@ -35,7 +36,7 @@ def read_json_file(file_path):
     df["timestamp"] = timestamp
 
     # Reorder columns
-    df = df[["tokens", "timestamp", "task", "metric", "score"]]
+    df = df[["tokens", "timestamp", "task", "max_samples", "metric", "score"]]
     return df
 
 
@@ -73,10 +74,12 @@ def read_experiment_results(main_dir):
     # Keep the most recent row for each (model_name, tokens, task, metric) tuple
     df_latest = (
         df.sort_values("timestamp")
-        .drop_duplicates(subset=["expe_name", "tokens", "task", "metric"], keep="last")
+        .drop_duplicates(
+            subset=["expe_name", "tokens", "task", "max_samples", "metric"], keep="last"
+        )
         .drop("timestamp", axis=1)
     )
-    return df_latest[["expe_name", "tokens", "task", "metric", "score"]]
+    return df_latest[["expe_name", "tokens", "task", "max_samples", "metric", "score"]]
 
 
 # Function to fit regression for each group
@@ -94,7 +97,7 @@ def compute_regression(group):
         return pd.DataFrame(
             [{"slope": np.nan, "intercept": np.nan, "tokens": tokens, "score": score}]
         )
-    
+
     model = LinearRegression()
     model.fit(np.log(x), y)
     y_pred = model.predict(np.log(x))
@@ -115,7 +118,7 @@ def compute_regression(group):
 def process_results(df):
     # Groupby expe, task and metric and fit regression
     group_df = (
-        df.groupby(["task", "metric", "expe_name"])
+        df.groupby(["task", "max_samples", "metric", "expe_name"])
         .apply(compute_regression)
         .reset_index()
     )
