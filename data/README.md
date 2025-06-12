@@ -63,24 +63,16 @@ You have some preprocessed datasets in `$OpenLLM_OUTPUT/data/raw_datasets` or in
 
 For example:
 ```
-  - name: fineweb2_fra_Latn_cluster_5-100
-    path: fineweb2/data/fra_Latn/clusters/cluster_size-5-100
+dataset_groups:
+  - root_path: <<OpenLLM_OUTPUT>>/data/raw_data/data_for_ablation
+    datasets:
+      - name: fineweb2_fra_Latn_cluster_5-100
+        path: fineweb2/data/fra_Latn/clusters/cluster_size-5-100
 ```
 
-2. Run tokenzation by using the script `run_tokenization.py`
-```
-usage: run_tokenization.py [-h] [--yaml_file YAML_FILE] [--input_dir INPUT_DIR] [--output_dir OUTPUT_DIR] [--tokenizer_name TOKENIZER_NAME]
-
-options:
-  -h, --help            show this help message and exit
-  --yaml_file YAML_FILE
-                        .yaml file that contains the datasets you want to tokenize. See for example datasets_to_tokenize.yaml. (default: datasets_to_tokenize.yaml)
-  --input_dir INPUT_DIR
-                        Input directory that contains the processed datasets you want to tokenize. (default: $OpenLLM_OUTPUT/data/raw_datasets_ablation)
-  --output_dir OUTPUT_DIR
-                        Output directory that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error). (default: $OpenLLM_OUTPUT/data/tokens_ablation)
-  --tokenizer_name TOKENIZER_NAME
-                        The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir. (default: OpenLLM-France/Lucie-7B)
+2. Run tokenzation by using the script `run/run_tokenization.py`
+```bash
+run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional
 ```
 It will create one sbatch per dataset, using prepost partition.
 
@@ -95,7 +87,7 @@ It will create a folder `stats` in the tokenized data folder, with the statistic
 
 ## Tips... 
 
-### Download a dataset from HF
+### Pre-download a dataset or a tokenizer from HuggingFace
 
 Set a common HF cache dir
 ```bash
@@ -116,5 +108,5 @@ huggingface-cli download $dataset_name --repo-type dataset --include algebraic-s
 
 Load a tokenizer:
 ```bash
-huggingface-cli download OpenLLM-BPI/tokenizer_128k_latin --repo-type model
+huggingface-cli download OpenLLM-BPI/tokenizer_128k-arab-regional --repo-type model
 ```
