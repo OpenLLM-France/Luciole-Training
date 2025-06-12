@@ -35,7 +35,6 @@ lighteval vllm \\
     "pretrained={model_name},dtype=bfloat16" \\
     "{task_to_evaluate}" \\
     --output-dir {output_dir} \\
-    --max-samples {max_samples} \\
     {extra_arg}
 """
 
@@ -76,6 +75,12 @@ def main():
 
     checkpoints = [d for d in hf_ckpt_dir.iterdir() if d.is_dir()]
 
+    extra_arg = ""
+    if args.multilingual:
+        extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
+    if args.max_samples > 0:
+        extra_arg += f"--max-samples {args.max_samples} \\"
+
     for ckpt in checkpoints:
         ckpt_name = ckpt.name.replace("=", "_")  # escape '=' just in case
         log_dir = output_dir / "slurm_logs"
@@ -88,9 +93,7 @@ def main():
             log_dir=log_dir,
             task_to_evaluate=task_to_evaluate.resolve(),
             max_samples=args.max_samples,
-            extra_arg="--custom-tasks lighteval.tasks.multilingual.tasks"
-            if args.multilingual
-            else "",
+            extra_arg=extra_arg,
             dependency=f"#SBATCH --dependency=afterok:{args.dependency}"
             if args.dependency
             else "",
