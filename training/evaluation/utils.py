@@ -83,15 +83,18 @@ def read_experiment_results(main_dir):
 def compute_regression(group):
     group = group[group["tokens"] > 0]  # adjust to your x column name
 
-    if len(group) < 2:
-        return pd.DataFrame(
-            [{"slope": np.nan, "intercept": np.nan, "tokens": [], "score": []}]
-        )
-
     group = group.sort_values("tokens")
     x = group["tokens"].values.reshape(-1, 1)
     y = group["score"].values
 
+    tokens = x.flatten().tolist()
+    score = y.tolist()
+
+    if len(group) < 2:
+        return pd.DataFrame(
+            [{"slope": np.nan, "intercept": np.nan, "tokens": tokens, "score": score}]
+        )
+    
     model = LinearRegression()
     model.fit(np.log(x), y)
     y_pred = model.predict(np.log(x))
@@ -102,8 +105,8 @@ def compute_regression(group):
                 "slope": model.coef_[0],
                 "intercept": model.intercept_,
                 "r2": r2_score(y, y_pred),
-                "tokens": x.flatten().tolist(),
-                "score": y.tolist(),
+                "tokens": tokens,
+                "score": score,
             }
         ]
     )
