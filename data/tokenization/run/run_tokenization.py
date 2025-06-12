@@ -18,8 +18,9 @@ if __name__ == "__main__":
         help="Output directory that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error).",
     )
     parser.add_argument(
-        "tokenizer_name",
+        "--tokenizer_name",
         type=str,
+        default=None,
         help="The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir.",
     )
     args = parser.parse_args()
@@ -34,10 +35,19 @@ if __name__ == "__main__":
     if os.path.exists(tokenizer_name_file):
         with open(tokenizer_name_file, "r") as f:
             content = f.read()
-            assert (
-                tokenizer_name == content
-            ), f"This output folder is associated with the tokenizer: {content}. You should either create a new output folder, or tokenize with the tokenizer {content}."
+            if tokenizer_name is None:
+                tokenizer_name = content
+                print(
+                    f"Warning: No tokenizer name provided, using the one from {tokenizer_name_file}: {content}"
+                )
+            else:
+                assert (
+                    tokenizer_name == content
+                ), f"This output folder is associated with the tokenizer: {content}. You should either create a new output folder, or tokenize with the tokenizer {content}."
     else:
+        assert (
+            tokenizer_name is not None
+        ), "You must provide a tokenizer name if it is not already registered."
         with open(tokenizer_name_file, "w", encoding="utf-8") as f:
             f.write(tokenizer_name)
 
