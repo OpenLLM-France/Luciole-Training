@@ -177,5 +177,6 @@ if __name__ == "__main__":
         # language_df.to_csv(f"{output_dir}/language_proportion.csv")
         # category_df.to_csv(f"{output_dir}/category_proportion.csv")
         df.to_csv(f"{output_dir}/all_stats.csv")
+        print("\nDatamix saved to:", f"{output_dir}/datamix_{name}.json")
     else:
         print("\nYou should use --name if you want to save your datamix.")
