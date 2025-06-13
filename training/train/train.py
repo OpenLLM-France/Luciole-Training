@@ -247,7 +247,7 @@ if __name__ == "__main__":
         resume=create_autoresume(resume_if_exists=resume_if_exists),
     )
 
-    if args.mode in ["debug"] or args.mode.startswith("benchmark"):
+    if args.mode in ["debug"] or str(args.mode).startswith("benchmark"):
         save_stats(
             output_dir,
             args=args_dict,
