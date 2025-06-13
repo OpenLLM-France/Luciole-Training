@@ -16,7 +16,7 @@ def apply_rehydratation(df, rehydratation_mapping):
         axis=1,
     )
     df["total_tokens_rehydrated"] = df["total_tokens"] * df["rehydratation_weight"]
-    df = df.sort_values(["name", "group_name"])
+    df = df.sort_values(["dataset", "group_name"])
     return df
 
 
@@ -81,15 +81,17 @@ if __name__ == "__main__":
     df = pd.read_csv(os.path.join(early_args.data_path, "stats/all_stats_merged.csv"))
 
     def preprocess_entries(row):
-        row["name"], row["group_type"], row["group_name"] = catch_name_and_cluster_size(
-            row["name"]
-        )
+        (
+            row["dataset"],
+            row["group_type"],
+            row["group_name"],
+        ) = catch_name_and_cluster_size(row["name"])
         return row
 
     df = df.apply(preprocess_entries, axis=1)
 
     # Add dataset-specific arguments
-    for dataset_name in df["name"].unique():
+    for dataset_name in df["dataset"].unique():
         first_parser.add_argument(f"--{dataset_name}", type=float, default=0.0)
 
     # Show help *after* all arguments have been added
@@ -127,7 +129,7 @@ if __name__ == "__main__":
 
     df = apply_rehydratation(df, rehydratation_mapping)
 
-    df["upsampling"] = df.apply(lambda row: getattr(final_args, row["name"]), axis=1)
+    df["upsampling"] = df.apply(lambda row: getattr(final_args, row["dataset"]), axis=1)
     df["total_tokens_upsampled"] = df["total_tokens_rehydrated"] * df["upsampling"]
     df["weight"] = df["total_tokens_upsampled"].transform(lambda x: x / x.sum())
     df = df[df["weight"] > 0]
