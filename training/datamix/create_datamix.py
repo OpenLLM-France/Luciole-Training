@@ -5,6 +5,7 @@ import json
 from pprint import pprint
 import re
 from collections import OrderedDict
+import sys
 
 
 def apply_rehydratation(df, rehydratation_mapping):
@@ -40,7 +41,9 @@ def catch_name_and_cluster_size(name):
 if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
 
-    first_parser = argparse.ArgumentParser(add_help=False)
+    first_parser = argparse.ArgumentParser(
+        add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     first_parser.add_argument(
         "--data_path",
         type=str,
@@ -51,34 +54,33 @@ if __name__ == "__main__":
         "--output_dir",
         type=str,
         default=os.path.join(main_path, "ablations/datamix"),
-        help="Output_dir",
+        help="Output directory",
     )
     first_parser.add_argument(
-        "--name",
-        type=str,
-        default=None,
-        help="Name of the output file",
+        "--name", type=str, default=None, help="Name of the output file"
     )
     first_parser.add_argument(
         "--target_tokens",
         type=str,
         default="35b",
-        help="Name of the output file",
+        help="Target tokens (e.g., model size)",
     )
     first_parser.add_argument(
         "--rehydratation_weight",
         type=float,
         nargs="+",
         default=None,
-        help="Rehydratation_weights for cluster sizes or educational scores",
+        help="Rehydratation weights",
     )
+    first_parser.add_argument("--help", "-h", action="store_true")
 
-    args, remaining_args = first_parser.parse_known_args()
-    data_path = args.data_path
-    df = pd.read_csv(os.path.join(data_path, "stats/all_stats_merged.csv"))
+    # First pass to get the data path
+    early_args, remaining_args = first_parser.parse_known_args()
+
+    # Load your data (only if not just --help)
+    df = pd.read_csv(os.path.join(early_args.data_path, "stats/all_stats_merged.csv"))
 
     def preprocess_entries(row):
-        # row["name"] = row["name"].replace(" ", "_").replace("-", "_")
         row["name"], row["group_type"], row["group_name"] = catch_name_and_cluster_size(
             row["name"]
         )
@@ -86,15 +88,22 @@ if __name__ == "__main__":
 
     df = df.apply(preprocess_entries, axis=1)
 
-    full_parser = argparse.ArgumentParser(parents=[first_parser])
+    # Add dataset-specific arguments
     for dataset_name in df["name"].unique():
-        full_parser.add_argument(
-            f"--{dataset_name}", type=float, default=0.0, help="Weight for dataset"
-        )
-    final_args = full_parser.parse_args(remaining_args)
-    output_dir = final_args.output_dir
-    name = final_args.name
+        first_parser.add_argument(f"--{dataset_name}", type=float, default=0.0)
+
+    # Show help *after* all arguments have been added
+    if early_args.help:
+        first_parser.print_help()
+        sys.exit(0)
+
+    # Final parse with the full set of arguments
+    final_args = first_parser.parse_args()
+    data_path = final_args.data_path
     rehydratation_weight = final_args.rehydratation_weight
+    name = final_args.name
+    output_dir = final_args.output_dir
+    target_tokens = final_args.target_tokens
 
     # Apply rehydratation if any
     rehydratation_keys = [
@@ -124,9 +133,7 @@ if __name__ == "__main__":
     df = df[df["weight"] > 0]
 
     # Calculating number of epochs per dataset
-    df["epochs"] = (
-        df["weight"] * to_nb_tokens(final_args.target_tokens) / df["total_tokens"]
-    )
+    df["epochs"] = df["weight"] * to_nb_tokens(target_tokens) / df["total_tokens"]
     print("\nData stats:")
     print(df)
 
@@ -165,7 +172,7 @@ if __name__ == "__main__":
             json.dump(out, f, indent=4)
         # Save datamix
         with open(f"{output_dir}/args.json", "w") as f:
-            json.dump(vars(args), f, indent=4)
+            json.dump(vars(final_args), f, indent=4)
         # Save Language proportions
         # language_df.to_csv(f"{output_dir}/language_proportion.csv")
         # category_df.to_csv(f"{output_dir}/category_proportion.csv")
