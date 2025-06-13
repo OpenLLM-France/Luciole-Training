@@ -46,7 +46,12 @@ log_dir="$output_dir/slurm_$SLURM_JOB_ID"
 mkdir -p "$log_dir"
 echo "Log directory: $log_dir"
 
-for checkpoint_dir in *; do    
+for checkpoint_dir in *; do
+
+    if [ ! -d "$checkpoint_dir" ]; then
+        continue
+    fi
+
     # Escape equal signs if any (just in case)
     escaped_checkpoint_dir="${checkpoint_dir//=/\_}"
     
