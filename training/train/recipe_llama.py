@@ -129,7 +129,6 @@ def bf16_with_fp8_mixed():
         fp8_params=True,
         grad_reduce_in_fp32=False,  # NVIDIA recommends False for FP8
     )
-    logger.info(f"bf16_with_fp8_mixed:\n{vars(cfg)}")
     return cfg
 
 
