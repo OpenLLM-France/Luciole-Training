@@ -4,7 +4,7 @@ import json
 import logging
 import pytorch_lightning as pl
 
-from recipe_llama import (
+from training.train.recipe_pretrain import (
     create_trainer,
     distributed_fused_adam_with_cosine_annealing,
     create_logger,

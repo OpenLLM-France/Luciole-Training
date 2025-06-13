@@ -50,16 +50,14 @@ srun torchrun $DISTRIBUTED_ARGS {convert_script_path}/convert_experiment.py {exp
 
 
 def submit_conversion(job_id, xp_output_dir):
-    if os.path.exists(
-        os.path.join(xp_output_dir, "huggingface_checkpoints", "completed.txt")
-    ):
+    os.makedirs(os.path.join(xp_output_dir, "conversion"), exist_ok=True)
+    if os.path.exists(os.path.join(xp_output_dir, "conversion", "completed.txt")):
         logger.info(
-            f"Checkpoints already converted in {xp_output_dir}, skipping job submission. If you want to force submission, remove 'huggingface_checkpoints/completed.txt'"
+            f"Checkpoints already converted in {xp_output_dir}, skipping job submission. If you want to force submission, remove 'conversion/completed.txt'"
         )
         return None
     slurm_script = create_slurm_conversion_script(job_id, xp_output_dir)
     sbatch_script_path = os.path.join(xp_output_dir, "conversion/conversion.slurm")
-    os.makedirs(os.path.join(xp_output_dir, "conversion"), exist_ok=True)
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
     return job_id
 
