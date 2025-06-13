@@ -38,7 +38,14 @@ if __name__ == "__main__":
         "--arch",
         default="llama1b",
         type=str,
-        choices=["llama1b", "llama8b", "mamba1b", "mixtral8x7", "mambahybrid8b"],
+        choices=[
+            "llama1b",
+            "llama8b",
+            "llama70b",
+            "mamba1b",
+            "mixtral8x7",
+            "mambahybrid8b",
+        ],
     )
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
@@ -72,15 +79,18 @@ if __name__ == "__main__":
     seq_length = args.seq_length
 
     if batch_size is None and seq_length is None:
-        if arch == "llama1b" or arch == "mamba1b":
+        if arch in ["llama1b", "mamba1b"]:
             batch_size = 512
             seq_length = 2048
-        elif arch == "llama8b" or arch == "mambahybrid8b":
+        elif arch in ["llama8b", "mambahybrid8b"]:
             batch_size = 1024
             seq_length = 4096
         elif arch == "mixtral8x7":
             batch_size = 512
             seq_length = 4096
+        elif arch in ["llama70b"]:
+            batch_size = 512
+            seq_length = 8192
         else:
             raise ValueError(f"Unsupported model : {arch}")
     elif batch_size is None:
@@ -147,6 +157,16 @@ if __name__ == "__main__":
             from nemo.collections.llm.gpt.model.llama import (
                 Llama31Config8B as LlamaConfig,
             )
+        elif arch == "llama70b":
+            from nemo.collections.llm.gpt.model.llama import (
+                Llama31Config70B as LlamaConfig,
+            )
+
+            strategy_args["sequence_parallel"] = True
+            strategy_args["tensor_model_parallel_size"] = 2
+            strategy_args["pipeline_model_parallel_size"] = 2
+            strategy_args["virtual_pipeline_model_parallel_size"] = 5
+            strategy_args["context_parallel_size"] = 2
         else:
             raise ValueError(f"Unsupported llama model : {arch}")
         model_config = LlamaConfig()
