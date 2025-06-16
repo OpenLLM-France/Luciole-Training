@@ -1,5 +1,6 @@
 import argparse
 import torch
+import os
 import json
 import logging
 import pytorch_lightning as pl
@@ -63,10 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--seed", default=1234, type=int)
-    parser.add_argument(
-        "--base_checkpoint",
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/llama1b.nemo",
-    )
+    parser.add_argument("--base_checkpoint", default=None, type=str)
     args = parser.parse_args()
 
     # suppress_non_main_logging()
@@ -78,6 +76,15 @@ if __name__ == "__main__":
 
     # try:
     data_paths, tokenizer_name = read_datamix_file(args.config)
+    if args.base_checkpoint:
+        with open(
+            os.path.join(args.base_checkpoint, "context", "tokenizer_name.txt"), "r"
+        ) as f:
+            base_model_tokenizer = f.read().strip()
+        if tokenizer_name != base_model_tokenizer:
+            raise ValueError(
+                f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
+            )
 
     batch_size = args.batch_size
     seq_length = args.seq_length
