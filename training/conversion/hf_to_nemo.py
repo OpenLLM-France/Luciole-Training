@@ -15,6 +15,8 @@ def convert_checkpoint(input_path, output_path):
     exporter = llm.LlamaModel.importer(input_path)
     exporter.init()
     exporter.apply(output_path)
+    with open(os.path.join(output_path, "context", "tokenizer_name.txt"), "w") as f:
+        f.write(input_path.replace("hf://", ""))
 
 
 if __name__ == "__main__":

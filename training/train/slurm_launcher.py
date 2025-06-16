@@ -27,6 +27,7 @@ def create_slurm_script(
     context_parallelism,
     virtual_pipeline_parallelism,
     seed,
+    base_checkpoint,
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug" or mode.startswith("benchmark"):
@@ -64,6 +65,8 @@ def create_slurm_script(
         args += f" --virtual_pipeline_parallelism {virtual_pipeline_parallelism}"
     if seed:
         args += f" --seed {seed}"
+    if base_checkpoint:
+        args += f" --base_checkpoint {base_checkpoint}"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
@@ -153,8 +156,15 @@ def submit_job(**kwargs):
         raise RuntimeError(f"Config : {config} does not exist")
 
     config_name = os.path.splitext(os.path.basename(config))[0]
+    if kwargs.get("base_checkpoint"):
+        base_model_name = os.path.splitext(os.path.basename(kwargs["base_checkpoint"]))[
+            0
+        ]
+        model_part = f'{kwargs["arch"]}_from_{base_model_name}'
+    else:
+        model_part = kwargs["arch"]
     job_name_parts = [
-        kwargs["arch"],
+        model_part,
         config_name,
         kwargs["mode"],
     ]
@@ -246,6 +256,12 @@ def create_parser():
     parser.add_argument("--seq_length", default=None, type=int)
     parser.add_argument("--batch_size", default=None, type=int)
     parser.add_argument("--seed", default=None, type=int)
+    parser.add_argument(
+        "--base_checkpoint",
+        default=None,
+        type=str,
+        help="The path to a nemo checkpoint to make continual learning",
+    )
     return parser
 
 
