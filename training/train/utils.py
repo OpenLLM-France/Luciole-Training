@@ -67,31 +67,31 @@ def read_datamix_file(file):
     return data_paths, tokenizer_name
 
 
-def save_stats(output_dir, args, strategy_args, data_args):
+def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=True):
     import re
     import json
 
     strategy_args.pop("ddp")
     strategy_args["pipeline_dtype"] = str(strategy_args["pipeline_dtype"])
     job_id = os.environ.get("SLURM_JOB_ID")
-    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-    file = f"log_{job_id}.out"
-    with open(os.path.join(output_dir, file), "r") as f:
-        log_content = f.read()
-    iteration_timing = {
-        int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
-    }
-    mean = sum(list(iteration_timing.values())[2:]) / (len(iteration_timing) - 2)
-    with open(
-        os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
-    ) as jsonfile:
-        json_data = {
-            **args,
-            **data_args,
-            **strategy_args,
+    steps = dict()
+    if write_step_timings:
+        pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
+        file = f"log_{job_id}.out"
+        with open(os.path.join(output_dir, file), "r") as f:
+            log_content = f.read()
+        iteration_timing = {
+            int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
+        }
+        mean = sum(list(iteration_timing.values())[2:]) / (len(iteration_timing) - 2)
+        steps = {
             "step_timings": list(iteration_timing.values()),
             "mean_step_timings": mean,
         }
+    with open(
+        os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
+    ) as jsonfile:
+        json_data = {**args, **data_args, **strategy_args, **steps}
         json.dump(json_data, jsonfile, indent=2)
 
 

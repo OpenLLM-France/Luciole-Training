@@ -31,6 +31,9 @@ def create_config_name(entry):
     if "batch_size" in entry:
         parts.append(f"batch_size{int(entry['batch_size'])}")
 
+    if entry.get("sequence_parallel", False):
+        parts.append("sequence_parallel")
+
     return "_".join(parts)
 
 
@@ -78,7 +81,7 @@ def plot_training_and_gpu_hours(
         for config_name, group in df.groupby("config"):
             last_point = group.sort_values("num_gpus").iloc[-1]
             ax.text(
-                last_point["num_gpus"] + 0.5,
+                last_point["num_gpus"] + 3,
                 last_point[y],
                 f"{last_point[y]:.2f}"
                 if last_point[y] < 1000
@@ -163,33 +166,38 @@ def load_data(input_folder):
 def convert_data(data):
     records = []
     for entry in data:
-        number_of_steps_per_trillion_tokens = 1e12 / (
-            entry["batch_size"] * entry["seq_length"]
-        )
-        records.append(
-            {
-                "num_nodes": entry["num_nodes"],
-                "num_gpus": entry["num_nodes"] * 4,
-                "mean_step_timing": entry["mean_step_timings"],
-                "training_time": entry["mean_step_timings"]
-                * number_of_steps_per_trillion_tokens
-                / (3600 * 24),
-                "consumed_gpu_hours": (
-                    entry["mean_step_timings"]
+        try:
+            batch = "batch_size" if "batch_size" in entry else "global_batch_size"
+            number_of_steps_per_trillion_tokens = 1e12 / (
+                entry[batch] * entry["seq_length"]
+            )
+            records.append(
+                {
+                    "num_nodes": entry["num_nodes"],
+                    "num_gpus": entry["num_nodes"] * 4,
+                    "mean_step_timing": entry["mean_step_timings"],
+                    "training_time": entry["mean_step_timings"]
                     * number_of_steps_per_trillion_tokens
-                    * entry["num_nodes"]
-                    * 4
-                    / 3600
-                ),
-                "arch": entry["arch"],
-                "tp": entry["tensor_model_parallel_size"],
-                "pp": entry["pipeline_model_parallel_size"],
-                "precision": "fp8" if entry["fp8"] else "bf16",
-                "seq_length": entry["seq_length"],
-                "cp": entry["context_parallel_size"],
-                "batch_size": entry["batch_size"],
-            }
-        )
+                    / (3600 * 24),
+                    "consumed_gpu_hours": (
+                        entry["mean_step_timings"]
+                        * number_of_steps_per_trillion_tokens
+                        * entry["num_nodes"]
+                        * 4
+                        / 3600
+                    ),
+                    "arch": entry["arch"],
+                    "tp": entry["tensor_model_parallel_size"],
+                    "pp": entry["pipeline_model_parallel_size"],
+                    "precision": "fp8" if entry["fp8"] else "bf16",
+                    "seq_length": entry["seq_length"],
+                    "cp": entry["context_parallel_size"],
+                    "batch_size": entry[batch],
+                    "sequence_parallel": entry["sequence_parallel"],
+                }
+            )
+        except Exception as e:
+            raise RuntimeError(f"error on {entry}") from e
 
     df = pd.DataFrame(records)
     return df
@@ -198,7 +206,7 @@ def convert_data(data):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
-    parser.add_argument("--output_folder", default="")
+    parser.add_argument("--output_folder", default="/home/abert/abert/llm/plots")
     args = parser.parse_args()
 
     input_folder = args.input_folder
@@ -239,6 +247,32 @@ if __name__ == "__main__":
     )
 
     arch_df = df[
+        (
+            (df["pp"] == 1)
+            & (df["tp"] == 1)
+            & (df["cp"] == 1)
+            & ((df["batch_size"] == 1024) | (df["arch"] == "llama1b"))
+        )
+        | (df["arch"] == "llama70b")
+    ]
+    arch_df = arch_df.sort_values(by=["arch", "precision"])
+    plot_training_and_gpu_hours(
+        arch_df,
+        plot_name="arch_fp8_llama70b.png",
+        plot_title="Impact of Architecture and FP8 on training",
+        output_folder=output_folder,
+    )
+
+    arch_df = df[(df["arch"] == "llama70b")]
+    arch_df = arch_df.sort_values(by=["arch", "precision"])
+    plot_training_and_gpu_hours(
+        arch_df,
+        plot_name="llama70b.png",
+        plot_title="Impact of Architecture and FP8 on training",
+        output_folder=output_folder,
+    )
+
+    arch_df = df[
         (df["pp"] == 1)
         & (df["tp"] == 1)
         & (df["cp"] == 1)
@@ -252,12 +286,34 @@ if __name__ == "__main__":
         output_folder=output_folder,
     )
 
-    arch_df = df[
+    precision_df = df[
+        (df["pp"] == 1)
+        & (df["tp"] == 1)
+        & (df["cp"] == 1)
+        & (
+            ((df["arch"] == "llama8b") & (df["batch_size"] == 1024))
+            | (
+                (df["arch"] == "llama1b")
+                & (df["batch_size"] == 512)
+                & (df["precision"] == "bf16")
+            )
+        )
+    ]
+    precision_df = precision_df.sort_values(by=["arch", "precision"])
+    plot_training_and_gpu_hours(
+        precision_df,
+        plot_name="llama8b_fp8.png",
+        plot_title="Impact of Precision on training",
+        output_folder=output_folder,
+    )
+
+    precision_batch_df = df[
         (df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1) & (df["arch"] == "llama8b")
     ]
-    arch_df = arch_df.sort_values(by=["precision", "batch_size"])
+    precision_batch_df = precision_batch_df.sort_values(by=["precision", "batch_size"])
+
     plot_training_and_gpu_hours(
-        arch_df,
+        precision_batch_df,
         plot_name="batch_size_fp8.png",
         plot_title="Impact of Precision and Batch_size on training",
         output_folder=output_folder,
