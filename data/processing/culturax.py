@@ -11,24 +11,26 @@ if __name__ == "__main__":
         "--language", type=str, default="fr", help="Language to process"
     )
     args = parse_args(parser)
+    language = args.language
     DATA_PATH = args.data_path
 
     name = "culturax"
+    output_dir = f"{DATA_PATH}/{name}/{language}"
 
     pipeline = [
         HuggingFaceDatasetReader(
             "uonlp/CulturaX",
-            {"name": name, "split": "train"},
+            {"name": language, "split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{DATA_PATH}/{name}/output"),
+        JsonlWriter(f"{output_dir}/output"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{DATA_PATH}/{name}/logs",
+        logging_dir=f"{output_dir}/logs",
         job_name=name,
         tasks=TASKS,
     )

@@ -16,11 +16,11 @@ def filter_kwargs_for_class(cls, kwargs):
 def create_executor(pipeline, local=False, **kwargs):
     # Executor arguments
     if local:
-        tasks = 1
         pipeline[0].limit = 1000
         local_kwargs = filter_kwargs_for_class(LocalPipelineExecutor, kwargs)
+        local_kwargs["tasks"] = 1
         main_processing_executor = LocalPipelineExecutor(
-            pipeline=pipeline, tasks=tasks, **local_kwargs
+            pipeline=pipeline, **local_kwargs
         )
     else:
         tasks = kwargs.pop("tasks", 50)
