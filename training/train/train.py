@@ -4,7 +4,7 @@ import json
 import logging
 import pytorch_lightning as pl
 
-from training.train.recipe_pretrain import (
+from recipe_pretrain import (
     create_trainer,
     distributed_fused_adam_with_cosine_annealing,
     create_logger,
@@ -63,6 +63,10 @@ if __name__ == "__main__":
     parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--seed", default=1234, type=int)
+    parser.add_argument(
+        "--base_checkpoint",
+        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/audran/llama1b.nemo",
+    )
     args = parser.parse_args()
 
     # suppress_non_main_logging()
@@ -264,7 +268,9 @@ if __name__ == "__main__":
         log=nemo_logger,
         tokenizer="data",
         optim=opt,
-        resume=create_autoresume(resume_if_exists=resume_if_exists),
+        resume=create_autoresume(
+            resume_if_exists=resume_if_exists, base_checkpoint=args.base_checkpoint
+        ),
     )
 
     if args.mode in ["debug"] or str(args.mode).startswith("benchmark"):

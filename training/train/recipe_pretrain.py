@@ -28,12 +28,17 @@ def wandb_logger(project: str, name: str, entity: Optional[str] = None):
     return WandbLogger(project=project, name=name, config={})
 
 
-def create_autoresume(resume_if_exists=True, resume_ignore_no_checkpoint=True):
+def create_autoresume(
+    resume_if_exists=True, resume_ignore_no_checkpoint=True, base_checkpoint=None
+):
     """Factory function to configure AutoResume."""
-    return nl.AutoResume(
+    args = dict(
         resume_if_exists=resume_if_exists,
         resume_ignore_no_checkpoint=resume_ignore_no_checkpoint,
     )
+    if base_checkpoint:
+        args["restore_config"] = nl.RestoreConfig(path=base_checkpoint)
+    return nl.AutoResume(**args)
 
 
 def distributed_fused_adam_with_cosine_annealing(
