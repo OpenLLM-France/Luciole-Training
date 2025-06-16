@@ -4,11 +4,13 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII, MorePIIFormatter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter
+from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from datatrove.pipeline.base import PipelineStep
 import os
+from functools import partial
 
 TASKS = 100
 
@@ -134,7 +136,7 @@ def post_process_fasttext(
                 for label, prob in edu_score.items()
             )
             doc.metadata["edu_score_mean"] = edu_score_mean
-            doc.metadata["edu_score"] = str(int(round(edu_score_mean)))
+            doc.metadata["edu_score"] = int(round(edu_score_mean))
         # Handle toxicity if present
         is_toxic = doc.metadata.pop("is_toxic", None)
         if is_toxic is not None:
@@ -157,6 +159,11 @@ if __name__ == "__main__":
         help="Add a prefix with domain source and date",
     )
     parser.add_argument("--no_fasttext", action="store_true")
+    parser.add_argument(
+        "--min_edu",
+        type=int,
+        default=0,
+    )
     parser.add_argument(
         "--quality_criteria",
         type=str,
@@ -256,7 +263,6 @@ if __name__ == "__main__":
         *fasttext_filters,
         AssignCluster(),
         FinewebDocumentCleaning(),
-        *([PrefixFilter(language=language)] if args.add_prefix else []),
         *pii_cleaning,
         JsonlWriter(f"{output_dir}/annotated_output/data", max_file_size=int(2e9)),
     ]
@@ -273,6 +279,11 @@ if __name__ == "__main__":
     ################
     # Writer
     ################
+    assert args.min_edu == 0 or (
+        (args.min_edu > 0) and (quality_criteria == "cluster_size")
+    ), "If --min_edu is set, quality_criteria must be 'cluster_size'"
+    edu_prefix = f"edu_{args.min_edu}+" if args.min_edu > 0 else ""
+
     if quality_criteria == "edu_score":
         writer = JsonlWriter(
             f"{output_dir}/split_by_edu_score/data",
@@ -281,7 +292,7 @@ if __name__ == "__main__":
         )
     elif quality_criteria == "cluster_size":
         writer = JsonlWriter(
-            f"{output_dir}/split_by_cluster_size/data",
+            f"{output_dir}/{edu_prefix}_split_by_cluster_size/data",
             output_filename="${cluster_size_group}/${rank}.jsonl.gz",
             max_file_size=int(2e9),
         )
@@ -294,6 +305,19 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(f"{output_dir}/annotated_output/data"),
+        *(
+            [
+                LambdaFilter(
+                    partial(
+                        lambda doc, min_edu: int(doc.metadata["edu_score"]) >= min_edu,
+                        min_edu=args.min_edu,
+                    )
+                )
+            ]
+            if args.min_edu > 0
+            else []
+        ),
+        *([PrefixFilter(language=language)] if args.add_prefix else []),
         writer,
     ]
 
@@ -301,7 +325,7 @@ if __name__ == "__main__":
         pipeline,
         tasks=TASKS,
         local=args.local,
-        logging_dir=f"{output_dir}/split_by_{quality_criteria}/logs",
+        logging_dir=f"{output_dir}/{edu_prefix}_split_by_{quality_criteria}/logs",
         job_name=dataset_name,
         depends=annotation_executor,
     )
