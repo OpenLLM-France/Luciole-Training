@@ -75,6 +75,7 @@ def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=Tr
     strategy_args["pipeline_dtype"] = str(strategy_args["pipeline_dtype"])
     job_id = os.environ.get("SLURM_JOB_ID")
     steps = dict()
+    model_size = dict()
     if write_step_timings:
         pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
         file = f"log_{job_id}.out"
@@ -88,10 +89,19 @@ def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=Tr
             "step_timings": list(iteration_timing.values()),
             "mean_step_timings": mean,
         }
+
+        pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
+
+        matches = re.findall(pattern, log_content)
+
+        model_size = {
+            label: float(value) if unit == "B" else float(value) / 1000
+            for value, unit, label in matches
+        }
     with open(
         os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
     ) as jsonfile:
-        json_data = {**args, **data_args, **strategy_args, **steps}
+        json_data = {**args, **data_args, **strategy_args, **steps, **model_size}
         json.dump(json_data, jsonfile, indent=2)
 
 
