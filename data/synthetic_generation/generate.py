@@ -104,7 +104,8 @@ if __name__ == "__main__":
         data_path = "HuggingFaceFW/fineweb-edu-llama3-annotations"
     elif data_language in ["fra_Latn", "spa_Latn", "ita_Latn", "deu_Latn"]:
         data_path = os.path.join(
-            main_path, f"data/raw_datasets_ablation/fineweb2/data/{data_language}/train"
+            main_path,
+            f"data/raw_data/data_for_ablation/DEPRECATED/fineweb2/data/{data_language}/train",
         )
     else:
         raise ValueError("Unsupported data language. Use 'en' or 'fra_Latn'.")

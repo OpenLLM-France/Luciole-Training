@@ -1,6 +1,47 @@
-Evaluate the following web page extract on five dimensions. Provide a short justification (max 100 words) explaining your choice.
+Evaluate the following web page extract on six dimensions. Provide a short justification (max 100 words) explaining your choices.
 
-## 1. Educational Value (0–5)
+## 1. Global Topic
+
+Identify the main category or theme of the extract. Choose one:
+
+- Adult
+- Business
+- Culture
+- Education
+- Entertainment
+- Health
+- Lifestyle
+- News
+- Politics
+- Real Estate
+- Religion
+- Science
+- Shopping
+- Sports
+- Technology
+- Travel
+
+## 2. Toxicity Detection
+
+Does the extract contain toxic content, such as:
+
+- Sexual or explicit content  
+- Profanity or vulgar language  
+- Hate speech (e.g., racism, sexism, homophobia)  
+- Insults, threats, or harassment  
+- Other content unsuitable for children
+
+Choose true or false.
+
+## 3. Step-by-Step Reasoning
+
+Does the extract present a step-by-step reasoning or explanation? Choose true or false.
+
+## 4. Mathematics
+
+Does the extract contain any mathematical content such as formulas, calculations, quantitative data, proofs, or formal logical reasoning? Choose true or false.
+
+## 5. Educational Score (0–5)
 
 Rate the educational value of the extract using the following scale:
 
@@ -8,57 +49,37 @@ Rate the educational value of the extract using the following scale:
 |-------|-------------|
 | 0 – No educational value | The extract provides no educational value. It consists entirely of irrelevant or non-academic content such as advertisements or promotional material. |
 | 1 – Minimal educational value | The extract provides some basic information relevant to educational topics, even if it includes some irrelevant or non-academic content like advertisements and promotional material. |
-| 2 – Low educational value |  The extract addresses certain elements pertinent to education but does not align closely with educational standards. It might mix educational content with non-educational material, offering a superficial overview of potentially useful topics, or presenting information in a disorganized manner and incoherent writing style. |
+| 2 – Low educational value | The extract addresses certain elements pertinent to education but does not align closely with educational standards. It might mix educational content with non-educational material, offering a superficial overview of potentially useful topics, or presenting information in a disorganized manner and incoherent writing style. |
 | 3 – Moderate educational value | The extract is appropriate for educational use and introduces key concepts relevant to school curricula. It is coherent, though it may not be comprehensive or could include some extraneous information. It may resemble an introductory section of a textbook or a basic tutorial that is suitable for learning but has notable limitations. |
 | 4 – High educational value | The extract is highly relevant and beneficial for educational purposes, exhibiting a clear and consistent writing style. It could be similar to a chapter from a textbook or a tutorial, offering substantial educational content, including exercises and solutions, with minimal irrelevant information. The content is coherent, focused, and valuable for structured learning. |
 | 5 – Excellent educational value | The extract is outstanding in its educational value, perfectly suited for teaching. It follows detailed reasoning, the writing style is easy to follow, and it offers profound and thorough insights into the subject matter, devoid of any non-educational or complex content. |
 
-## 2. Educational Topic
+## 6. Educational Topic
 
-Identify the main educational topic of the extract. Choose one:
-
-- Science & Technology
-- Health & Medicine
-- Business & Economics
-- Law & Politics
-- Arts & Humanities
-- Social Sciences
-- Other
-
-## 3. Educational Level
+## 7. Educational Level
 
 Specify the intended educational level for this content. Choose one:
 
-- Elementary school
-- Middle school
-- High school
-- Undergraduate
+- Elementary school  
+- Middle school  
+- High school  
+- Undergraduate  
 - Graduate
-
-## 4. Toxicity Detection
-
-Determine whether the extract contains toxic content, such as:
-
-- Sexual or explicit content
-- Profanity or vulgar language
-- Hate speech (e.g., racism, sexism, homophobia)
-- Insults, threats, or harassment
-- Other content unsuitable for children
-
-## 5. Step-by-Step Reasoning
-
-Does the extract present a step-by-step reasoning or explanation?
 
 ## Web Page Extract
 
 <text>
 
 ## JSON Output Format
+
+```json
 {
   "justification": "<max 100 words>",
-  "educational_value": <0–5>,
-  "educational_topic": "<topic>",
-  "educational_level": "<level>",
-  "is_toxic": <true|false>,
-  "step_by_step_reasoning": <true|false>
+  "global_topic": "<topic>",
+  "is_toxic": true|false,
+  "step_by_step_reasoning": true|false,
+  "contains_math": true|false,
+  "educational_score": 0–5,
+  "educational_level": "<level>"
 }
+```
