@@ -229,6 +229,7 @@ def create_parser():
         choices=[
             "llama",
             "llama1b",
+            "llama3b",
             "llama8b",
             "llama70b",
             "mamba1b",

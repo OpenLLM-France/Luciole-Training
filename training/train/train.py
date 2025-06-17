@@ -41,6 +41,7 @@ if __name__ == "__main__":
         type=str,
         choices=[
             "llama1b",
+            "llama3b",
             "llama8b",
             "llama70b",
             "mamba1b",
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     seq_length = args.seq_length
 
     if batch_size is None and seq_length is None:
-        if arch in ["llama1b", "mamba1b"]:
+        if arch in ["llama1b", "llama3b", "mamba1b"]:
             batch_size = 512
             seq_length = 2048
         elif arch in ["llama8b", "mambahybrid8b"]:
@@ -164,6 +165,10 @@ if __name__ == "__main__":
             )
 
             optimizer_warmup_steps = 500
+        elif arch == "llama3b":
+            from nemo.collections.llm.gpt.model.llama import (
+                Llama32Config3B as LlamaConfig,
+            )
         elif arch == "llama8b":
             from nemo.collections.llm.gpt.model.llama import (
                 Llama31Config8B as LlamaConfig,
@@ -174,8 +179,8 @@ if __name__ == "__main__":
             )
 
             strategy_args["sequence_parallel"] = True
-            strategy_args["tensor_model_parallel_size"] = 2
-            strategy_args["pipeline_model_parallel_size"] = 2
+            strategy_args["tensor_model_parallel_size"] = 4
+            strategy_args["pipeline_model_parallel_size"] = 4
             strategy_args["virtual_pipeline_model_parallel_size"] = 5
             strategy_args["context_parallel_size"] = 2
         else:
