@@ -1,0 +1,68 @@
+Evaluate the following web page extract on three dimensions:
+
+---
+
+## Topic Annotation
+Choose the most relevant topic that best represents the extract. Use the following list:
+
+- News — Pages providing journalism, current events, or reporting across any domain.
+- Shopping — E-commerce sites, product listings, online marketplaces, and reviews.
+- Entertainment — Content about movies, music, games, celebrities, memes, or pop culture.
+- Education — Websites offering courses, tutorials, study materials, or academic content.
+- Health — Medical advice, fitness, nutrition, mental health, and wellness resources.
+- Technology — Coverage of gadgets, software, programming, and digital innovation.
+- Business — Financial news, corporate websites, investing, and economic topics.
+- Sports — Sites covering sports news, events, scores, teams, and athlete profiles.
+- Travel — Tourism guides, hotel bookings, destination information, and travel blogs.
+- Adult — Websites with explicit or mature content intended for adults.
+
+---
+
+## Toxicity Detection
+Determine whether the extract contains **toxic content**, defined as any of the following:
+- Sexual or explicit content
+- Profanity or vulgar language
+- Hate speech (e.g., racism, sexism, homophobia)
+- Insults, threats, or harassment
+- Other content unsuitable for children
+
+Respond with:
+- `true` – The content includes toxic elements and is inappropriate for children.
+- `false` – The content is safe and does not include toxic elements.
+
+---
+
+## Educational Value
+**Goal:** Assess how directly usable the extract is for **educational purposes**—specifically whether the content itself (not whether it talks about education) provides information that could be used in a primary or grade school setting.
+
+**Rate the content from 0 to 5 using the scale below:**
+
+| Score | Description |
+|-------|-------------|
+| 0 – No educational value | The extract provides no educational value. It consists entirely of irrelevant or non-academic content such as advertisements or promotional material. |
+| 1 – Minimal educational value | The extract provides some basic information relevant to educational topics, even if it includes some irrelevant or non-academic content like advertisements and promotional material. |
+| 2 – Low educational value |  The extract addresses certain elements pertinent to education but does not align closely with educational standards. It might mix educational content with non-educational material, offering a superficial overview of potentially useful topics, or presenting information in a disorganized manner and incoherent writing style. |
+| 3 – Moderate educational value | The extract is appropriate for educational use and introduces key concepts relevant to school curricula. It is coherent, though it may not be comprehensive or could include some extraneous information. It may resemble an introductory section of a textbook or a basic tutorial that is suitable for learning but has notable limitations, like treating concepts that are too complex for grade school students. |
+| 4 – High educational value | The extract is highly relevant and beneficial for educational purposes for a level not higher than grade school, exhibiting a clear and consistent writing style. It could be similar to a chapter from a textbook or a tutorial, offering substantial educational content, including exercises and solutions, with minimal irrelevant information. The concepts aren't too advanced for grade school students. The content is coherent, focused, and valuable for structured learning. |
+| 5 – Excellent educational value | The extract is outstanding in its educational value, perfectly suited for teaching either at primary school or grade school. It follows detailed reasoning, the writing style is easy to follow, and it offers profound and thorough insights into the subject matter, devoid of any non-educational or complex content. |
+
+Provide a short justification (max 100 words) explaining the score.
+
+---
+
+## Web page extract:
+
+<text>
+
+---
+
+## JSON Output Format:
+
+```json
+{
+  "topic": "<topic>",
+  "is_toxic": <true|false>,
+  "educational_justification": "<max 100 words>",
+  "educational_score": <0–5>
+}
+```
