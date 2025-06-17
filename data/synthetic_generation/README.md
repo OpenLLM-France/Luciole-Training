@@ -11,6 +11,7 @@ module load cuda/12.4.1
 conda create -n distilabel-env python=3.12
 conda activate distilabel-env
 pip install -r requirements.txt
+pip install --no-build-isolation flash-attn
 ```
 
 If you do not want to use vLLM you can install: `pip install -U distilabel[hf-transformers]` for example (see [distilabel doc](https://distilabel.argilla.io/latest/sections/getting_started/installation/#llms))
