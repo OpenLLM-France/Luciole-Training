@@ -163,6 +163,17 @@ def load_data(input_folder):
     return data
 
 
+def model_to_size(model_name):
+    if model_name == "llama8b":
+        return 7.5
+    elif model_name == "llama1b":
+        return 1.1
+    elif model_name == "llama70b":
+        return 988 * 1
+    elif model_name == "mambahybrid8b":
+        return 7.3
+
+
 def convert_data(data):
     records = []
     for entry in data:
@@ -194,6 +205,7 @@ def convert_data(data):
                     "cp": entry["context_parallel_size"],
                     "batch_size": entry[batch],
                     "sequence_parallel": entry["sequence_parallel"],
+                    "model_size": entry.get("model_size", model_to_size(entry["arch"])),
                 }
             )
         except Exception as e:
@@ -211,6 +223,7 @@ if __name__ == "__main__":
 
     input_folder = args.input_folder
     output_folder = args.output_folder
+    os.makedirs(output_folder, exist_ok=True)
 
     data = load_data(input_folder)
 
@@ -246,67 +259,6 @@ if __name__ == "__main__":
         output_folder=output_folder,
     )
 
-    arch_df = df[
-        (
-            (df["pp"] == 1)
-            & (df["tp"] == 1)
-            & (df["cp"] == 1)
-            & ((df["batch_size"] == 1024) | (df["arch"] == "llama1b"))
-        )
-        | (df["arch"] == "llama70b")
-    ]
-    arch_df = arch_df.sort_values(by=["arch", "precision"])
-    plot_training_and_gpu_hours(
-        arch_df,
-        plot_name="arch_fp8_llama70b.png",
-        plot_title="Impact of Architecture and FP8 on training",
-        output_folder=output_folder,
-    )
-
-    arch_df = df[(df["arch"] == "llama70b")]
-    arch_df = arch_df.sort_values(by=["arch", "precision"])
-    plot_training_and_gpu_hours(
-        arch_df,
-        plot_name="llama70b.png",
-        plot_title="Impact of Architecture and FP8 on training",
-        output_folder=output_folder,
-    )
-
-    arch_df = df[
-        (df["pp"] == 1)
-        & (df["tp"] == 1)
-        & (df["cp"] == 1)
-        & ((df["batch_size"] == 1024) | (df["arch"] == "llama1b"))
-    ]
-    arch_df = arch_df.sort_values(by=["arch", "precision"])
-    plot_training_and_gpu_hours(
-        arch_df,
-        plot_name="arch_fp8.png",
-        plot_title="Impact of Architecture and FP8 on training",
-        output_folder=output_folder,
-    )
-
-    precision_df = df[
-        (df["pp"] == 1)
-        & (df["tp"] == 1)
-        & (df["cp"] == 1)
-        & (
-            ((df["arch"] == "llama8b") & (df["batch_size"] == 1024))
-            | (
-                (df["arch"] == "llama1b")
-                & (df["batch_size"] == 512)
-                & (df["precision"] == "bf16")
-            )
-        )
-    ]
-    precision_df = precision_df.sort_values(by=["arch", "precision"])
-    plot_training_and_gpu_hours(
-        precision_df,
-        plot_name="llama8b_fp8.png",
-        plot_title="Impact of Precision on training",
-        output_folder=output_folder,
-    )
-
     precision_batch_df = df[
         (df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1) & (df["arch"] == "llama8b")
     ]
@@ -318,3 +270,58 @@ if __name__ == "__main__":
         plot_title="Impact of Precision and Batch_size on training",
         output_folder=output_folder,
     )
+
+    reduced_df = df[
+        (
+            (df["arch"] == "llama1b")
+            & (df["precision"] == "bf16")
+            & (df["batch_size"] == 1024)
+        )
+        | (
+            (df["arch"] == "llama3b")
+            & (df["precision"] == "fp8")
+            & (df["batch_size"] == 1024)
+        )
+        | (
+            (df["pp"] == 1)
+            & (df["tp"] == 1)
+            & (df["cp"] == 1)
+            & (df["arch"] == "llama8b")
+            & (df["batch_size"] == 1024)
+        )
+        | (
+            (df["pp"] == 4)
+            & (df["tp"] == 4)
+            & (df["cp"] == 2)
+            & (df["arch"] == "llama70b")
+            & (df["batch_size"] == 512)
+        )
+    ]
+
+    archs = [
+        "llama1b",
+        "llama3b",
+        ["llama1b", "llama3b"],
+        ["llama1b", "llama3b", "llama8b"],
+        "llama8b",
+        "llama70b",
+    ]
+    archs.append([a for a in archs if isinstance(a, str)])
+    os.makedirs(os.path.join(output_folder, "archs"), exist_ok=True)
+    for arch in archs:
+        if isinstance(arch, list):
+            arch_df = reduced_df[(reduced_df["arch"].isin(arch))]
+            arch = "_".join(arch)
+            print(arch_df)
+        else:
+            arch_df = df[(df["arch"] == arch)]
+        arch_df = arch_df.sort_values(by=["precision"])
+        # try:
+        plot_training_and_gpu_hours(
+            arch_df,
+            plot_name=f"{arch}.png",
+            plot_title="Impact of Architecture and FP8 on training",
+            output_folder=os.path.join(output_folder, "archs"),
+        )
+        # except:
+        #     pass
