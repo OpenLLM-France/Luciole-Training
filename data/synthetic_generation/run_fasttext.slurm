@@ -11,7 +11,7 @@
 
 module purge
 module load anaconda-py3/2024.06
-conda activate distilabel-test
+conda activate distilabel-env
 
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
@@ -24,7 +24,7 @@ train_all_labels() {
     python train_fasttext.py \
       --input_path "$input_path" \
       --output_path "$output_path" \
-      --label "$label"
+      --label "$label" > $output_path/output.txt 2>&1
   done
 }
 

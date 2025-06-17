@@ -14,7 +14,7 @@
 module load arch/h100 
 module load anaconda-py3/2024.06
 module load cuda/12.4.1
-conda activate distilabel-test
+conda activate distilabel-env
 
 language=$1
 model_name=$DSDIR/HuggingFace_Models/Qwen/Qwen3-32B
