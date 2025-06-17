@@ -7,7 +7,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 import pandas as pd
 
 
-def print_results(model, valid_data):
+def print_results(model, valid_data, output_file):
     valid_texts = []
     true_labels = []
     with open(valid_data, "r") as f:
@@ -26,16 +26,18 @@ def print_results(model, valid_data):
     short_labels = [label.replace("__label__", "")[:7] for label in labels]
     cm_df = pd.DataFrame(cm, index=short_labels, columns=short_labels)
 
-    print("\nConfusion Matrix:")
-    print(cm_df)
+    with open(output_file, "w") as f:
+        print("\nConfusion Matrix:", file=f)
+        print(cm_df.to_string(), file=f)
 
-    # Step 5: Classification report
-    print("\nClassification Report:")
-    print(
-        classification_report(
-            true_labels, predicted_labels, labels=labels, zero_division=0
+        # Step 5: Classification report
+        print("\nClassification Report:", file=f)
+        print(
+            classification_report(
+                true_labels, predicted_labels, labels=labels, zero_division=0
+            ),
+            file=f,
         )
-    )
     return
 
 
@@ -161,9 +163,11 @@ if __name__ == "__main__":
         loss=loss,
     )
 
-    print_results(model, valid_data)
-
     model.save_model(os.path.join(output_path, "model", f"{model_name}.bin"))
+
+    print_results(
+        model, valid_data, os.path.join(output_path, "model", f"{model_name}_logs.txt")
+    )
 
     if args.quantize:
         model.quantize(input=train_data, qnorm=True, retrain=True, cutoff=100000)
