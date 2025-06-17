@@ -24,7 +24,7 @@ train_all_labels() {
     python train_fasttext.py \
       --input_path "$input_path" \
       --output_path "$output_path" \
-      --label "$label" > $output_path/output.txt 2>&1
+      --label "$label"
   done
 }
 
