@@ -2,27 +2,37 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
+from slugify import slugify
 
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        help="Subset to load",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
+    name = args.name
+    slug_name = slugify(name)
+
     pipeline = [
         HuggingFaceDatasetReader(
-            "common-pile/peS2o_filtered",
+            f"common-pile/{name}",
             {"split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{DATA_PATH}/pes2o_common_pile/data"),
+        JsonlWriter(f"{DATA_PATH}/common_pile/{slug_name}/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{DATA_PATH}/pes2o_common_pile/logs",
-        job_name="pes2o_common_pile",
+        logging_dir=f"{DATA_PATH}/common_pile/{slug_name}/logs",
+        job_name=f"common_pile_{slug_name}",
     )
 
     main_processing_executor.run()
