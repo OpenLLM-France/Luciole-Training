@@ -3,11 +3,12 @@ import json
 import warnings
 
 
-def extract_educational_json(text: str) -> dict:
+def extract_educational_json(
+    text: str, keys=["educational_score", "topic", "is_ad", "is_toxic"]
+) -> dict:
     pattern = re.compile(r"\{[^{}]*\}", re.DOTALL)
     matches = pattern.findall(text)
 
-    keys = ["educational_score", "topic", "is_ad", "is_toxic"]
     default_output = {k: None for k in keys}
 
     if not matches:
