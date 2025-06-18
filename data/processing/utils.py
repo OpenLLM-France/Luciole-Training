@@ -49,12 +49,12 @@ def add_sampler_filter(pipeline, sample_rate):
 
 
 def create_parser():
-    output_dir = os.getenv("OpenLLM_OUTPUT")
-    if not output_dir:
+    MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
+    if not MAIN_PATH:
         raise RuntimeError(
             "Environment variable 'OpenLLM_OUTPUT' is not set or is empty."
         )
-    DATA_PATH = os.path.join(output_dir, "data/raw_data/full_datasets")
+    DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
     parser = argparse.ArgumentParser("")
     parser.add_argument(
