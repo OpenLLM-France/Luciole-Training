@@ -46,7 +46,6 @@ if __name__ == "__main__":
         "--data_language",
         type=str,
         default="en",
-        choices=["en", "fra_Latn", "spa_Latn", "ita_Latn", "deu_Latn"],
         help='Dataset language. "en" corresponds to fineweb-edu. Otherwise, from fineweb-2.',
     )
     argparser.add_argument(
@@ -66,6 +65,12 @@ if __name__ == "__main__":
         type=str,
         default="en",
         help='Name of the prompt you want to use. Prompts are defined in "prompt/". You can add new ones. Use the <text> to insert the web page extract (first 2000 characters will be used).',
+    )
+    argparser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.6,
+        help="Temperature for sampling.",
     )
     argparser.add_argument(
         "--output_dir",
@@ -92,7 +97,7 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
 
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
-    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{data_language}_{to_shorthand(args.nsamples)}_{date}"
+    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{data_language}_t{args.temperature}_n{to_shorthand(args.nsamples)}"  # _{date}
     if (not args.disable_thinking) and ("Qwen" in model_name):
         output_name += "_think"
     print(output_name)
@@ -102,13 +107,11 @@ if __name__ == "__main__":
 
     if data_language == "en":
         data_path = "HuggingFaceFW/fineweb-edu-llama3-annotations"
-    elif data_language in ["fra_Latn", "spa_Latn", "ita_Latn", "deu_Latn"]:
+    else:
         data_path = os.path.join(
             main_path,
             f"data/raw_data/data_for_ablation/DEPRECATED/fineweb2/data/{data_language}/train",
         )
-    else:
-        raise ValueError("Unsupported data language. Use 'en' or 'fra_Latn'.")
 
     # Preprocess dataset
     random.seed(42)  # Set seed for reproducibility
@@ -134,7 +137,7 @@ if __name__ == "__main__":
                     "gpu_memory_utilization": 0.95,  # GPU memory utilization
                 },
                 generation_kwargs={
-                    "temperature": 0.5,
+                    "temperature": args.temperature,
                     "max_new_tokens": 1024,
                 },
             )
@@ -144,7 +147,7 @@ if __name__ == "__main__":
                 chat_template=chat_template,
                 model_kwargs={},
                 generation_kwargs={
-                    "temperature": 0.5,
+                    "temperature": args.temperature,
                     "max_new_tokens": 1024,
                 },
             )
