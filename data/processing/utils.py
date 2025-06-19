@@ -5,6 +5,14 @@ from datatrove.pipeline.filters import SamplerFilter
 import inspect
 import warnings
 import os
+from datasets import load_dataset_builder
+import sys
+
+
+def print_builder_config(dataset_name):
+    config_names = list(load_dataset_builder(dataset_name).builder_configs)
+    print(f"Choose a name in: {config_names}")
+    sys.exit(0)
 
 
 def filter_kwargs_for_class(cls, kwargs):
