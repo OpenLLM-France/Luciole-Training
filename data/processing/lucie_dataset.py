@@ -1,10 +1,15 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import (
+    create_parser,
+    parse_args,
+    create_executor,
+    add_sampler_filter,
+    print_builder_config,
+)
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from slugify import slugify
 
-from datasets import load_dataset_builder
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -25,13 +30,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     if args.name is None:
-        config_names = list(
-            load_dataset_builder(
-                "OpenLLM-France/Lucie-Training-Dataset"
-            ).builder_configs
-        )
-        print(f"Chose a name in: {config_names}")
-        raise NotImplementedError
+        print_builder_config("OpenLLM-France/Lucie-Training-Dataset")
 
     name = args.name
     slug_name = slugify(name)

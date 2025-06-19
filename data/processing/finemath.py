@@ -5,10 +5,9 @@ from utils import (
     add_sampler_filter,
     print_builder_config,
 )
-
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
-from slugify import slugify
+import os
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -22,26 +21,26 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     if args.name is None:
-        print_builder_config("allenai/olmo-mix-1124")
+        print_builder_config("HuggingFaceTB/finemath")
 
     name = args.name
-    slug_name = slugify(name)
+
+    output_path = os.path.join(DATA_PATH, "finemath", name)
 
     pipeline = [
-        HuggingFaceDatasetReader(
-            "allenai/olmo-mix-1124",
-            {"name": {name}, "split": "train"},
-            streaming=True,
+        ParquetReader(
+            f"hf://datasets/HuggingFaceTB/finemath/{name}",
+            glob_pattern="*.parquet",
         ),
-        JsonlWriter(f"{DATA_PATH}/olmo_mix/{slug_name}/data"),
+        JsonlWriter(f"{output_path}/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{DATA_PATH}/olmo_mix/{slug_name}/logs",
-        job_name=slug_name,
+        logging_dir=f"{output_path}/logs",
+        job_name=name,
     )
 
     main_processing_executor.run()
