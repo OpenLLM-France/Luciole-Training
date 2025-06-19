@@ -59,5 +59,6 @@ if __name__ == "__main__":
             local=args.local,
             logging_dir=f"{output_path}/logs/{year}",
             job_name=dataset_name,
+            tasks=TASKS,
         )
         main_processing_executor.run()

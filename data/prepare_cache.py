@@ -18,10 +18,11 @@ print(model_file)
 MODEL_REPO = "edugp/kenlm"
 # /lustre/fswork/projects/rech/fwx/commun/.cache/huggingface/assets/datatrove/default/default/
 model_dataset = "wikipedia"
-for model_name in ["fr"]:
+for model_name in ["en", "fr"]:
     path = cached_asset_path_or_download(
         hf_hub_url(MODEL_REPO, str(Path(model_dataset, f"{model_name}.arpa.bin")))
     )
     path = cached_asset_path_or_download(
         hf_hub_url(MODEL_REPO, str(Path(model_dataset, f"{model_name}.sp.model")))
     )
+    print(path)
