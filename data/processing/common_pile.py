@@ -50,23 +50,36 @@ if __name__ == "__main__":
 
     name = args.name
 
+    if name == "ubuntu_irc_filtered":
+        language_filter = [
+            LanguageFilter(
+                label_only=True,
+                keep_top_pairs_threshold=1,
+            ),
+            LambdaFilter(
+                lambda doc: doc.metadata["language"]
+                in ["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
+                exclusion_writer=JsonlWriter(
+                    f"{DATA_PATH}/common_pile/{name}/removed/language"
+                ),
+            ),
+        ]
+    else:
+        language_filter = [
+            LanguageFilter(
+                languages=["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
+                language_threshold=0.65,
+                keep_top_pairs_threshold=1,
+            ),
+        ]
+
     pipeline = [
         HuggingFaceDatasetReader(
             f"common-pile/{name}",
             {"split": "train"},
             streaming=True,
         ),
-        LanguageFilter(
-            label_only=True,
-            keep_top_pairs_threshold=1,
-        ),
-        LambdaFilter(
-            lambda doc: doc.metadata["language"]
-            in ["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_pile/{name}/removed/language"
-            ),
-        ),  # Scores are low because of formatting (ubuntu), we just check the argmax language
+        *language_filter,
         JsonlWriter(f"{DATA_PATH}/common_pile/{name}/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
