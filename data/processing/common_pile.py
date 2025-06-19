@@ -60,7 +60,6 @@ if __name__ == "__main__":
         "--all",
         action="store_true",
     )
-
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
