@@ -31,19 +31,19 @@ COMMON_PILE_DATASETS = [
 
 
 def additionnal_formatting(doc):
-    infos = []
+    out = {}
     channel = doc.metadata.get("channel")
     if channel:
-        infos.append(f"Channel: {channel}")
+        out["channel"] = doc.metadata.get("channel")
     title = doc.metadata.get("title")
     if title and title.lower() not in doc.text[:200].lower():
-        infos.append(f"Title: {title}")
+        out["title"] = doc.metadata.get("title")
     extfieldsofstudy = doc.metadata.get("s2fieldsofstudy")
     if extfieldsofstudy:
         extfieldsofstudy = ", ".join(extfieldsofstudy)
         if extfieldsofstudy:
-            infos.append(f"Fields: {extfieldsofstudy}")
-    return infos
+            out["fields"] = extfieldsofstudy
+    return out
 
 
 if __name__ == "__main__":
@@ -111,6 +111,13 @@ if __name__ == "__main__":
                 url_keys=url_keys,
                 infer_date_format=True,
                 additionnal_formatting=additionnal_formatting,
+                prefix_pipeline={
+                    "fqdn": "Full domain",
+                    "channel": "Channel",
+                    "title": "Title",
+                    "fields": "Fields",
+                    "date": "Date",
+                },
             ),
             JsonlWriter(f"{DATA_PATH}/common_pile/{name}/data"),
         ]
