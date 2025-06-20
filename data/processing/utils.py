@@ -40,10 +40,12 @@ def create_executor(pipeline, local=False, **kwargs):
             pipeline=pipeline,
             sbatch_args={"account": "qgz@cpu"},
             tasks=tasks,
-            cpus_per_task=2,
+            cpus_per_task=1,
             time=time,
             qos=qos,
             partition=partition,
+            requeue_signals=None,
+            requeue=False,
             env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
             **slurm_kwargs,
         )
