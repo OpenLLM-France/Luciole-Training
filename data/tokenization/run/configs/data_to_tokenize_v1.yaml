@@ -1,0 +1,34 @@
+dataset_groups:
+  - root_path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets
+    datasets:
+      # Wikimedia datasets
+      - name: wikimedia_ar
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/ar
+      - name: wikimedia_br
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/br
+      - name: wikimedia_ca
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/ca
+      - name: wikimedia_co
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/co
+      - name: wikimedia_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/de
+      - name: wikimedia_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/en
+      - name: wikimedia_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/es
+      - name: wikimedia_eu
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/eu
+      - name: wikimedia_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/fr
+      - name: wikimedia_frp
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/frp
+      - name: wikimedia_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/it
+      - name: wikimedia_nl
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/nl
+      - name: wikimedia_oc
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/oc
+      - name: wikimedia_pcd
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/pcd
+      - name: wikimedia_pt
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/wikimedia/data/pt
