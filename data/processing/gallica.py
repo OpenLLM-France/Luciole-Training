@@ -4,8 +4,9 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.filters import LambdaFilter
-from datatrove.data import DocumentsPipeline
+from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
+from datatrove.pipeline.filters import ExtremeTokenizerFilter
+from functools import partial
 
 # Tried GopherQualityFilter with fineweb-2 config file for french
 # It took 7 minutes and 47 secondes for 1k documents...
@@ -17,29 +18,33 @@ mapping = {
 }
 
 
-def prepare_metadata_header(
-    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
-) -> DocumentsPipeline:
-    """
-    `data` is a generator of Document. You must also return a generator of Document (yield)
-    You can optionally use `rank` and `world_size` for sharding
-    """
-    for doc in data:
-        header = "Data extracted from Gallica\n"
-        for field, x in zip(
-            ["title", "author", "date", "ocr"],
-            ["Title", "Author", "Date", "OCR quality score"],
+def additionnal_formatting(doc, name):
+    import re
+
+    out = {}
+    # ocr = doc.metadata.get("ocr")
+    # if ocr:
+    #     out["ocr"] = doc.metadata.get("ocr")
+    author = doc.metadata.get("author")
+    if author and author != "None":
+        out["author"] = doc.metadata.get("author")
+    date = doc.metadata.get("author")
+    if date:
+        out["date"] = doc.metadata.get("date")
+    if name == "press":
+        title = doc.metadata.get("title")
+        if (
+            title
+            and title.lower() not in re.sub(r"\s+", " ", doc.text[:200]).strip().lower()
         ):
-            if doc.metadata[field] != "None":
-                header += f"- {x}: {doc.metadata[field]}\n"
-        doc.metadata["header"] = header
-        yield doc
+            out["title"] = doc.metadata.get("title")
+    return out
 
 
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
-        "--dataset-name",
+        "--name",
         type=str,
         default="monographies",
         choices=list(mapping.keys()),
@@ -48,28 +53,38 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    hf_name = mapping[args.dataset_name]
-    dataset_name = f"gallica_{args.dataset_name}"
+    hf_name = mapping[args.name]
 
     # Collect data and filter OCR by scores
-    output_path = os.path.join(DATA_PATH, dataset_name)
+    output_path = os.path.join(DATA_PATH, "gallica", args.name)
     pipeline = [
         ParquetReader(
             f"hf://datasets/{hf_name}",
             glob_pattern="*.parquet",
             text_key="complete_text",
         ),
-        LambdaFilter(
-            lambda doc: (
-                doc.metadata["ocr"].isdigit() and int(doc.metadata["ocr"]) >= 90
-            )
-            if doc.metadata["ocr"]
-            else False,
-            exclusion_writer=JsonlWriter(f"{output_path}/1_low_ocr_scores"),
+        ExtremeTokenizerFilter(
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
+            min_token_per_char=0,
+            max_token_per_char=0.4,
+            filter_mode="CHUNKS",
+            replace_span="\n\n[...]\n\n",
+            removed_spans_in_metadata=False,  # FOR DEBUGGING only
+            exclusion_writer=JsonlWriter(f"{output_path}/removed/extreme_tokenizer"),
         ),
-        LambdaFilter(lambda doc: doc.metadata["author"] not in ["Bourse de Paris"]),
-        prepare_metadata_header,
-        JsonlWriter(f"{output_path}/1_high_ocr_scores"),
+        PrefixFormatter(
+            date_keys=[],
+            additionnal_formatting=partial(
+                lambda doc, name: additionnal_formatting(doc, name), name=args.name
+            ),
+            prefix_pipeline={
+                "author": "Author",
+                "title": "Title",
+                "date": "Date",
+                # "ocr": "OCR score"
+            },
+        ),
+        JsonlWriter(f"{output_path}/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
@@ -77,13 +92,6 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         logging_dir=f"{output_path}/logs",
-        job_name=dataset_name,
+        job_name=args.name,
     )
     main_processing_executor.run()
-
-    # PerplexityFilter(
-    #     model_dataset="wikipedia",
-    #     language='fr',
-    #     label_only=True
-    # ),
-    # ExtremeTokenizerFilter("OpenLLM-France/Lucie-7B"),
