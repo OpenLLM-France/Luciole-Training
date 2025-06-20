@@ -3,24 +3,6 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 
-LANGUAGES = [
-    "ar",
-    "br",
-    "ca",
-    "co",
-    "de",
-    "en",
-    "es",
-    "eu",
-    "fr",
-    "frp",
-    "it",
-    "nl",
-    "oc",
-    "pcd",
-    "pt",
-]
-
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
@@ -36,33 +18,25 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    if args.all:
-        languages = LANGUAGES
-    else:
-        languages = [args.language]
+    pipeline = [
+        HuggingFaceDatasetReader(
+            "OpenLLM-France/wikimedia",
+            {"split": "train"},
+            streaming=True,
+        ),
+        JsonlWriter(
+            f"{DATA_PATH}/wikimedia/data",
+            output_filename="${language}/${rank}.jsonl.gz",
+        ),
+    ]
+    add_sampler_filter(pipeline, args.sample_rate)
 
-    for language in languages:
-        if language in ["ar", "ca", "de", "en", "es", "eu", "fr", "it", "nl", "pt"]:
-            tasks = 50
-        else:
-            tasks = 5
+    main_processing_executor = create_executor(
+        pipeline,
+        local=args.local,
+        logging_dir=f"{DATA_PATH}/wikimedia/logs",
+        job_name="wikimedia",
+        tasks=50,
+    )
 
-        pipeline = [
-            HuggingFaceDatasetReader(
-                "OpenLLM-France/wikimedia",
-                {"name": language, "split": "train"},
-                streaming=True,
-            ),
-            JsonlWriter(f"{DATA_PATH}/wikimedia/{language}/data"),
-        ]
-        add_sampler_filter(pipeline, args.sample_rate)
-
-        main_processing_executor = create_executor(
-            pipeline,
-            local=args.local,
-            logging_dir=f"{DATA_PATH}/wikimedia/{language}/logs",
-            job_name="wikimedia",
-            tasks=tasks,
-        )
-
-        main_processing_executor.run()
+    main_processing_executor.run()
