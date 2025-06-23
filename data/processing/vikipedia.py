@@ -2,6 +2,7 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.filters import LambdaFilter
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -15,6 +16,9 @@ if __name__ == "__main__":
 
     pipeline = [
         ParquetReader(args.path_to_parquet),
+        LambdaFilter(
+            lambda doc: "general" not in doc.metadata["file_path"].split("/")[-1]
+        ),
         JsonlWriter(
             f"{DATA_PATH}/vikidia/data",
             output_filename="${language}/${rank}.jsonl.gz",
@@ -27,7 +31,7 @@ if __name__ == "__main__":
         local=args.local,
         logging_dir=f"{DATA_PATH}/vikidia/logs",
         job_name="vikidia",
-        tasks=20,
+        tasks=5,
     )
 
     main_processing_executor.run()
