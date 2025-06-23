@@ -94,7 +94,7 @@ if __name__ == "__main__":
             ]
 
         if name == "public_domain_review_filtered":
-            date_keys = None  # Date already in the text
+            date_keys = []  # Date already in the text
         else:
             date_keys = ["created", "date", "published_time"]
         url_keys = ["url", "oa_url", "item_url"]
@@ -112,7 +112,6 @@ if __name__ == "__main__":
                 infer_date_format=True,
                 additionnal_formatting=additionnal_formatting,
                 prefix_pipeline={
-                    "fqdn": "Full domain",
                     "channel": "Channel",
                     "title": "Title",
                     "fields": "Fields",
@@ -128,7 +127,7 @@ if __name__ == "__main__":
             local=args.local,
             logging_dir=f"{DATA_PATH}/common_pile/{name}/logs",
             job_name=name,
-            tasks=10,
+            tasks=50,
         )
 
         main_processing_executor.run()
