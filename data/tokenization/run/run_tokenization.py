@@ -79,25 +79,11 @@ if __name__ == "__main__":
                     print(f"📂 Path: {raw_path}")
                     print("--------------------------------------")
 
-                    # Count .jsonl files recursively
-                    num_files = 0
-                    for root, dirs, files in os.walk(raw_path):
-                        jsonl_files = [
-                            f
-                            for f in files
-                            if f.endswith(".jsonl") or f.endswith(".jsonl.gz")
-                        ]
-                        num_files += len(jsonl_files)
-                    cpus_per_task = max(
-                        5, min(40, num_files)
-                    )  # prevent OOM with between 5 and 40 cpus
-
                     # Submit job using sbatch
                     subprocess.run(
                         [
                             "sbatch",
                             f"--job-name=tok_{name}",
-                            f"--cpus-per-task={cpus_per_task}",
                             "tokenize_one_dataset.slurm",
                             raw_path,
                             os.path.join(tokens_dataset_path, name),
