@@ -23,10 +23,17 @@ if __name__ == "__main__":
         default=None,
         help="The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir.",
     )
+    parser.add_argument(
+        "--start_with",
+        type=str,
+        default="",
+        help="Tokenize only datasets whose name start with this value",
+    )
     args = parser.parse_args()
     yaml_file = args.yaml_file
     tokens_dataset_path = args.output_dir
     tokenizer_name = args.tokenizer_name
+    start_with = args.start_with
 
     os.makedirs(tokens_dataset_path, exist_ok=True)
 
@@ -66,7 +73,7 @@ if __name__ == "__main__":
             output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
 
             if os.path.isdir(raw_path):
-                if not os.path.isfile(output_idx):
+                if not os.path.isfile(output_idx) and name.startswith(args.start_with):
                     print("--------------------------------------")
                     print(f"🚀 Processing dataset: {name}")
                     print(f"📂 Path: {raw_path}")
@@ -93,7 +100,7 @@ if __name__ == "__main__":
                     )
                 else:
                     print("--------------------------------------")
-                    print(f"⏩ Skipping {name}, already processed.")
+                    print(f"⏩ Skipping {name}")
                     print("--------------------------------------")
             else:
                 print("--------------------------------------")
