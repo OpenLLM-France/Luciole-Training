@@ -82,7 +82,11 @@ if __name__ == "__main__":
                     # Count .jsonl files recursively
                     num_files = 0
                     for root, dirs, files in os.walk(raw_path):
-                        jsonl_files = [f for f in files if f.endswith(".jsonl")]
+                        jsonl_files = [
+                            f
+                            for f in files
+                            if f.endswith(".jsonl") or f.endswith(".jsonl.gz")
+                        ]
                         num_files += len(jsonl_files)
                     cpus_per_task = min(40, num_files)
 
