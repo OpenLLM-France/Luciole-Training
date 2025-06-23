@@ -88,7 +88,9 @@ if __name__ == "__main__":
                             if f.endswith(".jsonl") or f.endswith(".jsonl.gz")
                         ]
                         num_files += len(jsonl_files)
-                    cpus_per_task = min(40, num_files)
+                    cpus_per_task = max(
+                        5, min(40, num_files)
+                    )  # prevent OOM with between 5 and 40 cpus
 
                     # Submit job using sbatch
                     subprocess.run(

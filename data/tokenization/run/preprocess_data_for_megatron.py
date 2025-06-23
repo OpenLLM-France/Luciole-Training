@@ -446,6 +446,8 @@ def main():
                     file=sys.stderr,
                 )
 
+        print(f"Finished processing file {json_file} {idx + 1}/{len(json_files)}")
+
     for key in args.json_keys:
         builders[key].finalize(output_idx_files[key])
 
