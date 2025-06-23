@@ -74,9 +74,7 @@ if __name__ == "__main__":
         ),
         PrefixFormatter(
             date_keys=[],
-            additionnal_formatting=partial(
-                lambda doc, name: additionnal_formatting(doc, name), name=args.name
-            ),
+            additionnal_formatting=partial(additionnal_formatting, name=args.name),
             prefix_pipeline={
                 "author": "Author",
                 "title": "Title",
