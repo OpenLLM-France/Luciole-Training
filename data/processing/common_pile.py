@@ -128,6 +128,7 @@ if __name__ == "__main__":
             local=args.local,
             logging_dir=f"{DATA_PATH}/common_pile/{name}/logs",
             job_name=name,
+            tasks=10,
         )
 
         main_processing_executor.run()
