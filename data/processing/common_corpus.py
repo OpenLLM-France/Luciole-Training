@@ -2,9 +2,35 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.filters import LambdaFilter
+from functools import partial
+
+LANGUAGES = [
+    "code",
+    "english",
+    "french",
+    "german",
+    "spanish",
+    "italian",
+    "portuguese",
+    "arabic",
+    "dutch",
+    "basque",
+    "breton",
+    "picard",
+    "catalan",
+    "occitan",
+    "seychellois-creole",
+    "haitian-creole-latin-script",
+    "franco-provencal",
+    "guianese-creole",
+    "moroccan-arabic",
+    "egyptian-arabic",
+    "walloon",
+]
 
 
-def process_metadata(
+def clean_metadata(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
 ) -> DocumentsPipeline:
     from slugify import slugify
@@ -38,7 +64,14 @@ if __name__ == "__main__":
             {"split": "train"},
             streaming=True,
         ),
-        process_metadata,
+        clean_metadata,
+        LambdaFilter(
+            partial(
+                lambda doc, languages: doc.metadata["language_"] in languages,
+                languages=LANGUAGES,
+            ),
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/common_corpus/removed/language"),
+        ),
         JsonlWriter(
             f"{DATA_PATH}/common_corpus/data",
             output_filename="${open_type}/${collection}/${language_}/${rank}.jsonl.gz",
