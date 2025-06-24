@@ -1,11 +1,16 @@
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.filters import PerplexityFilter, ExtremeTokenizerFilter
+from datatrove.pipeline.filters import (
+    PerplexityFilter,
+    ExtremeTokenizerFilter,
+    LanguageFilter,
+)
+
+# from datatrove.pipeline.filters import FastTextClassifierFilter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 import os
 
-TASKS = 1
 SUPPORTED_YEARS = [
     "1770",
     "1771",
@@ -54,20 +59,34 @@ if __name__ == "__main__":
                 text_key="article",
                 streaming=True,
             ),
-            PerplexityFilter(
-                language="en",
-                min_ppl=10,
-                max_ppl=2000,
-                exclusion_writer=JsonlWriter(f"{output_path}/removed/ppl/{year}"),
-            ),
             ExtremeTokenizerFilter(
                 tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
                 min_token_per_char=0,
-                max_token_per_char=0.35,
+                max_token_per_char=0.4,
+                filter_mode="CHUNKS",
+                replace_span="\n\n[...]\n\n",
+                removed_spans_in_metadata=False,  # FOR DEBUGGING only
                 exclusion_writer=JsonlWriter(
                     f"{output_path}/removed/extreme_tokenizer/{year}"
                 ),
             ),
+            LanguageFilter(
+                languages=["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
+                language_threshold=0.65,
+                keep_top_pairs_threshold=1,
+                exclusion_writer=JsonlWriter(f"{output_path}/removed/language/{year}"),
+            ),
+            PerplexityFilter(
+                language_from_metadata=True,
+                min_ppl=10,
+                max_ppl=2000,
+                exclusion_writer=JsonlWriter(f"{output_path}/removed/ppl/{year}"),
+            ),
+            # FastTextClassifierFilter(
+            #     model_url = "https://dolma-artifacts.org/fasttext_models/jigsaw_fasttext_bigrams_20230515/jigsaw_fasttext_bigrams_hatespeech_final.bin",
+            #     save_labels_in_metadata=True,
+            #     newline_replacement = " "
+            # ),
             PrefixFormatter(
                 date_format="%Y-%m-%d",
                 additionnal_formatting=lambda doc: additionnal_formatting(doc),
@@ -86,6 +105,6 @@ if __name__ == "__main__":
             local=args.local,
             logging_dir=f"{output_path}/logs/{year}",
             job_name=dataset_name,
-            tasks=TASKS,
+            tasks=1,
         )
         main_processing_executor.run()

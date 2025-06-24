@@ -1,5 +1,5 @@
 dataset_groups:
-  - root_path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets
+  - root_path: ""
     datasets:
       # Wikimedia datasets
       - name: wikimedia_ar
@@ -73,3 +73,60 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/europarl/it
       - name: europarl_pt
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/europarl/pt
+      # Common Pile
+      - name: common-pile_biodiversity-heritage-library_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/biodiversity_heritage_library_filtered/data
+      - name: common-pile_caselaw-access-project_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/caselaw_access_project_filtered/data
+      - name: common-pile_data-provenance-initiative_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/data_provenance_initiative_filtered/data
+      - name: common-pile_doab_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/doab_filtered/data
+      - name: common-pile_foodista_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/foodista_filtered/data
+      - name: common-pile_library-of-congress_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/library_of_congress_filtered/data
+      - name: common-pile_libretexts_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/libretexts_filtered/data
+      - name: common-pile_oercommons_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/oercommons_filtered/data
+      - name: common-pile_peS2o_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/peS2o_filtered/data
+      - name: common-pile_pre-1929-books_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/pre_1929_books_filtered/data
+      - name: common-pile_pressbooks_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/pressbooks_filtered/data
+      - name: common-pile_project-gutenberg_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/project_gutenberg_filtered/data
+      - name: common-pile_public-domain-review_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/public_domain_review_filtered/data
+      - name: common-pile_pubmed_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/pubmed_filtered/data
+      - name: common-pile_python-enhancement-proposals_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/python_enhancement_proposals_filtered/data
+      - name: common-pile_regulations_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/regulations_filtered/data
+      - name: common-pile_stackexchange_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/stackexchange_filtered/data
+      - name: common-pile_ubuntu-irc_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/ubuntu_irc_filtered/data
+      - name: common-pile_uk-hansard_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/uk_hansard_filtered/data
+      - name: common-pile_usgpo_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/usgpo_filtered/data
+      - name: common-pile_uspto_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/uspto_filtered/data
+      - name: common-pile_youtube_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/youtube_filtered/data
+      - name: common-pile_news_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/news_filtered/data
+      # Claire
+      - name: claire_nc_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/nc/en
+      - name: claire_nc_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/nc/fr
+      - name: claire_open_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/open/en
+      - name: claire_open_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/open/fr
+
