@@ -42,14 +42,14 @@ if __name__ == "__main__":
             {"name": name, "revision": revision, "split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{DATA_PATH}/lucie_dataset/{slug_name}/output"),
+        JsonlWriter(f"{DATA_PATH}/lucie_dataset/{revision}/{slug_name}/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
-        logging_dir=f"{DATA_PATH}/lucie_dataset/{slug_name}/logs",
+        logging_dir=f"{DATA_PATH}/lucie_dataset/{revision}/{slug_name}/logs",
         job_name=slug_name,
     )
 

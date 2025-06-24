@@ -89,7 +89,7 @@ if __name__ == "__main__":
             # ),
             PrefixFormatter(
                 date_format="%Y-%m-%d",
-                additionnal_formatting=lambda doc: additionnal_formatting(doc),
+                additionnal_formatting=additionnal_formatting,
                 prefix_pipeline={
                     "newspaper_name": "Newspaper name",
                     "title": "Title",
