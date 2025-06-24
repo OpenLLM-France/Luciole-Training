@@ -36,16 +36,29 @@ def additionnal_formatting(doc):
 
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument(
+        "--year",
+        type=str,
+        default=None,
+        nargs="+",
+        choices=SUPPORTED_YEARS,
+        help="Subset to load",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
     dataset_name = "american_stories"
-    if args.local:
-        SUPPORTED_YEARS = ["1770", "1964"]
 
-    for year in SUPPORTED_YEARS:
-        year = str(year)
+    if args.all:
+        years = SUPPORTED_YEARS
+    else:
+        years = args.year
 
+    for year in years:
         output_path = os.path.join(DATA_PATH, dataset_name)
         pipeline = [
             HuggingFaceDatasetReader(
@@ -72,7 +85,7 @@ if __name__ == "__main__":
             ),
             LanguageFilter(
                 languages=["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
-                language_threshold=0.65,
+                language_threshold=0.5,
                 keep_top_pairs_threshold=1,
                 exclusion_writer=JsonlWriter(f"{output_path}/removed/language/{year}"),
             ),
@@ -104,7 +117,7 @@ if __name__ == "__main__":
             pipeline,
             local=args.local,
             logging_dir=f"{output_path}/logs/{year}",
-            job_name=dataset_name,
+            job_name="as",
             tasks=1,
         )
         main_processing_executor.run()
