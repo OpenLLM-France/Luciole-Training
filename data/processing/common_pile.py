@@ -29,6 +29,8 @@ COMMON_PILE_DATASETS = [
     "python_enhancement_proposals_filtered",
     "oercommons_filtered",
     "news_filtered",
+    "arxiv_papers_filtered",
+    "arxiv_abstracts_filtered",
 ]
 
 
