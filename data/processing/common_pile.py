@@ -27,6 +27,7 @@ COMMON_PILE_DATASETS = [
     "youtube_filtered",
     "data_provenance_initiative_filtered",
     "python_enhancement_proposals_filtered",
+    "oercommons_filtered",
 ]
 
 
