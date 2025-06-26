@@ -21,12 +21,14 @@ def filter_kwargs_for_class(cls, kwargs):
     return {k: v for k, v in kwargs.items() if k in accepted_keys}
 
 
-def create_executor(pipeline, local=False, **kwargs):
+def create_executor(pipeline, local=False, debug=False, **kwargs):
+    if debug:
+        pipeline[0].limit = 1000
+        kwargs["tasks"] = 1
+
     # Executor arguments
     if local:
-        pipeline[0].limit = 1000
         local_kwargs = filter_kwargs_for_class(LocalPipelineExecutor, kwargs)
-        local_kwargs["tasks"] = 1
         main_processing_executor = LocalPipelineExecutor(
             pipeline=pipeline, **local_kwargs
         )
@@ -66,7 +68,7 @@ def create_parser():
         )
     DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
-    parser = argparse.ArgumentParser("")
+    parser = argparse.ArgumentParser("", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--data_path",
         default=DATA_PATH,
