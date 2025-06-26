@@ -272,6 +272,7 @@ if __name__ == "__main__":
         pipeline,
         tasks=TASKS,
         local=args.local,
+        debug=args.debug,
         logging_dir=f"{output_dir}/annotated_output/logs",
         job_name=dataset_name,
     )
@@ -325,6 +326,7 @@ if __name__ == "__main__":
         pipeline,
         tasks=TASKS,
         local=args.local,
+        debug=args.debug,
         logging_dir=f"{output_dir}/{edu_prefix}_split_by_{quality_criteria}/logs",
         job_name=dataset_name,
         depends=annotation_executor,

@@ -46,6 +46,7 @@ if __name__ == "__main__":
     pii_executor = create_executor(
         pipeline,
         local=args.local,
+        debug=args.debug,
         logging_dir=f"{DATA_PATH}/dclm_dolmino/logs_clean_pii",
         job_name="dclm_dolmino",
         depends=main_processing_executor,

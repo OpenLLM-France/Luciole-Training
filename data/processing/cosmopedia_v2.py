@@ -29,6 +29,7 @@ if __name__ == "__main__":
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
+        debug=args.debug,
         logging_dir=f"{output_path}/logs",
         job_name=dataset_name,
     )

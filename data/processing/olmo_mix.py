@@ -40,6 +40,7 @@ if __name__ == "__main__":
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
+        debug=args.debug,
         logging_dir=f"{DATA_PATH}/olmo_mix/{slug_name}/logs",
         job_name=slug_name,
     )
