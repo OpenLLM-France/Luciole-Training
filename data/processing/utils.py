@@ -22,10 +22,10 @@ def filter_kwargs_for_class(cls, kwargs):
 
 
 def create_executor(pipeline, local=False, debug=False, **kwargs):
+    # Debug mode
     if debug:
         pipeline[0].limit = 1000
         kwargs["tasks"] = 1
-
     # Executor arguments
     if local:
         local_kwargs = filter_kwargs_for_class(LocalPipelineExecutor, kwargs)
@@ -68,7 +68,9 @@ def create_parser():
         )
     DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
-    parser = argparse.ArgumentParser("", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        "", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "--data_path",
         default=DATA_PATH,
@@ -81,6 +83,7 @@ def create_parser():
         help="Process a dataset for ablation DEPRECATED",
     )
     parser.add_argument("--local", action="store_true", help="Use a local executor")
+    parser.add_argument("--debug", action="store_true", help="Use a local executor")
     parser.add_argument(
         "--sample_rate",
         default=1.0,

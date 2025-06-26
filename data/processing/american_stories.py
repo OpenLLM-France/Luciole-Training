@@ -26,6 +26,13 @@ SUPPORTED_YEARS = [
 ] + [str(year) for year in range(1796, 1964 + 1)]
 
 
+def chunk_list(lst, chunk_size=50):
+    return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
+
+
+SUPPORTED_YEARS_GROUPED = chunk_list(SUPPORTED_YEARS)
+
+
 def additionnal_formatting(doc):
     out = {}
     newspaper_name = doc.metadata.get("newspaper_name")
@@ -48,6 +55,11 @@ if __name__ == "__main__":
         "--all",
         action="store_true",
     )
+    parser.add_argument(
+        "--group",
+        type=int,
+        default=None,
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
@@ -55,6 +67,8 @@ if __name__ == "__main__":
 
     if args.all:
         years = SUPPORTED_YEARS
+    elif args.group is not None:
+        years = SUPPORTED_YEARS_GROUPED[args.group]
     else:
         years = args.year
 
@@ -116,6 +130,7 @@ if __name__ == "__main__":
         main_processing_executor = create_executor(
             pipeline,
             local=args.local,
+            debug=args.debug,
             logging_dir=f"{output_path}/logs/{year}",
             job_name="as",
             tasks=1,

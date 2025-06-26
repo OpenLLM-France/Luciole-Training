@@ -24,6 +24,7 @@ if __name__ == "__main__":
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
+        debug=args.debug,
         logging_dir=f"{DATA_PATH}/wikimedia/logs",
         job_name="wikimedia",
         tasks=50,
