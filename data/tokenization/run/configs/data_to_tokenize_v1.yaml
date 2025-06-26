@@ -120,6 +120,10 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/youtube_filtered/data
       - name: common-pile_news_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/news_filtered/data
+      - name: common-pile_arxiv-abstracts_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/arxiv_abstracts_filtered/data
+      - name: common-pile_arxiv-papers_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/arxiv_papers_filtered/data
       # Claire
       - name: claire_nc_en
         path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/nc/en
@@ -129,4 +133,12 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/open/en
       - name: claire_open_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/open/fr
-
+      # Lucie - Stac
+      - name: stac_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/stac/data
+      # Cosmopedia v2
+      - name: cosmopedia-v2_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/cosmopedia_v2/output
+      # # CulturaX
+      # - name: culturax_mC4_fr
+      #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax/fr/data/mC4

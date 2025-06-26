@@ -110,4 +110,7 @@ def parse_args(parser):
             base_dir, f"subsampled_data_rate_{args.sample_rate:.2f}"
         )
         print(f"data_path overwritten: {args.data_path}")
+
+    if args.debug:
+        args.data_path += "_debug"
     return args
