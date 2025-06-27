@@ -26,7 +26,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
     if debug:
         pipeline[0].limit = 1000
         kwargs["tasks"] = 1
-        kwargs["skip_completed"] = False
+        # kwargs["skip_completed"] = False
     # Executor arguments
     if local:
         local_kwargs = filter_kwargs_for_class(LocalPipelineExecutor, kwargs)

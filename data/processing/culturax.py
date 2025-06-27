@@ -1,6 +1,6 @@
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
 
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
@@ -44,14 +44,38 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
     assert language == "fr", "Must change pii for other languages..."
 
-    name = "culturax"
-    output_dir = f"{DATA_PATH}/{name}/{language}"
+    ############
+    ### ORIGINAL
+    ############
 
     pipeline = [
         HuggingFaceDatasetReader(
             "uonlp/CulturaX",
             {"name": language, "split": "train"},
             streaming=True,
+        ),
+        JsonlWriter(
+            f"{DATA_PATH}/culturax/{language}/data",
+            output_filename="${source}/${rank}.jsonl.gz",
+            max_file_size=int(2e9),
+        ),
+    ]
+
+    main_processing_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{DATA_PATH}/culturax/{language}/logs",
+        job_name="culturax",
+        tasks=50,
+    )
+
+    ############
+    ### Filtered mc4
+    ############
+    pipeline = [
+        JsonlReader(
+            f"{DATA_PATH}/culturax/{language}/data/mC4",
         ),
         FastTextClassifierFilter(
             model_url=os.path.join(
@@ -65,7 +89,7 @@ if __name__ == "__main__":
         LambdaFilter(
             lambda doc: doc.metadata["edu_score"] > 0,
             exclusion_writer=JsonlWriter(
-                f"{output_dir}/removed/toxic",
+                f"{DATA_PATH}/culturax_filtered/{language}/removed/toxic",
             ),
         ),
         PIIFormatter(
@@ -74,19 +98,22 @@ if __name__ == "__main__":
         PhoneNumberPII(["ZZ", "FR", "CA", "BE"], replacement="<PHONE_NUMBER>"),
         PrefixFormatter(date_keys=["timestamp"], date_format="%Y/%m/%d %H:%M:%S"),
         JsonlWriter(
-            f"{output_dir}/data",
+            f"{DATA_PATH}/culturax_filtered/{language}/data",
             output_filename="${source}/${rank}.jsonl.gz",
         ),
     ]
+
     add_sampler_filter(pipeline, args.sample_rate)
 
-    main_processing_executor = create_executor(
+    filtering_executor = create_executor(
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{output_dir}/logs",
-        job_name=name,
+        logging_dir=f"{DATA_PATH}/culturax_filtered/{language}/logs",
+        job_name="culturax_filtered",
         tasks=50,
+        partition="cpu_p1",
+        depends=main_processing_executor,
     )
 
-    main_processing_executor.run()
+    filtering_executor.run()
