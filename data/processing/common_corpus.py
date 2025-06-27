@@ -1,9 +1,10 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from datatrove.data import DocumentsPipeline
-from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
+from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LanguageFilter, LambdaFilter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
+from datatrove.pipeline.filters import ExtremeTokenizerFilter
 
 
 def slugify_metadata(
@@ -50,25 +51,6 @@ def filter_subset_of_datasets(doc):
     return True
 
 
-def filter_language(doc):
-    language = doc.metadata.get("language")
-    if language is not None and language not in [
-        "en",
-        "fr",
-        "it",
-        "de",
-        "es",
-        "ar",
-        "pt",
-        "nl",
-    ]:
-        return False, "language_not_supported"
-    language_score = doc.metadata.get("language_score")
-    if language_score is not None and language_score < 0.5:
-        return False, "language_score_too_low"
-    return True
-
-
 if __name__ == "__main__":
     parser = create_parser()
     args = parse_args(parser)
@@ -80,7 +62,9 @@ if __name__ == "__main__":
 
     pipeline = [
         HuggingFaceDatasetReader(
-            "PleIAs/common_corpus",
+            "PleIAs/common_corpus"
+            if args.local
+            else "/lustre/fsmisc/dataset/HuggingFace/PleIAs/common_corpus",
             {"split": "train"},
             streaming=True,
         ),
@@ -94,8 +78,29 @@ if __name__ == "__main__":
         ),
         LanguageFilter(
             keep_top_pairs_threshold=1,
-            label_only=True,
+            languages=["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
+            language_threshold=0.65,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/common_corpus/removed/ft176"),
+        ),
+        ExtremeTokenizerFilter(
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
+            max_token_per_char=0.38,
+            remove_digits=True,
+            mode="CHUNKS",
+            min_length=1000,
+            separator=". ",
+            replace_span="\n\n[...]\n\n",
+            removed_spans_in_metadata=False,  # FOR DEBUGGING only
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus/removed/extreme_tokenizer"
+            ),
+        ),
+        PrefixFormatter(
+            infer_date_format=True,
+            additionnal_formatting=additionnal_formatting,
+            prefix_pipeline={
+                "year": "Year",
+            },
         ),
         JsonlWriter(
             f"{DATA_PATH}/common_corpus/data",
@@ -113,60 +118,3 @@ if __name__ == "__main__":
     )
 
     main_executor.run()
-
-    #################
-    # Add filtering
-    #################
-
-    pipeline = [
-        JsonlReader(
-            f"{DATA_PATH}/common_corpus/data",
-        ),
-        LambdaFilter(
-            filter_language,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered/removed/ft176"
-            ),
-        ),
-        # OCRoscopeFilter(
-        #     ocr_threshold = 80,
-        #     exclusion_writer=JsonlWriter(
-        #         f"{DATA_PATH}/common_corpus_filtered/removed/ocr_score"
-        #     ),
-        # ),
-        # ExtremeTokenizerFilter(
-        #     tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
-        #     min_token_per_char=0,
-        #     max_token_per_char=0.4,
-        #     filter_mode="CHUNKS",
-        #     replace_span="\n\n[...]\n\n",
-        #     removed_spans_in_metadata=True,  # FOR DEBUGGING only
-        #     exclusion_writer=JsonlWriter(
-        #         f"{DATA_PATH}/common_corpus_filtered/removed/extreme_tokenizer"
-        #     ),
-        # ),
-        PrefixFormatter(
-            infer_date_format=True,
-            additionnal_formatting=additionnal_formatting,
-            prefix_pipeline={
-                "year": "Year",
-            },
-        ),
-        JsonlWriter(
-            f"{DATA_PATH}/common_corpus_filtered/data",
-            output_filename="${open_type}/${collection}/${rank}.jsonl.gz",
-            max_file_size=int(2e9),
-        ),
-    ]
-
-    add_sampler_filter(pipeline, args.sample_rate)
-
-    filtering_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs",
-        job_name="common_corpus_filtered",
-    )
-
-    filtering_executor.run()
