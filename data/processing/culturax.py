@@ -113,6 +113,8 @@ if __name__ == "__main__":
         job_name="culturax_filtered",
         tasks=50,
         partition="cpu_p1",
+        cpus_per_task=2,  # OOM with 1...
+        time="20:00:00",
         depends=main_processing_executor,
     )
 

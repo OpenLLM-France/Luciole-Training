@@ -33,22 +33,36 @@ def additionnal_formatting(doc):
     year = doc.metadata.get("date")
     if year is not None:
         out["year"] = str(int(year))
-    title = doc.metadata.get("title")
-    if (
-        (title is not None)
-        and (title != "None")
-        and (title.lower() not in doc.text[:200].lower())
-    ):
-        out["title"] = doc.metadata.get("title")
+    # title = doc.metadata.get("title")
+    # if (
+    #     (title is not None)
+    #     and (title != "None")
+    #     and (title.lower() not in doc.text[:200].lower())
+    # ):
+    #     out["title"] = doc.metadata.get("title")
     return out
 
 
-def filter_subset_of_datasets(doc):
-    open_type = doc.metadata["open_type"]
-    # Remove Code
-    if open_type == "open-source":
+def open_culture_subset(doc):
+    if doc.metadata["collection"] in [
+        "arabic-pd",
+        "bnl-newspapers-1841-1879",
+        "catalan-pd",
+        "dutch-pd",
+        "english-pd",
+        "europeana",
+        "german-pd",
+        "german-pd-newspapers",
+        "italian-pd",
+        "multilingual-pd",
+        "portuguese-pd",
+        "spanish-pd-books",
+        "spanish-pd-newspapers",
+        "us-pd-books",
+    ]:
+        return True
+    else:
         return False
-    return True
 
 
 if __name__ == "__main__":
@@ -57,7 +71,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     #################
-    # COPY COMMON CORPUS and rerun language identification
+    # Open Culture
     #################
 
     pipeline = [
@@ -69,18 +83,14 @@ if __name__ == "__main__":
             streaming=True,
         ),
         slugify_metadata,
-        LambdaFilter(
-            filter_subset_of_datasets,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus/data",
-                output_filename="${open_type}/${collection}/${rank}.jsonl.gz",
-            ),
-        ),
+        LambdaFilter(open_culture_subset),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=["en", "fr", "it", "de", "es", "ar", "pt", "nl"],
-            language_threshold=0.65,
-            exclusion_writer=JsonlWriter(f"{DATA_PATH}/common_corpus/removed/ft176"),
+            language_threshold=0.5,
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus_filtered/removed/ft176"
+            ),
         ),
         ExtremeTokenizerFilter(
             tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
@@ -92,7 +102,7 @@ if __name__ == "__main__":
             replace_span="\n\n[...]\n\n",
             removed_spans_in_metadata=False,  # FOR DEBUGGING only
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus/removed/extreme_tokenizer"
+                f"{DATA_PATH}/common_corpus_filtered/removed/extreme_tokenizer"
             ),
         ),
         PrefixFormatter(
@@ -103,7 +113,7 @@ if __name__ == "__main__":
             },
         ),
         JsonlWriter(
-            f"{DATA_PATH}/common_corpus/data",
+            f"{DATA_PATH}/common_corpus_filtered/data",
             output_filename="${open_type}/${collection}/${rank}.jsonl.gz",
             max_file_size=int(2e9),
         ),
@@ -113,8 +123,10 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/common_corpus/logs",
-        job_name="common_corpus",
+        logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs",
+        job_name="common_corpus_filtered",
+        partition="cpu_p1",
+        time="20:00:00",
     )
 
     main_executor.run()
