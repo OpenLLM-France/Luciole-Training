@@ -7,6 +7,14 @@ from datatrove.data import DocumentsPipeline
 import pandas as pd
 import argparse
 import os
+import sys
+
+sys.path.append(os.path.abspath("../../../processing"))
+from utils import get_edu_pipeline  # noqa: E402
+
+FASTTEXT_PATH = os.path.join(
+    os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
+)
 
 
 def read_markdown_table(filepath="fineweb2_languages.md"):
@@ -35,8 +43,14 @@ def remove_metadata(
         yield doc
 
 
-def main(language: str, target_num_words: int, output_path: str = None, slurm: bool = False, tasks: int = 50):
-
+def main(
+    language: str,
+    target_num_words: int,
+    output_path: str = None,
+    slurm: bool = False,
+    tasks: int = 50,
+    limit=-1,
+):
     # Read stats from fineweb2
 
     if language == "eng_Latn":
@@ -48,6 +62,7 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
                 "hf://datasets/HuggingFaceFW/fineweb-edu",
                 glob_pattern="data/*/*.parquet",
                 read_metadata=False,
+                limit=limit,
             ),
             SamplerFilter(rate=rate, seed=42),
             remove_metadata,
@@ -62,6 +77,7 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
                 "hf://datasets/bigcode/starcoderdata",
                 glob_pattern="**/*.parquet",
                 text_key="content",
+                limit=limit,
             ),
             LambdaFilter(
                 lambda doc: doc.metadata["max_stars_count"] >= 2
@@ -76,23 +92,41 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
     else:
         df = read_markdown_table("fineweb2_languages.md")
         selected_row = df[df["Subset"] == language]
-        assert len(selected_row) > 0, f"Language {language} not found in the table (is it in FineWeb2?)."
+        assert (
+            len(selected_row) > 0
+        ), f"Language {language} not found in the table (is it in FineWeb2?)."
         assert len(selected_row) == 1
         selected_row = selected_row.iloc[0]
+
+        try:
+            fasttext_path = os.path.join(
+                FASTTEXT_PATH,
+                f"Qwen3-32B_content_edu_{language}/model/educational_score_ngram2_epoch5_lr0.1.bin",
+            )
+            exclusion_writer = ParquetWriter(
+                f"{output_path}/removed/fineweb2_{language}"
+            )
+            edu_pipeline = get_edu_pipeline(fasttext_path, exclusion_writer)
+        except (FileNotFoundError, OSError):
+            edu_pipeline = []
 
         rate = target_num_words / selected_row["Words"]
         pipeline = [
             ParquetReader(
                 f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
                 read_metadata=False,
+                limit=limit,
             ),
             SamplerFilter(rate=rate, seed=42),
+            *edu_pipeline,
             remove_metadata,
             ParquetWriter(f"{output_path}/fineweb2_{language}"),
         ]
 
     print(f"\nSampler rate: {rate}")
-    assert rate <= 1, f"Target number of words ({target_num_words}) is too high for language {language} with {selected_row['Words']} words in the dataset."
+    assert (
+        rate <= 1
+    ), f"Target number of words ({target_num_words}) is too high for language {language} with {selected_row['Words']} words in the dataset."
 
     if slurm:
         main_processing_executor = SlurmPipelineExecutor(
@@ -108,9 +142,7 @@ def main(language: str, target_num_words: int, output_path: str = None, slurm: b
             job_name=language,
         )
     else:
-        main_processing_executor = LocalPipelineExecutor(
-            pipeline=pipeline, tasks=tasks
-        )
+        main_processing_executor = LocalPipelineExecutor(pipeline=pipeline, tasks=tasks)
 
     main_processing_executor.run()
 
@@ -132,7 +164,9 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--output_path",
         type=str,
-        default=os.path.join(os.getenv("OpenLLM_OUTPUT", os.getenv("HOME")), "data/data_for_tokenization"),
+        default=os.path.join(
+            os.getenv("OpenLLM_OUTPUT", os.getenv("HOME")), "data/data_for_tokenization"
+        ),
         help="Output parent path",
     )
     argparser.add_argument(
@@ -146,6 +180,12 @@ if __name__ == "__main__":
         default=48,
         help="Number of tasks to use in Slurm",
     )
+    argparser.add_argument(
+        "--limit",
+        type=int,
+        default=-1,
+        help="Number of samples to read (debug)",
+    )
 
     args = argparser.parse_args()
 
@@ -155,4 +195,5 @@ if __name__ == "__main__":
         args.output_path,
         slurm=args.slurm,
         tasks=args.tasks,
+        limit=args.limit,
     )

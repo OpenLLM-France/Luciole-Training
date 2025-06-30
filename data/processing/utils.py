@@ -7,6 +7,42 @@ import warnings
 import os
 from datasets import load_dataset_builder
 import sys
+from datatrove.data import DocumentsPipeline
+from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
+
+
+def get_edu_pipeline(fasttext_path, exclusion_writer):
+    def edu_score(
+        data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+    ) -> DocumentsPipeline:
+        """
+        `data` is a generator of Document. You must also return a generator of Document (yield)
+        You can optionally use `rank` and `world_size` for sharding
+        """
+        for doc in data:
+            # Handle educational score if present
+            edu_score = doc.metadata.pop("edu_score", None)
+            if edu_score is not None:
+                edu_score_mean = sum(
+                    int(label.split("__label__")[-1]) * prob
+                    for label, prob in edu_score.items()
+                )
+                doc.metadata["edu_score_mean"] = edu_score_mean
+                doc.metadata["edu_score"] = int(round(edu_score_mean))
+            yield doc
+
+    pipeline = [
+        FastTextClassifierFilter(
+            model_url=fasttext_path,
+            newline_replacement=" ",
+            filter_name="edu_score",
+        ),
+        edu_score,
+        LambdaFilter(
+            lambda doc: doc.metadata["edu_score"] > 0, exclusion_writer=exclusion_writer
+        ),
+    ]
+    return pipeline
 
 
 def print_builder_config(dataset_name):
