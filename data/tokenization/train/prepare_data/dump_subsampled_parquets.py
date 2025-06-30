@@ -12,10 +12,6 @@ import sys
 sys.path.append(os.path.abspath("../../../processing"))
 from utils import get_edu_pipeline  # noqa: E402
 
-FASTTEXT_PATH = os.path.join(
-    os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
-)
-
 
 def read_markdown_table(filepath="fineweb2_languages.md"):
     df = pd.read_csv(filepath, sep="|", engine="python", index_col=False)
@@ -47,6 +43,7 @@ def main(
     language: str,
     target_num_words: int,
     output_path: str = None,
+    fasttext_path: str = None,
     slurm: bool = False,
     tasks: int = 50,
     limit=-1,
@@ -98,17 +95,14 @@ def main(
         assert len(selected_row) == 1
         selected_row = selected_row.iloc[0]
 
-        try:
-            fasttext_path = os.path.join(
-                FASTTEXT_PATH,
-                f"Qwen3-32B_content_edu_{language}/model/educational_score_ngram2_epoch5_lr0.1.bin",
-            )
-            exclusion_writer = ParquetWriter(
-                f"{output_path}/removed/fineweb2_{language}"
-            )
-            edu_pipeline = get_edu_pipeline(fasttext_path, exclusion_writer)
-        except (FileNotFoundError, OSError):
-            edu_pipeline = []
+        if fasttext_path is not None:
+            try:
+                exclusion_writer = ParquetWriter(
+                    f"{output_path}/removed/fineweb2_{language}"
+                )
+                edu_pipeline = get_edu_pipeline(fasttext_path, exclusion_writer)
+            except (FileNotFoundError, OSError):
+                edu_pipeline = []
 
         rate = target_num_words / selected_row["Words"]
         pipeline = [
@@ -170,6 +164,12 @@ if __name__ == "__main__":
         help="Output parent path",
     )
     argparser.add_argument(
+        "--fasttext_path",
+        type=str,
+        default=None,
+        help="Path to the fasttext path to apply if any (must be the edu scorer)",
+    )
+    argparser.add_argument(
         "--slurm",
         action="store_true",
         help="Run the pipeline using Slurm",
@@ -193,6 +193,7 @@ if __name__ == "__main__":
         args.language,
         args.target,
         args.output_path,
+        fasttext_path=args.fasttext_path,
         slurm=args.slurm,
         tasks=args.tasks,
         limit=args.limit,
