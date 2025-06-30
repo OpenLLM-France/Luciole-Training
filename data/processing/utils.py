@@ -38,12 +38,13 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         time = kwargs.pop("time", "05:00:00")
         qos = kwargs.pop("qos", "qos_cpu-t3")
         partition = kwargs.pop("partition", "prepost")
+        cpus_per_task = kwargs.pop("cpus_per_task", 1)
         slurm_kwargs = filter_kwargs_for_class(SlurmPipelineExecutor, kwargs)
         main_processing_executor = SlurmPipelineExecutor(
             pipeline=pipeline,
             sbatch_args={"account": "qgz@cpu"},
             tasks=tasks,
-            cpus_per_task=1,
+            cpus_per_task=cpus_per_task,
             time=time,
             qos=qos,
             partition=partition,
