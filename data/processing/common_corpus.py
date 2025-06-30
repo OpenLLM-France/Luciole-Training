@@ -1,6 +1,6 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.data import DocumentsPipeline
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LanguageFilter, LambdaFilter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
@@ -75,12 +75,11 @@ if __name__ == "__main__":
     #################
 
     pipeline = [
-        HuggingFaceDatasetReader(
-            "PleIAs/common_corpus"
+        ParquetReader(
+            "hf://datasets/PleIAs/common_corpus"
             if args.local
             else "/lustre/fsmisc/dataset/HuggingFace/PleIAs/common_corpus",
-            {"split": "train"},
-            streaming=True,
+            glob_pattern="common_corpus_*/*.parquet",
         ),
         slugify_metadata,
         LambdaFilter(open_culture_subset),
