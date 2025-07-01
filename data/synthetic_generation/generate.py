@@ -22,7 +22,7 @@ chat_template = """{%- for message in messages %}
 {{- '<|im_start|>assistant\n' }}
 {{- '<think>\n\n</think>\n\n' }}"""
 
-main_path = os.getenv("OpenLLM_OUTPUT")
+main_path = os.getenv("OpenLLM_OUTPUT", ".")
 
 
 def to_shorthand(n):
