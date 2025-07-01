@@ -2,15 +2,46 @@ from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.executor.local import LocalPipelineExecutor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.filters import SamplerFilter, LambdaFilter
+from datatrove.pipeline.filters import FastTextClassifierFilter
 from datatrove.pipeline.writers import ParquetWriter
 from datatrove.data import DocumentsPipeline
 import pandas as pd
 import argparse
 import os
-import sys
 
-sys.path.append(os.path.abspath("../../../processing"))
-from utils import get_edu_pipeline  # noqa: E402
+
+def get_edu_pipeline(fasttext_path, exclusion_writer):
+    def edu_score(
+        data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+    ) -> DocumentsPipeline:
+        """
+        `data` is a generator of Document. You must also return a generator of Document (yield)
+        You can optionally use `rank` and `world_size` for sharding
+        """
+        for doc in data:
+            # Handle educational score if present
+            edu_score = doc.metadata.pop("edu_score", None)
+            if edu_score is not None:
+                edu_score_mean = sum(
+                    int(label.split("__label__")[-1]) * prob
+                    for label, prob in edu_score.items()
+                )
+                doc.metadata["edu_score_mean"] = edu_score_mean
+                doc.metadata["edu_score"] = int(round(edu_score_mean))
+            yield doc
+
+    pipeline = [
+        FastTextClassifierFilter(
+            model_url=fasttext_path,
+            newline_replacement=" ",
+            filter_name="edu_score",
+        ),
+        edu_score,
+        LambdaFilter(
+            lambda doc: doc.metadata["edu_score"] > 0, exclusion_writer=exclusion_writer
+        ),
+    ]
+    return pipeline
 
 
 def read_markdown_table(filepath="fineweb2_languages.md"):
@@ -114,7 +145,7 @@ def main(
             SamplerFilter(rate=rate, seed=42),
             *edu_pipeline,
             remove_metadata,
-            ParquetWriter(f"{output_path}/fineweb2_{language}"),
+            ParquetWriter(f"{output_path}/data/fineweb2_{language}_filtered"),
         ]
 
     print(f"\nSampler rate: {rate}")
@@ -132,7 +163,7 @@ def main(
             qos="qos_cpu-t3",
             partition="prepost",
             env_command="source ../../../../data/set_env.sh",
-            logging_dir=f"{output_path}/logs",
+            logging_dir=f"{output_path}/logs/fineweb2_{language}_filtered",
             job_name=language,
         )
     else:
@@ -177,7 +208,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--tasks",
         type=int,
-        default=48,
+        default=50,
         help="Number of tasks to use in Slurm",
     )
     argparser.add_argument(
