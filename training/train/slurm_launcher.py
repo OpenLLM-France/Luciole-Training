@@ -5,6 +5,7 @@ import re
 import logging
 import shutil
 from pathlib import Path
+from utils import SUPPORTED_ARCHITECTURES
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -104,11 +105,11 @@ export NCCL_NVLS_ENABLE=0
 export NVTE_DP_AMAX_REDUCE_INTERVAL=0
 export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
-export CEEMS_ENABLE_PERF_EVENTS=1
-export CEEMS_ENABLE_PROFILING=1
+# export CEEMS_ENABLE_PERF_EVENTS=1
+# export CEEMS_ENABLE_PROFILING=1
 
 module purge
-module load arch/h100 nemo/2.1.0
+module load arch/h100 nemo/2.3.1
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -226,16 +227,7 @@ def create_parser():
         "--arch",
         default="llama1b",
         type=str,
-        choices=[
-            "llama",
-            "llama1b",
-            "llama3b",
-            "llama8b",
-            "llama70b",
-            "mamba1b",
-            "mixtral8x7",
-            "mambahybrid8b",
-        ],
+        choices=SUPPORTED_ARCHITECTURES,
     )
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--email", default=None)

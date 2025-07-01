@@ -1,12 +1,32 @@
 import os
-import torch
 import logging
-import torch.distributed as dist
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-torch.set_float32_matmul_precision("high")
+SUPPORTED_ARCHITECTURES = [
+    "llama1b",
+    "llama3b",
+    "llama8b",
+    "llama70b",
+    "mamba1b",
+    "mixtral8x7",
+    "mambahybrid8b",
+    "nemotronh8b",
+]
+
+
+def to_nb_tokens(x):
+    if x == "debug" or x == "benchmark" or x == "benchmark100":
+        return x
+    x = x.replace("b", " * 1_000_000_000")
+    x = x.replace("m", " * 1_000_000")
+    try:
+        return int(eval(x))
+    except Exception as e:
+        raise ValueError(
+            f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)"
+        ) from e
 
 
 def read_datamix_file(file):
@@ -105,25 +125,6 @@ def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=Tr
         json.dump(json_data, jsonfile, indent=2)
 
 
-def is_main_process():
-    return not dist.is_available() or not dist.is_initialized() or dist.get_rank() == 0
-
-
 def write_completion(output_dir):
     with open(os.path.join(output_dir, "completed.txt"), "w") as f:
         f.write("")
-
-
-def suppress_non_main_logging():
-    """Sets all existing and future loggers to only log from the main process."""
-    dist.init_process_group(backend="nccl")
-    if is_main_process():
-        logging_level = logging.INFO
-    else:
-        logging_level = logging.CRITICAL + 1  # Effectively disables logging
-
-    logging.getLogger().setLevel(logging.CRITICAL)
-
-    for name in logging.root.manager.loggerDict:
-        logger = logging.getLogger(name)
-        logger.setLevel(logging_level)

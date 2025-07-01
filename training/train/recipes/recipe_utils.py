@@ -128,12 +128,41 @@ def bf16_with_fp8_mixed():
         pipeline_dtype=torch.bfloat16,
         autocast_enabled=False,
         fp8="hybrid",
+        fp8_recipe="delayed",
         fp8_margin=0,
         fp8_amax_history_len=1024,
         fp8_amax_compute_algo="max",
-        fp8_params=True,
+        fp8_param_gather=True,
         grad_reduce_in_fp32=False,  # NVIDIA recommends False for FP8
     )
+    return cfg
+
+
+def nemotron_h_bf16_with_fp8_current_scaling_mixed():
+    """Create a MegatronMixedPrecision plugin configuration for mixed precision training using BF16 with FP8
+    per-tensor current scaling.
+
+    Note: The baseline current scaling recipe uses BF16 in the first and last Transformer layers. The user
+    can choose to disable the BF16 layers or apply BF16 to more Transformer layers.
+
+    Returns:
+        run.Config[MegatronMixedPrecision]: Configuration for BF16 with FP8 per-tensor current scaling mixed
+        precision training
+    """
+    cfg = MegatronMixedPrecision(
+        precision="bf16-mixed",
+        params_dtype=torch.bfloat16,
+        pipeline_dtype=torch.bfloat16,
+        autocast_enabled=False,
+        num_layers_at_start_in_bf16=2,
+        num_layers_at_end_in_bf16=2,
+        first_last_layers_bf16=True,
+        fp8="hybrid",
+        fp8_recipe="tensorwise",
+        fp8_param_gather=True,
+        grad_reduce_in_fp32=True,
+    )
+
     return cfg
 
 
@@ -145,7 +174,6 @@ def create_trainer(
     val_check_interval: int = 1000,
     limit_val_batches: int = 0,
     callbacks: Optional[list[Callback]] = None,
-    fp8: bool = False,
     log_every_n_steps=10,
 ):
     """
@@ -177,7 +205,10 @@ def create_trainer(
     Note:
         This configuration uses extensive parallelism to handle the large model size efficiently.
     """
-
+    precision_plugin = strategy_args.pop("precision_plugin", None)
+    fp8 = strategy_args.pop("fp8", False)
+    if not precision_plugin:
+        precision_plugin = bf16_with_fp8_mixed() if fp8 else bf16_mixed()
     strategy = nl.MegatronStrategy(**strategy_args)
 
     trainer = nl.Trainer(
@@ -189,7 +220,7 @@ def create_trainer(
         log_every_n_steps=log_every_n_steps,
         max_steps=max_steps,
         num_nodes=num_nodes,
-        plugins=bf16_with_fp8_mixed() if fp8 else bf16_mixed(),
+        plugins=precision_plugin,
         strategy=strategy,
         use_distributed_sampler=False,
         val_check_interval=val_check_interval,

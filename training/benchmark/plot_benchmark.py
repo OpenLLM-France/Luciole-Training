@@ -41,13 +41,18 @@ def plot_training_and_gpu_hours(
     df, plot_name="plot.png", plot_title="", output_folder=""
 ):
     # Find columns with only one unique value
+    if len(df) == 0:
+        print(f"Dataframe empty for {os.path.join(output_folder, plot_name)} ")
+        return
+
     constant_columns = df.loc[:, df.nunique() == 1]
 
     # Log the dropped columns and their constant values
     dropped_info = {
         col: constant_columns[col].iloc[0] for col in constant_columns.columns
     }
-    print(dropped_info)
+    dropped_info.pop("num_nodes", None)
+    dropped_info.pop("num_gpus", None)
 
     # Drop those columns from the DataFrame
     df = df.drop(columns=constant_columns.columns)
@@ -115,7 +120,7 @@ def plot_training_and_gpu_hours(
         labels,
         title="",
         loc="upper left",
-        bbox_to_anchor=(0.92, 0.5),
+        bbox_to_anchor=(0.92, 0.6),
         borderaxespad=0.0,
         fontsize="medium",
         title_fontsize="large",
@@ -125,8 +130,8 @@ def plot_training_and_gpu_hours(
     if dropped_info:
         info_str = "\n".join(f"- {k}: {v}" for k, v in dropped_info.items())
         legend_lines = len(labels)
-        legend_height = 0.03 * legend_lines  # adjust this scaling if needed
-        annotation_y = max(0.5 - legend_height - 0.05, 0.05)
+        legend_height = 0.033 * legend_lines  # adjust this scaling if needed
+        annotation_y = max(0.6 - legend_height - 0.05, 0.05)
         fig.text(
             0.92,
             annotation_y,
@@ -205,7 +210,7 @@ def convert_data(data):
                     "cp": entry["context_parallel_size"],
                     "batch_size": entry[batch],
                     "sequence_parallel": entry["sequence_parallel"],
-                    "model_size": entry.get("model_size", model_to_size(entry["arch"])),
+                    # "model_size": entry.get("model_size", model_to_size(entry["arch"])),
                 }
             )
         except Exception as e:
@@ -215,20 +220,24 @@ def convert_data(data):
     return df
 
 
-if __name__ == "__main__":
+def setup():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
-    parser.add_argument("--output_folder", default="/home/abert/abert/llm/plots")
+    parser.add_argument("--output_folder", default="plots")
     args = parser.parse_args()
 
     input_folder = args.input_folder
     output_folder = args.output_folder
-    os.makedirs(output_folder, exist_ok=True)
 
     data = load_data(input_folder)
 
     df = convert_data(data)
+    return output_folder, df
 
+
+if __name__ == "__main__":
+    output_folder, df = setup()
+    os.makedirs(output_folder, exist_ok=True)
     plot_training_and_gpu_hours(
         df, plot_name="all.png", plot_title="", output_folder=output_folder
     )
@@ -260,7 +269,7 @@ if __name__ == "__main__":
     )
 
     precision_batch_df = df[
-        (df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1) & (df["arch"] == "llama8b")
+        (df["pp"] == 1) & (df["tp"] == 1) & (df["arch"] == "llama8b")
     ]
     precision_batch_df = precision_batch_df.sort_values(by=["precision", "batch_size"])
 
@@ -296,6 +305,13 @@ if __name__ == "__main__":
             & (df["arch"] == "llama70b")
             & (df["batch_size"] == 512)
         )
+        | (
+            (df["arch"] == "nemotronh8b")
+            # & (df["precision"] == "fp8")
+            & (df["tp"] == 1)
+        )
+        | ((df["arch"] == "mambahybrid8b") & (df["tp"] == 1))
+        | ((df["precision"] == "bf16") & (df["arch"] == "mixtral7x8"))
     ]
 
     archs = [
@@ -305,23 +321,26 @@ if __name__ == "__main__":
         ["llama1b", "llama3b", "llama8b"],
         "llama8b",
         "llama70b",
+        "mambahybrid8b",
+        "mixtral8x7",
+        "nemotronh8b",
+        ["nemotronh8b", "mambahybrid8b"],
+        ["llama1b", "llama3b", "llama8b", "nemotronh8b"],
     ]
     archs.append([a for a in archs if isinstance(a, str)])
     os.makedirs(os.path.join(output_folder, "archs"), exist_ok=True)
     for arch in archs:
+        plot_title = "Impact of Architecture and FP8 on training"
         if isinstance(arch, list):
             arch_df = reduced_df[(reduced_df["arch"].isin(arch))]
             arch = "_".join(arch)
-            print(arch_df)
         else:
             arch_df = df[(df["arch"] == arch)]
-        arch_df = arch_df.sort_values(by=["precision"])
-        # try:
+            plot_title = f"Impact of parameters for training a {arch}"
+        arch_df = arch_df.sort_values(by=["arch", "precision"])
         plot_training_and_gpu_hours(
             arch_df,
             plot_name=f"{arch}.png",
-            plot_title="Impact of Architecture and FP8 on training",
+            plot_title=plot_title,
             output_folder=os.path.join(output_folder, "archs"),
         )
-        # except:
-        #     pass
