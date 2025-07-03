@@ -25,11 +25,7 @@ def summarize_training_times_by_arch_and_precision(df):
     # Combiner les deux
     df = pd.concat([bf16_df, fp8_df_filtered], ignore_index=True)
 
-    grouped = (
-        df.groupby(["arch", "precision"])[["training_time", "consumed_gpu_hours"]]
-        .mean()
-        .reset_index()
-    )
+    grouped = df
 
     def format_cell(days, gpuh):
         return f"{days:.1f} days / {gpuh / 1000:.0f}k GPUh"
