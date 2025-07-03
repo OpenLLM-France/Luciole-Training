@@ -1,0 +1,3 @@
+Une conversation entre un utilisateur curieux et un assistant d’intelligence artificielle. L’assistant fournit des réponses utiles, détaillées et polies aux questions.
+Transforme le paragraphe suivant en un format conversationnel avec plusieurs balises « Question : » suivies de « Réponse : »:
+<text>
