@@ -90,12 +90,19 @@ def read_datamix_file(file):
 def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=True):
     import re
     import json
+    from importlib.metadata import version
+    from git import Repo
 
     strategy_args.pop("ddp")
     strategy_args["pipeline_dtype"] = str(strategy_args["pipeline_dtype"])
     job_id = os.environ.get("SLURM_JOB_ID")
     steps = dict()
     model_size = dict()
+    repo = Repo(".", search_parent_directories=True)
+    commit_hash = repo.head.commit.hexsha
+    toolkit_version = dict(
+        nemo_version=version("nemo_toolkit"), open_llm_training_version=commit_hash
+    )
     if write_step_timings:
         pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
         file = f"log_{job_id}.out"
@@ -121,7 +128,14 @@ def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=Tr
     with open(
         os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
     ) as jsonfile:
-        json_data = {**args, **data_args, **strategy_args, **steps, **model_size}
+        json_data = {
+            **args,
+            **data_args,
+            **strategy_args,
+            **steps,
+            **model_size,
+            **toolkit_version,
+        }
         json.dump(json_data, jsonfile, indent=2)
 
 
