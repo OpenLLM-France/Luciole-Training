@@ -49,7 +49,12 @@ _space_internal = "▁"
 
 
 def build_tokenizer(
-    split_pattern: str = r"[^\r\n\p{L}'\-\p{N}]?[\p{L}'\-]+|\p{N}| ?[^\s\p{L}'\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    # split_pattern: str = r"[^\r\n\p{L}'\-\p{N}]?[\p{L}'\-]+|\p{N}| ?[^\s\p{L}'\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    # split_pattern: str = r"(\b(?i:'s|'t|'re|'ve|'m|'ll|'d|j'|t'|m'|s'|l'|n'|d'|c'|qu'|y'|jusqu'|lorsqu'|aujourd'hui)\b)|[\p{L}\-]+[^\r\n\p{L}\-\p{N}]?|\p{N}| ?[^\s\p{L}\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    # split_pattern: str = r"(\b(?i:'s|'t|'re|'ve|'m|'ll|'d|j'|t'|m'|s'|l'|n'|d'|c'|qu'|y'|jusqu'|lorsqu'|aujourd'hui)\b)|[^\r\n\p{L}\-\p{N}]?[\p{L}\-]+|\p{N}| ?[^\s\p{L}\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    # split_pattern: str = r"\b(?i:['’][stmd]|['’][rv]e|['’]ll|[jtmslndcy]['’]|qu['’]|jusqu['’]|lorsqu['’]|puisqu['’]|quoiqu['’]|aujourd['’]hui)\b|\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    # split_pattern: str = r"\b(?i:['’][stmd]|['’][rv]e|['’]ll| ?[jtmslndcy]['’]| ?qu['’]| ?jusqu['’]| ?lorsqu['’]| ?puisqu['’]| ?quoiqu['’]| ?aujourd['’]hui)\b| ?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    split_pattern: str =   r"(?i: ?(?:[jtmslndcy]['’]|qu['’]|jusqu['’]|lorsqu['’]|puisqu['’]|quoiqu['’]|aujourd['’]hui)|['’][stmd]|['’][rv]e|['’]ll)| ?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
     dropout: Optional[float] = None,
     add_prefix_space: bool = True,
     fuse_unk: Optional[float] = True,
@@ -161,7 +166,7 @@ def fit_tokenizer(
     len_it=None,
     vocab_size=32000,
     limit_alphabet=1000,
-    enforce_alphabet=False,
+    enforce_alphabet=True,
     batch_size=1000,
     **special_tokens_options,
 ):
@@ -173,7 +178,7 @@ def fit_tokenizer(
     :param vocab_size: Size of the vocabulary.
     :param limit_alphabet: Limit the alphabet size
         (unique characters in the dataset, except from special enforced ones).
-    :param enforce_alphabet: Experimental
+    :param enforce_alphabet: Enforce the alphabet to be a subset of unicode characters.
     :param batch_size: Size of the batches.
     :return: The fitted tokenizer.
     """
@@ -186,18 +191,16 @@ def fit_tokenizer(
 
         tsv_file = os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
-            os.path.pardir,
-            "assets",
-            "count_unicode_characters.tsv",
+            "alphabet.tsv",
         )
         initial_alphabet = []
         exemples_removed = {}
         with open(tsv_file, encoding="utf-8") as f:
             reader = csv.reader(f, delimiter="\t", quotechar=None)
-            for row in reader:
+            for irow, row in enumerate(reader):
                 if len(initial_alphabet) >= limit_alphabet:
                     break
-                c, o, cat, count = row
+                c, _, o, cat, subcat = row
                 c = chr(int(o))
                 # Norm NFC
                 import unicodedata
@@ -213,6 +216,7 @@ def fit_tokenizer(
                         cat[1] in ["c", "o"]
                         and cat[0] not in ["N", "P"]
                         and cat not in ["Sc", "So"]
+                        and subcat not in "ARABIC"
                     )
                     or cat in ["Cf", "Mn"]
                 ):  # Discard oriental characters
@@ -233,7 +237,7 @@ def fit_tokenizer(
         min_frequency=2,
         show_progress=True,
         special_tokens=special_tokens,
-        limit_alphabet=1000,
+        limit_alphabet=limit_alphabet,
         initial_alphabet=initial_alphabet or [],
     )
     tokenizer.train_from_iterator(
@@ -385,7 +389,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--enforce_alphabet",
-        default=False,
+        default=True,
         type=str2bool,
         help="Restrict the alphabet of unicode characters (avoiding 'exotic' characters)",
     )
@@ -510,8 +514,9 @@ if __name__ == "__main__":
             print(json.dumps(json.loads(tok.to_str())["pre_tokenizer"], indent=2))
             for s in [
                 "123 456\u00A0789",
-                "Belle-Mère d'Aujourd'Hui.Mot. .Mot...  Mot (Mot)(Mot) (Mot)   (Mot) \nMot \n Mot",
-                "«Mot» «Mot.» «Mot».",
+                "C'est ma Belle-Mère m'appelle d'Aujourd'Hui z'a'b'c.",
+                "I'm OK it's OK.",
+                "«Mot» «Mot.» «Mot».Mot. .Mot...  Mot (Mot)(Mot) (Mot)   (Mot) \nMot \n Mot",
                 "a.(b+c)-d÷e×f belle-mère grand-mother",
             ]:
                 print(s.replace("\n", "\\n"))
