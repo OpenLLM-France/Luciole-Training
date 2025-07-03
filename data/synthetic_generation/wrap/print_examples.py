@@ -22,7 +22,7 @@ if __name__ == "__main__":
         ds = load_from_disk(expe_path)
 
     for i, data in enumerate(ds, 0):
-        print(f"\n---\n## Example {i}")
+        print(f"\n=========\n## Example {i}")
         print(data["text"])
         print("\n---\n")
         print(data["generation"])
