@@ -139,6 +139,45 @@ dataset_groups:
       # Cosmopedia v2
       - name: cosmopedia-v2_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/cosmopedia_v2/output
-      # # CulturaX
-      # - name: culturax_mC4_fr
-      #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax/fr/data/mC4
+      # Gutenberg
+      - name: gutenberg_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/de
+      - name: gutenberg_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/es
+      - name: gutenberg_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/fr
+      - name: gutenberg_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/it
+      - name: gutenberg_nl
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/nl
+      - name: gutenberg_pt
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/pt
+      # Common Corpus - Open Culture
+      - name: common-corpus_arabic-pd_ar
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/arabic-pd
+      - name: common-corpus_bnl-newspapers-1841-1879_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/bnl-newspapers-1841-1879
+      - name: common-corpus_catalan-pd_ca
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/catalan-pd
+      - name: common-corpus_english-pd_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/english-pd
+      - name: common-corpus_german-pd_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/german-pd
+      - name: common-corpus_italian-pd_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/italian-pd
+      - name: common-corpus_portuguese-pd_pt
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/portuguese-pd
+      - name: common-corpus_spanish-pd-newspapers_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/spanish-pd-newspapers
+      - name: common-corpus_dutch-pd_nl
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/dutch-pd
+      - name: common-corpus_europeana_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/europeana
+      - name: common-corpus_german-pd-newspapers_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/german-pd-newspapers
+      - name: common-corpus_multilingual-pd_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/multilingual-pd
+      - name: common-corpus_spanish-pd-books_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/spanish-pd-books
+      - name: common-corpus_us-pd-books_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/us-pd-books
