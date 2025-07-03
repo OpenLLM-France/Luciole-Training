@@ -229,5 +229,14 @@ if __name__ == "__main__":
             args=args_dict,
             strategy_args=strategy_args,
             data_args=data_args,
+            write_step_timings=True,
+        )
+    else:
+        save_stats(
+            output_dir,
+            args=args_dict,
+            strategy_args=strategy_args,
+            data_args=data_args,
+            write_step_timings=False,
         )
     write_completion(output_dir)
