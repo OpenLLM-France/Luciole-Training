@@ -1,10 +1,13 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.data import DocumentsPipeline
-from datatrove.pipeline.readers import ParquetReader
+from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.filters import LanguageFilter, LambdaFilter
+from datatrove.pipeline.filters import (
+    LanguageFilter,
+    LambdaFilter,
+    ExtremeTokenizerFilter,
+)
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
-from datatrove.pipeline.filters import ExtremeTokenizerFilter
 
 
 def slugify_metadata(
@@ -59,6 +62,23 @@ def open_culture_subset(doc):
         "spanish-pd-books",
         "spanish-pd-newspapers",
         "us-pd-books",
+    ]:
+        return True
+    else:
+        return False
+
+
+def open_gov_subset(doc):
+    if doc.metadata["collection"] in [
+        "eurlex",
+        "french-open-data",
+        "gatt-library",
+        "marianne-europe",
+        "oecd",
+        "sec",
+        "tedeutenders",
+        "un-digital-library",
+        "wto",
     ]:
         return True
     else:
@@ -122,10 +142,120 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs",
+        logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_culture",
         job_name="common_corpus_filtered",
         partition="cpu_p1",
         time="20:00:00",
     )
 
+    ### FIX Forgot languages...
+    pipeline = [
+        JsonlReader(f"{DATA_PATH}/common_corpus_filtered/removed/ft176"),
+        LambdaFilter(
+            lambda doc: (
+                doc.metadata["language"] in ["eu", "ca", "oc", "br", "co", "wa"]
+            )
+            and (doc.metadata["language_score"] >= 0.5),
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus_filtered/removed/ft176_fix"
+            ),
+        ),
+        ExtremeTokenizerFilter(
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
+            max_token_per_char=0.38,
+            remove_digits=True,
+            mode="CHUNKS",
+            min_length=1000,
+            separator=". ",
+            replace_span="\n\n[...]\n\n",
+            removed_spans_in_metadata=False,  # FOR DEBUGGING only
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus_filtered/removed/extreme_tokenizer"
+            ),
+        ),
+        PrefixFormatter(
+            infer_date_format=True,
+            additionnal_formatting=additionnal_formatting,
+            prefix_pipeline={
+                "year": "Year",
+            },
+        ),
+        JsonlWriter(
+            f"{DATA_PATH}/common_corpus_filtered/data",
+            output_filename="${open_type}/${collection}/${language}_${rank}.jsonl.gz",
+            max_file_size=int(2e9),
+        ),
+    ]
+
+    fix_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_culture_fix",
+        job_name="common_corpus_filtered",
+        partition="cpu_p1",
+        time="20:00:00",
+        depends=main_executor,
+    )
+    fix_executor.run()
+
+    #################
+    # Open Government
+    #################
+
+    pipeline = [
+        ParquetReader(
+            "hf://datasets/PleIAs/common_corpus"
+            if args.local
+            else "/lustre/fsmisc/dataset/HuggingFace/PleIAs/common_corpus",
+            glob_pattern="common_corpus_*/*.parquet",
+        ),
+        slugify_metadata,
+        LambdaFilter(open_gov_subset),
+        LanguageFilter(
+            keep_top_pairs_threshold=1,
+            languages=[
+                "en",
+                "fr",
+                "it",
+                "de",
+                "es",
+                "ar",
+                "pt",
+                "nl",
+                "eu",
+                "ca",
+                "oc",
+                "br",
+                "co",
+                "wa",
+            ],
+            language_threshold=0.65,
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus_filtered/removed/ft176"
+            ),
+        ),
+        PrefixFormatter(
+            infer_date_format=True,
+            additionnal_formatting=additionnal_formatting,
+            prefix_pipeline={
+                "year": "Year",
+            },
+        ),
+        JsonlWriter(
+            f"{DATA_PATH}/common_corpus_filtered/data",
+            output_filename="${open_type}/${collection}/${language}_${rank}.jsonl.gz",
+            max_file_size=int(2e9),
+        ),
+    ]
+
+    main_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_gov",
+        job_name="common_corpus_filtered",
+        partition="cpu_p1",
+        time="20:00:00",
+    )
     main_executor.run()
