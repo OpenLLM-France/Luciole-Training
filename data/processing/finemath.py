@@ -14,7 +14,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--name",
         type=str,
-        default=None,
+        choices=["finemath", "infiwebmath"],
+        default="finemath",
         help="Subset to load",
     )
     args = parse_args(parser)
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     if args.name is None:
         print_builder_config("HuggingFaceTB/finemath")
 
-    name = args.name
+    name = f"{args.name}-3plus"
 
     output_path = os.path.join(DATA_PATH, "finemath", name)
 
@@ -32,7 +33,10 @@ if __name__ == "__main__":
             f"hf://datasets/HuggingFaceTB/finemath/{name}",
             glob_pattern="*.parquet",
         ),
-        JsonlWriter(f"{output_path}/data"),
+        JsonlWriter(
+            f"{output_path}/data",
+            output_filename="score_${int_score}_rank${rank}.jsonl.gz",
+        ),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
