@@ -31,6 +31,8 @@ COMMON_PILE_DATASETS = [
     "news_filtered",
     "arxiv_papers_filtered",
     "arxiv_abstracts_filtered",
+    "cccc_filtered",
+    "github_archive_filtered",
 ]
 
 
@@ -103,6 +105,15 @@ if __name__ == "__main__":
             date_keys = ["created", "date", "published_time"]
         url_keys = ["url", "oa_url", "item_url"]
 
+        prefix_pipeline = {
+            "channel": "Channel",
+            "title": "Title",
+            "fields": "Fields",
+            "date": "Date",
+        }
+        if name == "cccc_filtered":
+            prefix_pipeline["fqdn"] = "Full domain"
+
         pipeline = [
             HuggingFaceDatasetReader(
                 f"common-pile/{name}",
@@ -115,12 +126,7 @@ if __name__ == "__main__":
                 url_keys=url_keys,
                 infer_date_format=True,
                 additionnal_formatting=additionnal_formatting,
-                prefix_pipeline={
-                    "channel": "Channel",
-                    "title": "Title",
-                    "fields": "Fields",
-                    "date": "Date",
-                },
+                prefix_pipeline=prefix_pipeline,
             ),
             JsonlWriter(f"{DATA_PATH}/common_pile/{name}/data"),
         ]
