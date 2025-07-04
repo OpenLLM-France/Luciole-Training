@@ -125,6 +125,9 @@ if __name__ == "__main__":
     else:
         pii_cleaning = []
 
+    # TODO
+    # Decontamination
+
     ################
     # Pipeline
     ################
@@ -154,5 +157,6 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{output_dir}/logs",
         job_name=dataset_name,
+        partition="cpu_p1" if args.jz else "prepost",
     )
     executor.run()

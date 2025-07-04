@@ -13,6 +13,7 @@ module load anaconda-py3/2024.06
 conda create -n datatrove-env python=3.10
 conda activate datatrove-env
 pip install -r requirements.txt
+pip install lighteval[extended_tasks,math,multilingual]
 ```
 
 #### Clone datatrove

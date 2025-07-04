@@ -256,6 +256,7 @@ if __name__ == "__main__":
         logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_gov",
         job_name="common_corpus_filtered",
         partition="cpu_p1",
+        cpus_per_task=2,  # OOM with 1...
         time="20:00:00",
     )
     main_executor.run()
