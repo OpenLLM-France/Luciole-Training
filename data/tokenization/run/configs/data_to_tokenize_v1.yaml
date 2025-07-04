@@ -124,6 +124,10 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/arxiv_abstracts_filtered/data
       - name: common-pile_arxiv-papers_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/arxiv_papers_filtered/data
+      - name: common-pile_cccc_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/cccc_filtered/data
+      - name: common-pile_github-archive_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/github_archive_filtered/data
       # Claire
       - name: claire_nc_en
         path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/nc/en
@@ -155,7 +159,7 @@ dataset_groups:
       # Common Corpus - Open Culture
       - name: common-corpus_arabic-pd_ar
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/arabic-pd
-      - name: common-corpus_bnl-newspapers-1841-1879_en
+      - name: common-corpus_bnl-newspapers-1841-1879_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/bnl-newspapers-1841-1879
       - name: common-corpus_catalan-pd_ca
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/catalan-pd
@@ -181,3 +185,22 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/spanish-pd-books
       - name: common-corpus_us-pd-books_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/us-pd-books
+      # Common Corpus - Open Government
+      - name: common-corpus_eurlex_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/eurlex
+      - name: common-corpus_french-open-data_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/french-open-data
+      - name: common-corpus_gatt-library_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/gatt-library
+      - name: common-corpus_marianne-europe_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/marianne-europe
+      - name: common-corpus_oecd_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/oecd
+      - name: common-corpus_sec_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/sec
+      - name: common-corpus_tedeutenders_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/tedeutenders
+      - name: common-corpus_un-digital-library_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/un-digital-library
+      - name: common-corpus_wto_multi
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/wto
