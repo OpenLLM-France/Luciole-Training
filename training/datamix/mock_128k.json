@@ -1,0 +1,13 @@
+{
+  "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2",
+  "train": [
+    {
+      "name": "wikimedia_fr_text_document",
+      "weight": 0.5
+    },
+    {
+      "name": "wikimedia_en_text_document",
+      "weight": 0.5
+    }
+  ]
+}
