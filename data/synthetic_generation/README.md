@@ -16,6 +16,13 @@ pip install --no-build-isolation flash-attn
 
 If you do not want to use vLLM you can install: `pip install -U distilabel[hf-transformers]` for example (see [distilabel doc](https://distilabel.argilla.io/latest/sections/getting_started/installation/#llms))
 
+Use it:
+```
+module load arch/h100 
+module load anaconda-py3/2024.06
+module load cuda/12.4.1
+conda activate distilabel-env
+```
 ## Generate annotations
 
 ```

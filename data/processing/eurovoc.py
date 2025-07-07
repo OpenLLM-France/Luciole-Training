@@ -25,7 +25,7 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/eurovoc/logs",
         job_name="eurovoc",
-        tasks=50,
+        tasks=10,
     )
 
     main_processing_executor.run()
