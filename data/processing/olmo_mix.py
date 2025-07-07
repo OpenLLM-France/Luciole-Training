@@ -8,7 +8,6 @@ from utils import (
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
-from slugify import slugify
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -25,15 +24,14 @@ if __name__ == "__main__":
         print_builder_config("allenai/olmo-mix-1124")
 
     name = args.name
-    slug_name = slugify(name)
 
     pipeline = [
         HuggingFaceDatasetReader(
             "allenai/olmo-mix-1124",
-            {"name": {name}, "split": "train"},
+            {"name": name, "split": "train"},
             streaming=True,
         ),
-        JsonlWriter(f"{DATA_PATH}/olmo_mix/{slug_name}/data"),
+        JsonlWriter(f"{DATA_PATH}/olmo_mix/{name}/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
@@ -41,8 +39,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/olmo_mix/{slug_name}/logs",
-        job_name=slug_name,
+        logging_dir=f"{DATA_PATH}/olmo_mix/{name}/logs",
+        job_name=name,
     )
 
     main_processing_executor.run()
