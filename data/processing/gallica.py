@@ -65,9 +65,8 @@ if __name__ == "__main__":
         ),
         ExtremeTokenizerFilter(
             tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
-            min_token_per_char=0,
             max_token_per_char=0.4,
-            filter_mode="CHUNKS",
+            mode="CHUNKS",
             replace_span="\n\n[...]\n\n",
             removed_spans_in_metadata=False,  # FOR DEBUGGING only
             exclusion_writer=JsonlWriter(f"{output_path}/removed/extreme_tokenizer"),
