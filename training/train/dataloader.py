@@ -21,30 +21,25 @@ def create_data(data_args: dict):
     return data
 
 
-def save_sample_texts(data, output=None, number_of_data=5):
+def save_sample_texts(data, output, number_of_data):
     dataloader = data.train_dataloader()
 
-    for i, batch in enumerate(dataloader):
-        print("\n" + f" START TEXT {i} ".center(80, "-"))
-        # Extract and decode token IDs
-        token_ids = batch["tokens"][0]
-        text = data.tokenizer.ids_to_text(token_ids, remove_special_tokens=False)
-        print(text)
-        print(f" END TEXT {i} ".center(80, "-") + "\n")
+    samples_written = 0
+    with open(output + ".txt", "w", encoding="utf-8") as token_file:
+        for batch in dataloader:
+            tokens_batch = batch["tokens"]
 
-        print("\n" + f" START BATCH {i} ".center(80, "-"))
-        print(batch)
-        print(f" END BATCH {i} ".center(80, "-") + "\n")
-        # Save to file if output directory is specified
-        if output:
-            os.makedirs(output, exist_ok=True)
-            file_path = os.path.join(output, f"{i}.txt")
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(text)
+            for token_ids in tokens_batch:
+                token_ids = token_ids.tolist()  # Convert tensor to list
+                tokens = data.tokenizer.ids_to_tokens(token_ids)
+                # text = data.tokenizer.ids_to_text(token_ids, remove_special_tokens=False)
 
-        # Stop after desired number of samples
-        if i + 1 >= number_of_data:
-            break
+                token_file.write("\n\n>>>>>>>>>>>> NEW SAMPLE <<<<<<<<<<<<\n\n")
+                token_file.write(repr(tokens))  # Debug-friendly format
+
+                samples_written += 1
+                if samples_written >= number_of_data:
+                    return
 
 
 def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
@@ -59,10 +54,15 @@ def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     return recipe
 
 
-def run_dataloader(paths, tokenizer_name, output, number_of_data=1, seq_length=2048):
+def run_dataloader(paths, tokenizer_name, output, number_of_data, seq_length):
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
     recipe.data = create_data(
-        paths, tokenizer_name, batch_size=1, seq_length=seq_length
+        {
+            "paths": paths,
+            "tokenizer_name": tokenizer_name,
+            "global_batch_size": 1,
+            "seq_length": seq_length,
+        }
     )
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
@@ -73,26 +73,43 @@ def run_dataloader(paths, tokenizer_name, output, number_of_data=1, seq_length=2
     )
 
 
-# This condition is necessary for the script to be compatible with Python's multiprocessing module.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
-        "--dataset_name",
+        "folder_path",
         help="",
-        default="wikipedia_fr_text_document",
         type=str,
     )
     parser.add_argument(
         "--number_of_data", help="Number of iteration", default=10, type=str
     )
-    parser.add_argument("--seq_length", help="", default=4096, type=str)
+    parser.add_argument("--seq_length", help="", default=4096, type=int)
     args = parser.parse_args()
-    tokenizer_name = "OpenLLM-France/Lucie-7B"
 
-    main_path = os.path.join(os.getenv("OpenLLM_OUTPUT"), "data/tokens_ablation")
-    data_path = os.path.join(main_path, args.dataset_name)
-    output_path = os.path.join(main_path, "batch_examples", args.dataset_name)
+    with open(os.path.join(args.folder_path, "tokenizer_name.txt"), "r") as f:
+        tokenizer_name = f.read().strip()
 
-    run_dataloader(
-        data_path, tokenizer_name, output_path, args.number_of_data, args.seq_length
+    # Ensure the output directory exists
+    os.makedirs(
+        os.path.join(args.folder_path, f"batch_examples_seq{args.seq_length}"),
+        exist_ok=True,
     )
+
+    for file in os.listdir(args.folder_path):
+        dataset_name = file.split(".")[0]
+
+        if file.endswith("text_document.idx"):
+            data_path = os.path.join(args.folder_path, dataset_name)
+            output_path = os.path.join(
+                args.folder_path, f"batch_examples_seq{args.seq_length}", dataset_name
+            )
+
+            if not os.path.exists(output_path):
+                print(f"Processing dataset: {dataset_name}...")
+                run_dataloader(
+                    data_path,
+                    tokenizer_name,
+                    output_path,
+                    args.number_of_data,
+                    args.seq_length,
+                )
