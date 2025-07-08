@@ -2,6 +2,12 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.filters import (
+    LanguageFilter,
+    ExtremeTokenizerFilter,
+    PerplexityFilter,
+    LambdaFilter,
+)
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -28,4 +34,67 @@ if __name__ == "__main__":
         tasks=10,
     )
 
-    main_processing_executor.run()
+    # Filter data
+    pipeline = [
+        JsonlReader(
+            f"{DATA_PATH}/eurovoc/data",
+        ),
+        LambdaFilter(
+            lambda doc: doc.metadata["lang"]
+            in ["ara", "cat", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
+        ),
+        LanguageFilter(
+            keep_top_pairs_threshold=1,
+            languages=[
+                "en",
+                "fr",
+                "it",
+                "de",
+                "es",
+                "ar",
+                "pt",
+                "nl",
+                "ca",
+            ],
+            language_threshold=0.5,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ft176"),
+        ),
+        ExtremeTokenizerFilter(
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
+            max_token_per_char=0.38,
+            remove_digits=True,
+            mode="CHUNKS",
+            min_length=1000,
+            separator="\n",
+            replace_span="\n\n[...]\n\n",
+            removed_spans_in_metadata=False,  # FOR DEBUGGING only
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/eurovoc_filtered/removed/extreme_tokenizer"
+            ),
+        ),
+        PerplexityFilter(
+            min_ppl=10,
+            max_ppl=1500,
+            language_from_metadata=True,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ppl"),
+        ),
+        JsonlWriter(
+            f"{DATA_PATH}/eurovoc_filtered/data",
+            output_filename="${lang}/${rank}.jsonl.gz",
+        ),
+    ]
+
+    filter_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{DATA_PATH}/eurovoc_filtered/logs",
+        job_name="eurovoc_filtered",
+        tasks=10,
+        depends=main_processing_executor,
+        partition="cpu_p1",
+        time="20:00:00",
+        cpu_per_task=2,
+    )
+
+    filter_executor.run()
