@@ -68,7 +68,7 @@ if __name__ == "__main__":
         for dataset in dataset_group["datasets"]:
             name = dataset["name"]
             relative_path = dataset["path"]
-            files_filter = dataset.get("filter", "**/*.json*")
+            regex_filter = dataset.get("regex", r".*\.json.*")
 
             raw_path = os.path.join(root_path, relative_path)
             output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
@@ -89,7 +89,7 @@ if __name__ == "__main__":
                             raw_path,
                             os.path.join(tokens_dataset_path, name),
                             tokenizer_name,
-                            files_filter,
+                            regex_filter,
                         ]
                     )
                 else:

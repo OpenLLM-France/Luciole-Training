@@ -98,6 +98,7 @@ import os
 import pathlib
 import sys
 import time
+import re
 
 import ftfy
 import torch
@@ -262,6 +263,9 @@ def get_args():
         "--files-filter", type=str, default="**/*.json*", help="files filter str"
     )
     group.add_argument(
+        "--regex-filter", type=str, default=".*\.json.*", help="files filter str"
+    )
+    group.add_argument(
         "--merge-file",
         type=str,
         default=None,
@@ -359,6 +363,10 @@ def main():
         print("Searching folder for .json or .jsonl or json.gz or .jsonl.gz files...")
         assert os.path.exists(args.input), f"Folder does not exist: {args.input}"
         json_files = (str(f) for f in pathlib.Path(args.input).glob(args.files_filter))
+        regex_pattern = re.compile(args.regex_filter)
+        json_files = (
+            str(f) for f in json_files if f.is_file() and regex_pattern.match(f.name)
+        )
         json_files = [
             f
             for f in json_files
