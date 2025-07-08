@@ -4,6 +4,7 @@ from nemo.collections.llm.gpt.data import PreTrainingDataModule
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 from nemo.collections import llm
 import fiddle as fdl
+import json
 
 
 def create_data(data_args: dict):
@@ -21,25 +22,55 @@ def create_data(data_args: dict):
     return data
 
 
-def save_sample_texts(data, output, number_of_data):
+def split_before_item(lst, item):
+    result = []
+    current = []
+    for elem in lst:
+        if elem == item and current:
+            result.append(current)
+            current = []
+        current.append(elem)
+    if current:
+        result.append(current)
+    return result
+
+
+def save_sample_texts(data, number_of_texts, number_of_distributions):
     dataloader = data.train_dataloader()
 
-    samples_written = 0
-    with open(output + ".txt", "w", encoding="utf-8") as token_file:
-        for batch in dataloader:
-            tokens_batch = batch["tokens"]
+    samples_for_text = 0
+    samples_for_dist = 0
+    distribution = []
+    output_text = ""
 
-            for token_ids in tokens_batch:
-                token_ids = token_ids.tolist()  # Convert tensor to list
-                tokens = data.tokenizer.ids_to_tokens(token_ids)
-                # text = data.tokenizer.ids_to_text(token_ids, remove_special_tokens=False)
+    for batch in dataloader:
+        tokens_batch = batch["tokens"]
 
-                token_file.write("\n\n>>>>>>>>>>>> NEW SAMPLE <<<<<<<<<<<<\n\n")
-                token_file.write(repr(tokens))  # Debug-friendly format
+        for token_ids in tokens_batch:
+            token_ids = token_ids.tolist()
+            tokens = data.tokenizer.ids_to_tokens(token_ids)
 
-                samples_written += 1
-                if samples_written >= number_of_data:
-                    return
+            # Collect distribution from up to number_of_distributions samples
+            if samples_for_dist < number_of_distributions:
+                distribution.extend(
+                    [len(chunk) for chunk in split_before_item(tokens, "</s>")]
+                )
+                samples_for_dist += 1
+
+            # Collect text from up to number_of_texts samples
+            if samples_for_text < number_of_texts:
+                output_text += "\n\n>>>>>>>>>>>> NEW SAMPLE <<<<<<<<<<<<\n\n"
+                output_text += repr(tokens)
+                samples_for_text += 1
+
+            # Stop if both limits are reached
+            if (
+                samples_for_text >= number_of_texts
+                and samples_for_dist >= number_of_distributions
+            ):
+                return output_text, distribution
+
+    return output_text, distribution
 
 
 def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
@@ -54,11 +85,28 @@ def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
     return recipe
 
 
-def run_dataloader(paths, tokenizer_name, output, number_of_data, seq_length):
+def run_dataloader(
+    folder_path, dataset_name, tokenizer_name, number_of_data, seq_length, force=False
+):
+    token_file_path = os.path.join(
+        folder_path, f"batch_examples_seq{seq_length}", f"{dataset_name}.txt"
+    )
+    dist_file_dir = os.path.join(folder_path, f"batch_distribution_seq{seq_length}")
+
+    if os.path.exists(token_file_path) and not force:
+        print(f"File {token_file_path} already exists. Skipping...")
+        return
+
+    print(f"Processing dataset: {dataset_name} with seq_length: {seq_length}")
+    # Ensure output directories exist
+    os.makedirs(os.path.dirname(token_file_path), exist_ok=True)
+    os.makedirs(dist_file_dir, exist_ok=True)
+
+    # Build and load the data
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
     recipe.data = create_data(
         {
-            "paths": paths,
+            "paths": os.path.join(folder_path, dataset_name),
             "tokenizer_name": tokenizer_name,
             "global_batch_size": 1,
             "seq_length": seq_length,
@@ -66,11 +114,23 @@ def run_dataloader(paths, tokenizer_name, output, number_of_data, seq_length):
     )
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
-    save_sample_texts(
+
+    # Extract samples and distribution
+    output_text, distribution = save_sample_texts(
         recipe.data,
-        output=output,
-        number_of_data=int(number_of_data),
+        number_of_texts=int(number_of_data),
+        number_of_distributions=int(number_of_data) * 10,
     )
+
+    # Save token text
+    with open(token_file_path, "w", encoding="utf-8") as token_file:
+        token_file.write(output_text)
+
+    # Save distribution
+    with open(
+        os.path.join(dist_file_dir, f"{dataset_name}.json"), "w", encoding="utf-8"
+    ) as f:
+        json.dump(distribution, f)
 
 
 if __name__ == "__main__":
@@ -84,32 +144,25 @@ if __name__ == "__main__":
         "--number_of_data", help="Number of iteration", default=10, type=str
     )
     parser.add_argument("--seq_length", help="", default=4096, type=int)
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-generation of data even if it already exists.",
+    )
     args = parser.parse_args()
 
     with open(os.path.join(args.folder_path, "tokenizer_name.txt"), "r") as f:
         tokenizer_name = f.read().strip()
 
-    # Ensure the output directory exists
-    os.makedirs(
-        os.path.join(args.folder_path, f"batch_examples_seq{args.seq_length}"),
-        exist_ok=True,
-    )
-
     for file in os.listdir(args.folder_path):
         dataset_name = file.split(".")[0]
 
         if file.endswith("text_document.idx"):
-            data_path = os.path.join(args.folder_path, dataset_name)
-            output_path = os.path.join(
-                args.folder_path, f"batch_examples_seq{args.seq_length}", dataset_name
+            run_dataloader(
+                args.folder_path,
+                dataset_name,
+                tokenizer_name,
+                number_of_data=args.number_of_data,
+                seq_length=args.seq_length,
+                force=args.force,
             )
-
-            if not os.path.exists(output_path):
-                print(f"Processing dataset: {dataset_name}...")
-                run_dataloader(
-                    data_path,
-                    tokenizer_name,
-                    output_path,
-                    args.number_of_data,
-                    args.seq_length,
-                )
