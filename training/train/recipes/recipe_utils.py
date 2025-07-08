@@ -1,6 +1,7 @@
 import torch
 import logging
 from typing import Optional
+import nemo_run as run
 
 from nemo import lightning as nl
 from nemo.lightning.pytorch.plugins.mixed_precision import MegatronMixedPrecision
@@ -12,20 +13,9 @@ from nemo.lightning.pytorch.optim import (
 )
 from megatron.core.optimizer import OptimizerConfig
 from lightning.pytorch.callbacks.callback import Callback
-from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def tensorboard_logger(name: str, save_dir: str = "tb_logs"):
-    """Factory function to configure TensorBoard Logger."""
-    return TensorBoardLogger(save_dir=save_dir, name=name)
-
-
-def wandb_logger(project: str, name: str, entity: Optional[str] = None):
-    """Factory function to configure W&B Logger."""
-    return WandbLogger(project=project, name=name, config={})
 
 
 def create_autoresume(
@@ -38,7 +28,7 @@ def create_autoresume(
     )
     if base_checkpoint:
         args["restore_config"] = nl.RestoreConfig(path=base_checkpoint)
-    return nl.AutoResume(**args)
+    return run.Config(nl.AutoResume, **args)
 
 
 def distributed_fused_adam_with_cosine_annealing(
@@ -77,33 +67,6 @@ def distributed_fused_adam_with_cosine_annealing(
     return MegatronOptimizerModule(
         config=opt_cfg,
         lr_scheduler=sched,
-    )
-
-
-def create_logger(
-    dir: Optional[str] = None,
-    name: str = "default",
-    every_n_train_steps=1000,
-    tensorboard_logger: Optional[TensorBoardLogger] = None,
-    wandb_logger: Optional[WandbLogger] = None,
-):
-    """Factory function to configure NemoLogger."""
-    ckpt = nl.ModelCheckpoint(
-        save_last=True,
-        save_top_k=-1,
-        every_n_train_steps=every_n_train_steps,
-        monitor="step",
-        mode="max",
-        every_n_epochs=None,
-        # filename="{step}--{consumed_samples:.0f}-{train_loss:.2f}",
-    )
-
-    return nl.NeMoLogger(
-        ckpt=ckpt,
-        name=name,
-        tensorboard=tensorboard_logger,
-        wandb=wandb_logger,
-        log_dir=dir,
     )
 
 

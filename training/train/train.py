@@ -1,28 +1,26 @@
 import argparse
 import torch
 import os
-import json
 import logging
+import fiddle
 import pytorch_lightning as pl
+from nemo import lightning as nl
+import nemo_run as run
+from pprint import pprint
 
-
+from dataloader import create_data
 from recipes.recipe_utils import (
-    distributed_fused_adam_with_cosine_annealing,
-    create_logger,
     create_autoresume,
-    create_trainer,
 )
 from utils import (
-    read_datamix_file,
+    get_check_data_and_tokenizer,
     save_stats,
     write_completion,
     to_nb_tokens,
     SUPPORTED_ARCHITECTURES,
 )
 
-from dataloader import create_data
-
-from nemo.collections import llm
+from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
 from nemo.utils.exp_manager import TimingCallback
 
 torch.set_float32_matmul_precision("high")
@@ -42,13 +40,13 @@ if __name__ == "__main__":
     parser.add_argument("--mode", default="debug", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
     )
     parser.add_argument("--batch_size", default=None, type=int)
     parser.add_argument("--seq_length", default=None, type=int)
     parser.add_argument("--tensor_parallelism", default=None, type=int)
     parser.add_argument("--pipeline_parallelism", default=None, type=int)
-    parser.add_argument("--context_parallelism", default=1, type=int)
+    parser.add_argument("--context_parallelism", default=None, type=int)
     parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--seed", default=1234, type=int)
@@ -62,17 +60,9 @@ if __name__ == "__main__":
     num_nodes = args.num_nodes
     output_dir = args.output_dir
 
-    # try:
-    data_paths, tokenizer_name = read_datamix_file(args.config)
-    if args.base_checkpoint:
-        with open(
-            os.path.join(args.base_checkpoint, "context", "tokenizer_name.txt"), "r"
-        ) as f:
-            base_model_tokenizer = f.read().strip()
-        if tokenizer_name != base_model_tokenizer:
-            raise ValueError(
-                f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
-            )
+    data_paths, tokenizer_name = get_check_data_and_tokenizer(
+        args.config, args.base_checkpoint
+    )
 
     batch_size = args.batch_size
     seq_length = args.seq_length
@@ -120,123 +110,109 @@ if __name__ == "__main__":
         resume_if_exists = True
         every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
-    base_strategy_args = dict(
-        tensor_model_parallel_size=args.tensor_parallelism
-        if args.tensor_parallelism
-        else 1,
-        pipeline_model_parallel_size=args.pipeline_parallelism
-        if args.pipeline_parallelism
-        else 1,
-        pipeline_dtype=torch.bfloat16,
-        virtual_pipeline_model_parallel_size=args.virtual_pipeline_parallelism,
-        context_parallel_size=args.context_parallelism,
-        fp8=args.fp8,
+    # optimizer_warmup_steps = 2000
+    recipe_args = dict(
+        dir=output_dir,
+        name=args.name,
+        num_nodes=int(os.environ.get("SLURM_NNODES", 1)),
+        num_gpus_per_node=int(os.environ.get("SLURM_GPUS", 4)),
     )
-
-    optimizer_warmup_steps = 2000
-
     if arch.startswith("llama"):
-        from recipes.recipe_pretrain import get_config
+        from recipes.recipe_llama import get_recipe
 
-        model_config, strategy_args = get_config(base_strategy_args, args, arch=arch)
-        optimizer_warmup_steps = strategy_args.pop(
-            "optimizer_warmup_steps", optimizer_warmup_steps
+        pretrain_recipe, recipes_args = get_recipe(
+            arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
         )
-        model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
-    elif arch.startswith("mamba"):
-        from recipes.recipe_mamba import get_config
-
-        model_config, strategy_args = get_config(
-            base_strategy_args, args, arch=arch, tokenizer_name=tokenizer_name
-        )
-        model = llm.MambaModel(model_config, tokenizer=data.tokenizer)
     elif arch.startswith("nemotronh"):
-        from recipes.recipe_nemotronh import get_config
+        from recipes.recipe_nemotronh import get_recipe
 
-        model_config, strategy_args = get_config(
-            base_strategy_args, args, arch=arch, tokenizer_name=tokenizer_name
+        pretrain_recipe, recipes_args = get_recipe(
+            arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
         )
-        model = llm.MambaModel(model_config, tokenizer=data.tokenizer)
+        if arch == "nemotronh47b":
+            args.fp8 = True
     elif arch.startswith("mixtral"):
-        from recipes.recipe_mixtral import get_config
+        from recipes.recipe_mixtral import get_recipe
 
-        model_config, strategy_args = get_config(base_strategy_args, args)
-        model = llm.MixtralModel(model_config, tokenizer=data.tokenizer)
+        pretrain_recipe, recipes_args = get_recipe(
+            arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
+        )
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
 
-    args_dict = vars(args)
-    for key in [
-        "tensor_parallelism",
-        "pipeline_parallelism",
-        "context_parallelism",
-        "virtual_pipeline_parallelism",
-        "batch_size",
-        "seq_length",
-    ]:
-        args_dict.pop(key, None)
+    recipe = pretrain_recipe(**recipes_args)
 
-    logger.info("Args:\n" + json.dumps(args_dict, indent=2))
-    logger.info("Strategy Args:\n" + json.dumps(strategy_args, indent=2, default=str))
-    logger.info("Data Args:\n" + json.dumps(data_args, indent=2, default=str))
-
-    logger.info(f"Max steps: {max_steps}")
-    logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
-    logger.info(f"Resume training if possible: {resume_if_exists}")
-
-    opt = distributed_fused_adam_with_cosine_annealing(
-        max_lr=3e-4, warmup_steps=optimizer_warmup_steps
+    # TRAINER
+    recipe.trainer.max_steps = max_steps
+    recipe.trainer.val_check_interval = (
+        5 if args.mode in ["debug", "benchmark", "benchmark100"] else 1000
     )
-
-    callbacks = [TimingCallback()]
-
-    trainer = create_trainer(
-        strategy_args=strategy_args,
-        max_steps=max_steps,
-        num_gpus_per_node=args.num_gpus_per_node,
-        num_nodes=num_nodes,
-        callbacks=callbacks,
-        val_check_interval=5
-        if args.mode in ["debug", "benchmark", "benchmark100"]
-        else 1000,
-        limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
-        log_every_n_steps=1
-        if args.mode in ["debug", "benchmark", "benchmark100"]
-        else 10,
+    recipe.trainer.limit_val_batches = 0.0
+    recipe.trainer.log_every_n_steps = (
+        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 1
     )
+    recipe.trainer.callbacks = [run.Config(TimingCallback)]
+    if args.fp8:
+        if arch == "nemotronh47b":
+            logger.info("FP8 is always activated on nemotronh47b")
+        else:
+            recipe.trainer.plugins = bf16_with_fp8_mixed()
 
-    nemo_logger = create_logger(
-        dir=output_dir,
-        name=args.name,
+    # OPTIM
+    recipe.optim.lr_scheduler.warmup_steps = 500
+
+    # STRATEGY
+    if args.tensor_parallelism:
+        recipe.trainer.strategy.tensor_model_parallel_size = args.tensor_parallelism
+    if args.pipeline_parallelism:
+        recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
+    # recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
+    if args.virtual_pipeline_parallelism:
+        recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
+            args.virtual_pipeline_parallelism
+        )
+    if args.context_parallelism:
+        recipe.trainer.context_parallel_size = args.context_parallelism
+    # if args.sequence_parallelism is not None:
+    #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
+
+    # LOGGER
+    # recipe.log.log_dir = output_dir
+    # recipe.log.name = args.name
+    # recipe.log.tensorboard = tensorboard_logger(name=args.name)
+
+    # CKPT
+    recipe.log.ckpt = run.Config(
+        nl.ModelCheckpoint,
+        save_last=True,
+        save_top_k=-1,
         every_n_train_steps=every_n_train_steps,
+        monitor="step",
+        mode="max",
+        every_n_epochs=None,
     )
 
-    llm.train(
-        model=model,
-        data=data,
-        trainer=trainer,
-        log=nemo_logger,
-        tokenizer="data",
-        optim=opt,
-        resume=create_autoresume(
-            resume_if_exists=resume_if_exists, base_checkpoint=args.base_checkpoint
-        ),
+    # RESUME
+    recipe.resume = create_autoresume(
+        resume_if_exists=resume_if_exists, base_checkpoint=args.base_checkpoint
     )
 
-    if args.mode in ["debug"] or str(args.mode).startswith("benchmark"):
-        save_stats(
-            output_dir,
-            args=args_dict,
-            strategy_args=strategy_args,
-            data_args=data_args,
-            write_step_timings=True,
-        )
-    else:
-        save_stats(
-            output_dir,
-            args=args_dict,
-            strategy_args=strategy_args,
-            data_args=data_args,
-            write_step_timings=False,
-        )
+    # DATA
+    recipe.data = data
+    if arch.startswith("nemotronh"):
+        recipe.model.tokenizer = data.tokenizer
+    pprint(recipe)
+
+    recipe_obj = fiddle.build(recipe)
+    recipe_obj()
+
+    save_stats(
+        output_dir,
+        args.name,
+        data_args,
+        recipe=recipe,
+        write_step_timings=True
+        if args.mode in ["debug"] or str(args.mode).startswith("benchmark")
+        else False,
+    )
     write_completion(output_dir)
