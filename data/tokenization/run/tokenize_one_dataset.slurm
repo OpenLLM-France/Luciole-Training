@@ -18,7 +18,7 @@ export TOKENIZERS_PARALLELISM=false
 INPUT_FOLDER=$1
 OUTPUT_PATH=$2
 TOKENIZER_NAME=$3 
-FILES_FILTER=$4
+REGEX_FILTER=$4
 
 echo "Starting tokenization for $INPUT_FOLDER"
 echo "Output will be saved to $OUTPUT_PATH"
@@ -35,5 +35,5 @@ python preprocess_data_for_megatron.py \
     --append-eod \
     --apply-ftfy \
     --workers=40 \
-    --files-filter $FILES_FILTER \
+    --regex-filter $REGEX_FILTER \
     --log-interval 10000
