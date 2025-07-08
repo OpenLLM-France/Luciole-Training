@@ -73,6 +73,25 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/europarl/it
       - name: europarl_pt
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/europarl/pt
+      # Eurovoc
+      - name: eurovoc_ar
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/ara
+      - name: eurovoc_ca
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/cat
+      - name: eurovoc_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/deu
+      - name: eurovoc_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/eng
+      - name: eurovoc_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/fra
+      - name: eurovoc_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/ita
+      - name: eurovoc_nl
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/nld
+      - name: eurovoc_pt
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/por
+      - name: eurovoc_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc/data/spa
       # Common Pile
       - name: common-pile_biodiversity-heritage-library_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/biodiversity_heritage_library_filtered/data
@@ -140,6 +159,12 @@ dataset_groups:
       # Lucie - Stac
       - name: stac_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/stac/data
+      - name: youtube_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/youtube/data
+      - name: math-pile_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/mathpile/data
+      - name: croissant-aligned_aligned
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/croissantaligned/data
       # Cosmopedia v2
       - name: cosmopedia-v2_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/cosmopedia_v2/output
@@ -204,3 +229,26 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/un-digital-library
       - name: common-corpus_wto_multi
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-government/wto
+      # MegaMath
+      - name: megamath-web_part1_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
+        regex: ^0000[0-9]\.jsonl\.gz$|^0001[0-9]\.jsonl\.gz$
+      - name: megamath-web_part2_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
+        regex: ^0002[0-9]\.jsonl\.gz$|^0003[0-9]\.jsonl\.gz$
+      - name: megamath-web_part3_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
+        regex: ^0004[0-9]\.jsonl\.gz$
+      - name: megamath-web-pro_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web-pro/data
+      # FineMath
+      - name: finemath_3plus_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/finemath/finemath-3plus/data
+      - name: infiwebmath_3plus_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/finemath/infiwebmath-3plus/data
+      # Algebraic-Stack
+      - name: algebraic-stack_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/algebraic_stack/output
+      # Starcoder
+      - name: starcoder_olmomix_code
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/olmo_mix/starcoder/data
