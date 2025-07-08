@@ -13,6 +13,7 @@ SUPPORTED_ARCHITECTURES = [
     "mixtral8x7",
     "mambahybrid8b",
     "nemotronh8b",
+    "nemotronh47b",
 ]
 
 
@@ -87,14 +88,59 @@ def read_datamix_file(file):
     return data_paths, tokenizer_name
 
 
-def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=True):
+def get_check_data_and_tokenizer(config, base_checkpoint):
+    data_paths, tokenizer_name = read_datamix_file(config)
+    if base_checkpoint:
+        with open(
+            os.path.join(base_checkpoint, "context", "tokenizer_name.txt"), "r"
+        ) as f:
+            base_model_tokenizer = f.read().strip()
+        if tokenizer_name != base_model_tokenizer:
+            raise ValueError(
+                f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
+            )
+    return data_paths, tokenizer_name
+
+
+def serialize_fdl(config):
+    import fiddle as fdl
+
+    if isinstance(config, fdl.Buildable):
+        result = {
+            "__type__": type(config).__name__,
+            "__fn_or_cls__": str(config.__fn_or_cls__),
+        }
+        for k, v in config.__arguments__.items():
+            try:
+                result[k] = serialize_fdl(v)
+            except Exception:
+                result[k] = f"<non-serializable: {type(v).__name__}>"
+        return result
+    elif isinstance(config, (list, tuple)):
+        return [serialize_fdl(x) for x in config]
+    elif isinstance(config, dict):
+        return {k: serialize_fdl(v) for k, v in config.items()}
+    elif isinstance(config, (str, int, float, bool, type(None))):
+        return config
+    else:
+        # Fallback for non-serializable objects
+        return f"<non-serializable: {type(config).__name__}>"
+
+
+def save_stats(output_dir, name, data_args, recipe, write_step_timings=True):
     import re
     import json
     from importlib.metadata import version
     from git import Repo
 
-    strategy_args.pop("ddp")
-    strategy_args["pipeline_dtype"] = str(strategy_args["pipeline_dtype"])
+    recipe_dict = {
+        "trainer": serialize_fdl(recipe.trainer),
+        "model": serialize_fdl(recipe.model),
+        "optim": serialize_fdl(recipe.optim),
+        "resume": serialize_fdl(recipe.resume),
+        "log": serialize_fdl(recipe.log),
+        "data": data_args,
+    }
     job_id = os.environ.get("SLURM_JOB_ID")
     steps = dict()
     model_size = dict()
@@ -125,13 +171,9 @@ def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=Tr
             label: float(value) if unit == "B" else float(value) / 1000
             for value, unit, label in matches
         }
-    with open(
-        os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
-    ) as jsonfile:
+    with open(os.path.join(output_dir, f"stats_{name}_{job_id}.json"), "w") as jsonfile:
         json_data = {
-            **args,
-            **data_args,
-            **strategy_args,
+            **recipe_dict,
             **steps,
             **model_size,
             **toolkit_version,
