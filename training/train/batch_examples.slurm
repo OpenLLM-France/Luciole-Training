@@ -19,4 +19,4 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 folder_path=$1
 seq_length=$2
 
-python dataloader.py $folder_path --number_of_data 100 --seq_length $seq_length
+python dataloader.py $folder_path --number_of_data 100 --seq_length $seq_length $3
