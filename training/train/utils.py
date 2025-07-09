@@ -14,6 +14,8 @@ SUPPORTED_ARCHITECTURES = [
     "mambahybrid8b",
     "nemotronh8b",
     "nemotronh47b",
+    "qwen32b",
+    "mistral12b",
 ]
 
 
@@ -130,6 +132,7 @@ def serialize_fdl(config):
 def save_stats(output_dir, name, data_args, recipe, write_step_timings=True):
     import re
     import json
+    import numpy as np
     from importlib.metadata import version
     from git import Repo
 
@@ -157,7 +160,8 @@ def save_stats(output_dir, name, data_args, recipe, write_step_timings=True):
         iteration_timing = {
             int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
         }
-        mean = sum(list(iteration_timing.values())[2:]) / (len(iteration_timing) - 2)
+        mean_list = list(iteration_timing.values())[5:]
+        mean = np.mean(mean_list)
         steps = {
             "step_timings": list(iteration_timing.values()),
             "mean_step_timings": mean,

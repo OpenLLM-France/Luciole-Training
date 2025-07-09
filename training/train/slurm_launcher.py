@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL"):
     email_line = ""
     if email:
+        mail_type = mail_type.upper()
         if mail_type == "ALL":
             mail_type = "ARRAY_TASKS,ALL"
         email_line = f"""#SBATCH --mail-user={email}
-#SBATCH --mail-type={mail_type.upper()}"""
+#SBATCH --mail-type={mail_type}"""
     return email_line
 
 
@@ -56,7 +57,7 @@ def create_slurm_script(
 
     logger.info(f"Train script path: {train_path}/train.py")
 
-    args = f"{config} --arch {arch} --num_nodes {num_nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}"
+    args = f"{config} --arch {arch} --name {job_name} --mode {mode} --output_dir {output_dir}"
     if fp8:
         args += " --fp8"
     if tensor_parallelism:
