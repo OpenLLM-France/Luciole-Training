@@ -32,8 +32,6 @@ if __name__ == "__main__":
         choices=SUPPORTED_ARCHITECTURES,
     )
     parser.add_argument("--name", default="", type=str)
-    parser.add_argument("--num_nodes", default=1, type=int)
-    parser.add_argument("--num_gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", default="debug", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
@@ -50,62 +48,16 @@ if __name__ == "__main__":
     parser.add_argument("--base_checkpoint", default=None, type=str)
     args = parser.parse_args()
 
-    # suppress_non_main_logging()
     logger = logging.getLogger(__name__)
 
     arch = args.arch
-    num_nodes = args.num_nodes
     output_dir = args.output_dir
 
     data_paths, tokenizer_name = get_check_data_and_tokenizer(
         args.config, args.base_checkpoint
     )
 
-    batch_size = args.batch_size
-    seq_length = args.seq_length
-
-    if batch_size is None and seq_length is None:
-        if arch in ["llama1b", "llama3b", "mamba1b"]:
-            batch_size = 512
-            seq_length = 2048
-        elif arch in ["llama8b", "mambahybrid8b", "nemotronh8b"]:
-            batch_size = 1024
-            seq_length = 4096
-        elif arch == "mixtral8x7":
-            batch_size = 512
-            seq_length = 4096
-        elif arch in ["llama70b"]:
-            batch_size = 512
-            seq_length = 8192
-        else:
-            raise ValueError(f"Unsupported model : {arch}")
-    elif batch_size is None:
-        batch_size = 4_194_304 // seq_length
-    elif seq_length is None:
-        seq_length = 4_194_304 // batch_size
-
     pl.seed_everything(args.seed, workers=True)
-
-    data_args = dict(
-        paths=data_paths,
-        global_batch_size=batch_size,
-        seq_length=seq_length,
-        tokenizer_name=tokenizer_name,
-        seed=args.seed,
-    )
-
-    data = create_data(data_args)
-
-    if args.mode in ["debug", "benchmark", "benchmark100"]:
-        max_steps = 1 if args.mode == "debug" else 10
-        max_steps = 100 if args.mode == "benchmark100" else max_steps
-        resume_if_exists = args.mode.startswith("benchmark")
-        every_n_train_steps = max_steps
-    else:
-        number_of_tokens = args.mode
-        max_steps = number_of_tokens // (seq_length * batch_size)
-        resume_if_exists = True
-        every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
     recipe_args = dict(
         dir=output_dir,
@@ -115,28 +67,46 @@ if __name__ == "__main__":
     )
     if arch.startswith("llama"):
         from recipes.recipe_llama import get_recipe
-
-        pretrain_recipe, recipes_args = get_recipe(
-            arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
-        )
     elif arch.startswith("nemotronh"):
         from recipes.recipe_nemotronh import get_recipe
 
-        pretrain_recipe, recipes_args = get_recipe(
-            arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
-        )
         if arch == "nemotronh47b":
             args.fp8 = True
     elif arch.startswith("mixtral"):
         from recipes.recipe_mixtral import get_recipe
-
-        pretrain_recipe, recipes_args = get_recipe(
-            arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
-        )
+    elif arch.startswith("qwen"):
+        from recipes.recipe_qwen import get_recipe
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
-
+    pretrain_recipe, recipes_args = get_recipe(
+        arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
+    )
     recipe = pretrain_recipe(**recipes_args)
+
+    batch_size = args.batch_size if args.batch_size else recipe.data.global_batch_size
+    seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
+
+    data_args = dict(
+        paths=data_paths,
+        global_batch_size=batch_size,
+        micro_batch_size=recipe.data.micro_batch_size,
+        seq_length=seq_length,
+        tokenizer_name=tokenizer_name,
+        seed=args.seed,
+    )
+
+    data = create_data(data_args)
+
+    if args.mode in ["debug", "benchmark", "benchmark100"]:
+        max_steps = 1 if args.mode == "debug" else 20
+        max_steps = 100 if args.mode == "benchmark100" else max_steps
+        resume_if_exists = args.mode.startswith("benchmark")
+        every_n_train_steps = max_steps
+    else:
+        number_of_tokens = args.mode
+        max_steps = number_of_tokens // (seq_length * batch_size)
+        resume_if_exists = True
+        every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
     # TRAINER
     recipe.trainer.max_steps = max_steps
@@ -154,6 +124,9 @@ if __name__ == "__main__":
         else:
             recipe.trainer.plugins = bf16_with_fp8_mixed()
 
+    # MODEL
+    # recipe.model.config.seq_length = seq_length
+
     # OPTIM
     if (
         isinstance(args.mode, str) or args.mode <= 50_000_000_000
@@ -166,7 +139,7 @@ if __name__ == "__main__":
         recipe.trainer.strategy.tensor_model_parallel_size = args.tensor_parallelism
     if args.pipeline_parallelism:
         recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
-    # recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
+    recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
     if args.virtual_pipeline_parallelism:
         recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
             args.virtual_pipeline_parallelism
@@ -176,6 +149,14 @@ if __name__ == "__main__":
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
 
+    if (
+        recipe.trainer.strategy.tensor_model_parallel_size > 4
+        and args.tensor_parallelism is None
+    ):
+        logger.warning(
+            f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We pnly have 4 GPUs per node. Setting tensor parallelism to 4."
+        )
+        recipe.trainer.strategy.tensor_model_parallel_size = 4
     # LOGGER
     # recipe.log.log_dir = output_dir
     # recipe.log.name = args.name
