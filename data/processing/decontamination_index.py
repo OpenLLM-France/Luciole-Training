@@ -47,6 +47,7 @@ if __name__ == "__main__":
             output_folder=f"{DATA_PATH}/decontamination_index/data/fr",
             config=config,
             lighteval_tasks=FR_TASKS,
+            language="fr",
             custom_lighteval_tasks="lighteval.tasks.multilingual.tasks",
         ),
     ]
