@@ -52,6 +52,7 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/lucie_dataset/{revision}/{slug_name}/logs",
         job_name=slug_name,
+        cpus_per_task=2,  # OOM with 1...
     )
 
     main_processing_executor.run()
