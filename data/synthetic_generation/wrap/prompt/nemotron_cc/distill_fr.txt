@@ -11,3 +11,4 @@ Here is the text:
 
 Task:
 After thoroughly reading the above text, paraphrase it in high-quality and clear French following the instructions.
+Just answer with the reformulated text, without adding any other comments or explanations.
