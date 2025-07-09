@@ -96,11 +96,13 @@ def get_decontamination_filters(language, decontamination_path=DECONT_PATH):
     iso_language = map_language_to_iso.get(language, language)
     index_folder = os.path.join(decontamination_path, iso_language)
     if os.path.exists(index_folder):
-        filters = NGramsDecontFilter(
-            index_folder=index_folder,
-            config=NGramsDecontConfig(),
-            language=language,
-        )
+        filters = [
+            NGramsDecontFilter(
+                index_folder=index_folder,
+                config=NGramsDecontConfig(),
+                language=language,
+            )
+        ]
         return filters
     print(
         f"Decontamination index not found for {iso_language} at {index_folder}. Skipping decontamination filters."
