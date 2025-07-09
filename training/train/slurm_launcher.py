@@ -12,9 +12,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL"):
+    email_line = ""
+    if email:
+        if mail_type == "ALL":
+            mail_type = "ARRAY_TASKS,ALL"
+        email_line = f"""#SBATCH --mail-user={email}
+#SBATCH --mail-type={mail_type.upper()}"""
+    return email_line
+
+
 def create_slurm_script(
     job_name,
     email,
+    email_types,
     output_dir,
     config,
     arch,
@@ -40,11 +51,6 @@ def create_slurm_script(
         time = "20:00:00"
     else:
         raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, 20b or 35b.")
-
-    email_line = ""
-    if email:
-        email_line = f"""#SBATCH --mail-user={email}  # Où envoyer l'e-mail
-#SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL            # Événements déclencheurs (NONE, BEGIN, END, FAIL, ALL)"""
 
     train_path = Path(__file__).resolve().parent
 
@@ -83,7 +89,7 @@ def create_slurm_script(
 #SBATCH --qos={qos}
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
-{email_line}
+{generate_email_line(email, email_types)}
 
 echo "Job name: {job_name}"
 echo "Qos: {qos}"
@@ -237,6 +243,11 @@ def create_parser():
     )
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--email", default=None)
+    parser.add_argument(
+        "--email_types",
+        default="ALL",
+        help="Triggers used for emails (BEGIN, END, FAIL...)",
+    )
     parser.add_argument("--output_dir", default="")
     parser.add_argument(
         "--output_path",
