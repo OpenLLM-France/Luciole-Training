@@ -1,3 +1,6 @@
+import time
+
+tic = time.time()
 from distilabel.models.llms import vLLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps.tasks import TextGeneration
@@ -10,6 +13,7 @@ import argparse
 import psutil
 import glob
 
+# os.environ["DISTILABEL_LOG_LEVEL"] = "DEBUG"
 
 def print_memory_usage(tag=""):
     process = psutil.Process(os.getpid())
@@ -80,7 +84,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--temperature",
         type=float,
-        default=0.6,
+        default=0.5,
         help="Temperature for sampling.",
     )
     argparser.add_argument(
@@ -92,6 +96,18 @@ if __name__ == "__main__":
         "--disable_thinking",
         action="store_true",
         help="Disable the thinking process for qwen model.",
+    )
+    argparser.add_argument(
+        "--max_new_tokens",
+        type=int,
+        default=1024,
+        help="Maximum number of new tokens to generate (Default is 1024).",
+    )
+    argparser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed for reproducibility (Default is 42). If negative or null, it will use the first nsamples from the dataset after offset=-seed.",
     )
     args = argparser.parse_args()
     model_name = args.model_name
@@ -105,7 +121,7 @@ if __name__ == "__main__":
     # Create name
     prompt_name = filename = os.path.splitext(os.path.basename(prompt_path))[0]
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
-    output_name = f"{expe_name}_{model_name.split('/')[-1]}_{prompt_name}_t{args.temperature}_n{to_shorthand(args.nsamples)}"  # _{date}
+    output_name = f"{expe_name}_{model_name.split('/')[-1]}_{prompt_name}_t{args.temperature}_n{to_shorthand(args.nsamples)}-{args.seed}"  # _{date}
     if (not args.disable_thinking) and ("Qwen" in model_name):
         output_name += "_think"
     print(output_name)
@@ -115,15 +131,18 @@ if __name__ == "__main__":
         prompt = file.read()
 
     # Preprocess dataset
-    random.seed(42)  # Set seed for reproducibility
     files = glob.glob(f"{data_path}/*.jsonl.gz")
     dataset = datasets.load_dataset(
         "json",
         data_files=files,
         split="train",
     )
+    random.seed(args.seed)  # Set seed for reproducibility
     # Subsampling
-    random_indices = random.sample(range(len(dataset)), args.nsamples)
+    if args.seed <= 0:
+        random_indices = range(-args.seed, -args.seed + args.nsamples)  # Use all samples if no seed is provided
+    else:
+        random_indices = random.sample(range(len(dataset)), args.nsamples)
     dataset = dataset.select(random_indices)
     # Apply prompt
     dataset = dataset.map(
@@ -133,27 +152,38 @@ if __name__ == "__main__":
     dataset = dataset.select_columns(["text", "instruction"])
     print_memory_usage("After loading dataset")
 
+    TP = args.gpus
+    DP = 1
+
     # Define the pipeline
     with Pipeline(output_name) as pipeline:
         llm = vLLM(
             model=model_name,
             chat_template=chat_template if args.disable_thinking else None,
             extra_kwargs={
-                "tensor_parallel_size": args.gpus,  # Number of GPUs per node
+                "tensor_parallel_size": TP,  # Number of GPUs per node
                 "gpu_memory_utilization": 0.95,  # GPU memory utilization
             },
             generation_kwargs={
                 "temperature": args.temperature,
-                "max_new_tokens": 1024,
+                "max_new_tokens": args.max_new_tokens,
             },
         )
         generation = TextGeneration(
             llm=llm,
             input_batch_size=50,
-            resources=StepResources(replicas=1, gpus=args.gpus),
+            resources=StepResources(replicas=DP, gpus=args.gpus/DP),
         )
 
+    print("Time to build pipeline:", time.time() - tic)
+    tic = time.time()
+
+    # if DP > 1:
+    #     dataset = dataset.shard(num_shards=DP, index=int(os.environ.get("DISTILABEL_STEP_REPLICA_ID", 0)))
+
     distiset = pipeline.run(dataset=dataset, use_cache=args.use_cache)
+
+    print("Time to run pipeline:", time.time() - tic)
 
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
