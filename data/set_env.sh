@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PYTHONPATH=$(pwd)/processing:$PYTHONPATH
+
 # Get machine hostname
 HOSTNAME=$(hostname)
 
