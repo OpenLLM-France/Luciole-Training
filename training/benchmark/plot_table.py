@@ -25,7 +25,7 @@ def summarize_training_times_by_arch_and_precision(df):
     # Combiner les deux
     df = pd.concat([bf16_df, fp8_df_filtered], ignore_index=True)
 
-    grouped = df
+    grouped = df.copy()
 
     def format_cell(days, gpuh):
         return f"{days:.1f} days / {gpuh / 1000:.0f}k GPUh"
@@ -50,24 +50,15 @@ def summarize_training_times_by_arch_and_precision(df):
         for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
     ]
 
-    # Définir l'ordre fixe
-    custom_order = [
-        "llama1b",
-        "llama3b",
-        "llama8b",
-        "llama70b",
-        "nemotronh8b",
-        "nemotronh56b",
-        "mixtral7x8",
-    ]
+    df["model_id"] = df["arch"] + " (" + df["precision"] + ")"
+    df_sorted = df.sort_values("training_time")
+    custom_order = df_sorted["model_id"].drop_duplicates().tolist()
 
-    # Extraire arch pure pour trier
-    summary["model_name"] = grouped["arch"]
-
-    summary["Architecture"] = grouped["arch"] + " (" + grouped["precision"] + ")"
+    summary["model_name"] = df["model_id"]
     summary["model_order"] = pd.Categorical(
         summary["model_name"], categories=custom_order, ordered=True
     )
+
     # Sort precision so fp8 comes before bf16
     precision_order = pd.Categorical(
         grouped["precision"], categories=["fp8", "bf16"], ordered=True
