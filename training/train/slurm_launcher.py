@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import os
+import sys
 import re
 import logging
 import shutil
@@ -199,6 +200,10 @@ def submit_job(**kwargs):
 
     os.makedirs(xp_output_dir, exist_ok=True)
 
+    command = " ".join([os.path.basename(sys.executable)] + sys.argv)
+    with open(os.path.join(xp_output_dir, "command.sh"), "w") as f:
+        f.write(command + "\n")
+
     args = {
         **kwargs,
         "job_name": job_name,
@@ -210,6 +215,7 @@ def submit_job(**kwargs):
 
     logger.info(f"Experiment name : {job_name}")
     logger.info(f"Experiment path : {xp_output_dir}")
+    logger.info(f"Command used : {command}")
 
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
 
