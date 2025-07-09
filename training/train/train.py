@@ -9,9 +9,6 @@ import nemo_run as run
 from pprint import pprint
 
 from dataloader import create_data
-from recipes.recipe_utils import (
-    create_autoresume,
-)
 from utils import (
     get_check_data_and_tokenizer,
     save_stats,
@@ -110,7 +107,6 @@ if __name__ == "__main__":
         resume_if_exists = True
         every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
-    # optimizer_warmup_steps = 2000
     recipe_args = dict(
         dir=output_dir,
         name=args.name,
@@ -159,7 +155,11 @@ if __name__ == "__main__":
             recipe.trainer.plugins = bf16_with_fp8_mixed()
 
     # OPTIM
-    recipe.optim.lr_scheduler.warmup_steps = 500
+    if (
+        isinstance(args.mode, str) or args.mode <= 50_000_000_000
+    ):  # if less than 50B tokens, shorter warmup
+        recipe.optim.lr_scheduler.warmup_steps = 500
+    # optimizer_warmup_steps = 2000
 
     # STRATEGY
     if args.tensor_parallelism:
@@ -172,7 +172,7 @@ if __name__ == "__main__":
             args.virtual_pipeline_parallelism
         )
     if args.context_parallelism:
-        recipe.trainer.context_parallel_size = args.context_parallelism
+        recipe.trainer.strategy.context_parallel_size = args.context_parallelism
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
 
@@ -193,8 +193,13 @@ if __name__ == "__main__":
     )
 
     # RESUME
-    recipe.resume = create_autoresume(
-        resume_if_exists=resume_if_exists, base_checkpoint=args.base_checkpoint
+    recipe.resume = run.Config(
+        nl.AutoResume,
+        resume_if_exists=resume_if_exists,
+        resume_ignore_no_checkpoint=True,
+        restore_config=nl.RestoreConfig(path=args.base_checkpoint)
+        if args.base_checkpoint
+        else None,
     )
 
     # DATA
