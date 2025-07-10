@@ -129,58 +129,66 @@ def serialize_fdl(config):
         return f"<non-serializable: {type(config).__name__}>"
 
 
-def save_stats(output_dir, name, data_args, recipe, write_step_timings=True):
-    import re
+def save_config(output_dir, name, data_args, recipe):
     import json
-    import numpy as np
     from importlib.metadata import version
     from git import Repo
 
     recipe_dict = {
+        "data": data_args,
         "trainer": serialize_fdl(recipe.trainer),
         "model": serialize_fdl(recipe.model),
         "optim": serialize_fdl(recipe.optim),
         "resume": serialize_fdl(recipe.resume),
         "log": serialize_fdl(recipe.log),
-        "data": data_args,
     }
-    job_id = os.environ.get("SLURM_JOB_ID")
-    steps = dict()
-    model_size = dict()
     repo = Repo(".", search_parent_directories=True)
     commit_hash = repo.head.commit.hexsha
     toolkit_version = dict(
         nemo_version=version("nemo_toolkit"), open_llm_training_version=commit_hash
     )
-    if write_step_timings:
-        pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-        file = f"log_{job_id}.out"
-        with open(os.path.join(output_dir, file), "r") as f:
-            log_content = f.read()
-        iteration_timing = {
-            int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
-        }
-        mean_list = list(iteration_timing.values())[5:]
-        mean = np.mean(mean_list)
-        steps = {
-            "step_timings": list(iteration_timing.values()),
-            "mean_step_timings": mean,
-        }
-
-        pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
-
-        matches = re.findall(pattern, log_content)
-
-        model_size = {
-            label: float(value) if unit == "B" else float(value) / 1000
-            for value, unit, label in matches
-        }
-    with open(os.path.join(output_dir, f"stats_{name}_{job_id}.json"), "w") as jsonfile:
+    file_path = os.path.join(output_dir, f"config_{name}.json")
+    with open(file_path, "w") as jsonfile:
         json_data = {
             **recipe_dict,
+            **toolkit_version,
+        }
+        json.dump(json_data, jsonfile, indent=2)
+    logger.info(f"Config saved to {file_path}")
+
+
+def save_stats(output_dir, name):
+    import re
+    import json
+    import numpy as np
+
+    steps = dict()
+    model_size = dict()
+    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
+    with open(os.path.join(output_dir, "log.out"), "r") as f:
+        log_content = f.read()
+    iteration_timing = {
+        int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
+    }
+    mean_list = list(iteration_timing.values())[5:]
+    mean = np.mean(mean_list)
+    steps = {
+        "step_timings": list(iteration_timing.values()),
+        "mean_step_timings": mean,
+    }
+
+    pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
+
+    matches = re.findall(pattern, log_content)
+
+    model_size = {
+        label: float(value) if unit == "B" else float(value) / 1000
+        for value, unit, label in matches
+    }
+    with open(os.path.join(output_dir, f"stats_{name}.json"), "w") as jsonfile:
+        json_data = {
             **steps,
             **model_size,
-            **toolkit_version,
         }
         json.dump(json_data, jsonfile, indent=2)
 

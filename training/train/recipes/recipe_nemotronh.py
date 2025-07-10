@@ -10,6 +10,9 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=True):
         from nemo.collections.llm.recipes.nemotronh_8b import pretrain_recipe
     elif arch == "nemotronh47b":
         from nemo.collections.llm.recipes.nemotronh_47b import pretrain_recipe
+
+        if performance_mode_if_possible:
+            recipe_args["performance_mode"] = True
     else:
         raise ValueError(f"Unknown architecture: {arch}")
     return pretrain_recipe, recipe_args
