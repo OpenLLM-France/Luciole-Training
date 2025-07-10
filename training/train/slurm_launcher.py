@@ -85,7 +85,7 @@ def create_slurm_script(
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/%j/log.out 
+#SBATCH --output={output_dir}/job_%j/log.out 
 #SBATCH --error={output_dir}/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
@@ -227,7 +227,7 @@ def submit_job(**kwargs):
 
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
 
-    sub_xp_output_dir = os.path.join(xp_output_dir, str(job_id))
+    sub_xp_output_dir = os.path.join(xp_output_dir, f"job_{job_id}")
     os.makedirs(sub_xp_output_dir, exist_ok=True)
     command = " ".join([os.path.basename(sys.executable)] + sys.argv)
     command_path = os.path.join(sub_xp_output_dir, "command.sh")
