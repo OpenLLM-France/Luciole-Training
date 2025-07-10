@@ -74,8 +74,8 @@ if __name__ == "__main__":
 
         if arch == "nemotronh47b":
             args.fp8 = True
-    elif arch.startswith("mixtral"):
-        from recipes.recipe_mixtral import get_recipe
+    elif arch.startswith("mixtral") or arch.startswith("mistral"):
+        from recipes.recipe_mistral import get_recipe
     elif arch.startswith("qwen"):
         from recipes.recipe_qwen import get_recipe
     else:
