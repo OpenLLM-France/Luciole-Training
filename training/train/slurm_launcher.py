@@ -85,7 +85,8 @@ def create_slurm_script(
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/log_%j.out 
+#SBATCH --output={output_dir}/%j/log.out 
+#SBATCH --error={output_dir}/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
 #SBATCH --account=wuh@h100
@@ -207,10 +208,6 @@ def submit_job(**kwargs):
 
     os.makedirs(xp_output_dir, exist_ok=True)
 
-    command = " ".join([os.path.basename(sys.executable)] + sys.argv)
-    with open(os.path.join(xp_output_dir, "command.sh"), "w") as f:
-        f.write(command + "\n")
-
     args = {
         **kwargs,
         "job_name": job_name,
@@ -222,7 +219,6 @@ def submit_job(**kwargs):
 
     logger.info(f"Experiment name : {job_name}")
     logger.info(f"Experiment path : {xp_output_dir}")
-    logger.info(f"Command used : {command}")
 
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
 
@@ -230,6 +226,17 @@ def submit_job(**kwargs):
     logger.info(f"Copied datamix file : {config} to {xp_output_dir}")
 
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+
+    sub_xp_output_dir = os.path.join(xp_output_dir, str(job_id))
+    os.makedirs(sub_xp_output_dir, exist_ok=True)
+    command = " ".join([os.path.basename(sys.executable)] + sys.argv)
+    command_path = os.path.join(sub_xp_output_dir, "command.sh")
+    with open(command_path, "w") as f:
+        f.write(command + "\n")
+    logger.info(f"Run saved in : {sub_xp_output_dir}")
+    shutil.copy2(sbatch_script_path, sub_xp_output_dir)
+    shutil.copy2(config, sub_xp_output_dir)
+
     return job_id, xp_output_dir
 
 

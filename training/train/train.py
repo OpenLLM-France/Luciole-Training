@@ -1,17 +1,18 @@
 import argparse
 import torch
 import os
+import sys
 import logging
 import fiddle
 import pytorch_lightning as pl
 from nemo import lightning as nl
 import nemo_run as run
-from pprint import pprint
 
 from dataloader import create_data
 from utils import (
     get_check_data_and_tokenizer,
     save_stats,
+    save_config,
     write_completion,
     to_nb_tokens,
     SUPPORTED_ARCHITECTURES,
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--base_checkpoint", default=None, type=str)
     args = parser.parse_args()
 
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(__name__)
 
     arch = args.arch
@@ -154,7 +156,7 @@ if __name__ == "__main__":
         and args.tensor_parallelism is None
     ):
         logger.warning(
-            f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We pnly have 4 GPUs per node. Setting tensor parallelism to 4."
+            f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
         )
         recipe.trainer.strategy.tensor_model_parallel_size = 4
     # LOGGER
@@ -187,18 +189,19 @@ if __name__ == "__main__":
     recipe.data = data
     if arch.startswith("nemotronh"):
         recipe.model.tokenizer = data.tokenizer
-    pprint(recipe)
+
+    save_config(
+        os.path.join(output_dir, os.environ.get("SLURM_JOB_ID", "0")),
+        args.name,
+        data_args,
+        recipe=recipe,
+    )
 
     recipe_obj = fiddle.build(recipe)
     recipe_obj()
 
-    save_stats(
-        output_dir,
-        args.name,
-        data_args,
-        recipe=recipe,
-        write_step_timings=True
-        if args.mode in ["debug"] or str(args.mode).startswith("benchmark")
-        else False,
-    )
+    if str(args.mode).startswith("benchmark"):
+        save_stats(
+            os.path.join(output_dir, os.environ.get("SLURM_JOB_ID", "0")), args.name
+        )
     write_completion(output_dir)
