@@ -1,19 +1,23 @@
 import time
 
 tic = time.time()
-from distilabel.models.llms import vLLM
-from distilabel.pipeline import Pipeline
-from distilabel.steps.tasks import TextGeneration
-from distilabel.steps import StepResources
 from datetime import datetime
 import random
 import datasets
 import os
+
+os.environ["VLLM_USE_V1"] = "0"
+# os.environ["DISTILABEL_LOG_LEVEL"] = "DEBUG"
+
 import argparse
 import psutil
 import glob
 
-# os.environ["DISTILABEL_LOG_LEVEL"] = "DEBUG"
+from distilabel.models.llms import vLLM
+from distilabel.pipeline import Pipeline
+from distilabel.steps.tasks import TextGeneration
+from distilabel.steps import StepResources
+
 
 def print_memory_usage(tag=""):
     process = psutil.Process(os.getpid())
@@ -38,6 +42,15 @@ def to_shorthand(n):
     else:
         return str(n)
 
+def cut_long_text(text, max_length=15000):
+    """Cut long text to a maximum length."""
+    if len(text) > max_length:
+        # Look for the last period before the max length
+        cut_index = text.rfind('.', 0, max_length)
+        if cut_index == -1:  # No period found, cut at max_length
+            cut_index = max_length-1
+        text = text[:cut_index+1]
+    return text
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -45,15 +58,18 @@ if __name__ == "__main__":
         "data_path",
         type=str,
         help="Dataset to use",
+        nargs="+",
     )
     argparser.add_argument(
-        "expe_name",
+        "--expe_name",
         type=str,
+        required=True,
         help="Dataset to use",
     )
     argparser.add_argument(
         "--output_dir",
         type=str,
+        required=True,
         default=None,
         help="Output directory. Name of the dataset is generated automatically.",
     )
@@ -66,7 +82,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--nsamples",
         type=int,
-        default=200,
+        default=None,
         help="Number of samples you want to generate",
     )
     argparser.add_argument(
@@ -109,6 +125,12 @@ if __name__ == "__main__":
         default=42,
         help="Seed for reproducibility (Default is 42). If negative or null, it will use the first nsamples from the dataset after offset=-seed.",
     )
+    argparser.add_argument(
+        "--batch_size",
+        type=int,
+        default=50,
+        help="Batch size for generation (Default is 50).",
+    )
     args = argparser.parse_args()
     model_name = args.model_name
     expe_name = args.expe_name
@@ -119,9 +141,9 @@ if __name__ == "__main__":
         print("You did not specify any output directory!")
 
     # Create name
-    prompt_name = filename = os.path.splitext(os.path.basename(prompt_path))[0]
+    prompt_name = os.path.splitext(os.path.basename(prompt_path))[0]
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
-    output_name = f"{expe_name}_{model_name.split('/')[-1]}_{prompt_name}_t{args.temperature}_n{to_shorthand(args.nsamples)}-{args.seed}"  # _{date}
+    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{expe_name}" # t{args.temperature}_n{to_shorthand(args.nsamples)}-{args.seed}"  # _{date}
     if (not args.disable_thinking) and ("Qwen" in model_name):
         output_name += "_think"
     print(output_name)
@@ -131,7 +153,14 @@ if __name__ == "__main__":
         prompt = file.read()
 
     # Preprocess dataset
-    files = glob.glob(f"{data_path}/*.jsonl.gz")
+    files = []
+    for f in data_path:
+        if os.path.isdir(f):
+            files.extend(glob.glob(f"{f}/*.jsonl.gz"))
+        elif os.path.isfile(f):
+            files.append(f)
+        else:
+            raise RuntimeError(f"Path {f} is not a file or a directory.")
     dataset = datasets.load_dataset(
         "json",
         data_files=files,
@@ -139,14 +168,16 @@ if __name__ == "__main__":
     )
     random.seed(args.seed)  # Set seed for reproducibility
     # Subsampling
-    if args.seed <= 0:
-        random_indices = range(-args.seed, -args.seed + args.nsamples)  # Use all samples if no seed is provided
-    else:
-        random_indices = random.sample(range(len(dataset)), args.nsamples)
-    dataset = dataset.select(random_indices)
+    if args.nsamples and len(dataset) > args.nsamples:
+        print(f"Subsampling dataset from {len(dataset)} to {args.nsamples} samples.")
+        if args.seed <= 0:
+            random_indices = range(-args.seed, -args.seed + args.nsamples)  # Use all samples if no seed is provided
+        else:
+            random_indices = random.sample(range(len(dataset)), args.nsamples)
+        dataset = dataset.select(random_indices)
     # Apply prompt
     dataset = dataset.map(
-        lambda x: {"instruction": prompt.replace("<text>", x["text"])},
+        lambda x: {"instruction": prompt.replace("<text>", cut_long_text(x["text"]))},
         num_proc=4,
     )
     dataset = dataset.select_columns(["text", "instruction"])
@@ -171,7 +202,7 @@ if __name__ == "__main__":
         )
         generation = TextGeneration(
             llm=llm,
-            input_batch_size=50,
+            input_batch_size=args.batch_size,
             resources=StepResources(replicas=DP, gpus=args.gpus/DP),
         )
 
