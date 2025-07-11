@@ -55,6 +55,7 @@ if __name__ == "__main__":
                 "pt",
                 "nl",
                 "ca",
+                "eu",
             ],
             language_threshold=0.5,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ft176"),
@@ -73,9 +74,11 @@ if __name__ == "__main__":
             ),
         ),
         PerplexityFilter(
-            min_ppl=10,
-            max_ppl=1500,
+            use_ccnet=True,
+            model_dataset="",
             language_from_metadata=True,
+            min_ppl=10.0,
+            max_ppl=1500,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ppl"),
         ),
         JsonlWriter(
