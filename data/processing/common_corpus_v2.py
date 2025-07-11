@@ -59,44 +59,41 @@ def additionnal_formatting(doc):
     return out
 
 
-culture_subset = [
-    "arabic-pd",
-    "bnl-newspapers-1841-1879",
-    "catalan-pd",
-    "dutch-pd",
-    "english-pd",
-    "europeana",
-    "german-pd",
-    "german-pd-newspapers",
-    "italian-pd",
-    "multilingual-pd",
-    "portuguese-pd",
-    "spanish-pd-books",
-    "spanish-pd-newspapers",
-    "us-pd-books",
-]
-
-gov_subset = [
-    "eurlex",
-    "french-open-data",
-    "gatt-library",
-    "marianne-europe",
-    "oecd",
-    "sec",
-    "tedeutenders",
-    "un-digital-library",
-    "wto",
-]
-
-sci_subset = [
-    "french-science-pile",
-    "german-science-pile",
-    "open-science-pile",
-    "spanish-science-pile",
-]
-
-
 def subset_filter(doc):
+    culture_subset = [
+        "arabic-pd",
+        "bnl-newspapers-1841-1879",
+        "catalan-pd",
+        "dutch-pd",
+        "english-pd",
+        "europeana",
+        "german-pd",
+        "german-pd-newspapers",
+        "italian-pd",
+        "multilingual-pd",
+        "portuguese-pd",
+        "spanish-pd-books",
+        "spanish-pd-newspapers",
+        "us-pd-books",
+    ]
+    gov_subset = [
+        "eurlex",
+        "french-open-data",
+        "gatt-library",
+        "marianne-europe",
+        "oecd",
+        "sec",
+        "tedeutenders",
+        "un-digital-library",
+        "wto",
+    ]
+    sci_subset = [
+        "french-science-pile",
+        "german-science-pile",
+        "open-science-pile",
+        "spanish-science-pile",
+    ]
+
     if doc.metadata["collection"] in culture_subset + gov_subset + sci_subset:
         return True
     return False
@@ -135,16 +132,16 @@ if __name__ == "__main__":
             languages=LANGUAGES,
             language_threshold=0.5,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_ft176"
+                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_ft176",
             ),
         ),
         ExtremeTokenizerFilter(
-            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
-            max_token_per_char=0.38,
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
+            max_token_per_char=0.35,
             remove_digits=True,
             mode="DOCUMENT",
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_extreme_tokenizer"
+                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_extreme_tokenizer",
             ),
         ),
         PerplexityFilter(
@@ -152,9 +149,9 @@ if __name__ == "__main__":
             model_dataset="",
             language_from_metadata=True,
             min_ppl=10.0,
-            max_ppl=2000.0,
+            max_ppl=2500.0,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_ppl"
+                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_ppl",
             ),
         ),
         MergeDocument(),
@@ -162,9 +159,16 @@ if __name__ == "__main__":
         PIIFormatter(remove_ips=False),
         PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"),
         LambdaFilter(
-            lambda doc: len(doc.text.split()) > 10,
+            lambda doc: doc.metadata["final_length"] / doc.metadata["initial_length"]
+            > 0.5,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/doc_too_short"
+                f"{DATA_PATH}/common_corpus_filtered_v2/removed/doc_too_many_chunks_removed",
+            ),
+        ),
+        LambdaFilter(
+            lambda doc: len(doc.text.split()) > 50,
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus_filtered_v2/removed/doc_too_short",
             ),
         ),
         PrefixFormatter(
