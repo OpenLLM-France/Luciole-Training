@@ -159,12 +159,12 @@ if __name__ == "__main__":
             f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
         )
         recipe.trainer.strategy.tensor_model_parallel_size = 4
-        if recipe.data.micro_batch_size > 1:
-            recipe.data.micro_batch_size = recipe.data.micro_batch_size // 2
-        else:
-            recipe.trainer.strategy.pipeline_model_parallel_size = (
-                recipe.trainer.strategy.pipeline_model_parallel_size * 2
-            )
+        # if recipe.data.micro_batch_size > 1:
+        #     recipe.data.micro_batch_size = recipe.data.micro_batch_size // 2
+        # else:
+        recipe.trainer.strategy.pipeline_model_parallel_size = (
+            recipe.trainer.strategy.pipeline_model_parallel_size * 2
+        )
     # LOGGER
     # recipe.log.log_dir = output_dir
     # recipe.log.name = args.name
@@ -193,12 +193,13 @@ if __name__ == "__main__":
 
     # DATA
     recipe.data = data
-    if arch.startswith("nemotronh"):
-        recipe.model.tokenizer = data.tokenizer
+    recipe.model.tokenizer = data.tokenizer
 
     job_id = os.environ.get("SLURM_JOB_ID", "0")
+    job_output = os.path.join(output_dir, f"job_{job_id}")
+    os.makedirs(job_output, exist_ok=True)
     save_config(
-        os.path.join(output_dir, f"job_{job_id}"),
+        job_output,
         args.name,
         data_args,
         recipe=recipe,
@@ -208,5 +209,5 @@ if __name__ == "__main__":
     recipe_obj()
 
     if str(args.mode).startswith("benchmark"):
-        save_stats(os.path.join(output_dir, f"job_{job_id}"), args.name)
+        save_stats(job_output, args.name)
     write_completion(output_dir)
