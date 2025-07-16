@@ -135,7 +135,7 @@ EU_TASKS = [
     "lighteval|xstory_cloze_eus_cf",
     "lighteval|mlmm_truthfulqa_eus_cf",
     "lighteval|belebele_eus_Latn_cf",
-] 
+]
 
 EN_TASKS = [
     "lighteval|openbookqa",
@@ -185,8 +185,8 @@ IT_TASKS = [
     "lighteval|mlmm_hellaswag_ita_cf",
     "lighteval|squad_ita",
     "lighteval|belebele_ita_Latn_cf",
-    "lighteval|mlmm_arc_ita_cf:challenge",   
-    "lighteval|lumi_arc_ita_cf:challenge", 
+    "lighteval|mlmm_arc_ita_cf:challenge",
+    "lighteval|lumi_arc_ita_cf:challenge",
     "lighteval|mlmm_truthfulqa_ita_cf",
     "lighteval|m3exams_ita_cf",
     "lighteval|xcsqa_ita_cf",
@@ -195,7 +195,7 @@ IT_TASKS = [
     "lighteval|mintaka_ita",
 ] + ["lighteval|meta_mmlu_ita_cf:" + subset for subset in MMLU_SUBSETS]
 
-MATHS_TASKS = [
+MATH_TASKS = [
     "lighteval|math:algebra",
     "lighteval|math:counting_and_probability",
     "lighteval|math:geometry",
@@ -204,7 +204,7 @@ MATHS_TASKS = [
     "lighteval|math:prealgebra",
     "lighteval|math:precalculus",
     "lighteval|math_cot:algebra",
-    'lighteval|math_cot:counting_and_probability',
+    "lighteval|math_cot:counting_and_probability",
     "lighteval|math_cot:geometry",
     "lighteval|math_cot:intermediate_algebra",
     "lighteval|math_cot:number_theory",
@@ -215,10 +215,10 @@ MATHS_TASKS = [
 ]
 
 MGSM_TASKS = [
-    "lighteval|mgsm_fra", 
+    "lighteval|mgsm_fra",
     "lighteval|mgsm_spa",
     "lighteval|mgsm_eng",
-    "lighteval|mgsm_deu",   
+    "lighteval|mgsm_deu",
 ]
 
 NL_TASKS = [
@@ -243,7 +243,7 @@ PT_TASKS = [
     "lighteval|xcodah_por_cf",
     "lighteval|xwinograd_por_cf",
     "lighteval|mkqa_por",
-    "lighteval|mintaka_por",    
+    "lighteval|mintaka_por",
 ] + ["lighteval|meta_mmlu_por_cf:" + subset for subset in MMLU_SUBSETS]
 
 if __name__ == "__main__":
@@ -251,34 +251,51 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    config = NGramsDecontConfig()
-
-    # ENGLISH
-    pipeline = [
-        NGramsDecontIndexer(
-            output_folder=f"{DATA_PATH}/decontamination_index/data/en",
-            config=config,
-            lighteval_tasks=EN_TASKS,
-        ),
-        NGramsDecontIndexer(
-            output_folder=f"{DATA_PATH}/decontamination_index/data/fr",
-            config=config,
-            lighteval_tasks=FR_TASKS,
-            language="fr",
-            custom_lighteval_tasks="lighteval.tasks.multilingual.tasks",
-        ),
-    ]
-
-    executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{DATA_PATH}/decontamination_index/logs",
-        job_name="decontamination_index",
-        tasks=1,
-        cpus_per_task=2,
-        partition="prepost",
-        time="02:00:00",
+    config = NGramsDecontConfig(
+        n_grams=13, find_query_ngrams=True, find_overlap_ngrams=True
     )
 
-    executor.run()
+    for language in [
+        "ar",
+        "ca",
+        "de",
+        "eu",
+        "en",
+        "es",
+        "fr",
+        "it",
+        "it",
+        "math",
+        "mgsm",
+        "nl",
+        "pt",
+    ]:
+        tasks = globals().get(f"{language.upper()}_TASKS")
+        if language in ["en", "math"]:
+            custom_lighteval_tasks = None
+        else:
+            custom_lighteval_tasks = "lighteval.tasks.multilingual.tasks"
+
+        pipeline = [
+            NGramsDecontIndexer(
+                output_folder=f"{DATA_PATH}/decontamination_index/data/{language}",
+                config=config,
+                lighteval_tasks=tasks,
+                language=language,
+                custom_lighteval_tasks=custom_lighteval_tasks,
+            ),
+        ]
+
+        executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/decontamination_index/logs/{language}",
+            job_name=f"decont_{language}",
+            tasks=1,
+            cpus_per_task=2,
+            partition="prepost",
+            time="02:00:00",
+        )
+
+        executor.run()
