@@ -74,6 +74,20 @@ if __name__ == "__main__":
         help="Output directory. Name of the dataset is generated automatically.",
     )
     argparser.add_argument(
+        "--prompt_path",
+        type=str,
+        required=True,
+        help="Path to the prompts",
+        nargs="+",
+    )
+    argparser.add_argument(
+        "--weights",
+        type=float,
+        required=True,
+        help="Weights for the prompts",
+        nargs="+",
+    )
+    argparser.add_argument(
         "--model_name",
         type=str,
         default="Qwen/Qwen3-1.7B",
@@ -90,12 +104,6 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Number of gpus to use. It will use tensor parallelism, then data parallelism.",
-    )
-    argparser.add_argument(
-        "--prompt_path",
-        type=str,
-        default="prompt/qa_fr.txt",
-        help="Path to the prompt",
     )
     argparser.add_argument(
         "--temperature",
@@ -135,13 +143,16 @@ if __name__ == "__main__":
     model_name = args.model_name
     expe_name = args.expe_name
     data_path = args.data_path
-    prompt_path = args.prompt_path
+    prompt_paths = args.prompt_path
     output_dir = args.output_dir
     if output_dir is None:
         print("You did not specify any output directory!")
 
     # Create name
-    prompt_name = os.path.splitext(os.path.basename(prompt_path))[0]
+    prompt_names = [os.path.splitext(os.path.basename(p))[0] for p in prompt_paths]
+    common_prefix = os.path.commonprefix(prompt_names)
+    prompt_name = common_prefix + "-".join([p[len(common_prefix):] for p in prompt_names])
+
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
     output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{expe_name}" # t{args.temperature}_n{to_shorthand(args.nsamples)}-{args.seed}"  # _{date}
     if (not args.disable_thinking) and ("Qwen" in model_name):
@@ -149,8 +160,12 @@ if __name__ == "__main__":
     print(output_name)
 
     # get prompt
-    with open(prompt_path, "r", encoding="utf-8") as file:
-        prompt = file.read()
+    prompts = []
+    for prompt_path in prompt_paths:
+        if not os.path.exists(prompt_path):
+            raise RuntimeError(f"Prompt file {prompt_path} does not exist.")
+        with open(prompt_path, "r", encoding="utf-8") as file:
+            prompts.append(file.read())
 
     # Preprocess dataset
     files = []
@@ -176,11 +191,24 @@ if __name__ == "__main__":
             random_indices = random.sample(range(len(dataset)), args.nsamples)
         dataset = dataset.select(random_indices)
     # Apply prompt
-    dataset = dataset.map(
-        lambda x: {"instruction": prompt.replace("<text>", cut_long_text(x["text"]))},
-        num_proc=4,
-    )
-    dataset = dataset.select_columns(["text", "instruction"])
+    if len(prompts) == 1:
+        prompt = prompts[0]
+        dataset = dataset.map(
+            lambda x: {"instruction": prompt.replace("<text>", cut_long_text(x["text"]))},
+            num_proc=4,
+        )
+    elif args.weights:
+        assert len(prompts) == len(args.weights), "Number of prompts must match number of weights."
+        dataset = dataset.map(
+            lambda x: {"instruction": random.choices(prompts, weights=args.weights)[0].replace("<text>", cut_long_text(x["text"]))},
+            num_proc=4,
+        )
+    else:
+        dataset = dataset.map(
+            lambda x: {"instruction": random.choice(prompts).replace("<text>", cut_long_text(x["text"]))},
+            num_proc=4,
+        )
+    dataset = dataset.select_columns(["text", "instruction", "id"])
     print_memory_usage("After loading dataset")
 
     TP = args.gpus
