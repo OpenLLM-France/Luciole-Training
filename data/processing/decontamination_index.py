@@ -128,6 +128,7 @@ DE_TASKS = [
     "lighteval|xcodah_deu_cf",
     "lighteval|mkqa_deu",
     "lighteval|mintaka_deu",
+    "lighteval|mgsm_deu",
 ] + ["lighteval|meta_mmlu_deu_cf:" + subset for subset in MMLU_SUBSETS]
 
 EU_TASKS = [
@@ -164,6 +165,7 @@ ES_TASKS = [
     "lighteval|xstory_cloze_spa_cf",
     "lighteval|mkqa_spa",
     "lighteval|mintaka_spa",
+    "lighteval|mgsm_spa",
 ] + ["lighteval|meta_mmlu_spa_cf:" + subset for subset in MMLU_SUBSETS]
 
 FR_TASKS = [
@@ -178,6 +180,7 @@ FR_TASKS = [
     "lighteval|xwinograd_fra_cf",
     "lighteval|mkqa_fra",
     "lighteval|mlmm_truthfulqa_fra_cf",
+    "lighteval|mgsm_fra",
 ] + ["lighteval|meta_mmlu_fra_cf:" + subset for subset in MMLU_SUBSETS]
 
 IT_TASKS = [
@@ -212,13 +215,7 @@ MATH_TASKS = [
     "lighteval|math_cot:precalculus",
     "lighteval|gsm8K",
     "lighteval|lambada:openai:fr",
-]
-
-MGSM_TASKS = [
-    "lighteval|mgsm_fra",
-    "lighteval|mgsm_spa",
     "lighteval|mgsm_eng",
-    "lighteval|mgsm_deu",
 ]
 
 NL_TASKS = [
@@ -255,7 +252,7 @@ if __name__ == "__main__":
         n_grams=13, find_query_ngrams=True, find_overlap_ngrams=True
     )
 
-    for language in [
+    for name in [
         "ar",
         "ca",
         "de",
@@ -266,12 +263,17 @@ if __name__ == "__main__":
         "it",
         "it",
         "math",
-        "mgsm",
         "nl",
         "pt",
     ]:
-        tasks = globals().get(f"{language.upper()}_TASKS")
-        if language in ["en", "math"]:
+        tasks = globals().get(f"{name.upper()}_TASKS")
+        # set Language
+        if name in ["math"]:
+            language = "en"
+        else:
+            language = name
+        # set custom_lighteval_tasks
+        if name in ["en", "math"]:
             custom_lighteval_tasks = None
         else:
             custom_lighteval_tasks = "lighteval.tasks.multilingual.tasks"
