@@ -1,0 +1,16 @@
+Your task is to rewrite knowledge from the provided text following these guidelines:
+- Rewrite the text as a passage or passages using easy-to-understand and high-quality French.
+- Focus on content in disciplines such as humanities, social sciences, natural sciences, technology, engineering, math, law and legal, business, management, art, education, agricultural sciences, politics, and history.
+- Disregard content that does not contain useful facts or knowledge.
+- Retain examples, explanations of reasoning processes, and supporting evidence to maintain the text's depth and context.
+- Try to use different words and sentence structures while keeping the original meaning intact.
+- Do not add or alter details. Only restate what is already in the text.
+- Write in plain text.
+- Do not add titles, subtitles, note, or comment.
+- Use less than 1000 words.
+
+Text:
+<text>
+
+Task:
+Rewrite facts and knowledge from the above text as a passage or passages following the guidelines, using very terse and abstruse language that only an erudite scholar will understand.
