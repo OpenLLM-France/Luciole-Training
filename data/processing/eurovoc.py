@@ -8,6 +8,7 @@ from datatrove.pipeline.filters import (
     PerplexityFilter,
     LambdaFilter,
 )
+from datatrove.pipeline.formatters.eurovoc_formatter import EurovocFormatter
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -43,6 +44,7 @@ if __name__ == "__main__":
             lambda doc: doc.metadata["lang"]
             in ["ara", "cat", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
         ),
+        EurovocFormatter(),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=[
@@ -97,7 +99,7 @@ if __name__ == "__main__":
         depends=main_processing_executor,
         partition="cpu_p1",
         time="20:00:00",
-        cpu_per_task=2,
+        cpu_per_task=4,
     )
 
     filter_executor.run()

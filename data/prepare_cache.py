@@ -1,6 +1,7 @@
 from datatrove.io import cached_asset_path_or_download
 from pathlib import Path
 from huggingface_hub import hf_hub_url
+from datatrove.utils.perplexity import KenlmModel
 
 # Fasttext
 MODEL_URL = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
@@ -43,3 +44,25 @@ for model_name in [
         hf_hub_url(MODEL_REPO, str(Path(model_dataset, f"{model_name}.sp.model")))
     )
     print(path)
+
+# CCNET models
+LANGUAGES = [
+    "en",
+    "fr",
+    "it",
+    "de",
+    "es",
+    "ar",
+    "pt",
+    "nl",
+    "ca",
+]
+
+for language in LANGUAGES:
+    print(f"Language {language}")
+    model = KenlmModel(
+        model_dataset="wikipedia",
+        language=language,
+        ccnet=True,
+    )
+    model.get_perplexity("Hello World")

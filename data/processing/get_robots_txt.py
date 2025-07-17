@@ -27,7 +27,7 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        tasks=5,
+        tasks=20,
         partition="cpu_p1",
         logging_dir=f"{output_path}/logs",
         job_name="robots.txt",
