@@ -98,7 +98,9 @@ def post_processing(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
 ) -> DocumentsPipeline:
     for doc in data:
-        doc.metadata["language_agg"] = "_".join(sorted(set(doc.metadata["language"])))
+        languages = doc.metadata["language"]
+        # Compute majority language
+        doc.metadata["language_maj"] = max(languages, key=languages.count)
         doc.metadata.pop("num_removed_spans")
         yield doc
 
@@ -178,7 +180,7 @@ if __name__ == "__main__":
         ),
         JsonlWriter(
             f"{DATA_PATH}/common_corpus_filtered_chunk/data",
-            output_filename="${open_type}/${collection}/${language_agg}_${rank}.jsonl.gz",
+            output_filename="${open_type}/${collection}/${language_maj}_${rank}.jsonl.gz",
         ),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
@@ -193,8 +195,8 @@ if __name__ == "__main__":
         cpus_per_task=1,
         tasks=50,
         time="20:00:00",
-        mail_type="REQUEUE",
-        mail_user="ogouvert@linagora.com",
+        # mail_type="REQUEUE",
+        # mail_user="...",
         # max_array_size=10,
         tasks_per_job=1,
     )

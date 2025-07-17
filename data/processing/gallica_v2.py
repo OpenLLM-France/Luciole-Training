@@ -48,7 +48,9 @@ def post_processing(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
 ) -> DocumentsPipeline:
     for doc in data:
-        doc.metadata["language_agg"] = "_".join(sorted(set(doc.metadata["language"])))
+        languages = doc.metadata["language"]
+        # Compute majority language
+        doc.metadata["language_maj"] = max(languages, key=languages.count)
         doc.metadata.pop("num_removed_spans")
         yield doc
 
@@ -125,7 +127,7 @@ if __name__ == "__main__":
         ),
         JsonlWriter(
             f"{output_path}/data",
-            output_filename="${language_agg}_${rank}.jsonl.gz",
+            output_filename="${language_maj}_${rank}.jsonl.gz",
         ),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
