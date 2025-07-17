@@ -29,6 +29,8 @@ if not MAIN_PATH:
     raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
 DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
+#TRANSLATION_TASK (flores_200_languages)
+
 MMLU_SUBSETS = [
     "abstract_algebra",
     "anatomy",
@@ -89,8 +91,71 @@ MMLU_SUBSETS = [
     "world_religions",
 ]
 
+EXAMS_ARA_SUBSETS = [
+    "Biology",
+    "Islamic Studies",
+    "Physics",
+    "Science",
+    "Social",
+]
+
+EXAMS_FRA_SUBSETS = [
+    "Economics", 
+    "Economics & Marketing", 
+    "Economics Basics (Theoretical)",
+    "Geography", 
+    "Physics",
+]
+
+EXAMS_DEU_SUBSETS = [
+    "Chemistry",
+    "Economics",
+    "Economics & Marketing",
+    "Economics Basics (Theoretical)",
+    "Geography",
+    "Physics",
+    "Tourism",
+
+]
+
+EXAMS_ESP_SUBSETS = [
+    "Geography",
+    "Physics"
+]
+
+EXAMS_ITA_SUBSETS = [
+    "Biology",
+    "Chemistry",
+    "Ethics",
+    "Geography",
+    "Geology",
+    "History",
+    "Informatics",
+    "Philosophy",
+    "Physics",
+    "Politics",
+    "Psychology",
+    "Sociology",
+]
+
+EXAMS_POR_SUBSETS = [
+    "Biology", 
+    "Economics", 
+    "Geology", 
+    "Philosophy",
+]
+
+MKQA_SUBSETS = [
+    "entity",
+    "long_answer",
+    "date",
+    "number",
+    "number_with_unit",
+    "short_phrase",
+    "binary",
+]
+
 AR_TASKS = [
-    "lighteval|exams_ara_cf",
     "lighteval|alghafa_arc_ara_cf",
     "lighteval|alghafa_sciqa_ara_cf",
     "lighteval|belebele_arb_Arab_cf",
@@ -105,13 +170,14 @@ AR_TASKS = [
     "lighteval|xnli2.0_ara_cf",
     "lighteval|mlmm_hellaswag_ara_cf",
     "lighteval|xstory_cloze_ara_cf",
-] + ["lighteval|mmlu_ara_cf:" + subset for subset in MMLU_SUBSETS]
+] + ["lighteval|mmlu_ara_cf:" + subset for subset in MMLU_SUBSETS] + ["lighteval|exams_ara_cf:" + subset for subset in EXAMS_ARA_SUBSETS]
 
 CA_TASKS = [
     "lighteval|mlmm_hellaswag_cat_cf",
     "lighteval|belebele_cat_Latn_cf",
     "lighteval|mlmm_arc_cat_cf:challenge",
-    "lighteval|mlmm_truthfulqa_cat_cf",
+    "lighteval|mlmm_truthfulqa_cat_cf:mc1",
+    "lighteval|mlmm_truthfulqa_cat_cf:mc2",
 ] + ["lighteval|mlmm_mmlu_cat_cf:" + subset for subset in MMLU_SUBSETS]
 
 DE_TASKS = [
@@ -123,18 +189,19 @@ DE_TASKS = [
     "lighteval|belebele_deu_Latn_cf",
     "lighteval|mlmm_arc_deu_cf:challenge",
     "lighteval|lumi_arc_deu_cf:challenge",
-    "lighteval|mlmm_truthfulqa_deu_cf",
+    "lighteval|mlmm_truthfulqa_deu_cf:mc1",
+    "lighteval|mlmm_truthfulqa_deu_cf:mc2",
     "lighteval|xcsqa_deu_cf",
     "lighteval|xcodah_deu_cf",
-    "lighteval|mkqa_deu",
     "lighteval|mintaka_deu",
     "lighteval|mgsm_deu",
-] + ["lighteval|meta_mmlu_deu_cf:" + subset for subset in MMLU_SUBSETS]
+] + ["lighteval|meta_mmlu_deu_cf:" + subset for subset in MMLU_SUBSETS] +  ["lighteval|mkqa_deu:" + subset for subset in MKQA_SUBSETS] + ["lighteval|exams_deu_cf:" + subset for subset in EXAMS_DEU_SUBSETS]
 
 EU_TASKS = [
     "lighteval|mlmm_hellaswag_eus_cf",
     "lighteval|xstory_cloze_eus_cf",
-    "lighteval|mlmm_truthfulqa_eus_cf",
+    "lighteval|mlmm_truthfulqa_eus_cf:mc1",
+    "lighteval|mlmm_truthfulqa_eus_cf:mc2",
     "lighteval|belebele_eus_Latn_cf",
 ]
 
@@ -163,10 +230,9 @@ ES_TASKS = [
     "lighteval|openbookqa_spa",
     "lighteval|xcodah_spa_cf",
     "lighteval|xstory_cloze_spa_cf",
-    "lighteval|mkqa_spa",
     "lighteval|mintaka_spa",
     "lighteval|mgsm_spa",
-] + ["lighteval|meta_mmlu_spa_cf:" + subset for subset in MMLU_SUBSETS]
+] + ["lighteval|meta_mmlu_spa_cf:" + subset for subset in MMLU_SUBSETS] + ["lighteval|mkqa_spa:" + subset for subset in MKQA_SUBSETS] + ["lighteval|exams_spa_cf:" + subset for subset in EXAMS_ESP_SUBSETS]
 
 FR_TASKS = [
     "lighteval|mlmm_arc_fra_cf:challenge",
@@ -178,10 +244,11 @@ FR_TASKS = [
     "lighteval|mlmm_hellaswag_fra_cf",
     "lighteval|xnli2.0_fra_cf",
     "lighteval|xwinograd_fra_cf",
-    "lighteval|mkqa_fra",
-    "lighteval|mlmm_truthfulqa_fra_cf",
+    "lighteval|mlmm_truthfulqa_fra_cf:mc1",
+    "lighteval|mlmm_truthfulqa_fra_cf:mc2",    
     "lighteval|mgsm_fra",
-] + ["lighteval|meta_mmlu_fra_cf:" + subset for subset in MMLU_SUBSETS]
+    "lighteval|lambada:openai:fr",
+] + ["lighteval|meta_mmlu_fra_cf:" + subset for subset in MMLU_SUBSETS] + ["lighteval|mkqa_fra:" + subset for subset in MKQA_SUBSETS] + ["lighteval|exams_fra_cf:" + subset for subset in EXAMS_FRA_SUBSETS]
 
 IT_TASKS = [
     "lighteval|xcopa_ita_cf",
@@ -190,13 +257,13 @@ IT_TASKS = [
     "lighteval|belebele_ita_Latn_cf",
     "lighteval|mlmm_arc_ita_cf:challenge",
     "lighteval|lumi_arc_ita_cf:challenge",
-    "lighteval|mlmm_truthfulqa_ita_cf",
+    "lighteval|mlmm_truthfulqa_ita_cf:mc1",
+    "lighteval|mlmm_truthfulqa_ita_cf:mc2",
     "lighteval|m3exams_ita_cf",
     "lighteval|xcsqa_ita_cf",
     "lighteval|xcodah_ita_cf",
-    "lighteval|mkqa_ita",
     "lighteval|mintaka_ita",
-] + ["lighteval|meta_mmlu_ita_cf:" + subset for subset in MMLU_SUBSETS]
+] + ["lighteval|meta_mmlu_ita_cf:" + subset for subset in MMLU_SUBSETS] + ["lighteval|mkqa_ita:" + subset for subset in MKQA_SUBSETS] + ["lighteval|exams_ita_cf:" + subset for subset in EXAMS_ITA_SUBSETS]
 
 MATH_TASKS = [
     "lighteval|math:algebra",
@@ -214,14 +281,18 @@ MATH_TASKS = [
     "lighteval|math_cot:prealgebra",
     "lighteval|math_cot:precalculus",
     "lighteval|gsm8K",
-    "lighteval|lambada:openai:fr",
     "lighteval|mgsm_eng",
+    "lighteval|asdiv",
+    "lighteval|mathqa",
+    "lighteval|agieval:sat-math",
+    #https://huggingface.co/datasets/AI-MO/aimo-validation-aime
 ]
 
 NL_TASKS = [
     "lighteval|mlmm_hellaswag_nld_cf",
     "lighteval|mlmm_arc_nld_cf:challenge",
-    "lighteval|mlmm_truthfulqa_nld_cf",
+    "lighteval|mlmm_truthfulqa_nld_cf:mc1",
+    "lighteval|mlmm_truthfulqa_nld_cf:mc2",
     "lighteval|xcsqa_nld_cf",
     "lighteval|xcodah_nld_cf",
     "lighteval|belebele_nld_Latn_cf",
@@ -232,16 +303,16 @@ PT_TASKS = [
     "lighteval|faquad_por",
     "lighteval|belebele_por_Latn_cf",
     "lighteval|lumi_arc_por_lumi_cd:challenge",
-    "lighteval|mlmm_truthfulqa_por_cf",
+    "lighteval|mlmm_truthfulqa_por_cf:mc1",
+    "lighteval|mlmm_truthfulqa_por_cf:mc2",
     "lighteval|m3exams_por_cf",
     "lighteval|xcsqa_por_cf",
     "lighteval|oab_exams_por_cf",
     "lighteval|enem_por_cf:2024",
     "lighteval|xcodah_por_cf",
     "lighteval|xwinograd_por_cf",
-    "lighteval|mkqa_por",
     "lighteval|mintaka_por",
-] + ["lighteval|meta_mmlu_por_cf:" + subset for subset in MMLU_SUBSETS]
+] + ["lighteval|meta_mmlu_por_cf:" + subset for subset in MMLU_SUBSETS] + ["lighteval|mkqa_por:" + subset for subset in MMLU_SUBSETS] + ["lighteval|exams_por_cf:" + subset for subset in EXAMS_POR_SUBSETS]
 
 if __name__ == "__main__":
     parser = create_parser()
