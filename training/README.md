@@ -41,7 +41,7 @@ Here is an example of training command,
 to train on 20B tokens:
 ```bash
 cd train/
-python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b [--email xxx@xxx.com] [--nodes 4]
+python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b [--email xxx@xxx.com] [--num_nodes 4]
 ```
 Use `--mode debug` to try your script before running it.
 
