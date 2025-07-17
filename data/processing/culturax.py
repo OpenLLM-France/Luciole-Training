@@ -61,7 +61,7 @@ if __name__ == "__main__":
         PrefixFormatter(date_keys=["timestamp"], date_format="%Y/%m/%d %H:%M:%S"),
         JsonlWriter(
             f"{DATA_PATH}/culturax_filtered/{language}/data",
-            output_filename="${source}_${rank}.jsonl.gz",
+            output_filename="${source}_edu_${edu_score}_${rank}.jsonl.gz",
         ),
     ]
     add_sampler_filter(pipeline, args.sample_rate)

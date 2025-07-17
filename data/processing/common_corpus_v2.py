@@ -1,4 +1,10 @@
-from utils import create_parser, parse_args, create_executor
+from utils import (
+    create_parser,
+    parse_args,
+    create_executor,
+    add_sampler_filter,
+    FT176_LANGUAGES,
+)
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -11,23 +17,7 @@ from datatrove.pipeline.filters import (
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from datatrove.pipeline.split_and_merge import SplitDocument, MergeDocument
 from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII
-
-LANGUAGES = [
-    "en",
-    "fr",
-    "it",
-    "de",
-    "es",
-    "ar",
-    "pt",
-    "nl",
-    "eu",
-    "ca",
-    "oc",
-    "br",
-    "co",
-    "wa",
-]
+from functools import partial
 
 
 def slugify_metadata(
@@ -59,44 +49,49 @@ def additionnal_formatting(doc):
     return out
 
 
-def subset_filter(doc):
-    culture_subset = [
-        "arabic-pd",
-        "bnl-newspapers-1841-1879",
-        "catalan-pd",
-        "dutch-pd",
-        "english-pd",
-        "europeana",
-        "german-pd",
-        "german-pd-newspapers",
-        "italian-pd",
-        "multilingual-pd",
-        "portuguese-pd",
-        "spanish-pd-books",
-        "spanish-pd-newspapers",
-        "us-pd-books",
-    ]
-    gov_subset = [
-        "eurlex",
-        "french-open-data",
-        "gatt-library",
-        "marianne-europe",
-        "oecd",
-        "sec",
-        "tedeutenders",
-        "un-digital-library",
-        "wto",
-    ]
-    sci_subset = [
-        "french-science-pile",
-        "german-science-pile",
-        "open-science-pile",
-        "spanish-science-pile",
-    ]
+def subset_filter(doc, collection_name="culture"):
+    subsets = {
+        "culture": [
+            "arabic-pd",
+            "bnl-newspapers-1841-1879",
+            "catalan-pd",
+            "dutch-pd",
+            "english-pd",
+            "europeana",
+            "german-pd",
+            "german-pd-newspapers",
+            "italian-pd",
+            "multilingual-pd",
+            "portuguese-pd",
+            "spanish-pd-books",
+            "spanish-pd-newspapers",
+            "us-pd-books",
+        ],
+        "gov": [
+            "eurlex",
+            "french-open-data",
+            "gatt-library",
+            "marianne-europe",
+            "oecd",
+            "sec",
+            "tedeutenders",
+            "un-digital-library",
+            "wto",
+        ],
+        "sci": [
+            "french-science-pile",
+            "german-science-pile",
+            "open-science-pile",
+            "spanish-science-pile",
+        ],
+    }
 
-    if doc.metadata["collection"] in culture_subset + gov_subset + sci_subset:
-        return True
-    return False
+    if collection_name == "all":
+        selected_subset = sum(subsets.values(), [])  # flatten all lists
+    else:
+        selected_subset = subsets.get(collection_name, [])
+
+    return doc.metadata["collection"] in selected_subset
 
 
 def post_processing(
@@ -110,29 +105,35 @@ def post_processing(
 
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument(
+        "--collection",
+        type=str,
+        default="culture",
+    )
+    parser.add_argument(
+        "--jz",
+        action="store_true",
+        help="Use jz version of the fineweb2 dataset",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    #################
-    # Open Culture
-    #################
-
     pipeline = [
         ParquetReader(
-            "hf://datasets/PleIAs/common_corpus"
-            if args.local
-            else "/lustre/fsmisc/dataset/HuggingFace/PleIAs/common_corpus",
+            "/lustre/fsmisc/dataset/HuggingFace/PleIAs/common_corpus"
+            if args.jz
+            else "hf://datasets/PleIAs/common_corpus",
             glob_pattern="common_corpus_*/*.parquet",
         ),
         slugify_metadata,
-        LambdaFilter(subset_filter),
+        LambdaFilter(partial(subset_filter, collection_name=args.collection)),
         SplitDocument(),
         LanguageFilter(
             keep_top_pairs_threshold=1,
-            languages=LANGUAGES,
+            languages=FT176_LANGUAGES,
             language_threshold=0.5,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_ft176",
+                f"{DATA_PATH}/common_corpus_filtered_chunk/removed/chunk_ft176",
             ),
         ),
         ExtremeTokenizerFilter(
@@ -140,8 +141,9 @@ if __name__ == "__main__":
             max_token_per_char=0.35,
             remove_digits=True,
             mode="DOCUMENT",
+            batch_size=10000,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_extreme_tokenizer",
+                f"{DATA_PATH}/common_corpus_filtered_chunk/removed/chunk_extreme_tokenizer",
             ),
         ),
         PerplexityFilter(
@@ -151,26 +153,22 @@ if __name__ == "__main__":
             min_ppl=10.0,
             max_ppl=2500.0,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/chunk_ppl",
+                f"{DATA_PATH}/common_corpus_filtered_chunk/removed/chunk_ppl",
             ),
         ),
         MergeDocument(),
         post_processing,
+        LambdaFilter(
+            lambda doc: (
+                doc.metadata["final_length"] / doc.metadata["initial_length"] > 0.5
+                and len(doc.text.split()) > 50
+            ),
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/common_corpus_filtered_chunk/removed/doc_filtered",
+            ),
+        ),
         PIIFormatter(remove_ips=False),
         PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"),
-        LambdaFilter(
-            lambda doc: doc.metadata["final_length"] / doc.metadata["initial_length"]
-            > 0.5,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/doc_too_many_chunks_removed",
-            ),
-        ),
-        LambdaFilter(
-            lambda doc: len(doc.text.split()) > 50,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/doc_too_short",
-            ),
-        ),
         PrefixFormatter(
             infer_date_format=True,
             additionnal_formatting=additionnal_formatting,
@@ -179,21 +177,26 @@ if __name__ == "__main__":
             },
         ),
         JsonlWriter(
-            f"{DATA_PATH}/common_corpus_filtered_v2/data",
+            f"{DATA_PATH}/common_corpus_filtered_chunk/data",
             output_filename="${open_type}/${collection}/${language_agg}_${rank}.jsonl.gz",
         ),
     ]
+    add_sampler_filter(pipeline, args.sample_rate)
 
     main_executor = create_executor(
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/common_corpus_filtered_v2/logs",
-        job_name="common_corpus_filtered_v2",
-        partition="cpu_p1",
-        cpus_per_task=2,  # OOM with 1...
+        logging_dir=f"{DATA_PATH}/common_corpus_filtered_chunk/logs_{args.collection}",
+        job_name="ccfc",
+        partition="cpu_p1" if args.jz else "prepost",
+        cpus_per_task=1,
         tasks=50,
         time="20:00:00",
+        mail_type="REQUEUE",
+        mail_user="ogouvert@linagora.com",
+        # max_array_size=10,
+        tasks_per_job=1,
     )
 
     main_executor.run()

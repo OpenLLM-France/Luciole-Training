@@ -6,8 +6,6 @@ from datatrove.pipeline.filters import (
     ExtremeTokenizerFilter,
     LanguageFilter,
 )
-
-# from datatrove.pipeline.filters import FastTextClassifierFilter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 import os
 
@@ -109,11 +107,6 @@ if __name__ == "__main__":
                 max_ppl=2000,
                 exclusion_writer=JsonlWriter(f"{output_path}/removed/ppl/{year}"),
             ),
-            # FastTextClassifierFilter(
-            #     model_url = "https://dolma-artifacts.org/fasttext_models/jigsaw_fasttext_bigrams_20230515/jigsaw_fasttext_bigrams_hatespeech_final.bin",
-            #     save_labels_in_metadata=True,
-            #     newline_replacement = " "
-            # ),
             PrefixFormatter(
                 date_format="%Y-%m-%d",
                 additionnal_formatting=additionnal_formatting,

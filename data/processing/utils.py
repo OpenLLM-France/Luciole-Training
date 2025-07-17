@@ -10,6 +10,23 @@ import sys
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
 
+FT176_LANGUAGES = [
+    "en",
+    "fr",
+    "it",
+    "de",
+    "es",
+    "ar",
+    "pt",
+    "nl",
+    "eu",
+    "ca",
+    "oc",
+    "br",
+    "co",
+    "wa",
+]
+
 
 def get_edu_pipeline(fasttext_path, exclusion_writer):
     def edu_score(
@@ -78,7 +95,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         slurm_kwargs = filter_kwargs_for_class(SlurmPipelineExecutor, kwargs)
         main_processing_executor = SlurmPipelineExecutor(
             pipeline=pipeline,
-            sbatch_args={"account": "qgz@cpu"},
+            sbatch_args={"account": "qgz@cpu", "hint": "nomultithread"},
             tasks=tasks,
             cpus_per_task=cpus_per_task,
             time=time,
