@@ -25,7 +25,7 @@ if __name__ == "__main__":
             in ["ara", "cat", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
         ),
         EurovocFormatter(),
-        SplitDocument(),
+        SplitDocument(separator="\n"),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=[

@@ -7,6 +7,7 @@ from datatrove.pipeline.filters import (
     LanguageFilter,
 )
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
+from datatrove.pipeline.split_and_merge import SplitDocument, MergeDocument
 import os
 
 SUPPORTED_YEARS = [
@@ -84,15 +85,15 @@ if __name__ == "__main__":
                 text_key="article",
                 streaming=True,
             ),
+            SplitDocument(separator="\n"),
             ExtremeTokenizerFilter(
                 tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-                min_token_per_char=0,
                 max_token_per_char=0.35,
-                filter_mode="CHUNKS",
-                replace_span="\n\n[...]\n\n",
-                removed_spans_in_metadata=False,  # FOR DEBUGGING only
+                remove_digits=True,
+                mode="DOCUMENT",
+                batch_size=10000,
                 exclusion_writer=JsonlWriter(
-                    f"{output_path}/removed/extreme_tokenizer/{year}"
+                    f"{output_path}/removed/chunk_extreme_tokenizer",
                 ),
             ),
             LanguageFilter(
@@ -107,6 +108,7 @@ if __name__ == "__main__":
                 max_ppl=2000,
                 exclusion_writer=JsonlWriter(f"{output_path}/removed/ppl/{year}"),
             ),
+            MergeDocument(),
             PrefixFormatter(
                 date_format="%Y-%m-%d",
                 additionnal_formatting=additionnal_formatting,
