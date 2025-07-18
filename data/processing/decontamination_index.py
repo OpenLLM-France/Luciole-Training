@@ -29,6 +29,11 @@ if not MAIN_PATH:
     raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
 DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
+
+def normalize_subset(subset: str) -> str:
+    return subset.replace(" ", "_").replace("(", "").replace(")", "").lower()
+
+
 # TRANSLATION_TASK (flores_200_languages)
 
 MMLU_SUBSETS = [
@@ -92,7 +97,7 @@ MMLU_SUBSETS = [
 ]
 
 EXAMS_ARA_SUBSETS = [
-    s.lower()
+    normalize_subset(s)
     for s in [
         "Biology",
         "Islamic Studies",
@@ -103,7 +108,7 @@ EXAMS_ARA_SUBSETS = [
 ]
 
 EXAMS_FRA_SUBSETS = [
-    s.lower()
+    normalize_subset(s)
     for s in [
         "Economics",
         "Economics & Marketing",
@@ -114,7 +119,7 @@ EXAMS_FRA_SUBSETS = [
 ]
 
 EXAMS_DEU_SUBSETS = [
-    s.lower()
+    normalize_subset(s)
     for s in [
         "Chemistry",
         "Economics",
@@ -126,10 +131,10 @@ EXAMS_DEU_SUBSETS = [
     ]
 ]
 
-EXAMS_ESP_SUBSETS = [s.lower() for s in ["Geography", "Physics"]]
+EXAMS_ESP_SUBSETS = [normalize_subset(s) for s in ["Geography", "Physics"]]
 
 EXAMS_ITA_SUBSETS = [
-    s.lower()
+    normalize_subset(s)
     for s in [
         "Biology",
         "Chemistry",
@@ -147,7 +152,7 @@ EXAMS_ITA_SUBSETS = [
 ]
 
 EXAMS_POR_SUBSETS = [
-    s.lower()
+    normalize_subset(s)
     for s in [
         "Biology",
         "Economics",
