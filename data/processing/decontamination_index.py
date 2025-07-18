@@ -91,23 +91,23 @@ MMLU_SUBSETS = [
     "world_religions",
 ]
 
-EXAMS_ARA_SUBSETS = [
+EXAMS_ARA_SUBSETS = [s.lower() for s in [
     "Biology",
     "Islamic Studies",
     "Physics",
     "Science",
     "Social",
-]
+]]
 
-EXAMS_FRA_SUBSETS = [
+EXAMS_FRA_SUBSETS = [s.lower() for s i[
     "Economics", 
     "Economics & Marketing", 
     "Economics Basics (Theoretical)",
     "Geography", 
     "Physics",
-]
+]]
 
-EXAMS_DEU_SUBSETS = [
+EXAMS_DEU_SUBSETS = [s.lower() for s in [
     "Chemistry",
     "Economics",
     "Economics & Marketing",
@@ -116,14 +116,14 @@ EXAMS_DEU_SUBSETS = [
     "Physics",
     "Tourism",
 
-]
+]]
 
-EXAMS_ESP_SUBSETS = [
+EXAMS_ESP_SUBSETS = [s.lower() for s in [
     "Geography",
     "Physics"
-]
+]]
 
-EXAMS_ITA_SUBSETS = [
+EXAMS_ITA_SUBSETS = [s.lower() for s in [
     "Biology",
     "Chemistry",
     "Ethics",
@@ -136,14 +136,14 @@ EXAMS_ITA_SUBSETS = [
     "Politics",
     "Psychology",
     "Sociology",
-]
+]]
 
-EXAMS_POR_SUBSETS = [
+EXAMS_POR_SUBSETS = [s.lower() for s in[
     "Biology", 
     "Economics", 
     "Geology", 
     "Philosophy",
-]
+]]
 
 MKQA_SUBSETS = [
     "entity",
