@@ -9,6 +9,7 @@ from datatrove.pipeline.filters import (
     LambdaFilter,
 )
 from datatrove.pipeline.formatters.eurovoc_formatter import EurovocFormatter
+from datatrove.pipeline.split_and_merge import SplitDocument, MergeDocument
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -19,32 +20,12 @@ if __name__ == "__main__":
         JsonlReader(
             "hf://datasets/EuropeanParliament/Eurovoc/files",
         ),
-        JsonlWriter(
-            f"{DATA_PATH}/eurovoc/data",
-            output_filename="${lang}/${rank}.jsonl.gz",
-        ),
-    ]
-    add_sampler_filter(pipeline, args.sample_rate)
-
-    main_processing_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{DATA_PATH}/eurovoc/logs",
-        job_name="eurovoc",
-        tasks=10,
-    )
-
-    # Filter data
-    pipeline = [
-        JsonlReader(
-            f"{DATA_PATH}/eurovoc/data",
-        ),
         LambdaFilter(
             lambda doc: doc.metadata["lang"]
             in ["ara", "cat", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
         ),
         EurovocFormatter(),
+        SplitDocument(),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=[
@@ -64,15 +45,12 @@ if __name__ == "__main__":
         ),
         ExtremeTokenizerFilter(
             tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-            max_token_per_char=0.38,
+            max_token_per_char=0.35,
             remove_digits=True,
-            mode="CHUNKS",
-            min_length=1000,
-            separator="\n",
-            replace_span="\n\n[...]\n\n",
-            removed_spans_in_metadata=False,  # FOR DEBUGGING only
+            mode="DOCUMENT",
+            batch_size=10000,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/eurovoc_filtered/removed/extreme_tokenizer"
+                f"{DATA_PATH}/eurovoc_filtered/removed/chunk_extreme_tokenizer",
             ),
         ),
         PerplexityFilter(
@@ -83,6 +61,7 @@ if __name__ == "__main__":
             max_ppl=1500,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ppl"),
         ),
+        MergeDocument(),
         JsonlWriter(
             f"{DATA_PATH}/eurovoc_filtered/data",
             output_filename="${lang}/${rank}.jsonl.gz",
@@ -95,8 +74,7 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/eurovoc_filtered/logs",
         job_name="eurovoc_filtered",
-        tasks=10,
-        depends=main_processing_executor,
+        tasks=50,
         partition="cpu_p1",
         time="20:00:00",
         cpu_per_task=4,
