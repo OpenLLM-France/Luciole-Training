@@ -320,7 +320,7 @@ MATH_TASKS = [
     "lighteval|math_cot:number_theory",
     "lighteval|math_cot:prealgebra",
     "lighteval|math_cot:precalculus",
-    "lighteval|gsm8K",
+    "lighteval|gsm8k",
     "lighteval|mgsm_eng",
     "lighteval|asdiv",
     "lighteval|mathqa",
@@ -396,7 +396,7 @@ if __name__ == "__main__":
 
         pipeline = [
             NGramsDecontIndexer(
-                output_folder=f"{DATA_PATH}/decontamination_index/data/{language}",
+                output_folder=f"{DATA_PATH}/decontamination_index/data/{name}",
                 config=config,
                 lighteval_tasks=tasks,
                 language=language,
@@ -408,8 +408,8 @@ if __name__ == "__main__":
             pipeline,
             local=args.local,
             debug=args.debug,
-            logging_dir=f"{DATA_PATH}/decontamination_index/logs/{language}",
-            job_name=f"decont_{language}",
+            logging_dir=f"{DATA_PATH}/decontamination_index/logs/{name}",
+            job_name=f"decont_{name}",
             tasks=1,
             cpus_per_task=2,
             partition="prepost",
