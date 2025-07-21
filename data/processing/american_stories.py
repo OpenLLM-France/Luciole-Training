@@ -7,7 +7,7 @@ from datatrove.pipeline.filters import (
     LanguageFilter,
 )
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
-from datatrove.pipeline.split_and_merge import SplitDocument, MergeDocument
+from datatrove.pipeline.split_and_merge import MergeDocument
 import os
 
 SUPPORTED_YEARS = [
@@ -85,15 +85,17 @@ if __name__ == "__main__":
                 text_key="article",
                 streaming=True,
             ),
-            SplitDocument(separator="\n"),
             ExtremeTokenizerFilter(
                 tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
                 max_token_per_char=0.35,
                 remove_digits=True,
-                mode="DOCUMENT",
-                batch_size=10000,
+                mode="CHUNKS",
+                min_length=1000,
+                separator=" ",
+                replace_span="\n\n[...]\n\n",
+                removed_spans_in_metadata=False,  # FOR DEBUGGING only
                 exclusion_writer=JsonlWriter(
-                    f"{output_path}/removed/chunk_extreme_tokenizer",
+                    f"{DATA_PATH}/common_corpus_filtered/removed/extreme_tokenizer"
                 ),
             ),
             LanguageFilter(

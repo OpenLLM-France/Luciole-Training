@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -58,7 +58,7 @@ if __name__ == "__main__":
             model_dataset="",
             language_from_metadata=True,
             min_ppl=10.0,
-            max_ppl=1500,
+            max_ppl=2500,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ppl"),
         ),
         MergeDocument(),

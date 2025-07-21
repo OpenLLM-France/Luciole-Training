@@ -3,6 +3,7 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter
 from datatrove.pipeline.decont import NGramsDecontConfig, NGramsDecontFilter
 import os
+import json
 
 FASTTEXT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
@@ -11,6 +12,41 @@ DECONT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"),
     "data/raw_data/full_datasets/decontamination_index/data",
 )
+
+
+def get_duplicated_urls(path="duplicated_urls.json"):
+    wiki_languages = [
+        "ar",
+        "br",
+        "ca",
+        "co",
+        "de",
+        "en",
+        "es",
+        "eu",
+        "fr",
+        "frp",
+        "it",
+        "nl",
+        "oc",
+        "pcd",
+        "pt",
+    ]
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    all_keywords = []
+    for sublist in data.values():
+        for item in sublist:
+            if "{lan}" in item:
+                all_keywords.extend(
+                    item.replace("{lan}", lang) for lang in wiki_languages
+                )
+            else:
+                all_keywords.append(item)
+
+    return all_keywords
 
 
 def edu_score(
@@ -85,11 +121,13 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
             ),
             edu_score,
         ]
-        return edu_filters
-    print(
-        f"Model not found at {model_url}. Skipping educational filters for {language}."
-    )
-    return []
+    else:
+        edu_filters = []
+    if not edu_filters:
+        print(
+            f"Model not found at {model_url}. Skipping educational filters for {language}."
+        )
+    return edu_filters
 
 
 def get_decontamination_filters(language, decontamination_path=DECONT_PATH):
@@ -99,12 +137,16 @@ def get_decontamination_filters(language, decontamination_path=DECONT_PATH):
         filters = [
             NGramsDecontFilter(
                 index_folder=index_folder,
-                config=NGramsDecontConfig(),
+                config=NGramsDecontConfig(
+                    n_grams=13, find_query_ngrams=True, find_overlap_ngrams=True
+                ),
                 language=language,
             )
         ]
-        return filters
-    print(
-        f"Decontamination index not found for {iso_language} at {index_folder}. Skipping decontamination filters."
-    )
-    return []
+    else:
+        filters = []
+    if not filters:
+        print(
+            f"Decontamination index not found for {iso_language} at {index_folder}. Skipping decontamination filters."
+        )
+    return filters

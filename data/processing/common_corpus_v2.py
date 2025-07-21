@@ -129,7 +129,11 @@ if __name__ == "__main__":
         ),
         slugify_metadata,
         LambdaFilter(partial(subset_filter, collection_name=args.collection)),
-        SplitDocument(),
+        SplitDocument(
+            min_length=1000,
+            max_length=2000,
+            separator="\n., ",
+        ),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=FT176_LANGUAGES,
@@ -195,9 +199,6 @@ if __name__ == "__main__":
         cpus_per_task=1,
         tasks=50,
         time="20:00:00",
-        # mail_type="REQUEUE",
-        # mail_user="...",
-        # max_array_size=10,
         tasks_per_job=1,
     )
 
