@@ -1,14 +1,25 @@
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
-from datatrove.pipeline.readers import ParquetReader, JsonlReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
+from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
+from datatrove.pipeline.filters import LambdaFilter
 from web_utils import (
     get_edu_filters,
     get_pii_formatter,
     get_decontamination_filters,
+    get_duplicated_urls,
 )
+
+
+def deduplicate_url(doc):
+    url = doc.metadata["url"]
+    for keyword in get_duplicated_urls():
+        if url.startswith(keyword):
+            return False, f"duplicate_url:{keyword}"
+    return True
 
 
 class AssignCluster(PipelineStep):
@@ -58,6 +69,7 @@ if __name__ == "__main__":
     # Get language specific filtering and formatting
     edu_filters = get_edu_filters(language)
     pii_formatter = get_pii_formatter(language)
+    decontamination_filters = get_decontamination_filters(language)
 
     pipeline = [
         ParquetReader(
@@ -65,9 +77,22 @@ if __name__ == "__main__":
             if args.jz
             else f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
         ),
+        LambdaFilter(
+            deduplicate_url,
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/fineweb2_filtered/{language}/removed/duplicated_url",
+            ),
+        ),
+        RobotsTxtFilter(
+            robots_txt_path="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/robots_txt/cc-main-2024-42/data",
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/fineweb2_filtered/{language}/removed/robots_txt",
+            ),
+        ),
         AssignCluster(),
         *edu_filters,
         *pii_formatter,
+        *decontamination_filters,
         PrefixFormatter(date_keys=["date"], date_format="%Y-%m-%dT%H:%M:%SZ"),
         JsonlWriter(
             f"{DATA_PATH}/fineweb2_filtered/{language}/data",
@@ -88,34 +113,3 @@ if __name__ == "__main__":
         time="20:00:00",
     )
     main_executor.run()
-
-    ############
-    # Decontaminate Fineweb2 DATASET
-    ############
-
-    decontamination_filters = get_decontamination_filters(language)
-
-    pipeline = [
-        JsonlReader(
-            f"{DATA_PATH}/fineweb2_filtered/{language}/data",
-        ),
-        *decontamination_filters,
-        PrefixFormatter(date_keys=["timestamp"], date_format="%Y/%m/%d %H:%M:%S"),
-        JsonlWriter(
-            f"{DATA_PATH}/fineweb2_decont/{language}/data",
-            output_filename="${source}_${rank}.jsonl.gz",
-        ),
-    ]
-    add_sampler_filter(pipeline, args.sample_rate)
-
-    decont_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{DATA_PATH}/fineweb2_decont/{language}/logs",
-        job_name="fineweb2_decont",
-        tasks=50,
-        partition="cpu_p1",
-        time="20:00:00",
-        depends=main_executor,
-    )

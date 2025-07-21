@@ -1,0 +1,83 @@
+{
+  "pile_news_keywords": [
+    "360info.org",
+    "africasacountry.com/",
+    "www.altnews.in/",
+    "balkandiskurs.com/en/",
+    "factly.in/",
+    "freedom.press/",
+    "www.fides.org/en",
+    "globalvoices.org/",
+    "meduza.io/en",
+    "www.mekongeye.com/",
+    "milwaukeenns.org/",
+    "minorityafrica.org/",
+    "www.newcanadianmedia.ca/",
+    "www.scidev.net/global/",
+    "sojoexchange.solutionsjournalism.org/",
+    "www.tasnimnews.com/en",
+    "zimfact.org/",
+    "oxpeckers.org/",
+    "www.propastop.org/en/",
+    "thepublicrecord.ca/"
+  ],
+  "pile_keywords": [
+    "www.ncbi.nlm.nih.gov/pmc",
+    "irclogs.ubuntu.com",
+    "www.biodiversitylibrary.org/",
+    "static.case.law",
+    "stackexchange.com",
+    "www.foodista.com",
+    "tile.loc.gov",
+    "libretexts.org",
+    "oercommons.org",
+    "babel.hathitrust.org",
+    "openoregon.pressbooks.pub",
+    "publicdomainreview.org/",
+    "uspto.gov"
+  ],
+  "pile_misc_keywords": [
+    "downloads.regulations.gov",
+    "www.parliament.uk",
+    "www.govinfo.gov",
+    "raw.githubusercontent.com"
+  ],
+  "pile_v1_keywords": [
+    "exporter.nih.gov",
+    "courtlistener.com",
+    "philpapers.org"
+  ],
+  "general_multi": [
+    "aleph.gutenberg.org",
+    "arxiv.org",
+    "echanges.dila.gouv.fr/OPENDATA/",
+    "github.com",
+    "www.gutenberg.org",
+    "hal.science",
+    "openedition.org",
+    "www.statmt.org/europarl",
+    "theses.fr",
+    "youtube.com"
+  ],
+  "general_lang_code": [
+    "{lan}.wikipedia",
+    "{lan}.wiktionary",
+    "{lan}.wikisource",
+    "{lan}.wikibooks",
+    "{lan}.wikinews",
+    "{lan}.wikiquote",
+    "{lan}.wikiversity",
+    "{lan}.wikivoyage",
+    "op.europa.eu/{lan}/",
+    "op.europa.eu/{lan}/web/cellar"
+  ],
+  "common_corpus_government": [
+    "www.amf-france.org/{lan}/news-publications/publications/open-data",
+    "ted.europa.eu/{lan}/",
+    "eur-lex.europa.eu/homepage.html?locale={lan}",
+    "digitallibrary.un.org/?ln={lan}",
+    "archives.eui.eu",
+    "www.consilium.europa.eu/{lan}/general-secretariat/corporate-policies/transparency/open-data/",
+    "www.oecd.org/{lan}/data/datasets.html"
+  ]
+}
