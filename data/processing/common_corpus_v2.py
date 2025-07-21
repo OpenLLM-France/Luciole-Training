@@ -143,9 +143,9 @@ if __name__ == "__main__":
             ),
         ),
         ExtremeTokenizerFilter(
-            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-            max_token_per_char=0.35,
-            remove_digits=True,
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",  # "EleutherAI/gpt-neox-20b", #
+            max_token_per_char=0.38,
+            normalize_digits=True,
             mode="DOCUMENT",
             batch_size=10000,
             exclusion_writer=JsonlWriter(
