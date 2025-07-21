@@ -162,17 +162,14 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/common_corpus_filtered_chunk/removed/chunk_ppl",
             ),
         ),
-        MergeDocument(),
-        post_processing,
-        LambdaFilter(
-            lambda doc: (
-                doc.metadata["final_length"] / doc.metadata["initial_length"] > 0.5
-                and len(doc.text.split()) > 50
-            ),
+        MergeDocument(
+            min_character_ratio= 0.5,
+            min_words=50,
             exclusion_writer=JsonlWriter(
                 f"{DATA_PATH}/common_corpus_filtered_chunk/removed/doc_filtered",
-            ),
+            )
         ),
+        post_processing,
         PIIFormatter(remove_ips=False),
         PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"),
         PrefixFormatter(
