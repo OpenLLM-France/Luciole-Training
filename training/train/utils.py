@@ -14,6 +14,7 @@ SUPPORTED_ARCHITECTURES = [
     "mambahybrid8b",
     "nemotronh8b",
     "nemotronh47b",
+    "nemotron22b",
     "qwen32b",
     "mistral12b",
 ]
@@ -129,7 +130,7 @@ def serialize_fdl(config):
         return f"<non-serializable: {type(config).__name__}>"
 
 
-def save_config(output_dir, name, data_args, recipe):
+def save_config(output_dir, args, data_args, recipe):
     import json
     from importlib.metadata import version
     from git import Repo
@@ -142,16 +143,26 @@ def save_config(output_dir, name, data_args, recipe):
         "resume": serialize_fdl(recipe.resume),
         "log": serialize_fdl(recipe.log),
     }
+    args_dict = {
+        "mode": args.mode,
+        "name": args.name,
+        "output_dir": args.output_dir,
+        "arch": args.arch,
+        "fp8": args.fp8,
+        "config": args.config,
+        "performance_mode": args.performance_mode,
+    }
     repo = Repo(".", search_parent_directories=True)
     commit_hash = repo.head.commit.hexsha
     toolkit_version = dict(
         nemo_version=version("nemo_toolkit"), open_llm_training_version=commit_hash
     )
-    file_path = os.path.join(output_dir, f"config_{name}.json")
+    file_path = os.path.join(output_dir, f"config_{args.name}.json")
     with open(file_path, "w") as jsonfile:
         json_data = {
             **recipe_dict,
             **toolkit_version,
+            "args": args_dict,
         }
         json.dump(json_data, jsonfile, indent=2)
     logger.info(f"Config saved to {file_path}")
