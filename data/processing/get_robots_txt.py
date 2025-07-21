@@ -4,8 +4,8 @@ from datatrove.pipeline.readers.warc_for_robots import WarcForRobotsReader, Robo
 from datatrove.pipeline.writers.jsonl import JsonlWriter
 from slugify import slugify
 
-DUMP_TO_PROCESS = "CC-MAIN-2024-42"
-# DUMP_TO_PROCESS = ".CC-MAIN-2025-26"
+# DUMP_TO_PROCESS = "CC-MAIN-2024-42"
+DUMP_TO_PROCESS = ".CC-MAIN-2025-26"
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -35,8 +35,6 @@ if __name__ == "__main__":
         job_name="robots.txt",
     )
 
-    main_processing_executor.run()
-
     # Merge
     merger_executor = create_executor(
         [
@@ -52,5 +50,6 @@ if __name__ == "__main__":
         partition="prepost",
         logging_dir=f"{output_path}/logs_merge",
         job_name="robots.txt",
+        depends=main_processing_executor,
     )
     merger_executor.run()
