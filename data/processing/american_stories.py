@@ -91,7 +91,8 @@ if __name__ == "__main__":
                 remove_digits=True,
                 mode="CHUNKS",
                 min_length=1000,
-                separator=" ",
+                max_length=2000,
+                separator="\n., ",
                 replace_span="\n\n[...]\n\n",
                 removed_spans_in_metadata=False,  # FOR DEBUGGING only
                 exclusion_writer=JsonlWriter(
@@ -110,7 +111,6 @@ if __name__ == "__main__":
                 max_ppl=2000,
                 exclusion_writer=JsonlWriter(f"{output_path}/removed/ppl/{year}"),
             ),
-            MergeDocument(),
             PrefixFormatter(
                 date_format="%Y-%m-%d",
                 additionnal_formatting=additionnal_formatting,

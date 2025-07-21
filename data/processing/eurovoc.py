@@ -25,7 +25,11 @@ if __name__ == "__main__":
             in ["ara", "cat", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
         ),
         EurovocFormatter(),
-        SplitDocument(separator="\n"),
+        SplitDocument(
+            min_length=1000,
+            max_length=2000,
+            separator="\n., ",
+        ),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=[
@@ -45,8 +49,8 @@ if __name__ == "__main__":
         ),
         ExtremeTokenizerFilter(
             tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-            max_token_per_char=0.35,
-            remove_digits=True,
+            max_token_per_char=0.38,
+            normalize_digits=True,
             mode="DOCUMENT",
             batch_size=10000,
             exclusion_writer=JsonlWriter(
@@ -61,7 +65,13 @@ if __name__ == "__main__":
             max_ppl=2500,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ppl"),
         ),
-        MergeDocument(),
+        MergeDocument(
+            min_character_ratio= 0.5,
+            min_words=50,
+            exclusion_writer=JsonlWriter(
+                f"{DATA_PATH}/eurovoc_filtered/removed/doc_filtered",
+            )
+        ),
         JsonlWriter(
             f"{DATA_PATH}/eurovoc_filtered/data",
             output_filename="${lang}/${rank}.jsonl.gz",

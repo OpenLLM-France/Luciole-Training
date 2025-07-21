@@ -76,7 +76,11 @@ if __name__ == "__main__":
             glob_pattern="*.parquet",
             text_key="complete_text",
         ),
-        SplitDocument(separator="\n"),
+        SplitDocument(
+            min_length=1000,
+            max_length=2000,
+            separator="\n., ",
+        ),
         LanguageFilter(
             keep_top_pairs_threshold=1,
             languages=FT176_LANGUAGES,
@@ -87,8 +91,8 @@ if __name__ == "__main__":
         ),
         ExtremeTokenizerFilter(
             tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-            max_token_per_char=0.35,
-            remove_digits=True,
+            max_token_per_char=0.38,
+            normalize_digits=True,
             mode="DOCUMENT",
             batch_size=10000,
             exclusion_writer=JsonlWriter(
@@ -105,17 +109,14 @@ if __name__ == "__main__":
                 f"{output_path}/removed/chunk_ppl",
             ),
         ),
-        MergeDocument(),
-        post_processing,
-        LambdaFilter(
-            lambda doc: (
-                doc.metadata["final_length"] / doc.metadata["initial_length"] > 0.5
-                and len(doc.text.split()) > 50
-            ),
+        MergeDocument(
+            min_character_ratio= 0.5,
+            min_words=50,
             exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/common_corpus_filtered_v2/removed/doc_filtered",
-            ),
+                f"{DATA_PATH}/removed/doc_filtered",
+            )
         ),
+        post_processing,
         PrefixFormatter(
             date_keys=[],
             additionnal_formatting=partial(additionnal_formatting, name=args.name),
