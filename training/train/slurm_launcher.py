@@ -42,11 +42,12 @@ def create_slurm_script(
     virtual_pipeline_parallelism,
     seed,
     base_checkpoint,
+    performance_mode,
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug" or mode.startswith("benchmark"):
         qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "01:30:00" if mode == "benchmark100" else "00:45:00"
+        time = "01:30:00" if mode == "benchmark100" else "01:00:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
@@ -60,6 +61,8 @@ def create_slurm_script(
     args = f"{config} --arch {arch} --name {job_name} --mode {mode} --output_dir {output_dir}"
     if fp8:
         args += " --fp8"
+    if performance_mode:
+        args += " --performance_mode"
     if tensor_parallelism:
         args += f" --tensor_parallelism {tensor_parallelism}"
     if pipeline_parallelism:
@@ -128,7 +131,7 @@ GPUS_PER_NODE={gpus_per_node}  # Adjust based on your setup
 DISTRIBUTED_ARGS=" \
        --nproc_per_node $GPUS_PER_NODE \
        --nnodes $SLURM_NNODES \
-       --node_rank $SLURM_PROCID \
+       --node_rank $SLURM_NODEID \
        --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
        --rdzv_backend c10d \
        --max_restarts 0 \
@@ -182,6 +185,8 @@ def submit_job(**kwargs):
         job_name_parts.append(f"s{kwargs['seed']}")
     if kwargs["mode"].startswith("benchmark"):
         job_name_parts.append(f"{kwargs['num_nodes']}n")
+        if kwargs.get("performance_mode"):
+            job_name_parts.append("perf")
     if kwargs.get("fp8"):
         job_name_parts.append("fp8")
     if kwargs.get("name_prefix"):
@@ -279,6 +284,9 @@ def create_parser():
         default=None,
         type=str,
         help="The path to a nemo checkpoint to make continual learning",
+    )
+    parser.add_argument(
+        "--performance_mode", "--perf", default=False, action="store_true"
     )
     return parser
 

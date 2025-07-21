@@ -5,7 +5,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def get_recipe(arch, recipe_args, performance_mode_if_possible=True):
+def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     if arch == "mixtral8x7":
         from nemo.collections.llm.recipes.mixtral_8x7b import pretrain_recipe
 

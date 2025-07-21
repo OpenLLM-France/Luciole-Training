@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--base_checkpoint", default=None, type=str)
+    parser.add_argument("--performance_mode", default=False, action="store_true")
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -69,7 +70,7 @@ if __name__ == "__main__":
     )
     if arch.startswith("llama"):
         from recipes.recipe_llama import get_recipe
-    elif arch.startswith("nemotronh"):
+    elif arch.startswith("nemotron"):
         from recipes.recipe_nemotronh import get_recipe
 
         if arch == "nemotronh47b":
@@ -81,7 +82,9 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
     pretrain_recipe, recipes_args = get_recipe(
-        arch=arch, recipe_args=recipe_args, performance_mode_if_possible=True
+        arch=arch,
+        recipe_args=recipe_args,
+        performance_mode_if_possible=args.performance_mode,
     )
     recipe = pretrain_recipe(**recipes_args)
 
@@ -100,7 +103,7 @@ if __name__ == "__main__":
     data = create_data(data_args)
 
     if args.mode in ["debug", "benchmark", "benchmark100"]:
-        max_steps = 1 if args.mode == "debug" else 20
+        max_steps = 1 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
@@ -125,6 +128,7 @@ if __name__ == "__main__":
             logger.info("FP8 is always activated on nemotronh47b")
         else:
             recipe.trainer.plugins = bf16_with_fp8_mixed()
+            recipe.trainer.plugins.grad_reduce_in_fp32 = False
 
     # MODEL
     # recipe.model.config.seq_length = seq_length
@@ -151,6 +155,13 @@ if __name__ == "__main__":
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
 
+    num_gpus = recipe.trainer.devices * recipe.trainer.num_nodes
+    if recipe.data.micro_batch_size > 1 and recipe.data.global_batch_size >= num_gpus:
+        logger.warning(
+            f"Micro batch size is set to {recipe.data.micro_batch_size} which is greater than 1 and global batch size is greater than number of GPUs. This is not supported for Megat. Setting micro batch size to 1."
+        )
+        recipe.data.micro_batch_size = 1
+
     if (
         recipe.trainer.strategy.tensor_model_parallel_size > 4
         and args.tensor_parallelism is None
@@ -165,6 +176,7 @@ if __name__ == "__main__":
         recipe.trainer.strategy.pipeline_model_parallel_size = (
             recipe.trainer.strategy.pipeline_model_parallel_size * 2
         )
+
     # LOGGER
     # recipe.log.log_dir = output_dir
     # recipe.log.name = args.name
@@ -200,7 +212,7 @@ if __name__ == "__main__":
     os.makedirs(job_output, exist_ok=True)
     save_config(
         job_output,
-        args.name,
+        args,
         data_args,
         recipe=recipe,
     )
