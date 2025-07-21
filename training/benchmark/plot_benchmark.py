@@ -156,15 +156,34 @@ def load_data(input_folder):
     for folder in folders:
         xp_folder = os.path.join(input_folder, folder)
         if not os.path.isfile(xp_folder):
-            files = os.listdir(xp_folder)
-            stat_files = [
-                f for f in files if f.startswith("stats_") and f.endswith(".json")
-            ]
-            if len(stat_files) > 0:
-                stat_file = os.path.join(xp_folder, stat_files[0])
+            try:
+                job_folder = [f for f in os.listdir(xp_folder) if f.startswith("job_")][
+                    0
+                ]
+                job_folder = os.path.join(xp_folder, job_folder)
+                files = os.listdir(job_folder)
+                stat_file = [
+                    f for f in files if f.startswith("stats_") and f.endswith(".json")
+                ][0]
+                stat_file = os.path.join(job_folder, stat_file)
+                config_file = [
+                    f for f in files if f.startswith("config_") and f.endswith(".json")
+                ][0]
+                config_file = os.path.join(job_folder, config_file)
                 with open(stat_file, "r") as f:
-                    json_data = json.load(f)
-                    data.append(json_data)
+                    stat_data = json.load(f)
+                with open(config_file, "r") as f:
+                    config = json.load(f)
+            except Exception as e:
+                print(f"Error loading data for {folder}: {e}")
+                continue
+            if "args" not in config:
+                config["args"] = {}
+                config["args"]["arch"] = config["log"]["name"].split("_")[0]
+                if isinstance(config["trainer"]["plugins"], list):
+                    config["trainer"]["plugins"] = config["trainer"]["plugins"][0]
+                config["args"]["fp8"] = "fp8" in config["trainer"]["plugins"]
+            data.append(dict(**stat_data, **config))
     return data
 
 
@@ -183,14 +202,15 @@ def convert_data(data):
     records = []
     for entry in data:
         try:
-            batch = "batch_size" if "batch_size" in entry else "global_batch_size"
+            batch = "global_batch_size"
             number_of_steps_per_trillion_tokens = 1e12 / (
-                entry[batch] * entry["seq_length"]
+                entry["data"][batch] * entry["data"]["seq_length"]
             )
             records.append(
                 {
-                    "num_nodes": entry["num_nodes"],
-                    "num_gpus": entry["num_nodes"] * 4,
+                    "num_nodes": entry["trainer"]["num_nodes"],
+                    "num_gpus": entry["trainer"]["num_nodes"]
+                    * entry["trainer"]["devices"],
                     "mean_step_timing": entry["mean_step_timings"],
                     "training_time": entry["mean_step_timings"]
                     * number_of_steps_per_trillion_tokens
@@ -198,18 +218,21 @@ def convert_data(data):
                     "consumed_gpu_hours": (
                         entry["mean_step_timings"]
                         * number_of_steps_per_trillion_tokens
-                        * entry["num_nodes"]
-                        * 4
+                        * entry["trainer"]["num_nodes"]
+                        * entry["trainer"]["devices"]
                         / 3600
                     ),
-                    "arch": entry["arch"],
-                    "tp": entry["tensor_model_parallel_size"],
-                    "pp": entry["pipeline_model_parallel_size"],
-                    "precision": "fp8" if entry["fp8"] else "bf16",
-                    "seq_length": entry["seq_length"],
-                    "cp": entry["context_parallel_size"],
-                    "batch_size": entry[batch],
-                    "sequence_parallel": entry["sequence_parallel"],
+                    "arch": entry["args"]["arch"],
+                    "tp": entry["trainer"]["strategy"]["tensor_model_parallel_size"],
+                    "pp": entry["trainer"]["strategy"]["pipeline_model_parallel_size"],
+                    "precision": "fp8" if entry["args"]["fp8"] else "bf16",
+                    "seq_length": entry["data"]["seq_length"],
+                    "cp": entry["trainer"]["strategy"]["context_parallel_size"],
+                    "batch_size": entry["data"][batch],
+                    "sequence_parallel": entry["trainer"]["strategy"][
+                        "sequence_parallel"
+                    ],
+                    "note": "\n" + entry.get("info", ""),
                     # "model_size": entry.get("model_size", model_to_size(entry["arch"])),
                 }
             )
