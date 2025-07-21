@@ -64,7 +64,8 @@ def launch_generation(
     ngpus=1,
     email=None,
     debug=False,
-    dry_run=False
+    dry_run=False,
+    relaunch_failed=False,
     ):
 
     if email:
@@ -78,8 +79,9 @@ def launch_generation(
     output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{expe_name}"
     complete_output_dir = os.path.join(output_dir, output_name)
     if os.path.exists(complete_output_dir):
-        print(f"Output directory {complete_output_dir} already exists. Please remove it or choose a different name.")
-        return None
+        # print(f"Output directory {complete_output_dir} already exists. Please remove it or choose a different name.")
+        if not relaunch_failed or os.path.exists(os.path.join(complete_output_dir, "default")):
+            return None
     os.makedirs(complete_output_dir, exist_ok=True)
 
     if debug:
@@ -159,6 +161,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action='store_true', help="Enable debug mode.")
     parser.add_argument("--max_num_jobs", type=int, default=None, help="Maximum number of jobs to launch.")
     parser.add_argument("--dry_run", action='store_true', help="If set, only print the commands without executing them.")
+    parser.add_argument("--relaunch_failed", action='store_true', help="If set, only relaunch failed jobs.")
 
     args = parser.parse_args()
 
@@ -175,5 +178,6 @@ if __name__ == "__main__":
         ngpus=args.ngpus,
         email=args.email,
         debug=args.debug,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        relaunch_failed=args.relaunch_failed,
     )
