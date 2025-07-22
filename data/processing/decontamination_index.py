@@ -173,7 +173,7 @@ MKQA_SUBSETS = [
 
 AR_TASKS = (
     [
-        "lighteval|alghafa_arc_ara_cf",
+        "lighteval|alghafa_arc_ara_cf:easy",
         "lighteval|alghafa_sciqa_ara_cf",
         "lighteval|belebele_arb_Arab_cf",
         "lighteval|soqal_ara_cf",
@@ -188,17 +188,17 @@ AR_TASKS = (
         "lighteval|mlmm_hellaswag_ara_cf",
         "lighteval|xstory_cloze_ara_cf",
     ]
-    + ["lighteval|mmlu_ara_cf:" + subset for subset in MMLU_SUBSETS]
+    #+ ["lighteval|mmlu_ara_cf:" + subset for subset in MMLU_SUBSETS]
     + ["lighteval|exams_ara_cf:" + subset for subset in EXAMS_ARA_SUBSETS]
 )
 
 CA_TASKS = [
-    "lighteval|mlmm_hellaswag_cat_cf",
+    #"lighteval|mlmm_hellaswag_cat_cf",
     "lighteval|belebele_cat_Latn_cf",
-    "lighteval|mlmm_arc_cat_cf:challenge",
-    "lighteval|mlmm_truthfulqa_cat_cf:mc1",
-    "lighteval|mlmm_truthfulqa_cat_cf:mc2",
-] + ["lighteval|mlmm_mmlu_cat_cf:" + subset for subset in MMLU_SUBSETS]
+    #"lighteval|mlmm_arc_cat_cf:challenge",
+    #"lighteval|mlmm_truthfulqa_cat_cf:mc1",
+    #"lighteval|mlmm_truthfulqa_cat_cf:mc2",
+] #+ ["lighteval|mlmm_mmlu_cat_cf:" + subset for subset in MMLU_SUBSETS]
 
 DE_TASKS = (
     [
@@ -208,10 +208,10 @@ DE_TASKS = (
         "lighteval|germanquad_deu",
         "lighteval|mlqa_deu",
         "lighteval|belebele_deu_Latn_cf",
-        "lighteval|mlmm_arc_deu_cf:challenge",
+        #"lighteval|mlmm_arc_deu_cf:challenge",
         "lighteval|lumi_arc_deu_cf:challenge",
-        "lighteval|mlmm_truthfulqa_deu_cf:mc1",
-        "lighteval|mlmm_truthfulqa_deu_cf:mc2",
+        #"lighteval|mlmm_truthfulqa_deu_cf:mc1",
+        #"lighteval|mlmm_truthfulqa_deu_cf:mc2",
         "lighteval|xcsqa_deu_cf",
         "lighteval|xcodah_deu_cf",
         "lighteval|mintaka_deu",
@@ -225,13 +225,13 @@ DE_TASKS = (
 EU_TASKS = [
     "lighteval|mlmm_hellaswag_eus_cf",
     "lighteval|xstory_cloze_eus_cf",
-    "lighteval|mlmm_truthfulqa_eus_cf:mc1",
-    "lighteval|mlmm_truthfulqa_eus_cf:mc2",
+    #"lighteval|mlmm_truthfulqa_eus_cf:mc1",
+    #"lighteval|mlmm_truthfulqa_eus_cf:mc2",
     "lighteval|belebele_eus_Latn_cf",
 ]
 
 EN_TASKS = [
-    "lighteval|openbookqa",
+    #"lighteval|openbookqa",
     "lighteval|piqa",
     "leaderboard|arc:challenge",
     "lighteval|arc:easy",
@@ -247,10 +247,10 @@ ES_TASKS = (
         "lighteval|pawsx_spa_cf",
         "lighteval|mlmm_hellaswag_spa_cf",
         "lighteval|xquad_spa",
-        "lighteval|squad_spa",
+        #"lighteval|squad_spa",
         "lighteval|mlqa_spa",
         "lighteval|belebele_spa_Latn_cf",
-        "lighteval|mlmm_arc_spa_cf:challenge",
+        #"lighteval|mlmm_arc_spa_cf:challenge",
         "lighteval|lumi_arc_spa_cf:challenge",
         "lighteval|xcsqa_spa_cf",
         "lighteval|openbookqa_spa_cf",
@@ -266,7 +266,7 @@ ES_TASKS = (
 
 FR_TASKS = (
     [
-        "lighteval|mlmm_arc_fra_cf:challenge",
+        #"lighteval|mlmm_arc_fra_cf:challenge",
         "lighteval|mintaka_fra",
         "lighteval|belebele_fra_Latn_cf",
         "lighteval|fquadv2_fra",
@@ -275,8 +275,8 @@ FR_TASKS = (
         "lighteval|mlmm_hellaswag_fra_cf",
         "lighteval|xnli2.0_fra_cf",
         "lighteval|xwinograd_fra_cf",
-        "lighteval|mlmm_truthfulqa_fra_cf:mc1",
-        "lighteval|mlmm_truthfulqa_fra_cf:mc2",
+        #"lighteval|mlmm_truthfulqa_fra_cf:mc1",
+        #"lighteval|mlmm_truthfulqa_fra_cf:mc2",
         "lighteval|mgsm_fra",
         "lighteval|lambada:openai:fr",
     ]
@@ -291,10 +291,10 @@ IT_TASKS = (
         "lighteval|mlmm_hellaswag_ita_cf",
         "lighteval|squad_ita",
         "lighteval|belebele_ita_Latn_cf",
-        "lighteval|mlmm_arc_ita_cf:challenge",
+        #"lighteval|mlmm_arc_ita_cf:challenge",
         "lighteval|lumi_arc_ita_cf:challenge",
-        "lighteval|mlmm_truthfulqa_ita_cf:mc1",
-        "lighteval|mlmm_truthfulqa_ita_cf:mc2",
+        #"lighteval|mlmm_truthfulqa_ita_cf:mc1",
+        #"lighteval|mlmm_truthfulqa_ita_cf:mc2",
         "lighteval|m3exams_ita_cf",
         "lighteval|xcsqa_ita_cf",
         "lighteval|xcodah_ita_cf",
@@ -321,7 +321,7 @@ MATH_TASKS = [
     "lighteval|math_cot:prealgebra",
     "lighteval|math_cot:precalculus",
     "lighteval|gsm8k",
-    "lighteval|mgsm_eng",
+    "lighteval|mgsm",
     "lighteval|asdiv",
     "lighteval|mathqa",
     "lighteval|agieval:sat-math",
@@ -330,22 +330,22 @@ MATH_TASKS = [
 
 NL_TASKS = [
     "lighteval|mlmm_hellaswag_nld_cf",
-    "lighteval|mlmm_arc_nld_cf:challenge",
-    "lighteval|mlmm_truthfulqa_nld_cf:mc1",
-    "lighteval|mlmm_truthfulqa_nld_cf:mc2",
+    #"lighteval|mlmm_arc_nld_cf:challenge",
+    #"lighteval|mlmm_truthfulqa_nld_cf:mc1",
+    #"lighteval|mlmm_truthfulqa_nld_cf:mc2",
     "lighteval|xcsqa_nld_cf",
     "lighteval|xcodah_nld_cf",
     "lighteval|belebele_nld_Latn_cf",
-] + ["lighteval|mlmm_mmlu_nld_cf:" + subset for subset in MMLU_SUBSETS]
+] #+ ["lighteval|mlmm_mmlu_nld_cf:" + subset for subset in MMLU_SUBSETS]
 
 PT_TASKS = (
     [
         "lighteval|mlmm_hellaswag_por_cf",
         "lighteval|faquad_por",
         "lighteval|belebele_por_Latn_cf",
-        "lighteval|lumi_arc_por_lumi_cf:challenge",
-        "lighteval|mlmm_truthfulqa_por_cf:mc1",
-        "lighteval|mlmm_truthfulqa_por_cf:mc2",
+        "lighteval|lumi_arc_por_cf:challenge",
+        #"lighteval|mlmm_truthfulqa_por_cf:mc1",
+        #"lighteval|mlmm_truthfulqa_por_cf:mc2",
         "lighteval|m3exams_por_cf",
         "lighteval|xcsqa_por_cf",
         "lighteval|oab_exams_por_cf",
@@ -355,7 +355,7 @@ PT_TASKS = (
         "lighteval|mintaka_por",
     ]
     + ["lighteval|meta_mmlu_por_cf:" + subset for subset in MMLU_SUBSETS]
-    + ["lighteval|mkqa_por:" + subset for subset in MMLU_SUBSETS]
+    + ["lighteval|mkqa_por:" + subset for subset in MKQA_SUBSETS]
     + ["lighteval|exams_por_cf:" + subset for subset in EXAMS_POR_SUBSETS]
 )
 
