@@ -1,5 +1,8 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.decont import NGramsDecontConfig, NGramsDecontIndexer
+from datatrove.pipeline.readers.json import JsonReader
+from datatrove.pipeline.filters import LambdaFilter
+from functools import partial
 import os
 
 """
@@ -188,17 +191,17 @@ AR_TASKS = (
         "lighteval|mlmm_hellaswag_ara_cf",
         "lighteval|xstory_cloze_ara_cf",
     ]
-    #+ ["lighteval|mmlu_ara_cf:" + subset for subset in MMLU_SUBSETS]
+    # + ["lighteval|mmlu_ara_cf:" + subset for subset in MMLU_SUBSETS]
     + ["lighteval|exams_ara_cf:" + subset for subset in EXAMS_ARA_SUBSETS]
 )
 
 CA_TASKS = [
-    #"lighteval|mlmm_hellaswag_cat_cf",
+    # "lighteval|mlmm_hellaswag_cat_cf",
     "lighteval|belebele_cat_Latn_cf",
-    #"lighteval|mlmm_arc_cat_cf:challenge",
-    #"lighteval|mlmm_truthfulqa_cat_cf:mc1",
-    #"lighteval|mlmm_truthfulqa_cat_cf:mc2",
-] #+ ["lighteval|mlmm_mmlu_cat_cf:" + subset for subset in MMLU_SUBSETS]
+    # "lighteval|mlmm_arc_cat_cf:challenge",
+    # "lighteval|mlmm_truthfulqa_cat_cf:mc1",
+    # "lighteval|mlmm_truthfulqa_cat_cf:mc2",
+]  # + ["lighteval|mlmm_mmlu_cat_cf:" + subset for subset in MMLU_SUBSETS]
 
 DE_TASKS = (
     [
@@ -208,10 +211,10 @@ DE_TASKS = (
         "lighteval|germanquad_deu",
         "lighteval|mlqa_deu",
         "lighteval|belebele_deu_Latn_cf",
-        #"lighteval|mlmm_arc_deu_cf:challenge",
+        # "lighteval|mlmm_arc_deu_cf:challenge",
         "lighteval|lumi_arc_deu_cf:challenge",
-        #"lighteval|mlmm_truthfulqa_deu_cf:mc1",
-        #"lighteval|mlmm_truthfulqa_deu_cf:mc2",
+        # "lighteval|mlmm_truthfulqa_deu_cf:mc1",
+        # "lighteval|mlmm_truthfulqa_deu_cf:mc2",
         "lighteval|xcsqa_deu_cf",
         "lighteval|xcodah_deu_cf",
         "lighteval|mintaka_deu",
@@ -225,13 +228,13 @@ DE_TASKS = (
 EU_TASKS = [
     "lighteval|mlmm_hellaswag_eus_cf",
     "lighteval|xstory_cloze_eus_cf",
-    #"lighteval|mlmm_truthfulqa_eus_cf:mc1",
-    #"lighteval|mlmm_truthfulqa_eus_cf:mc2",
+    # "lighteval|mlmm_truthfulqa_eus_cf:mc1",
+    # "lighteval|mlmm_truthfulqa_eus_cf:mc2",
     "lighteval|belebele_eus_Latn_cf",
 ]
 
 EN_TASKS = [
-    #"lighteval|openbookqa",
+    # "lighteval|openbookqa",
     "lighteval|piqa",
     "leaderboard|arc:challenge",
     "lighteval|arc:easy",
@@ -247,10 +250,10 @@ ES_TASKS = (
         "lighteval|pawsx_spa_cf",
         "lighteval|mlmm_hellaswag_spa_cf",
         "lighteval|xquad_spa",
-        #"lighteval|squad_spa",
+        # "lighteval|squad_spa",
         "lighteval|mlqa_spa",
         "lighteval|belebele_spa_Latn_cf",
-        #"lighteval|mlmm_arc_spa_cf:challenge",
+        # "lighteval|mlmm_arc_spa_cf:challenge",
         "lighteval|lumi_arc_spa_cf:challenge",
         "lighteval|xcsqa_spa_cf",
         "lighteval|openbookqa_spa_cf",
@@ -266,7 +269,7 @@ ES_TASKS = (
 
 FR_TASKS = (
     [
-        #"lighteval|mlmm_arc_fra_cf:challenge",
+        # "lighteval|mlmm_arc_fra_cf:challenge",
         "lighteval|mintaka_fra",
         "lighteval|belebele_fra_Latn_cf",
         "lighteval|fquadv2_fra",
@@ -275,8 +278,8 @@ FR_TASKS = (
         "lighteval|mlmm_hellaswag_fra_cf",
         "lighteval|xnli2.0_fra_cf",
         "lighteval|xwinograd_fra_cf",
-        #"lighteval|mlmm_truthfulqa_fra_cf:mc1",
-        #"lighteval|mlmm_truthfulqa_fra_cf:mc2",
+        # "lighteval|mlmm_truthfulqa_fra_cf:mc1",
+        # "lighteval|mlmm_truthfulqa_fra_cf:mc2",
         "lighteval|mgsm_fra",
         "lighteval|lambada:openai:fr",
     ]
@@ -291,10 +294,10 @@ IT_TASKS = (
         "lighteval|mlmm_hellaswag_ita_cf",
         "lighteval|squad_ita",
         "lighteval|belebele_ita_Latn_cf",
-        #"lighteval|mlmm_arc_ita_cf:challenge",
+        # "lighteval|mlmm_arc_ita_cf:challenge",
         "lighteval|lumi_arc_ita_cf:challenge",
-        #"lighteval|mlmm_truthfulqa_ita_cf:mc1",
-        #"lighteval|mlmm_truthfulqa_ita_cf:mc2",
+        # "lighteval|mlmm_truthfulqa_ita_cf:mc1",
+        # "lighteval|mlmm_truthfulqa_ita_cf:mc2",
         "lighteval|m3exams_ita_cf",
         "lighteval|xcsqa_ita_cf",
         "lighteval|xcodah_ita_cf",
@@ -330,13 +333,13 @@ MATH_TASKS = [
 
 NL_TASKS = [
     "lighteval|mlmm_hellaswag_nld_cf",
-    #"lighteval|mlmm_arc_nld_cf:challenge",
-    #"lighteval|mlmm_truthfulqa_nld_cf:mc1",
-    #"lighteval|mlmm_truthfulqa_nld_cf:mc2",
+    # "lighteval|mlmm_arc_nld_cf:challenge",
+    # "lighteval|mlmm_truthfulqa_nld_cf:mc1",
+    # "lighteval|mlmm_truthfulqa_nld_cf:mc2",
     "lighteval|xcsqa_nld_cf",
     "lighteval|xcodah_nld_cf",
     "lighteval|belebele_nld_Latn_cf",
-] #+ ["lighteval|mlmm_mmlu_nld_cf:" + subset for subset in MMLU_SUBSETS]
+]  # + ["lighteval|mlmm_mmlu_nld_cf:" + subset for subset in MMLU_SUBSETS]
 
 PT_TASKS = (
     [
@@ -344,8 +347,8 @@ PT_TASKS = (
         "lighteval|faquad_por",
         "lighteval|belebele_por_Latn_cf",
         "lighteval|lumi_arc_por_cf:challenge",
-        #"lighteval|mlmm_truthfulqa_por_cf:mc1",
-        #"lighteval|mlmm_truthfulqa_por_cf:mc2",
+        # "lighteval|mlmm_truthfulqa_por_cf:mc1",
+        # "lighteval|mlmm_truthfulqa_por_cf:mc2",
         "lighteval|m3exams_por_cf",
         "lighteval|xcsqa_por_cf",
         "lighteval|oab_exams_por_cf",
@@ -358,6 +361,25 @@ PT_TASKS = (
     + ["lighteval|mkqa_por:" + subset for subset in MKQA_SUBSETS]
     + ["lighteval|exams_por_cf:" + subset for subset in EXAMS_POR_SUBSETS]
 )
+
+
+def processing_tasks(doc, task):
+    if task in ["okapi_mmlu", "okapi_arc_challenge"]:
+        doc.metadata["query"] = doc.text
+        answer = doc.metadata.pop("answer").lower()
+        doc.text = doc.metadata[f"option_{answer}"]
+    elif task == "okapi_hellaswag":
+        doc.metadata["query"] = doc.text
+        label = int(doc.metadata.pop("label"))
+        doc.text = doc.metadata.pop("endings")[label]
+    elif task == "okapi_truthfulqa":
+        doc.metadata["query"] = doc.text
+        mc1_target_labels = doc.metadata.pop("mc1_target_labels")
+        mc1_target_choices = doc.metadata.pop("mc1_target_choices")
+        index = mc1_target_labels.index(1)
+        doc.text = mc1_target_choices[index]
+    return True
+
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -417,3 +439,42 @@ if __name__ == "__main__":
         )
 
         executor.run()
+
+    # Try to catch problematic benchmarks
+    # "okapi_truthfulqa"  https://huggingface.co/datasets/jon-tow/okapi_truthfulqa/raw/main/data/da_validation.json
+    for task in ["okapi_mmlu", "okapi_arc_challenge", "okapi_truthfulqa"]:
+        print(f"Processing task: {task}")
+        for language in ["ar", "ca", "de", "en", "es", "eu", "fr", "it", "nl", "pt"]:
+            pipeline = [
+                JsonReader(
+                    f"{DATA_PATH}/decontamination_index/benchmarks/{task}/data/{language}_test.json",
+                    text_key=(
+                        "instruction"
+                        if task in ["okapi_mmlu", "okapi_arc_challenge"]
+                        else "ctx"
+                        if task == "okapi_hellaswag"
+                        else "question"  # default fallback
+                    ),
+                    default_metadata={"task": task},
+                ),
+                LambdaFilter(partial(processing_tasks, task=task)),
+                NGramsDecontIndexer(
+                    output_folder=f"{DATA_PATH}/decontamination_index/data/{language}/{task}",
+                    config=config,
+                    language=language,
+                ),
+            ]
+
+            executor = create_executor(
+                pipeline,
+                local=args.local,
+                debug=args.debug,
+                logging_dir=f"{DATA_PATH}/decontamination_index/logs_fix/{language}/{task}",
+                job_name=f"decont_{language}_{task}",
+                tasks=1,
+                cpus_per_task=2,
+                partition="prepost",
+                time="02:00:00",
+            )
+
+            executor.run()
