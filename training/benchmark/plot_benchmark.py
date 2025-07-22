@@ -38,7 +38,7 @@ def create_config_name(entry):
 
 
 def plot_training_and_gpu_hours(
-    df, plot_name="plot.png", plot_title="", output_folder=""
+    df, plot_name="plot.png", plot_title="", output_folder="", only_last_text=True
 ):
     # Find columns with only one unique value
     if len(df) == 0:
@@ -84,17 +84,31 @@ def plot_training_and_gpu_hours(
         sns.lineplot(data=df, x="num_gpus", y=y, hue="config", marker="o", ax=ax)
 
         for config_name, group in df.groupby("config"):
-            last_point = group.sort_values("num_gpus").iloc[-1]
-            ax.text(
-                last_point["num_gpus"] + 3,
-                last_point[y],
-                f"{last_point[y]:.2f}"
-                if last_point[y] < 1000
-                else f"{last_point[y]/1000:.0f}k",
-                fontsize=10,
-                va="center",
-                ha="left",
-            )
+            if only_last_text:
+                last_point = group.sort_values("num_gpus").iloc[-1]
+                ax.text(
+                    last_point["num_gpus"] + 3,
+                    last_point[y],
+                    f"{last_point[y]:.2f}"
+                    if last_point[y] < 1000
+                    else f"{last_point[y]/1000:.0f}k",
+                    fontsize=10,
+                    va="center",
+                    ha="left",
+                )
+            else:
+                last_points = group.sort_values("num_gpus")
+                for _, point in last_points.iterrows():
+                    ax.text(
+                        point["num_gpus"] + 5,
+                        point[y],
+                        f"{point[y]:.2f}"
+                        if point[y] < 1000
+                        else f"{point[y]/1000:.0f}k",
+                        fontsize=10,
+                        va="center",
+                        ha="left",
+                    )
 
         ax.set_title(title)
         ax.set_xlabel("Number of GPUs")
@@ -144,8 +158,11 @@ def plot_training_and_gpu_hours(
 
     # Final layout & save
     fig.suptitle(plot_title, fontsize=16)
-    output_path = f"{output_folder}/{plot_name}" if output_folder else plot_name
-    plt.savefig(output_path, bbox_inches="tight")
+    if plot_name:
+        output_path = f"{output_folder}/{plot_name}" if output_folder else plot_name
+        plt.savefig(output_path, bbox_inches="tight")
+    else:
+        plt.show()
     plt.close()
 
 
@@ -261,109 +278,11 @@ def setup():
 if __name__ == "__main__":
     output_folder, df = setup()
     os.makedirs(output_folder, exist_ok=True)
+    df = df.sort_values(by=["arch", "seq_length", "batch_size", "precision"])
     plot_training_and_gpu_hours(
-        df, plot_name="all.png", plot_title="", output_folder=output_folder
-    )
-
-    tp_df = df[
-        (df["arch"] == "llama8b")
-        & (df["pp"] == 1)
-        & (df["precision"] == "bf16")  # noqa E712
-        & (df["seq_length"] == 4096)
-        & (df["cp"] == 1)
-    ]
-    tp_df = tp_df.sort_values(by=["tp", "batch_size"])
-    plot_training_and_gpu_hours(
-        tp_df,
-        plot_name="tp.png",
-        plot_title="Impact of tensor parallelism on training",
+        df,
+        plot_name="all.png",
+        plot_title="",
         output_folder=output_folder,
+        only_last_text=False,
     )
-
-    seq_df = df[
-        (df["arch"] == "llama8b") & (df["tp"] == 1) & (df["precision"] == "bf16")
-    ]  # noqa E712
-    seq_df = seq_df.sort_values(by=["seq_length", "batch_size", "pp", "cp"])
-    plot_training_and_gpu_hours(
-        seq_df,
-        plot_name="seq_length.png",
-        plot_title="Impact of Seq Length on training",
-        output_folder=output_folder,
-    )
-
-    precision_batch_df = df[
-        (df["pp"] == 1) & (df["tp"] == 1) & (df["arch"] == "llama8b")
-    ]
-    precision_batch_df = precision_batch_df.sort_values(by=["precision", "batch_size"])
-
-    plot_training_and_gpu_hours(
-        precision_batch_df,
-        plot_name="batch_size_fp8.png",
-        plot_title="Impact of Precision and Batch_size on training",
-        output_folder=output_folder,
-    )
-
-    reduced_df = df[
-        (
-            (df["arch"] == "llama1b")
-            & (df["precision"] == "bf16")
-            & (df["batch_size"] == 1024)
-        )
-        | (
-            (df["arch"] == "llama3b")
-            & (df["precision"] == "fp8")
-            & (df["batch_size"] == 1024)
-        )
-        | (
-            (df["pp"] == 1)
-            & (df["tp"] == 1)
-            & (df["cp"] == 1)
-            & (df["arch"] == "llama8b")
-            & (df["batch_size"] == 1024)
-        )
-        | (
-            (df["pp"] == 4)
-            & (df["tp"] == 4)
-            & (df["cp"] == 2)
-            & (df["arch"] == "llama70b")
-            & (df["batch_size"] == 512)
-        )
-        | (
-            (df["arch"] == "nemotronh8b")
-            # & (df["precision"] == "fp8")
-            & (df["tp"] == 1)
-        )
-        | ((df["arch"] == "mambahybrid8b") & (df["tp"] == 1))
-        | ((df["precision"] == "bf16") & (df["arch"] == "mixtral7x8"))
-    ]
-
-    archs = [
-        "llama1b",
-        "llama3b",
-        ["llama1b", "llama3b"],
-        ["llama1b", "llama3b", "llama8b"],
-        "llama8b",
-        "llama70b",
-        "mambahybrid8b",
-        "mixtral8x7",
-        "nemotronh8b",
-        ["nemotronh8b", "mambahybrid8b"],
-        ["llama1b", "llama3b", "llama8b", "nemotronh8b"],
-    ]
-    archs.append([a for a in archs if isinstance(a, str)])
-    os.makedirs(os.path.join(output_folder, "archs"), exist_ok=True)
-    for arch in archs:
-        plot_title = "Impact of Architecture and FP8 on training"
-        if isinstance(arch, list):
-            arch_df = reduced_df[(reduced_df["arch"].isin(arch))]
-            arch = "_".join(arch)
-        else:
-            arch_df = df[(df["arch"] == arch)]
-            plot_title = f"Impact of parameters for training a {arch}"
-        arch_df = arch_df.sort_values(by=["arch", "precision"])
-        plot_training_and_gpu_hours(
-            arch_df,
-            plot_name=f"{arch}.png",
-            plot_title=plot_title,
-            output_folder=os.path.join(output_folder, "archs"),
-        )
