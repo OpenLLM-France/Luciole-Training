@@ -321,7 +321,7 @@ MATH_TASKS = [
     "lighteval|math_cot:prealgebra",
     "lighteval|math_cot:precalculus",
     "lighteval|gsm8k",
-    "lighteval|mgsm",
+    "lighteval|mgsm:en",
     "lighteval|asdiv",
     "lighteval|mathqa",
     "lighteval|agieval:sat-math",
