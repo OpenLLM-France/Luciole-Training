@@ -132,7 +132,7 @@ if __name__ == "__main__":
         SplitDocument(
             min_length=1000,
             max_length=2000,
-            separator="\n., ",
+            separator=("\n", ". ", ", ", " "),
         ),
         LanguageFilter(
             keep_top_pairs_threshold=1,
@@ -163,11 +163,11 @@ if __name__ == "__main__":
             ),
         ),
         MergeDocument(
-            min_character_ratio= 0.5,
+            min_character_ratio=0.5,
             min_words=50,
             exclusion_writer=JsonlWriter(
                 f"{DATA_PATH}/common_corpus_filtered_chunk/removed/doc_filtered",
-            )
+            ),
         ),
         post_processing,
         PIIFormatter(remove_ips=False),
