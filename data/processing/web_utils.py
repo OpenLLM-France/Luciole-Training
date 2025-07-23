@@ -2,8 +2,12 @@ from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter
 from datatrove.pipeline.decont import NGramsDecontConfig, NGramsDecontFilter
+from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
+from datatrove.pipeline.filters import LambdaFilter
 import os
 import json
+from utils import MAIN_PATH
 
 FASTTEXT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
@@ -130,7 +134,9 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
     return edu_filters
 
 
-def get_decontamination_filters(language, decontamination_path=DECONT_PATH):
+def get_decontamination_filters(
+    language, output_path, decontamination_path=DECONT_PATH
+):
     iso_language = map_language_to_iso.get(language, language)
     index_folder = os.path.join(decontamination_path, iso_language)
     if os.path.exists(index_folder):
@@ -141,6 +147,9 @@ def get_decontamination_filters(language, decontamination_path=DECONT_PATH):
                     n_grams=13, find_query_ngrams=True, find_overlap_ngrams=True
                 ),
                 language=language,
+                exclusion_writer=JsonlWriter(
+                    f"{output_path}/removed/decont",
+                ),
             )
         ]
     else:
@@ -150,3 +159,40 @@ def get_decontamination_filters(language, decontamination_path=DECONT_PATH):
             f"Decontamination index not found for {iso_language} at {index_folder}. Skipping decontamination filters."
         )
     return filters
+
+
+def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=False):
+    def deduplicate_url(doc):
+        url = doc.metadata["url"]
+        for keyword in get_duplicated_urls():
+            if url.startswith(keyword):
+                return False, f"duplicate_url:{keyword}"
+        return True
+
+    edu_filters = get_edu_filters(language) if do_edu else []
+    pii_formatter = get_pii_formatter(language) if do_pii else []
+    decontamination_filters = (
+        get_decontamination_filters(language, output_path) if do_decont else []
+    )
+
+    pipeline = [
+        LambdaFilter(
+            deduplicate_url,
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed/duplicated_url",
+            ),
+        ),
+        RobotsTxtFilter(
+            robots_txt_path=os.path.join(
+                MAIN_PATH,
+                "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge/robotstxt_dict.jsonl",
+            ),
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed/robots_txt",
+            ),
+        ),
+        *edu_filters,
+        *pii_formatter,
+        *decontamination_filters,
+    ]
+    return pipeline

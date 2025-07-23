@@ -10,6 +10,10 @@ import sys
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
 
+MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
+if not MAIN_PATH:
+    raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
+
 FT176_LANGUAGES = [
     "en",
     "fr",
@@ -116,11 +120,6 @@ def add_sampler_filter(pipeline, sample_rate):
 
 
 def create_parser():
-    MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
-    if not MAIN_PATH:
-        raise RuntimeError(
-            "Environment variable 'OpenLLM_OUTPUT' is not set or is empty."
-        )
     DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
     parser = argparse.ArgumentParser(
