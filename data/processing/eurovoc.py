@@ -28,7 +28,7 @@ if __name__ == "__main__":
         SplitDocument(
             min_length=1000,
             max_length=2000,
-            separator="\n., ",
+            separator=("\n", ". ", ", ", " "),
         ),
         LanguageFilter(
             keep_top_pairs_threshold=1,
@@ -66,11 +66,11 @@ if __name__ == "__main__":
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/eurovoc_filtered/removed/ppl"),
         ),
         MergeDocument(
-            min_character_ratio= 0.5,
+            min_character_ratio=0.5,
             min_words=50,
             exclusion_writer=JsonlWriter(
                 f"{DATA_PATH}/eurovoc_filtered/removed/doc_filtered",
-            )
+            ),
         ),
         JsonlWriter(
             f"{DATA_PATH}/eurovoc_filtered/data",
