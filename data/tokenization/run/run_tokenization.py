@@ -72,26 +72,34 @@ if __name__ == "__main__":
 
             raw_path = os.path.join(root_path, relative_path)
             output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
+            output_bin = os.path.join(tokens_dataset_path, f"{name}_text_document.bin")
 
             if os.path.isdir(raw_path):
                 if not os.path.isfile(output_idx) and name.startswith(args.start_with):
-                    print("--------------------------------------")
-                    print(f"🚀 Processing dataset: {name}")
-                    print(f"📂 Path: {raw_path}")
-                    print("--------------------------------------")
+                    if os.path.isfile(output_bin):
+                        print("--------------------------------------")
+                        print(
+                            f"⚠️  Warning for {name}! Found a .bin file, but no .idx file. Either a job has failed or is still running."
+                        )
+                        print("--------------------------------------")
+                    else:
+                        print("--------------------------------------")
+                        print(f"🚀 Processing dataset: {name}")
+                        print(f"📂 Path: {raw_path}")
+                        print("--------------------------------------")
 
-                    # Submit job using sbatch
-                    subprocess.run(
-                        [
-                            "sbatch",
-                            f"--job-name=tok_{name}",
-                            "tokenize_one_dataset.slurm",
-                            raw_path,
-                            os.path.join(tokens_dataset_path, name),
-                            tokenizer_name,
-                            regex_filter,
-                        ]
-                    )
+                        # Submit job using sbatch
+                        subprocess.run(
+                            [
+                                "sbatch",
+                                f"--job-name=tok_{name}",
+                                "tokenize_one_dataset.slurm",
+                                raw_path,
+                                os.path.join(tokens_dataset_path, name),
+                                tokenizer_name,
+                                regex_filter,
+                            ]
+                        )
                 else:
                     print("--------------------------------------")
                     print(f"⏩ Skipping {name}")
