@@ -32,6 +32,8 @@ if not MAIN_PATH:
     raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
 DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
+FR_LEADERBOARD_PATH = ""
+
 
 def normalize_subset(subset: str) -> str:
     return subset.replace(" ", "_").replace("(", "").replace(")", "").lower()
@@ -288,6 +290,8 @@ FR_TASKS = (
     + ["lighteval|exams_fra_cf:" + subset for subset in EXAMS_FRA_SUBSETS]
 )
 
+FR_LEADERBOARD = ["community|ifeval-fr", "community|gpqa-fr", "community|bac-fr"]
+
 IT_TASKS = (
     [
         "lighteval|xcopa_ita_cf",
@@ -383,6 +387,11 @@ def processing_tasks(doc, task):
 
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument(
+        "--fr_leaderboard_path",
+        type=str,
+        default=None,
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
@@ -398,7 +407,7 @@ if __name__ == "__main__":
         "en",
         "es",
         "fr",
-        "it",
+        "fr_leaderboard" "it",
         "it",
         "math",
         "nl",
@@ -408,11 +417,17 @@ if __name__ == "__main__":
         # set Language
         if name in ["math"]:
             language = "en"
+        elif name == "fr_leaderboard":
+            language = "fr"
         else:
             language = name
         # set custom_lighteval_tasks
         if name in ["en", "math"]:
             custom_lighteval_tasks = None
+        elif name == "fr_leaderboard":
+            custom_lighteval_tasks = args.fr_leaderboard_path
+            if custom_lighteval_tasks is None:
+                continue
         else:
             custom_lighteval_tasks = "lighteval.tasks.multilingual.tasks"
 
