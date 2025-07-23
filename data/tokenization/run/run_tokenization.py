@@ -79,7 +79,7 @@ if __name__ == "__main__":
                     if os.path.isfile(output_bin):
                         print("--------------------------------------")
                         print(
-                            f"⚠️  Warning for {name}! Found a .bin file, but no .idx file. Either a job has failed or is still running."
+                            f"⚠️  Warning for {name}! Found a .bin file at {output_bin}, but no .idx file. Either a job has failed or is still running."
                         )
                         print("--------------------------------------")
                     else:
