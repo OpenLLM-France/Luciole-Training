@@ -115,8 +115,8 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/pre_1929_books_filtered/data
       - name: common-pile_pressbooks_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/pressbooks_filtered/data
-      - name: common-pile_project-gutenberg_en
-        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/project_gutenberg_filtered/data
+      # - name: common-pile_project-gutenberg_en
+      #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/project_gutenberg_filtered/data
       - name: common-pile_public-domain-review_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/public_domain_review_filtered/data
       - name: common-pile_pubmed_en
@@ -181,6 +181,8 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/nl
       - name: gutenberg_pt
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/pt
+      - name: gutenberg_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/gutenberg_linagora/data/en
       # Common Corpus - Open Culture
       - name: common-corpus_arabic-pd_ar
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/open-culture/arabic-pd
@@ -239,7 +241,7 @@ dataset_groups:
       - name: megamath-web_part3_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
         regex: ^0004[0-9]\.jsonl\.gz$
-      - name: megamath-web-pro_math
+      - name: megamath_web-pro_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web-pro/data
       # FineMath
       - name: finemath_3plus_math
@@ -252,3 +254,20 @@ dataset_groups:
       # Starcoder
       - name: starcoder_olmomix_code
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/olmo_mix/starcoder/data
+      - name: starcoder-data_high-stars_code
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/starcoder/1_high_stars_count
+      - name: starcoder-data_low-stars_code
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/starcoder/1_low_stars_count
+      # Fineweb 2
+      - name: fineweb2_edu1_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
+        regex: ^cluster_size-.*_edu_1_rank.*\.jsonl\.gz$
+      - name: fineweb2_edu2_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
+        regex: ^cluster_size-.*_edu_2_rank.*\.jsonl\.gz$
+      - name: fineweb2_edu3_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
+        regex: ^cluster_size-.*_edu_3_rank.*\.jsonl\.gz$
+      - name: fineweb2_edu4_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
+        regex: ^cluster_size-.*_edu_4_rank.*\.jsonl\.gz$
