@@ -32,8 +32,6 @@ if not MAIN_PATH:
     raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
 DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
 
-FR_LEADERBOARD_PATH = ""
-
 
 def normalize_subset(subset: str) -> str:
     return subset.replace(" ", "_").replace("(", "").replace(")", "").lower()
@@ -407,7 +405,7 @@ if __name__ == "__main__":
         "en",
         "es",
         "fr",
-        "fr_leaderboard" "it",
+        "fr_leaderboard",
         "it",
         "math",
         "nl",
