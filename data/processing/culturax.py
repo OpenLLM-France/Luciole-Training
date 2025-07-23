@@ -47,3 +47,5 @@ if __name__ == "__main__":
         job_name="culturax",
         tasks=50,
     )
+
+    main_processing_executor.run()
