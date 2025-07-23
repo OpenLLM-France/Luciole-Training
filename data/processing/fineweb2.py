@@ -4,22 +4,7 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
-from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
-from datatrove.pipeline.filters import LambdaFilter
-from web_utils import (
-    get_edu_filters,
-    get_pii_formatter,
-    get_decontamination_filters,
-    get_duplicated_urls,
-)
-
-
-def deduplicate_url(doc):
-    url = doc.metadata["url"]
-    for keyword in get_duplicated_urls():
-        if url.startswith(keyword):
-            return False, f"duplicate_url:{keyword}"
-    return True
+from web_utils import get_web_pipeline
 
 
 class AssignCluster(PipelineStep):
@@ -66,34 +51,25 @@ if __name__ == "__main__":
     # Filter Fineweb2 DATASET
     ############
 
-    # Get language specific filtering and formatting
-    edu_filters = get_edu_filters(language)
-    pii_formatter = get_pii_formatter(language)
-    decontamination_filters = get_decontamination_filters(language)
-
     pipeline = [
         ParquetReader(
             f"/lustre/fsmisc/dataset/HuggingFace/HuggingFaceFW/fineweb-2/data/{language}/train"
             if args.jz
             else f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
         ),
-        LambdaFilter(
-            deduplicate_url,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/fineweb2_filtered/{language}/removed/duplicated_url",
-            ),
-        ),
-        RobotsTxtFilter(
-            robots_txt_path="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/robots_txt/cc-main-2024-42/data",
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/fineweb2_filtered/{language}/removed/robots_txt",
-            ),
-        ),
         AssignCluster(),
-        *edu_filters,
-        *pii_formatter,
-        *decontamination_filters,
-        PrefixFormatter(date_keys=["date"], date_format="%Y-%m-%dT%H:%M:%SZ"),
+        *get_web_pipeline(
+            language,
+            output_path=f"{DATA_PATH}/fineweb2_filtered/{language}",
+            do_edu=True,
+            do_pii=False,
+            do_decont=False,
+        ),
+        PrefixFormatter(
+            date_keys=["date"],
+            date_format="%Y-%m-%dT%H:%M:%SZ",
+            prefix_pipeline={"domain": "Domain", "date": "Date"},
+        ),
         JsonlWriter(
             f"{DATA_PATH}/fineweb2_filtered/{language}/data",
             output_filename="${cluster_size_group}_edu_${edu_score}_rank${rank}.jsonl.gz",
@@ -109,7 +85,7 @@ if __name__ == "__main__":
         logging_dir=f"{DATA_PATH}/fineweb2_filtered/{language}/logs",
         job_name="fineweb2_filtered",
         partition="cpu_p1" if args.jz else "prepost",
-        cpus_per_task=2,  # OOM with 1...
+        cpus_per_task=2,
         time="20:00:00",
     )
     main_executor.run()
