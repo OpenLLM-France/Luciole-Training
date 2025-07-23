@@ -83,7 +83,7 @@ if __name__ == "__main__":
         local=args.local,
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/fineweb2_filtered/{language}/logs",
-        job_name="fineweb2_filtered",
+        job_name=f"fw_{language}",
         partition="cpu_p1" if args.jz else "prepost",
         cpus_per_task=2,
         time="20:00:00",

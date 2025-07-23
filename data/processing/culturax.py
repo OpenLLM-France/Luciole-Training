@@ -43,8 +43,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/culturax/{language}/logs",
-        job_name="culturax",
+        logging_dir=f"{DATA_PATH}/culturax_filtered/{language}/logs",
+        job_name=f"cx_{language}",
         tasks=50,
     )
 

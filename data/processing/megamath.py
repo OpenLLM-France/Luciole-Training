@@ -1,9 +1,8 @@
-import os
-
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
 
-from datatrove.pipeline.readers import ParquetReader
+from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
+from web_utils import get_robot_filter
 
 SUBSETS = [
     "megamath-web",
@@ -36,22 +35,40 @@ if __name__ == "__main__":
 
     for name in names:
         print(f"\nProcessing {name}...")
-        output_path = os.path.join(DATA_PATH, "megamath", name)
 
+        # Load data
         pipeline = [
             ParquetReader(
                 f"hf://datasets/LLM360/MegaMath/{name}",
             ),
-            JsonlWriter(f"{output_path}/data"),
+            JsonlWriter(f"{DATA_PATH}/megamath/{name}/data"),
         ]
         add_sampler_filter(pipeline, args.sample_rate)
 
-        main_processing_executor = create_executor(
+        load_executor = create_executor(
             pipeline,
             local=args.local,
             debug=args.debug,
-            logging_dir=f"{output_path}/logs",
+            logging_dir=f"{DATA_PATH}/megamath/{name}/logs",
             job_name=name,
         )
 
-        main_processing_executor.run()
+        # Filtering
+        pipeline = [
+            JsonlReader(f"{DATA_PATH}/megamath/{name}/data"),
+            get_robot_filter(output_path=f"{DATA_PATH}/megamath_filtered/{name}"),
+            JsonlWriter(f"{DATA_PATH}/megamath_filtered/{name}/data"),
+        ]
+        add_sampler_filter(pipeline, args.sample_rate)
+
+        filter_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/megamath_filtered/{name}/logs",
+            job_name=name,
+            depends=load_executor,
+            partition="cpu_p1",
+        )
+
+        filter_executor.run()
