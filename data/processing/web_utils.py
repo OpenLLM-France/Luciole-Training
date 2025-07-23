@@ -161,6 +161,18 @@ def get_decontamination_filters(
     return filters
 
 
+def get_robot_filter(output_path):
+    return RobotsTxtFilter(
+        robots_txt_path=os.path.join(
+            MAIN_PATH,
+            "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge/robotstxt_dict.jsonl",
+        ),
+        exclusion_writer=JsonlWriter(
+            f"{output_path}/removed/robots_txt",
+        ),
+    )
+
+
 def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=False):
     def deduplicate_url(doc):
         url = doc.metadata["url"]
@@ -182,15 +194,7 @@ def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=
                 f"{output_path}/removed/duplicated_url",
             ),
         ),
-        RobotsTxtFilter(
-            robots_txt_path=os.path.join(
-                MAIN_PATH,
-                "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge/robotstxt_dict.jsonl",
-            ),
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed/robots_txt",
-            ),
-        ),
+        get_robot_filter(output_path),
         *edu_filters,
         *pii_formatter,
         *decontamination_filters,
