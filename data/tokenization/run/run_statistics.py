@@ -68,6 +68,7 @@ if __name__ == "__main__":
                 f"--dependency=afterok:{dependency}",
                 "template.slurm",
                 "merge_stats.py",
+                token_dir,
             ]
         )
     else:
@@ -78,5 +79,6 @@ if __name__ == "__main__":
                 "--job-name=merge_stats",
                 "template.slurm",
                 "merge_stats.py",
+                token_dir,
             ]
         )
