@@ -51,4 +51,4 @@ if __name__ == "__main__":
     with open(stats_path, "w") as f:
         json.dump(stats, f, indent=4)
 
-    print("Stats saved at {stats_path}.")
+    print(f"Stats saved at {stats_path}.")
