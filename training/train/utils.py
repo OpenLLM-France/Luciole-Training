@@ -8,6 +8,7 @@ SUPPORTED_ARCHITECTURES = [
     "llama1b",
     "llama3b",
     "llama8b",
+    "llama24b",
     "llama70b",
     "mamba1b",
     "mixtral8x7",
