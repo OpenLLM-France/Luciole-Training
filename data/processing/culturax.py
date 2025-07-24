@@ -3,7 +3,8 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
-from web_utils import get_web_pipeline
+from web_utils import get_web_pipeline, ROBOTSTXT_PATH
+
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -22,6 +23,7 @@ if __name__ == "__main__":
         ),
         *get_web_pipeline(
             language,
+            robots_txt_path=ROBOTSTXT_PATH,
             output_path=f"{DATA_PATH}/culturax_filtered/{language}",
             do_edu=True,
             do_pii=True,
@@ -46,6 +48,7 @@ if __name__ == "__main__":
         logging_dir=f"{DATA_PATH}/culturax_filtered/{language}/logs",
         job_name=f"cx_{language}",
         tasks=50,
+        time="20:00:00",
     )
 
     main_processing_executor.run()
