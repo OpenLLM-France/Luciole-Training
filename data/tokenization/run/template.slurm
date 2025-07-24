@@ -13,7 +13,6 @@ module load arch/a100 nemo/2.2.1
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
-data_path=$1
-name=$2
-
-python extract_stats.py $data_path $name
+script=$1
+shift
+python $script "$@"
