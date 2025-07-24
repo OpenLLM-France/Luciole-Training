@@ -9,6 +9,7 @@ from nemo import lightning as nl
 import nemo_run as run
 
 from dataloader import create_data
+from recipes.recipe_utils import set_recipe_trainer
 from utils import (
     get_check_data_and_tokenizer,
     save_stats,
@@ -18,8 +19,6 @@ from utils import (
     SUPPORTED_ARCHITECTURES,
 )
 
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
-from nemo.utils.exp_manager import TimingCallback
 
 torch.set_float32_matmul_precision("high")
 
@@ -113,22 +112,12 @@ if __name__ == "__main__":
         resume_if_exists = True
         every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
-    # TRAINER
-    recipe.trainer.max_steps = max_steps
-    recipe.trainer.val_check_interval = (
-        5 if args.mode in ["debug", "benchmark", "benchmark100"] else 1000
-    )
-    recipe.trainer.limit_val_batches = 0.0
-    recipe.trainer.log_every_n_steps = (
-        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 1
-    )
-    recipe.trainer.callbacks = [run.Config(TimingCallback)]
-    if args.fp8:
-        if arch == "nemotronh47b":
-            logger.info("FP8 is always activated on nemotronh47b")
-        else:
-            recipe.trainer.plugins = bf16_with_fp8_mixed()
-            recipe.trainer.plugins.grad_reduce_in_fp32 = False
+    recipe = set_recipe_trainer(recipe, args, max_steps)
+
+    if arch == "llama24b":
+        from recipes.recipe_llama import set_llama24b_recipe
+
+        recipe = set_llama24b_recipe(recipe, args)
 
     # MODEL
     # recipe.model.config.seq_length = seq_length
@@ -139,43 +128,6 @@ if __name__ == "__main__":
     ):  # if less than 50B tokens, shorter warmup
         recipe.optim.lr_scheduler.warmup_steps = 500
     # optimizer_warmup_steps = 2000
-
-    # STRATEGY
-    if args.tensor_parallelism:
-        recipe.trainer.strategy.tensor_model_parallel_size = args.tensor_parallelism
-    if args.pipeline_parallelism:
-        recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
-    recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
-    if args.virtual_pipeline_parallelism:
-        recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
-            args.virtual_pipeline_parallelism
-        )
-    if args.context_parallelism:
-        recipe.trainer.strategy.context_parallel_size = args.context_parallelism
-    # if args.sequence_parallelism is not None:
-    #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
-
-    num_gpus = recipe.trainer.devices * recipe.trainer.num_nodes
-    if recipe.data.micro_batch_size > 1 and recipe.data.global_batch_size >= num_gpus:
-        logger.warning(
-            f"Micro batch size is set to {recipe.data.micro_batch_size} which is greater than 1 and global batch size is greater than number of GPUs. This is not supported for Megat. Setting micro batch size to 1."
-        )
-        recipe.data.micro_batch_size = 1
-
-    if (
-        recipe.trainer.strategy.tensor_model_parallel_size > 4
-        and args.tensor_parallelism is None
-    ):
-        logger.warning(
-            f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
-        )
-        recipe.trainer.strategy.tensor_model_parallel_size = 4
-        # if recipe.data.micro_batch_size > 1:
-        #     recipe.data.micro_batch_size = recipe.data.micro_batch_size // 2
-        # else:
-        recipe.trainer.strategy.pipeline_model_parallel_size = (
-            recipe.trainer.strategy.pipeline_model_parallel_size * 2
-        )
 
     # LOGGER
     # recipe.log.log_dir = output_dir
