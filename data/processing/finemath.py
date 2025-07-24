@@ -68,7 +68,7 @@ if __name__ == "__main__":
         logging_dir=f"{DATA_PATH}/finemath_filtered/{name}/logs",
         job_name=name,
         depends=load_executor,
-        partition="cpu_p1",
+        partition="prepost",
     )
 
     filter_executor.run()

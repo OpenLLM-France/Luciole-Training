@@ -7,7 +7,6 @@ from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
 from datatrove.pipeline.filters import LambdaFilter
 import os
 import json
-from utils import MAIN_PATH
 
 FASTTEXT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
@@ -15,6 +14,10 @@ FASTTEXT_PATH = os.path.join(
 DECONT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"),
     "data/raw_data/full_datasets/decontamination_index/data",
+)
+ROBOTSTXT_PATH = os.path.join(
+    os.getenv("OpenLLM_OUTPUT"),
+    "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge",
 )
 
 
@@ -161,19 +164,23 @@ def get_decontamination_filters(
     return filters
 
 
-def get_robot_filter(output_path):
+def get_robot_filter(output_path, robots_txt_path=ROBOTSTXT_PATH):
     return RobotsTxtFilter(
-        robots_txt_path=os.path.join(
-            MAIN_PATH,
-            "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge/robotstxt_dict.jsonl",
-        ),
+        robots_txt_path=robots_txt_path,
         exclusion_writer=JsonlWriter(
             f"{output_path}/removed/robots_txt",
         ),
     )
 
 
-def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=False):
+def get_web_pipeline(
+    language,
+    output_path,
+    do_edu=True,
+    do_pii=True,
+    do_decont=False,
+    robots_txt_path=ROBOTSTXT_PATH,
+):
     def deduplicate_url(doc):
         url = doc.metadata["url"]
         for keyword in get_duplicated_urls():
@@ -194,7 +201,7 @@ def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=
                 f"{output_path}/removed/duplicated_url",
             ),
         ),
-        get_robot_filter(output_path),
+        get_robot_filter(output_path, robots_txt_path=robots_txt_path),
         *edu_filters,
         *pii_formatter,
         *decontamination_filters,
