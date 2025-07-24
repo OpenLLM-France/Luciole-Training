@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --output=slurm/%x.out 
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=5
 #SBATCH --time=10:00:00 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos=qos_cpu-t3
