@@ -5,7 +5,6 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from web_utils import get_web_pipeline, ROBOTSTXT_PATH
-# from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtReducer
 
 
 class AssignCluster(PipelineStep):
@@ -48,34 +47,6 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
     language = args.language
 
-    # ############
-    # # Reduce robots.txt
-    # ############
-    # pipeline = [
-    #     ParquetReader(
-    #         f"/lustre/fsmisc/dataset/HuggingFace/HuggingFaceFW/fineweb-2/data/{language}/train"
-    #         if args.jz
-    #         else f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
-    #     ),
-    #     RobotsTxtReducer(
-    #         robots_txt_path=ROBOTSTXT_PATH,
-    #         output_path=f"{DATA_PATH}/fineweb2_filtered/{language}/robotstxt/data",
-    #     )
-    # ]
-
-    # reduce_executor = create_executor(
-    #     pipeline,
-    #     tasks=10,
-    #     local=args.local,
-    #     debug=args.debug,
-    #     logging_dir=f"{DATA_PATH}/fineweb2_filtered/{language}/robotstxt/logs",
-    #     job_name=f"rob_{language}",
-    #     partition="prepost",
-    #     cpus_per_task=1,
-    #     time="20:00:00",
-    # )
-    # reduce_executor.run()
-
     ############
     # Filter Fineweb2 DATASET
     ############
@@ -114,7 +85,7 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/fineweb2_filtered/{language}/logs",
         job_name=f"fw_{language}",
-        partition="cpu_p1" if args.jz else "prepost",
+        partition="prepost",
         cpus_per_task=1,
         time="20:00:00",
     )
