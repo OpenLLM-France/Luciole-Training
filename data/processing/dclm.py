@@ -1,5 +1,5 @@
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
-from web_utils import get_robot_filter
+from web_utils import get_robot_filter, get_dedup_filter
 from datatrove.pipeline.formatters import PIIFormatter
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -15,7 +15,8 @@ if __name__ == "__main__":
             {"name": "dclm", "split": "train"},
             streaming=True,
         ),
-        get_robot_filter(output_path=f"{DATA_PATH}/dclm_dolmino/removed"),
+        get_dedup_filter(output_path=f"{DATA_PATH}/dclm_dolmino"),
+        get_robot_filter(output_path=f"{DATA_PATH}/dclm_dolmino"),
         PIIFormatter(ip_replacement="<IP_ADDRESS>"),
         JsonlWriter(f"{DATA_PATH}/dclm_dolmino/data"),
     ]
@@ -30,3 +31,4 @@ if __name__ == "__main__":
         tasks=100,
         max_array_size=50,
     )
+    main_processing_executor.run()

@@ -1,5 +1,5 @@
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
-from web_utils import get_robot_filter
+from web_utils import get_robot_filter, get_dedup_filter
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 
@@ -13,7 +13,8 @@ if __name__ == "__main__":
         ParquetReader(
             "hf://datasets/HuggingFaceFW/fineweb-edu", glob_pattern="data/*/*.parquet"
         ),
-        get_robot_filter(output_path=f"{DATA_PATH}/fineweb_edu/removed"),
+        get_dedup_filter(output_path=f"{DATA_PATH}/fineweb_edu"),
+        get_robot_filter(output_path=f"{DATA_PATH}/fineweb_edu"),
         JsonlWriter(f"{DATA_PATH}/fineweb_edu/data"),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
