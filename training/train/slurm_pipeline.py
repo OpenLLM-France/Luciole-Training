@@ -2,13 +2,18 @@ import os
 import subprocess
 import logging
 from pathlib import Path
-from slurm_launcher import create_parser, pre_submit, write_launch_slurm
+from slurm_launcher import (
+    create_parser,
+    pre_submit,
+    write_launch_slurm,
+    generate_email_line,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_slurm_conversion_script(job_id, xp_output_dir):
+def create_slurm_conversion_script(job_id, xp_output_dir, email=None):
     job_name = f"conversion_of_{os.path.basename(xp_output_dir)}"
     set_env_path = Path(__file__).resolve().parent.parent
     set_env_path = f"{set_env_path}/set_env.sh"
@@ -30,6 +35,7 @@ def create_slurm_conversion_script(job_id, xp_output_dir):
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 {dependency}
+{generate_email_line(email)}
 
 source {set_env_path}
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -62,7 +68,7 @@ def submit_conversion(job_id, xp_output_dir):
     return job_id
 
 
-def create_slurm_eval_script(job_id, xp_output_dir, task):
+def create_slurm_eval_script(job_id, xp_output_dir, task, email=None):
     job_name = f"evaluation_of_{job_id}"
     experiment_dir = xp_output_dir
     path_to_evaluation = Path(__file__).resolve().parent.parent
@@ -82,6 +88,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task):
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
 {dependency}
+{generate_email_line(email)}
 
 python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} {"--multilingual" if multilingual else ""}
 """
@@ -98,14 +105,42 @@ def submit_evaluation(job_id, xp_output_dir, task="en.txt"):
     return job_id
 
 
+def update_email_args(step, source_args):
+    args = source_args.copy()
+    if args.email_when == "all" or args.email_when == "train":
+        args.email = args.email
+    else:
+        args.email = None
+    return args
+
+
 if __name__ == "__main__":
     parser = create_parser()
-    args = parser.parse_args()
+    parser.add_argument(
+        "--email_when",
+        type=str,
+        choices=["train", "conversion", "eval", "all"],
+        help="At which step do you want to send emails",
+        default="all",
+    )
+    source_args = parser.parse_args()
     try:
-        job_id, xp_output_dir = pre_submit(args)
-        conversion_id = submit_conversion(job_id, xp_output_dir)
-        submit_evaluation(conversion_id, xp_output_dir, task="en.txt")
-        submit_evaluation(conversion_id, xp_output_dir, task="fr.txt")
+        job_id, xp_output_dir = pre_submit(update_email_args("train", source_args))
+        conversion_id = submit_conversion(
+            job_id, xp_output_dir, email=update_email_args("conversion", source_args)
+        )
+        submit_evaluation(
+            conversion_id,
+            xp_output_dir,
+            task="en.txt",
+            email=update_email_args("eval", source_args),
+        )
+        submit_evaluation(
+            conversion_id,
+            xp_output_dir,
+            task="fr.txt",
+            email=update_email_args("eval", source_args),
+        )
     except Exception:
         for jid in [job_id, conversion_id]:
             try:
@@ -113,5 +148,7 @@ if __name__ == "__main__":
                 logger.info(f"Cancelled job {jid}")
             except subprocess.CalledProcessError as cancel_err:
                 logger.warning(f"Failed to cancel job {jid}: {cancel_err}")
-        logger.error("Job were cancelled because an error was raised!")
+        logger.error(
+            "Job were cancelled because an error was raised when submitting the jobs!"
+        )
         raise

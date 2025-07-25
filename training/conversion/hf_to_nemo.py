@@ -12,11 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 def convert_checkpoint(input_path, output_path):
+    logger.info(f"Converting {input_path} to {output_path}")
     exporter = llm.LlamaModel.importer(input_path)
     exporter.init()
     exporter.apply(output_path)
     with open(os.path.join(output_path, "context", "tokenizer_name.txt"), "w") as f:
         f.write(input_path.replace("hf://", ""))
+    logger.info(f"Model converted to {output_path}")
 
 
 if __name__ == "__main__":
@@ -24,16 +26,27 @@ if __name__ == "__main__":
     parser.add_argument(
         "--hf_model",
         type=str,
-        default="hf://meta-llama/Llama-3.2-1B",
-        help="Path to a hf model",
+        default="hf://OpenLLM-France/Lucie-7B-Instruct-v1.1",
+        help="Path to a hf model id. If you use a local path to a hf model use: hf:///path/to/model/Lucie-7B-Instruct-v1.1",
     )
     parser.add_argument(
         "--output_path",
         type=str,
-        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "hf_models", "model.nemo"),
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "hf_models", "model"),
         help="Path to nemo ckpt",
+    )
+    parser.add_argument(
+        "--nemo_file", action="store_true", help="Will generate a .nemo file"
     )
     parser.add_argument("--local-rank")
     args = parser.parse_args()
 
     convert_checkpoint(args.hf_model, args.output_path)
+
+    if args.nemo_file:
+        import tarfile
+
+        with tarfile.open(args.output_path + ".nemo", "w") as tar:
+            tar.add(args.output_path, arcname="context")
+            tar.add(args.output_path, arcname="weights")
+        logger.info(f"Nemo file written to {args.output_path+'.nemo'}")

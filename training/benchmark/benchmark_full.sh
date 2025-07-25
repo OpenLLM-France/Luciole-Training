@@ -34,9 +34,13 @@ python ../train/slurm_launcher.py --output_dir audran/benchmark --name_prefix se
 python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 32 --mode benchmark --name_prefix batch_size512 --tp 1 --batch_size 512 --seq_length 4096
 python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 64 --mode benchmark --name_prefix batch_size512 --tp 1 --batch_size 512 --seq_length 4096
 
-python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 32 --mode benchmark --name_prefix batch_size512 --fp8 --tp 1 --batch_size 512 --seq_length 4096
-python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 64 --mode benchmark --name_prefix batch_size512 --fp8 --tp 1 --batch_size 512 --seq_length 4096
-python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 128 --mode benchmark --name_prefix batch_size512 --fp8 --tp 1 --batch_size 512 --seq_length 4096
+# python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 32 --mode benchmark --name_prefix batch_size512 --fp8 --tp 1 --batch_size 512 --seq_length 4096
+# python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 64 --mode benchmark --name_prefix batch_size512 --fp8 --tp 1 --batch_size 512 --seq_length 4096
+# python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 128 --mode benchmark --name_prefix batch_size512 --fp8 --tp 1 --batch_size 512 --seq_length 4096
+
+python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 32 --mode benchmark --name_prefix batch_size512_20s --fp8 --tp 1 --batch_size 512 --seq_length 4096
+python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 64 --mode benchmark --name_prefix batch_size512_20s --fp8 --tp 1 --batch_size 512 --seq_length 4096
+python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama8b --num_nodes 128 --mode benchmark --name_prefix batch_size512_20s --fp8 --tp 1 --batch_size 512 --seq_length 4096
 
 # llama 1b
 python ../train/slurm_launcher.py --output_dir audran/benchmark --arch llama1b --num_nodes 32 --mode benchmark --tp 1
