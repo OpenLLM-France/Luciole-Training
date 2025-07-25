@@ -73,6 +73,8 @@ def edu_score(
             )
             doc.metadata["edu_score_mean"] = edu_score_mean
             doc.metadata["edu_score"] = int(round(edu_score_mean))
+        else:
+            doc.metadata["edu_score"] = "unk"
         yield doc
 
 
@@ -126,7 +128,6 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
                 save_labels_in_metadata=True,
                 filter_name="edu_score",
             ),
-            edu_score,
         ]
     else:
         edu_filters = []
@@ -134,6 +135,7 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
         print(
             f"Model not found at {model_url}. Skipping educational filters for {language}."
         )
+    edu_filters.append(edu_score)
     return edu_filters
 
 
