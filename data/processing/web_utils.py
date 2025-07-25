@@ -175,6 +175,24 @@ def get_robot_filter(output_path, robots_txt_path=ROBOTSTXT_PATH):
     )
 
 
+def get_dedup_filter(output_path):
+    def deduplicate_url(doc):
+        url = doc.metadata.get("url", None)
+        if url is None:
+            return True
+        for keyword in get_duplicated_urls():
+            if url.startswith(keyword):
+                return False, f"duplicate_url:{keyword}"
+        return True
+
+    return LambdaFilter(
+        deduplicate_url,
+        exclusion_writer=JsonlWriter(
+            f"{output_path}/removed/duplicated_url",
+        ),
+    )
+
+
 def get_web_pipeline(
     language,
     output_path,
@@ -183,13 +201,6 @@ def get_web_pipeline(
     do_decont=False,
     robots_txt_path=ROBOTSTXT_PATH,
 ):
-    def deduplicate_url(doc):
-        url = doc.metadata["url"]
-        for keyword in get_duplicated_urls():
-            if url.startswith(keyword):
-                return False, f"duplicate_url:{keyword}"
-        return True
-
     edu_filters = get_edu_filters(language) if do_edu else []
     pii_formatter = get_pii_formatter(language) if do_pii else []
     decontamination_filters = (
@@ -197,12 +208,7 @@ def get_web_pipeline(
     )
 
     pipeline = [
-        LambdaFilter(
-            deduplicate_url,
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed/duplicated_url",
-            ),
-        ),
+        get_dedup_filter(output_path),
         get_robot_filter(output_path, robots_txt_path=robots_txt_path),
         *edu_filters,
         *pii_formatter,
