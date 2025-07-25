@@ -365,7 +365,7 @@ def main():
         json_files = pathlib.Path(args.input).glob(args.files_filter)
         regex_pattern = re.compile(args.regex_filter)
         json_files = (
-            str(f) for f in json_files if f.is_file() and regex_pattern.match(f.name)
+            str(f) for f in json_files if f.is_file() and regex_pattern.match(str(f))
         )
         json_files = [
             f
