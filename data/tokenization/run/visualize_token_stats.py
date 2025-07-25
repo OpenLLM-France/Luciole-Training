@@ -9,6 +9,7 @@ import sys
 from matplotlib.ticker import FuncFormatter
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import math
 
 
 def format_tokens(tokens):
@@ -54,33 +55,83 @@ def plot_treemap(df, column_name, output_file):
     plt.close()
 
 
-def plot_horizontal_bar(df, column_name, output_file):
-    df = df.sort_values("total_tokens", ascending=False)
+# def plot_horizontal_bar(df, column_name, output_file):
+#     df = df.sort_values("total_tokens", ascending=False)
 
-    num_bars = len(df)
-    # Set height: base height 6 + 0.3 per bar, adjust to taste
-    fig_height = max(6, num_bars * 0.3)
+#     num_bars = len(df)
+#     # Set height: base height 6 + 0.3 per bar, adjust to taste
+#     fig_height = max(6, num_bars * 0.3)
 
-    plt.figure(figsize=(10, fig_height))
-    colors = sb.color_palette("rocket", len(df))
+#     plt.figure(figsize=(10, fig_height))
+#     colors = sb.color_palette("rocket", len(df))
 
-    plt.barh(y=df[column_name], width=df["total_tokens"], color=colors, alpha=0.7)
+#     plt.barh(y=df[column_name], width=df["total_tokens"], color=colors, alpha=0.7)
 
-    plt.xscale("log")
-    plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
+#     plt.xscale("log")
+#     plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
 
-    plt.xlabel("Total tokens (log scale)")
-    plt.ylabel(column_name.capitalize())
-    plt.title(
-        f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B"
+#     plt.xlabel("Total tokens (log scale)")
+#     plt.ylabel(column_name.capitalize())
+#     plt.title(
+#         f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B"
+#     )
+#     plt.gca().invert_yaxis()
+
+#     for i, (tokens, label) in enumerate(zip(df["total_tokens"], df[column_name])):
+#         plt.text(tokens * 1.1, i, format_tokens(tokens), va="center", fontsize=8)
+
+#     plt.tight_layout()
+#     plt.savefig(output_file, dpi=300)
+#     plt.close()
+
+
+def plot_horizontal_bar(df, column_name, output_file, num_columns=2):
+    df = df.sort_values("total_tokens", ascending=False).reset_index(drop=True)
+
+    total = len(df)
+    rows_per_col = math.ceil(total / num_columns)
+    fig_height = max(6, rows_per_col * 0.4)
+    fig_width = 10 * num_columns
+
+    fig, axes = plt.subplots(
+        nrows=1, ncols=num_columns, figsize=(fig_width, fig_height), sharex=True
     )
-    plt.gca().invert_yaxis()
 
-    for i, (tokens, label) in enumerate(zip(df["total_tokens"], df[column_name])):
-        plt.text(tokens * 1.1, i, format_tokens(tokens), va="center", fontsize=8)
+    if num_columns == 1:
+        axes = [axes]
 
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
+    colors = sb.color_palette("rocket", total)
+
+    for i in range(num_columns):
+        start = i * rows_per_col
+        end = min(start + rows_per_col, total)
+        sub_df = df.iloc[start:end]
+        ax = axes[i]
+
+        ax.barh(
+            y=sub_df[column_name],
+            width=sub_df["total_tokens"],
+            color=colors[start:end],
+            alpha=0.7,
+        )
+        ax.set_xscale("log")
+        ax.xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
+        ax.set_ylabel(column_name.capitalize() if i == 0 else "")
+        ax.invert_yaxis()
+
+        for j, (tokens, label) in enumerate(
+            zip(sub_df["total_tokens"], sub_df[column_name])
+        ):
+            ax.text(tokens * 1.1, j, format_tokens(tokens), va="center", fontsize=8)
+
+        ax.set_title(f"{column_name.capitalize()}s {start + 1}-{end}")
+
+    fig.suptitle(
+        f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B",
+        fontsize=14,
+    )
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig.savefig(output_file, dpi=300)
     plt.close()
 
 
@@ -234,6 +285,12 @@ if __name__ == "__main__":
         .reset_index()
         .sort_values("total_tokens", ascending=False)
     )
+    group_df = (
+        df.groupby("group")["total_tokens"]
+        .sum()
+        .reset_index()
+        .sort_values("total_tokens", ascending=False)
+    )
     df = df.sort_values(by=["dataset", "total_tokens"], ascending=False)
 
     # Treemap
@@ -243,6 +300,7 @@ if __name__ == "__main__":
     plot_treemap(
         dataset_df, "dataset", os.path.join(output_path, "treemap_datasets.png")
     )
+    plot_treemap(group_df, "group", os.path.join(output_path, "treemap_group.png"))
     plot_treemap(df, "name", os.path.join(output_path, "treemap_all.png"))
     # Horizontal bar
     plot_horizontal_bar(
@@ -251,6 +309,7 @@ if __name__ == "__main__":
     plot_horizontal_bar(
         dataset_df, "dataset", os.path.join(output_path, "bar_datasets.png")
     )
+    plot_horizontal_bar(group_df, "group", os.path.join(output_path, "bar_group.png"))
     plot_horizontal_bar(df, "name", os.path.join(output_path, "bar_all.png"))
     # Box plot
     plot_box_plot_from_summary(df, "name", os.path.join(output_path, "boxplot_all.png"))

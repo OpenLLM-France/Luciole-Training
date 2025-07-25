@@ -171,6 +171,9 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/theses/data
       - name: opene-edition_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/openedition/data
+      - name: parlement_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/
+        regex: (interventionsparlement|discourspublics|questionsecritesparlement|amendementsparlement)/data/\.jsonl.gz
       # Cosmopedia v2
       - name: cosmopedia-v2_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/cosmopedia_v2/output
@@ -240,13 +243,13 @@ dataset_groups:
       # MegaMath
       - name: megamath-web_part1_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
-        regex: ^0000[0-9]\.jsonl\.gz$|^0001[0-9]\.jsonl\.gz$
+        regex: 0000[0-9]\.jsonl\.gz$|^0001[0-9]\.jsonl\.gz$
       - name: megamath-web_part2_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
-        regex: ^0002[0-9]\.jsonl\.gz$|^0003[0-9]\.jsonl\.gz$
+        regex: 0002[0-9]\.jsonl\.gz$|^0003[0-9]\.jsonl\.gz$
       - name: megamath-web_part3_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web/data
-        regex: ^0004[0-9]\.jsonl\.gz$
+        regex: 0004[0-9]\.jsonl\.gz$
       - name: megamath_web-pro_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/megamath/megamath-web-pro/data
       # FineMath
@@ -269,13 +272,13 @@ dataset_groups:
       # Fineweb 2
       - name: fineweb2_edu1_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
-        regex: ^cluster_size-.*_edu_1_rank.*\.jsonl\.gz$
+        regex: cluster_size-.*_edu_1_rank.*\.jsonl\.gz$
       - name: fineweb2_edu2_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
-        regex: ^cluster_size-.*_edu_2_rank.*\.jsonl\.gz$
+        regex: cluster_size-.*_edu_2_rank.*\.jsonl\.gz$
       - name: fineweb2_edu3_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
-        regex: ^cluster_size-.*_edu_3_rank.*\.jsonl\.gz$
+        regex: cluster_size-.*_edu_3_rank.*\.jsonl\.gz$
       - name: fineweb2_edu4_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
-        regex: ^cluster_size-.*_edu_4_rank.*\.jsonl\.gz$
+        regex: cluster_size-.*_edu_4_rank.*\.jsonl\.gz$
