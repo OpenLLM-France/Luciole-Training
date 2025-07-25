@@ -1,120 +1,99 @@
 import argparse
 import torch
 import os
-import json
+import sys
 import logging
+import fiddle
 import pytorch_lightning as pl
-
-from recipe_pretrain import (
-    create_trainer,
-    distributed_fused_adam_with_cosine_annealing,
-    create_logger,
-    create_autoresume,
-)
-from utils import read_datamix_file, save_stats, write_completion
+from nemo import lightning as nl
+import nemo_run as run
 
 from dataloader import create_data
+from recipes.recipe_utils import set_recipe_trainer
+from utils import (
+    get_check_data_and_tokenizer,
+    save_stats,
+    save_config,
+    write_completion,
+    to_nb_tokens,
+    SUPPORTED_ARCHITECTURES,
+)
 
-from nemo.collections import llm
-from nemo.utils.exp_manager import TimingCallback
-from megatron.core.distributed import DistributedDataParallelConfig
+
+torch.set_float32_matmul_precision("high")
 
 if __name__ == "__main__":
-
-    def to_nb_tokens(x):
-        if x == "debug" or x == "benchmark" or x == "benchmark100":
-            return x
-        x = x.replace("b", " * 1_000_000_000")
-        x = x.replace("m", " * 1_000_000")
-        try:
-            return int(eval(x))
-        except Exception as e:
-            raise ValueError(
-                f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)"
-            ) from e
-
     parser = argparse.ArgumentParser()
     parser.add_argument("config")
     parser.add_argument(
         "--arch",
         default="llama1b",
         type=str,
-        choices=[
-            "llama1b",
-            "llama3b",
-            "llama8b",
-            "llama70b",
-            "mamba1b",
-            "mixtral8x7",
-            "mambahybrid8b",
-        ],
+        choices=SUPPORTED_ARCHITECTURES,
     )
     parser.add_argument("--name", default="", type=str)
-    parser.add_argument("--num_nodes", default=1, type=int)
-    parser.add_argument("--num_gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", default="debug", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
     )
     parser.add_argument("--batch_size", default=None, type=int)
     parser.add_argument("--seq_length", default=None, type=int)
     parser.add_argument("--tensor_parallelism", default=None, type=int)
     parser.add_argument("--pipeline_parallelism", default=None, type=int)
-    parser.add_argument("--context_parallelism", default=1, type=int)
+    parser.add_argument("--context_parallelism", default=None, type=int)
     parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--base_checkpoint", default=None, type=str)
+    parser.add_argument("--performance_mode", default=False, action="store_true")
     args = parser.parse_args()
 
-    # suppress_non_main_logging()
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(__name__)
 
     arch = args.arch
-    num_nodes = args.num_nodes
     output_dir = args.output_dir
 
-    # try:
-    data_paths, tokenizer_name = read_datamix_file(args.config)
-    if args.base_checkpoint:
-        with open(
-            os.path.join(args.base_checkpoint, "context", "tokenizer_name.txt"), "r"
-        ) as f:
-            base_model_tokenizer = f.read().strip()
-        if tokenizer_name != base_model_tokenizer:
-            raise ValueError(
-                f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
-            )
-
-    batch_size = args.batch_size
-    seq_length = args.seq_length
-
-    if batch_size is None and seq_length is None:
-        if arch in ["llama1b", "llama3b", "mamba1b"]:
-            batch_size = 512
-            seq_length = 2048
-        elif arch in ["llama8b", "mambahybrid8b"]:
-            batch_size = 1024
-            seq_length = 4096
-        elif arch == "mixtral8x7":
-            batch_size = 512
-            seq_length = 4096
-        elif arch in ["llama70b"]:
-            batch_size = 512
-            seq_length = 8192
-        else:
-            raise ValueError(f"Unsupported model : {arch}")
-    elif batch_size is None:
-        batch_size = 4_194_304 // seq_length
-    elif seq_length is None:
-        seq_length = 4_194_304 // batch_size
+    data_paths, tokenizer_name = get_check_data_and_tokenizer(
+        args.config, args.base_checkpoint
+    )
 
     pl.seed_everything(args.seed, workers=True)
+
+    recipe_args = dict(
+        dir=output_dir,
+        name=args.name,
+        num_nodes=int(os.environ.get("SLURM_NNODES", 1)),
+        num_gpus_per_node=int(os.environ.get("SLURM_GPUS", 4)),
+    )
+    if arch.startswith("llama"):
+        from recipes.recipe_llama import get_recipe
+    elif arch.startswith("nemotron"):
+        from recipes.recipe_nemotronh import get_recipe
+
+        if arch == "nemotronh47b":
+            args.fp8 = True
+    elif arch.startswith("mixtral") or arch.startswith("mistral"):
+        from recipes.recipe_mistral import get_recipe
+    elif arch.startswith("qwen"):
+        from recipes.recipe_qwen import get_recipe
+    else:
+        raise NotImplementedError(f"Architecture {arch} not implemented")
+    pretrain_recipe, recipes_args = get_recipe(
+        arch=arch,
+        recipe_args=recipe_args,
+        performance_mode_if_possible=args.performance_mode,
+    )
+    recipe = pretrain_recipe(**recipes_args)
+
+    batch_size = args.batch_size if args.batch_size else recipe.data.global_batch_size
+    seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
 
     data_args = dict(
         paths=data_paths,
         global_batch_size=batch_size,
+        micro_batch_size=recipe.data.micro_batch_size,
         seq_length=seq_length,
         tokenizer_name=tokenizer_name,
         seed=args.seed,
@@ -123,7 +102,7 @@ if __name__ == "__main__":
     data = create_data(data_args)
 
     if args.mode in ["debug", "benchmark", "benchmark100"]:
-        max_steps = 1 if args.mode == "debug" else 10
+        max_steps = 1 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
@@ -133,167 +112,66 @@ if __name__ == "__main__":
         resume_if_exists = True
         every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
 
-    strategy_args = dict(
-        tensor_model_parallel_size=args.tensor_parallelism
-        if args.tensor_parallelism
-        else 1,
-        pipeline_model_parallel_size=args.pipeline_parallelism
-        if args.pipeline_parallelism
-        else 1,
-        pipeline_dtype=torch.bfloat16,
-        virtual_pipeline_model_parallel_size=args.virtual_pipeline_parallelism,
-        context_parallel_size=args.context_parallelism,
-        sequence_parallel=False,
-        gradient_as_bucket_view=True,
-        ckpt_async_save=True,
-        ckpt_parallel_load=True,
-        ddp=DistributedDataParallelConfig(
-            check_for_nan_in_grad=True,
-            grad_reduce_in_fp32=True,
-            overlap_grad_reduce=True,
-            overlap_param_gather=True,
-            average_in_collective=True,
-        ),
-    )
+    recipe = set_recipe_trainer(recipe, args, max_steps)
 
-    optimizer_warmup_steps = 2000
+    if arch == "llama24b":
+        from recipes.recipe_llama import set_llama24b_recipe
 
-    if arch.startswith("llama"):
-        if arch == "llama1b":
-            from nemo.collections.llm.gpt.model.llama import (
-                Llama32Config1B as LlamaConfig,
-            )
+        recipe = set_llama24b_recipe(recipe, args)
 
-            optimizer_warmup_steps = 500
-        elif arch == "llama3b":
-            from nemo.collections.llm.gpt.model.llama import (
-                Llama32Config3B as LlamaConfig,
-            )
-        elif arch == "llama8b":
-            from nemo.collections.llm.gpt.model.llama import (
-                Llama31Config8B as LlamaConfig,
-            )
-        elif arch == "llama70b":
-            from nemo.collections.llm.gpt.model.llama import (
-                Llama31Config70B as LlamaConfig,
-            )
+    # MODEL
+    # recipe.model.config.seq_length = seq_length
 
-            strategy_args["sequence_parallel"] = True
-            strategy_args["tensor_model_parallel_size"] = 4
-            strategy_args["pipeline_model_parallel_size"] = 4
-            strategy_args["virtual_pipeline_model_parallel_size"] = 5
-            strategy_args["context_parallel_size"] = 2
-        else:
-            raise ValueError(f"Unsupported llama model : {arch}")
-        model_config = LlamaConfig()
-        model = llm.LlamaModel(model_config, tokenizer=data.tokenizer)
-    elif arch.startswith("mamba"):
-        if arch == "mamba1b":
-            from nemo.collections.llm.gpt.model.ssm import (
-                BaseMambaConfig1_3B as MambaConfig,
-            )
+    # OPTIM
+    if (
+        isinstance(args.mode, str) or args.mode <= 50_000_000_000
+    ):  # if less than 50B tokens, shorter warmup
+        recipe.optim.lr_scheduler.warmup_steps = 500
+    # optimizer_warmup_steps = 2000
 
-            model_config = MambaConfig(
-                tokenizer_library="huggingface",
-                tokenizer_name=tokenizer_name,
-                share_embeddings_and_output_weights=True,
-            )
-        elif arch == "mambahybrid8b":
-            from nemo.collections.llm.gpt.model.ssm import (
-                NVIDIAMambaHybridConfig8B as MambaConfig,
-            )
+    # LOGGER
+    # recipe.log.log_dir = output_dir
+    # recipe.log.name = args.name
+    # recipe.log.tensorboard = tensorboard_logger(name=args.name)
 
-            model_config = MambaConfig(
-                tokenizer_library="huggingface",
-                tokenizer_name=tokenizer_name,
-                hybrid_override_pattern="*-".join(["M-" * 5] * 5),
-                num_layers=58,
-            )
-            strategy_args["tensor_model_parallel_size"] = (
-                args.tensor_parallelism if args.tensor_parallelism else 4
-            )
-        model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
-    elif arch == "mixtral8x7":
-        from nemo.collections.llm.gpt.model.mixtral import (
-            MixtralConfig8x7B,
-            MixtralModel,
-        )
-
-        model_config = MixtralConfig8x7B()
-        model = MixtralModel(model_config, tokenizer=data.tokenizer)
-
-        strategy_args["virtual_pipeline_model_parallel_size"] = 8
-        strategy_args["pipeline_model_parallel_size"] = 4
-        strategy_args["expert_model_parallel_size"] = 8
-    else:
-        raise NotImplementedError(f"Architecture {arch} not implemented")
-
-    args_dict = vars(args)
-    for key in [
-        "tensor_parallelism",
-        "pipeline_parallelism",
-        "context_parallelism",
-        "virtual_pipeline_parallelism",
-        "batch_size",
-        "seq_length",
-    ]:
-        args_dict.pop(key, None)
-
-    logger.info("Args:\n" + json.dumps(args_dict, indent=2))
-    logger.info("Strategy Args:\n" + json.dumps(strategy_args, indent=2, default=str))
-    logger.info("Data Args:\n" + json.dumps(data_args, indent=2, default=str))
-
-    logger.info(f"Max steps: {max_steps}")
-    logger.info(f"Saving checkpoints every {every_n_train_steps} train steps")
-    logger.info(f"Resume training if possible: {resume_if_exists}")
-
-    opt = distributed_fused_adam_with_cosine_annealing(
-        max_lr=3e-4, warmup_steps=optimizer_warmup_steps
-    )
-
-    trainer = create_trainer(
-        strategy_args=strategy_args,
-        max_steps=max_steps,
-        num_gpus_per_node=args.num_gpus_per_node,
-        num_nodes=num_nodes,
-        callbacks=[TimingCallback()],
-        val_check_interval=5
-        if args.mode in ["debug", "benchmark", "benchmark100"]
-        else 1000,
-        limit_val_batches=0.0,  # 1 if args.mode == "debug" else 0,
-        fp8=args.fp8,
-        log_every_n_steps=1
-        if args.mode in ["debug", "benchmark", "benchmark100"]
-        else 10,
-    )
-
-    nemo_logger = create_logger(
-        dir=output_dir,
-        name=args.name,
+    # CKPT
+    recipe.log.ckpt = run.Config(
+        nl.ModelCheckpoint,
+        save_last=True,
+        save_top_k=-1,
         every_n_train_steps=every_n_train_steps,
+        monitor="step",
+        mode="max",
+        every_n_epochs=None,
     )
 
-    llm.train(
-        model=model,
-        data=data,
-        trainer=trainer,
-        log=nemo_logger,
-        tokenizer="data",
-        optim=opt,
-        resume=create_autoresume(
-            resume_if_exists=resume_if_exists, base_checkpoint=args.base_checkpoint
-        ),
+    # RESUME
+    recipe.resume = run.Config(
+        nl.AutoResume,
+        resume_if_exists=resume_if_exists,
+        resume_ignore_no_checkpoint=True,
+        restore_config=nl.RestoreConfig(path=args.base_checkpoint)
+        if args.base_checkpoint
+        else None,
     )
 
-    if args.mode in ["debug"] or str(args.mode).startswith("benchmark"):
-        save_stats(
-            output_dir,
-            args=args_dict,
-            strategy_args=strategy_args,
-            data_args=data_args,
-        )
+    # DATA
+    recipe.data = data
+    recipe.model.tokenizer = data.tokenizer
+
+    job_id = os.environ.get("SLURM_JOB_ID", "0")
+    job_output = os.path.join(output_dir, f"job_{job_id}")
+    os.makedirs(job_output, exist_ok=True)
+    save_config(
+        job_output,
+        args,
+        data_args,
+        recipe=recipe,
+    )
+
+    recipe_obj = fiddle.build(recipe)
+    recipe_obj()
+
+    if str(args.mode).startswith("benchmark"):
+        save_stats(job_output, args.name)
     write_completion(output_dir)
-    # finally:
-    #     if dist.is_available() and dist.is_initialized():
-    #         dist.barrier()
-    #         dist.destroy_process_group()

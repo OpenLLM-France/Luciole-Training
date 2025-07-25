@@ -1,12 +1,37 @@
 import os
-import torch
 import logging
-import torch.distributed as dist
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-torch.set_float32_matmul_precision("high")
+SUPPORTED_ARCHITECTURES = [
+    "llama1b",
+    "llama3b",
+    "llama8b",
+    "llama24b",
+    "llama70b",
+    "mamba1b",
+    "mixtral8x7",
+    "mambahybrid8b",
+    "nemotronh8b",
+    "nemotronh47b",
+    "nemotron22b",
+    "qwen32b",
+    "mistral12b",
+]
+
+
+def to_nb_tokens(x):
+    if x == "debug" or x == "benchmark" or x == "benchmark100":
+        return x
+    x = x.replace("b", " * 1_000_000_000")
+    x = x.replace("m", " * 1_000_000")
+    try:
+        return int(eval(x))
+    except Exception as e:
+        raise ValueError(
+            f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)"
+        ) from e
 
 
 def read_datamix_file(file):
@@ -67,63 +92,119 @@ def read_datamix_file(file):
     return data_paths, tokenizer_name
 
 
-def save_stats(output_dir, args, strategy_args, data_args, write_step_timings=True):
+def get_check_data_and_tokenizer(config, base_checkpoint):
+    data_paths, tokenizer_name = read_datamix_file(config)
+    if base_checkpoint:
+        with open(
+            os.path.join(base_checkpoint, "context", "tokenizer_name.txt"), "r"
+        ) as f:
+            base_model_tokenizer = f.read().strip()
+        if tokenizer_name != base_model_tokenizer:
+            raise ValueError(
+                f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
+            )
+    return data_paths, tokenizer_name
+
+
+def serialize_fdl(config):
+    import fiddle as fdl
+
+    if isinstance(config, fdl.Buildable):
+        result = {
+            "__type__": type(config).__name__,
+            "__fn_or_cls__": str(config.__fn_or_cls__),
+        }
+        for k, v in config.__arguments__.items():
+            try:
+                result[k] = serialize_fdl(v)
+            except Exception:
+                result[k] = f"<non-serializable: {type(v).__name__}>"
+        return result
+    elif isinstance(config, (list, tuple)):
+        return [serialize_fdl(x) for x in config]
+    elif isinstance(config, dict):
+        return {k: serialize_fdl(v) for k, v in config.items()}
+    elif isinstance(config, (str, int, float, bool, type(None))):
+        return config
+    else:
+        # Fallback for non-serializable objects
+        return f"<non-serializable: {type(config).__name__}>"
+
+
+def save_config(output_dir, args, data_args, recipe):
+    import json
+    from importlib.metadata import version
+    from git import Repo
+
+    recipe_dict = {
+        "data": data_args,
+        "trainer": serialize_fdl(recipe.trainer),
+        "model": serialize_fdl(recipe.model),
+        "optim": serialize_fdl(recipe.optim),
+        "resume": serialize_fdl(recipe.resume),
+        "log": serialize_fdl(recipe.log),
+    }
+    args_dict = {
+        "mode": args.mode,
+        "name": args.name,
+        "output_dir": args.output_dir,
+        "arch": args.arch,
+        "fp8": args.fp8,
+        "config": args.config,
+        "performance_mode": args.performance_mode,
+    }
+    repo = Repo(".", search_parent_directories=True)
+    commit_hash = repo.head.commit.hexsha
+    toolkit_version = dict(
+        nemo_version=version("nemo_toolkit"), open_llm_training_version=commit_hash
+    )
+    file_path = os.path.join(output_dir, f"config_{args.name}.json")
+    with open(file_path, "w") as jsonfile:
+        json_data = {
+            **recipe_dict,
+            **toolkit_version,
+            "args": args_dict,
+        }
+        json.dump(json_data, jsonfile, indent=2)
+    logger.info(f"Config saved to {file_path}")
+
+
+def save_stats(output_dir, name):
     import re
     import json
+    import numpy as np
 
-    strategy_args.pop("ddp")
-    strategy_args["pipeline_dtype"] = str(strategy_args["pipeline_dtype"])
-    job_id = os.environ.get("SLURM_JOB_ID")
     steps = dict()
     model_size = dict()
-    if write_step_timings:
-        pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-        file = f"log_{job_id}.out"
-        with open(os.path.join(output_dir, file), "r") as f:
-            log_content = f.read()
-        iteration_timing = {
-            int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
-        }
-        mean = sum(list(iteration_timing.values())[2:]) / (len(iteration_timing) - 2)
-        steps = {
-            "step_timings": list(iteration_timing.values()),
-            "mean_step_timings": mean,
-        }
+    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
+    with open(os.path.join(output_dir, "log.out"), "r") as f:
+        log_content = f.read()
+    iteration_timing = {
+        int(match[0]): float(match[1]) for match in re.findall(pattern, log_content)
+    }
+    mean_list = list(iteration_timing.values())[5:]
+    mean = np.mean(mean_list)
+    steps = {
+        "step_timings": list(iteration_timing.values()),
+        "mean_step_timings": mean,
+    }
 
-        pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
+    pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
 
-        matches = re.findall(pattern, log_content)
+    matches = re.findall(pattern, log_content)
 
-        model_size = {
-            label: float(value) if unit == "B" else float(value) / 1000
-            for value, unit, label in matches
+    model_size = {
+        label: float(value) if unit == "B" else float(value) / 1000
+        for value, unit, label in matches
+    }
+    with open(os.path.join(output_dir, f"stats_{name}.json"), "w") as jsonfile:
+        json_data = {
+            **steps,
+            **model_size,
         }
-    with open(
-        os.path.join(output_dir, f"stats_{args['name']}_{job_id}.json"), "w"
-    ) as jsonfile:
-        json_data = {**args, **data_args, **strategy_args, **steps, **model_size}
         json.dump(json_data, jsonfile, indent=2)
-
-
-def is_main_process():
-    return not dist.is_available() or not dist.is_initialized() or dist.get_rank() == 0
 
 
 def write_completion(output_dir):
     with open(os.path.join(output_dir, "completed.txt"), "w") as f:
         f.write("")
-
-
-def suppress_non_main_logging():
-    """Sets all existing and future loggers to only log from the main process."""
-    dist.init_process_group(backend="nccl")
-    if is_main_process():
-        logging_level = logging.INFO
-    else:
-        logging_level = logging.CRITICAL + 1  # Effectively disables logging
-
-    logging.getLogger().setLevel(logging.CRITICAL)
-
-    for name in logging.root.manager.loggerDict:
-        logger = logging.getLogger(name)
-        logger.setLevel(logging_level)

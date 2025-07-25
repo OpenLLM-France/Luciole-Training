@@ -12,7 +12,6 @@ def create_data(data_args: dict):
         tokenizer_name=data_args.pop("tokenizer_name"), use_fast=True
     )
     data = PreTrainingDataModule(
-        micro_batch_size=1,
         num_workers=8,
         pin_memory=True,
         tokenizer=tokenizer,

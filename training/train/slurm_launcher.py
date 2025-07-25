@@ -1,18 +1,32 @@
 import argparse
 import subprocess
 import os
+import sys
 import re
 import logging
 import shutil
 from pathlib import Path
+from utils import SUPPORTED_ARCHITECTURES
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL"):
+    email_line = ""
+    if email:
+        mail_type = mail_type.upper()
+        if mail_type == "ALL":
+            mail_type = "ARRAY_TASKS,ALL"
+        email_line = f"""#SBATCH --mail-user={email}
+#SBATCH --mail-type={mail_type}"""
+    return email_line
+
+
 def create_slurm_script(
     job_name,
     email,
+    email_types,
     output_dir,
     config,
     arch,
@@ -28,29 +42,27 @@ def create_slurm_script(
     virtual_pipeline_parallelism,
     seed,
     base_checkpoint,
+    performance_mode,
 ):
     # Choix des paramètres en fonction du mode
     if mode == "debug" or mode.startswith("benchmark"):
         qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "01:00:00" if mode == "benchmark100" else "00:30:00"
+        time = "01:30:00" if mode == "benchmark100" else "01:00:00"
     elif mode == "20b" or mode == "35b":
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
     else:
         raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, 20b or 35b.")
 
-    email_line = ""
-    if email:
-        email_line = f"""#SBATCH --mail-user={email}  # Où envoyer l'e-mail
-#SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL            # Événements déclencheurs (NONE, BEGIN, END, FAIL, ALL)"""
-
     train_path = Path(__file__).resolve().parent
 
     logger.info(f"Train script path: {train_path}/train.py")
 
-    args = f"{config} --arch {arch} --num_nodes {num_nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}"
+    args = f"{config} --arch {arch} --name {job_name} --mode {mode} --output_dir {output_dir}"
     if fp8:
         args += " --fp8"
+    if performance_mode:
+        args += " --performance_mode"
     if tensor_parallelism:
         args += f" --tensor_parallelism {tensor_parallelism}"
     if pipeline_parallelism:
@@ -76,12 +88,13 @@ def create_slurm_script(
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/log_%j.out 
+#SBATCH --output={output_dir}/job_%j/log.out 
+#SBATCH --error={output_dir}/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
-{email_line}
+{generate_email_line(email, email_types)}
 
 echo "Job name: {job_name}"
 echo "Qos: {qos}"
@@ -104,11 +117,11 @@ export NCCL_NVLS_ENABLE=0
 export NVTE_DP_AMAX_REDUCE_INTERVAL=0
 export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
-export CEEMS_ENABLE_PERF_EVENTS=1
-export CEEMS_ENABLE_PROFILING=1
+# export CEEMS_ENABLE_PERF_EVENTS=1
+# export CEEMS_ENABLE_PROFILING=1
 
 module purge
-module load arch/h100 nemo/2.1.0
+module load arch/h100 nemo/2.3.1
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -118,7 +131,7 @@ GPUS_PER_NODE={gpus_per_node}  # Adjust based on your setup
 DISTRIBUTED_ARGS=" \
        --nproc_per_node $GPUS_PER_NODE \
        --nnodes $SLURM_NNODES \
-       --node_rank $SLURM_PROCID \
+       --node_rank $SLURM_NODEID \
        --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
        --rdzv_backend c10d \
        --max_restarts 0 \
@@ -172,6 +185,8 @@ def submit_job(**kwargs):
         job_name_parts.append(f"s{kwargs['seed']}")
     if kwargs["mode"].startswith("benchmark"):
         job_name_parts.append(f"{kwargs['num_nodes']}n")
+        if kwargs.get("performance_mode"):
+            job_name_parts.append("perf")
     if kwargs.get("fp8"):
         job_name_parts.append("fp8")
     if kwargs.get("name_prefix"):
@@ -216,6 +231,17 @@ def submit_job(**kwargs):
     logger.info(f"Copied datamix file : {config} to {xp_output_dir}")
 
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+
+    sub_xp_output_dir = os.path.join(xp_output_dir, f"job_{job_id}")
+    os.makedirs(sub_xp_output_dir, exist_ok=True)
+    command = " ".join([os.path.basename(sys.executable)] + sys.argv)
+    command_path = os.path.join(sub_xp_output_dir, "command.sh")
+    with open(command_path, "w") as f:
+        f.write(command + "\n")
+    logger.info(f"Run saved in : {sub_xp_output_dir}")
+    shutil.copy2(sbatch_script_path, sub_xp_output_dir)
+    shutil.copy2(config, sub_xp_output_dir)
+
     return job_id, xp_output_dir
 
 
@@ -226,19 +252,15 @@ def create_parser():
         "--arch",
         default="llama1b",
         type=str,
-        choices=[
-            "llama",
-            "llama1b",
-            "llama3b",
-            "llama8b",
-            "llama70b",
-            "mamba1b",
-            "mixtral8x7",
-            "mambahybrid8b",
-        ],
+        choices=SUPPORTED_ARCHITECTURES,
     )
     parser.add_argument("--name_prefix", default="", type=str)
     parser.add_argument("--email", default=None)
+    parser.add_argument(
+        "--email_types",
+        default="ALL",
+        help="Triggers used for emails (BEGIN, END, FAIL...)",
+    )
     parser.add_argument("--output_dir", default="")
     parser.add_argument(
         "--output_path",
@@ -262,6 +284,9 @@ def create_parser():
         default=None,
         type=str,
         help="The path to a nemo checkpoint to make continual learning",
+    )
+    parser.add_argument(
+        "--performance_mode", "--perf", default=False, action="store_true"
     )
     return parser
 
