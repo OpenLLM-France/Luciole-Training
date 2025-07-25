@@ -1,6 +1,6 @@
 from utils import create_parser, parse_args, create_executor
 
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
+from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from web_utils import get_web_pipeline, ROBOTSTXT_PATH
@@ -16,10 +16,8 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     pipeline = [
-        HuggingFaceDatasetReader(
-            "uonlp/CulturaX",
-            {"name": language, "split": "train"},
-            streaming=True,
+        ParquetReader(
+            f"hf://datasets/uonlp/CulturaX/{language}", glob_pattern="*.parquet"
         ),
         *get_web_pipeline(
             language,
