@@ -2,14 +2,14 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import os
 import pandas as pd
-import re
 import squarify
 import argparse
-import sys
 from matplotlib.ticker import FuncFormatter
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 import math
+import numpy as np
+import matplotlib.colors as mcolors
 
 
 def format_tokens(tokens):
@@ -86,7 +86,7 @@ def plot_treemap(df, column_name, output_file):
 
 
 def plot_horizontal_bar(df, column_name, output_file, num_columns=2):
-    df = df.sort_values("total_tokens", ascending=False).reset_index(drop=True)
+    df = df.reset_index(drop=True)
 
     total = len(df)
     rows_per_col = math.ceil(total / num_columns)
@@ -100,7 +100,11 @@ def plot_horizontal_bar(df, column_name, output_file, num_columns=2):
     if num_columns == 1:
         axes = [axes]
 
-    colors = sb.color_palette("rocket", total)
+    # Normalize log10(total_tokens) for color mapping
+    log_tokens = np.log10(df["total_tokens"].clip(lower=1))  # avoid log(0)
+    norm = mcolors.Normalize(vmin=log_tokens.min(), vmax=log_tokens.max())
+    cmap = sb.color_palette("rocket", as_cmap=True)
+    colors = cmap(1 - norm(log_tokens))  # invert colors
 
     for i in range(num_columns):
         start = i * rows_per_col
@@ -232,14 +236,15 @@ def plot_box_plot_from_summary(df, column_name, output_file):
 
 
 def extract_info(text):
-    pattern = r"((.*?)(?:_(?:.*))*)_(.*)"
-    match = re.match(pattern, text)
-    if match:
-        rest = match.group(1)
-        first = match.group(2)
-        lang = match.group(3)
-        return {"language": lang, "group": first, "dataset": rest}
-    return None
+    splitted_text = text.split("_")
+    assert len(splitted_text) <= 3, f"Error in name format, too much _ in {text}"
+    dataset = splitted_text[0]
+    language = splitted_text[-1]
+    if len(splitted_text) == 3:
+        subset = splitted_text[1]
+    else:
+        subset = None
+    return {"dataset": dataset, "subset": subset, "language": language}
 
 
 if __name__ == "__main__":
@@ -247,32 +252,33 @@ if __name__ == "__main__":
         description="Plot token treemaps by language and dataset."
     )
     parser.add_argument(
-        "--path",
+        "--input_path",
         type=str,
-        required=True,
-        help="Path to the token directory (it must contains stats/ ).",
+        default="chronicles/all_stats_merged.csv",
+        help="Path to the all_stats.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="chronicles/figs/",
+        help="Path to the all_stats.",
     )
     args = parser.parse_args()
+    input_path = args.input_path
+    output_dir = args.output_dir
+    os.makedirs(output_dir, exist_ok=True)
 
-    stats_dir = os.path.join(args.path, "stats")
-    if not os.path.isdir(stats_dir):
-        print(
-            f"Error: The directory '{args.path}' does not contain a 'stats/' subdirectory."
-        )
-        sys.exit(1)  # exit with error code
-
-    input_file = os.path.join(stats_dir, "all_stats_merged.csv")
-    if not os.path.isfile(input_file):
-        print(f"Error: The file '{input_file}' does not exist.")
-        sys.exit(1)
-
-    input_file = os.path.join(args.path, "stats/all_stats_merged.csv")
-    output_path = os.path.join(args.path, "figs")
-    os.makedirs(output_path, exist_ok=True)
-
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(input_path)
     df = pd.concat([df, df["name"].apply(extract_info).apply(pd.Series)], axis=1)
+    df["group"] = df.apply(
+        lambda row: f"{row['dataset']}_{row['subset']}"
+        if pd.notnull(row["subset"])
+        else row["dataset"],
+        axis=1,
+    )
+    print(df.head(5))
 
+    # Groupby
     language_df = (
         df.groupby("language")["total_tokens"]
         .sum()
@@ -286,30 +292,31 @@ if __name__ == "__main__":
         .sort_values("total_tokens", ascending=False)
     )
     group_df = (
-        df.groupby("group")["total_tokens"]
+        df.groupby("group")[["total_tokens"]]
         .sum()
         .reset_index()
         .sort_values("total_tokens", ascending=False)
     )
-    df = df.sort_values(by=["dataset", "total_tokens"], ascending=False)
+    df = df.sort_values(by=["dataset", "total_tokens"], ascending=[True, False])
+
+    # Horizontal bar
+    plot_horizontal_bar(
+        language_df, "language", os.path.join(output_dir, "bar_language.png")
+    )
+    plot_horizontal_bar(
+        dataset_df, "dataset", os.path.join(output_dir, "bar_datasets.png")
+    )
+    plot_horizontal_bar(group_df, "group", os.path.join(output_dir, "bar_group.png"))
+    plot_horizontal_bar(df, "name", os.path.join(output_dir, "bar_all.png"))
+    # Box plot
+    plot_box_plot_from_summary(df, "name", os.path.join(output_dir, "boxplot_all.png"))
 
     # Treemap
     plot_treemap(
-        language_df, "language", os.path.join(output_path, "treemap_language.png")
+        language_df, "language", os.path.join(output_dir, "treemap_language.png")
     )
     plot_treemap(
-        dataset_df, "dataset", os.path.join(output_path, "treemap_datasets.png")
+        dataset_df, "dataset", os.path.join(output_dir, "treemap_datasets.png")
     )
-    plot_treemap(group_df, "group", os.path.join(output_path, "treemap_group.png"))
-    plot_treemap(df, "name", os.path.join(output_path, "treemap_all.png"))
-    # Horizontal bar
-    plot_horizontal_bar(
-        language_df, "language", os.path.join(output_path, "bar_language.png")
-    )
-    plot_horizontal_bar(
-        dataset_df, "dataset", os.path.join(output_path, "bar_datasets.png")
-    )
-    plot_horizontal_bar(group_df, "group", os.path.join(output_path, "bar_group.png"))
-    plot_horizontal_bar(df, "name", os.path.join(output_path, "bar_all.png"))
-    # Box plot
-    plot_box_plot_from_summary(df, "name", os.path.join(output_path, "boxplot_all.png"))
+    plot_treemap(group_df, "group", os.path.join(output_dir, "treemap_group.png"))
+    plot_treemap(df, "name", os.path.join(output_dir, "treemap_all.png"))

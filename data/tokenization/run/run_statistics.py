@@ -22,10 +22,12 @@ if __name__ == "__main__":
     token_dir = args.token_dir
 
     files = glob.glob(os.path.join(token_dir, "*_text_document.idx"))
-    names = [
-        re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1)
-        for f in files
-    ]
+    names = sorted(
+        [
+            re.match(r"(.*?)_text_document\.idx", os.path.basename(f)).group(1)
+            for f in files
+        ]
+    )
 
     job_ids = []
     for name in names:
