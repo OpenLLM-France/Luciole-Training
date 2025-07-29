@@ -100,7 +100,8 @@ def plot_horizontal_bar(
 
     elif color_column in ["dataset", "group", "subset", "language"]:
         unique_categories = df[color_column].astype("category").cat.categories
-        palette = sb.color_palette("hls", len(unique_categories))
+        palette = sb.color_palette("colorblind", len(unique_categories))
+
         color_map = dict(zip(unique_categories, palette))
         colors = df[color_column].map(color_map)
 
@@ -238,18 +239,6 @@ def plot_box_plot_from_summary(df, column_name, output_file):
     plt.close()
 
 
-def extract_info(text):
-    splitted_text = text.split("_")
-    assert len(splitted_text) <= 3, f"Error in name format, too much _ in {text}"
-    dataset = splitted_text[0]
-    language = splitted_text[-1]
-    if len(splitted_text) == 3:
-        subset = splitted_text[1]
-    else:
-        subset = None
-    return {"dataset": dataset, "subset": subset, "language": language}
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Plot token treemaps by language and dataset."
@@ -272,14 +261,17 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
 
     df = pd.read_csv(input_path)
-    df = pd.concat([df, df["name"].apply(extract_info).apply(pd.Series)], axis=1)
     df["group"] = df.apply(
         lambda row: f"{row['dataset']}_{row['subset']}"
         if pd.notnull(row["subset"])
         else row["dataset"],
         axis=1,
     )
-    print(df.head(5))
+    df["language"] = df["language"].apply(
+        lambda x: x
+        if x in ["code", "math", "ar", "fr", "en", "nl", "de", "pt", "es", "it"]
+        else "other"
+    )
 
     # Groupby
     language_df = (
