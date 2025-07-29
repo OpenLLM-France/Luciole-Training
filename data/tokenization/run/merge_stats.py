@@ -34,6 +34,9 @@ if __name__ == "__main__":
     token_dir = args.token_dir
 
     merged_df = merge_stats(os.path.join(token_dir, "stats"))
-    output_csv_path = os.path.join(token_dir, "stats/all_stats_merged.csv")
-    merged_df.to_csv(output_csv_path, index=False)
-    print(f"Merged stats saved to {output_csv_path}")
+    for output_csv_path in [
+        os.path.join(token_dir, "stats/all_stats_merged.csv"),
+        "chronicles/all_stats_merged.csv",
+    ]:
+        merged_df.to_csv(output_csv_path, index=False)
+        print(f"Merged stats saved to {output_csv_path}")
