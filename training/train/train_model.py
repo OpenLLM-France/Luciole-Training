@@ -124,7 +124,9 @@ if __name__ == "__main__":
     elif arch.startswith("ablation"):
         from recipes.recipe_ablations import set_ablation_recipe
         recipe = set_ablation_recipe(recipe, arch)
-
+        data_args['seq_length'] = recipe.data.seq_length
+        data_args['global_batch_size'] = recipe.data.global_batch_size
+        
     # MODEL
     # recipe.model.config.seq_length = seq_length
 

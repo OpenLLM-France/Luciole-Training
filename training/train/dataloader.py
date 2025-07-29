@@ -5,13 +5,13 @@ from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
 from nemo.collections import llm
 import fiddle as fdl
 import json
-
+import nemo_run as run
 
 def create_data(data_args: dict):
     tokenizer = get_tokenizer(
         tokenizer_name=data_args.pop("tokenizer_name"), use_fast=True
     )
-    data = PreTrainingDataModule(
+    data = run.Config(PreTrainingDataModule,
         num_workers=8,
         pin_memory=True,
         tokenizer=tokenizer,
