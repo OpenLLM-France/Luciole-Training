@@ -272,11 +272,11 @@ def setup():
     data = load_data(input_folder)
 
     df = convert_data(data)
-    return output_folder, df
+    return output_folder, df, input_folder
 
 
 if __name__ == "__main__":
-    output_folder, df = setup()
+    output_folder, df, input = setup()
     os.makedirs(output_folder, exist_ok=True)
     df = df.sort_values(by=["arch", "seq_length", "batch_size", "precision"])
     plot_training_and_gpu_hours(
