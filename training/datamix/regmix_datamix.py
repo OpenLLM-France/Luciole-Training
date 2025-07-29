@@ -47,9 +47,7 @@ if __name__ == "__main__":
 
         lambda_param = np.random.uniform(0.1, 5)
         df["lambda"] = lambda_param
-        df["dirichlet"] = np.random.dirichlet(lambda_param * np.ones(n_datasets))
-        df["weight"] = df["dirichlet"] * df["total_tokens"]
-        df["weight"] /= df["weight"].sum()
+        df["weight"] = np.random.dirichlet(lambda_param * df["total_tokens"])
 
         df["name"] = df["name"] + "_text_document"
         out = {
