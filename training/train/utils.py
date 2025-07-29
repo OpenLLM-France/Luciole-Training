@@ -18,7 +18,10 @@ SUPPORTED_ARCHITECTURES = [
     "nemotron22b",
     "qwen32b",
     "mistral12b",
-    "ablation_llama90M"
+    "ablation_llama90M",
+    "ablation_llama210M",
+    "ablation_llama400M",
+    "ablation_llama530M",
 ]
 
 

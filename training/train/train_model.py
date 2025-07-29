@@ -102,7 +102,9 @@ if __name__ == "__main__":
     )
 
     data = create_data(data_args)
-
+    recipe.data = data
+    recipe.model.tokenizer = data.tokenizer
+    
     if args.mode in ["debug", "benchmark", "benchmark100"]:
         max_steps = 1 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
@@ -121,10 +123,7 @@ if __name__ == "__main__":
         recipe = set_llama24b_recipe(recipe, args)
     elif arch.startswith("ablation"):
         from recipes.recipe_ablations import set_ablation_recipe
-        if arch == "ablation_llama90M":
-            recipe = set_ablation_recipe(recipe, args)
-        else:
-            raise ValueError(f"Unknown ablation architecture: {arch}")
+        recipe = set_ablation_recipe(recipe, arch)
 
     # MODEL
     # recipe.model.config.seq_length = seq_length
@@ -161,10 +160,6 @@ if __name__ == "__main__":
         if args.base_checkpoint
         else None,
     )
-
-    # DATA
-    recipe.data = data
-    recipe.model.tokenizer = data.tokenizer
 
     job_id = os.environ.get("SLURM_JOB_ID", "0")
     job_output = os.path.join(output_dir, f"job_{job_id}")
