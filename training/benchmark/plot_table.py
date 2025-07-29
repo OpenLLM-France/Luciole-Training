@@ -28,7 +28,9 @@ def summarize_training_times_by_arch_and_precision(df, show_fp8_only_if_better=F
         df = pd.concat([bf16_df, fp8_df_filtered], ignore_index=True)
     grouped = df.copy()
 
-    def format_cell(days, gpuh):
+    def format_cell(days, gpuh, error=None):
+        if error and isinstance(error, str):
+            return error
         return f"{days:.1f} days / {gpuh / 1000:.0f}k GPUh"
 
     summary = pd.DataFrame()
@@ -39,22 +41,23 @@ def summarize_training_times_by_arch_and_precision(df, show_fp8_only_if_better=F
 
     summary["training_time"] = grouped["training_time"]
     summary["1T tokens"] = [
-        format_cell(t, g)
+        format_cell(t, g, t)
         for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
     ]
     summary["3T tokens"] = [
-        format_cell(t * 3, g * 3)
+        format_cell(t * 3, g * 3, t)
         for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
     ]
     summary["5T tokens"] = [
-        format_cell(t * 5, g * 5)
+        format_cell(t * 5, g * 5, t)
         for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
     ]
     summary["10T tokens"] = [
-        format_cell(t * 10, g * 10)
+        format_cell(t * 10, g * 10, t)
         for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
     ]
-
+    
+    summary['training_time'] = pd.to_numeric(summary['training_time'], errors='coerce')
     summary = summary.sort_values(by=["training_time"])
     summary = summary.drop(columns=["training_time"])
     return summary
@@ -77,7 +80,7 @@ def plot_training_time(summary_df, output_folder, plot_name=None):
 
     def extract_gpu_hours(cell):
         match = re.search(r"/\s*(\d+)k\s*GPUh", cell)
-        return int(match.group(1)) if match else 0
+        return int(match.group(1)) if match else "error"
 
     cmap = mcolors.LinearSegmentedColormap.from_list(
         "green_yellow_orange_red", ["#b6fcb6", "#fff89e", "#ffc074", "#ff8080"]
@@ -101,9 +104,12 @@ def plot_training_time(summary_df, output_folder, plot_name=None):
             if j == 0:
                 continue  # skip arch name
             gpuh = extract_gpu_hours(cell)
-            ratio = min(gpuh / max_gpuh, 1.0)
-            color = cmap(ratio)
-            table[(i + 1, j)].set_facecolor(color)
+            if gpuh=="error":
+                table[(i + 1, j)].set_facecolor("#777777")
+            else:
+                ratio = min(gpuh / max_gpuh, 1.0)
+                color = cmap(ratio)
+                table[(i + 1, j)].set_facecolor(color)
 
     plt.tight_layout()
     plt.savefig(

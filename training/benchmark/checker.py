@@ -11,7 +11,7 @@ def search_cuda_out_of_memory(log_path):
 
     with open(log_path, "r") as f:
         content = f.readlines()
-        return bool(pattern.search(content))
+        return bool(pattern.search("\n".join(content)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -23,6 +23,7 @@ if __name__ == "__main__":
         failed_out_path = os.path.join(args.experiment_folder, "failed.out")
         out_of_memory = search_cuda_out_of_memory(failed_out_path)
         if out_of_memory:
+            print(f"Experiment {args.job_id}, found CUDA out of memory error.")
             with open(os.path.join(args.experiment_folder, "completed.txt"), "w") as f:
                 f.write("")
             stats_filename = f"stats_{os.path.basename(args.experiment_folder)}.json"
@@ -30,3 +31,5 @@ if __name__ == "__main__":
             json_data = dict(error="OOM")
             with open(stats_path, "w") as f:
                 json.dump(json_data, f, indent=2)
+    else:
+        print(f"Experiment {args.job_id} completed correctly.")
