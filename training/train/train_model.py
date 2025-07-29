@@ -78,6 +78,8 @@ if __name__ == "__main__":
         from recipes.recipe_mistral import get_recipe
     elif arch.startswith("qwen"):
         from recipes.recipe_qwen import get_recipe
+    elif arch.startswith("ablation"):
+        from recipes.recipe_ablations import get_recipe
     else:
         raise NotImplementedError(f"Architecture {arch} not implemented")
     pretrain_recipe, recipes_args = get_recipe(
@@ -116,8 +118,13 @@ if __name__ == "__main__":
 
     if arch == "llama24b":
         from recipes.recipe_llama import set_llama24b_recipe
-
         recipe = set_llama24b_recipe(recipe, args)
+    elif arch.startswith("ablation"):
+        from recipes.recipe_ablations import set_ablation_recipe
+        if arch == "ablation_llama90M":
+            recipe = set_ablation_recipe(recipe, args)
+        else:
+            raise ValueError(f"Unknown ablation architecture: {arch}")
 
     # MODEL
     # recipe.model.config.seq_length = seq_length
