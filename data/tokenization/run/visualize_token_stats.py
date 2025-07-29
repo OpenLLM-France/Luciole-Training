@@ -10,6 +10,8 @@ from matplotlib.patches import Patch
 import math
 import numpy as np
 import matplotlib.colors as mcolors
+from matplotlib.cm import ScalarMappable
+from matplotlib.gridspec import GridSpec
 
 
 def format_tokens(tokens):
@@ -55,56 +57,57 @@ def plot_treemap(df, column_name, output_file):
     plt.close()
 
 
-# def plot_horizontal_bar(df, column_name, output_file):
-#     df = df.sort_values("total_tokens", ascending=False)
-
-#     num_bars = len(df)
-#     # Set height: base height 6 + 0.3 per bar, adjust to taste
-#     fig_height = max(6, num_bars * 0.3)
-
-#     plt.figure(figsize=(10, fig_height))
-#     colors = sb.color_palette("rocket", len(df))
-
-#     plt.barh(y=df[column_name], width=df["total_tokens"], color=colors, alpha=0.7)
-
-#     plt.xscale("log")
-#     plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
-
-#     plt.xlabel("Total tokens (log scale)")
-#     plt.ylabel(column_name.capitalize())
-#     plt.title(
-#         f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B"
-#     )
-#     plt.gca().invert_yaxis()
-
-#     for i, (tokens, label) in enumerate(zip(df["total_tokens"], df[column_name])):
-#         plt.text(tokens * 1.1, i, format_tokens(tokens), va="center", fontsize=8)
-
-#     plt.tight_layout()
-#     plt.savefig(output_file, dpi=300)
-#     plt.close()
-
-
-def plot_horizontal_bar(df, column_name, output_file, num_columns=2):
+def plot_horizontal_bar(
+    df, column_name, output_file, num_columns=2, color_column="total_tokens"
+):
     df = df.reset_index(drop=True)
 
     total = len(df)
     rows_per_col = math.ceil(total / num_columns)
     fig_height = max(6, rows_per_col * 0.4)
-    fig_width = 10 * num_columns
+    fig_width = 10 * num_columns + 2  # Extra space for colorbar/legend
 
-    fig, axes = plt.subplots(
-        nrows=1, ncols=num_columns, figsize=(fig_width, fig_height), sharex=True
+    fig = plt.figure(figsize=(fig_width, fig_height), constrained_layout=True)
+    spec = GridSpec(
+        nrows=1,
+        ncols=num_columns + 1,
+        figure=fig,
+        width_ratios=[1] * num_columns + [0.05],
     )
 
-    if num_columns == 1:
-        axes = [axes]
+    axes = []
+    for i in range(num_columns):
+        if i == 0:
+            ax = fig.add_subplot(spec[0, i])
+        else:
+            ax = fig.add_subplot(spec[0, i], sharex=axes[0])
+        axes.append(ax)
 
-    # Normalize log10(total_tokens) for color mapping
-    log_tokens = np.log10(df["total_tokens"].clip(lower=1))  # avoid log(0)
-    norm = mcolors.Normalize(vmin=log_tokens.min(), vmax=log_tokens.max())
-    cmap = sb.color_palette("rocket", as_cmap=True)
-    colors = cmap(1 - norm(log_tokens))  # invert colors
+    legend_ax = fig.add_subplot(spec[0, -1])
+    legend_ax.axis("off")
+
+    # Color setup
+    if color_column == "total_tokens":
+        log_tokens = np.log10(df["total_tokens"].clip(lower=1))
+        norm = mcolors.Normalize(vmin=log_tokens.min(), vmax=log_tokens.max())
+        cmap = sb.color_palette("rocket", as_cmap=True)
+        colors = cmap(1 - norm(log_tokens))
+
+        sm = ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, cax=legend_ax, orientation="vertical")
+        cbar.set_label("log₁₀(Total Tokens)")
+
+    elif color_column in ["dataset", "group", "subset", "language"]:
+        unique_categories = df[color_column].astype("category").cat.categories
+        palette = sb.color_palette("hls", len(unique_categories))
+        color_map = dict(zip(unique_categories, palette))
+        colors = df[color_column].map(color_map)
+
+        handles = [
+            Patch(color=color_map[cat], label=str(cat)) for cat in unique_categories
+        ]
+        legend_ax.legend(handles=handles, title=color_column.capitalize(), loc="center")
 
     for i in range(num_columns):
         start = i * rows_per_col
@@ -134,7 +137,7 @@ def plot_horizontal_bar(df, column_name, output_file, num_columns=2):
         f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B",
         fontsize=14,
     )
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
     fig.savefig(output_file, dpi=300)
     plt.close()
 
@@ -297,7 +300,9 @@ if __name__ == "__main__":
         .reset_index()
         .sort_values("total_tokens", ascending=False)
     )
-    df = df.sort_values(by=["dataset", "total_tokens"], ascending=[True, False])
+    df = df.sort_values(
+        by=["dataset", "language", "total_tokens"], ascending=[True, True, False]
+    )
 
     # Horizontal bar
     plot_horizontal_bar(
@@ -307,7 +312,14 @@ if __name__ == "__main__":
         dataset_df, "dataset", os.path.join(output_dir, "bar_datasets.png")
     )
     plot_horizontal_bar(group_df, "group", os.path.join(output_dir, "bar_group.png"))
-    plot_horizontal_bar(df, "name", os.path.join(output_dir, "bar_all.png"))
+    plot_horizontal_bar(
+        df,
+        "name",
+        os.path.join(output_dir, "bar_all.png"),
+        color_column="language",
+        num_columns=2,
+    )
+
     # Box plot
     plot_box_plot_from_summary(df, "name", os.path.join(output_dir, "boxplot_all.png"))
 
