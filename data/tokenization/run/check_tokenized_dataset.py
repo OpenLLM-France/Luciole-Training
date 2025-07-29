@@ -4,6 +4,7 @@ import os
 # from megatron.data import indexed_dataset
 from nemo_patch import indexed_dataset
 import transformers
+import tqdm
 
 
 
@@ -21,14 +22,14 @@ def inspect_tokens(bin_file):
     num_tokens = 0
     num_chars = 0
     num_docs = 0
-    for i, data in enumerate(dataset):
+    for i, data in enumerate(tqdm.tqdm(dataset)):
         text = tokenizer.decode(data)
         text = text.replace("\n", "\\n")
         data = list(data)
         num_tokens += len(data)
         num_chars += len(text)
         num_docs += 1
-        if i <= 5:
+        if i <= 5 or i >= len(dataset) - 5:
             if len(data) > 20:
                 print("   ", data[:10] + [f" ... {len(data)-20} ... "] + data[-10:])
             else:
@@ -37,6 +38,9 @@ def inspect_tokens(bin_file):
                 print(text[:50] + f" ... {len(text)-100} ... " + text[-50:])
             else:
                 print(text)
+        elif i == 6:
+            print("...\n" * 3)
+
     print(f"Number of documents: {num_docs}")
     print(f"Number of tokens: {num_tokens}")
     print(f"Number of characters: {num_chars}")
