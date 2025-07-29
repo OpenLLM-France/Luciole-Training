@@ -42,11 +42,12 @@ if __name__ == "__main__":
     # Aggregate data and write output bin
     builder = indexed_dataset.make_builder(output_bin_file, impl="mmap", vocab_size=vocab_size)
 
-    try:
+    try:        
         for path in inputs:
-            dataset = indexed_dataset.MMapIndexedDataset(path)
-            for doc in dataset:
-                builder.add_doc(doc, [len(doc)])
+            builder.merge_file_(path)
+            # dataset = indexed_dataset.MMapIndexedDataset(path)
+            # for doc in dataset:
+            #     builder.add_doc(doc, [len(doc)])
     except (Exception, KeyboardInterrupt) as err:
         if os.path.exists(output_bin_file):
             os.remove(output_bin_file)

@@ -650,11 +650,12 @@ class MMapIndexedDatasetBuilder(object):
         index = MMapIndexedDataset.Index(index_file_path(another_file))
         assert index.dtype == self._dtype
 
-        for size in index.sizes:
-            self._sizes.append(size)
+        offset = len(self._sizes)
+        self._sizes.extend(index.sizes)
+        self._doc_idx.extend((offset + index.doc_idx)[1:])
 
         # Concatenate data
-        with open(data_file_path(another_file), "rb") as f:
+        with open(data_file_path(another_file), 'rb') as f:
             shutil.copyfileobj(f, self._data_file)
 
     def finalize(self, index_file):
