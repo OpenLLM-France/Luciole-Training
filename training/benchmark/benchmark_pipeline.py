@@ -102,8 +102,9 @@ def launch_jobs(base_config, mode):
     job_list = []
     job_folder_list = []
     for config in configs:
-        config.update(base_config)
-        job, folder = submit_job(**config)
+        run_config = base_config.copy()
+        run_config.update(config)
+        job, folder = submit_job(**run_config)
         if job:
             job_list.append(str(job))
             job_folder_list.append(folder)
@@ -137,7 +138,7 @@ def launch_plot(job_list, input_folder, output_folder):
         [
             "sbatch",
             f"--job-name=plot_{output_folder}",
-            "--dependency=afterok:" + ":".join(job_list),
+            "--dependency=afterok:" + ":".join(job_list) if job_list else "",
             f"{current_dir}/example.slurm",
             "plot_table.py",
             input_folder,
@@ -178,4 +179,4 @@ if __name__ == "__main__":
     job_list, job_folder_list = launch_jobs(base_config, args.mode)
     checker_job_list = launch_checker(job_list, job_folder_list)
     output_plot_folder = args.output_plot_folder or f"plots_{str(args.num_nodes)}"
-    launch_plot(checker_job_list, output_benchmark_folder, output_plot_folder)
+    launch_plot(checker_job_list, base_config['output_dir'], output_plot_folder)
