@@ -64,7 +64,7 @@ def export_summary_to_markdown(df):
     return df.to_markdown(index=False)
 
 
-def plot_training_time(summary_df, output_folder):
+def plot_training_time(summary_df, output_folder, plot_name=None):
     import re
 
     fig_height = len(summary_df) * 0.6 + 1  # adjust height based on number of rows
@@ -107,7 +107,7 @@ def plot_training_time(summary_df, output_folder):
 
     plt.tight_layout()
     plt.savefig(
-        os.path.join(output_folder, "plot_table.png"),
+        os.path.join(output_folder, plot_name+".png" if plot_name else "plot_table.png"),
         dpi=300,
         bbox_inches="tight",
         pad_inches=0.1,
@@ -116,9 +116,10 @@ def plot_training_time(summary_df, output_folder):
 
 
 if __name__ == "__main__":
-    output_folder, df = setup()
+    output_folder, df, input = setup()
+    print(df)
     os.makedirs(output_folder, exist_ok=True)
     table = summarize_training_times_by_arch_and_precision(df)
     print(table)
     markdown_table = export_summary_to_markdown(table)
-    plot_training_time(table, output_folder)
+    plot_training_time(table, output_folder, os.path.basename(input).split("_")[-1])

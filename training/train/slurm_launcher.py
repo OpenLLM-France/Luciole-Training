@@ -6,7 +6,7 @@ import re
 import logging
 import shutil
 from pathlib import Path
-from utils import SUPPORTED_ARCHITECTURES
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ def create_slurm_script(
 
     train_path = Path(__file__).resolve().parent
 
-    logger.info(f"Train script path: {train_path}/train.py")
+    logger.info(f"Train script path: {train_path}/train_model.py")
 
     args = f"{config} --arch {arch} --name {job_name} --mode {mode} --output_dir {output_dir}"
     if fp8:
@@ -138,9 +138,10 @@ DISTRIBUTED_ARGS=" \
        "
 
 echo "Arguments: {args}" 
-srun torchrun $DISTRIBUTED_ARGS {train_path}/train.py {args}
+srun torchrun $DISTRIBUTED_ARGS {train_path}/train_model.py {args}
 """
     return script
+
 
 
 def write_launch_slurm(slurm_path, slurm_content):
@@ -246,6 +247,7 @@ def submit_job(**kwargs):
 
 
 def create_parser():
+    from utils import SUPPORTED_ARCHITECTURES
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="../datamix/mock.json")
     parser.add_argument(
