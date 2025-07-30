@@ -269,7 +269,21 @@ if __name__ == "__main__":
     )
     df["language"] = df["language"].apply(
         lambda x: x
-        if x in ["code", "math", "ar", "fr", "en", "nl", "de", "pt", "es", "it"]
+        if x
+        in [
+            "code",
+            "math",
+            "ar",
+            "fr",
+            "en",
+            "nl",
+            "de",
+            "pt",
+            "es",
+            "it",
+            "aligned",
+            "multi",
+        ]
         else "other"
     )
 

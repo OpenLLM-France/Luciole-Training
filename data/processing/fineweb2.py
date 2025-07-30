@@ -59,7 +59,7 @@ if __name__ == "__main__":
         ),
         AssignCluster(),
         *get_web_pipeline(
-            language,
+            language.removesuffix("_removed"),
             robots_txt_path=ROBOTSTXT_PATH,
             output_path=f"{DATA_PATH}/fineweb2_filtered/{language}",
             do_edu=True,
@@ -78,9 +78,23 @@ if __name__ == "__main__":
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
+    if language in [
+        "arb_Arab",
+        "deu_Latn",
+        "fra_Latn",
+        "fra_Latn_removed",
+        "ita_Latn",
+        "nld_Latn",
+        "por_Latn",
+        "cat_Latn",
+    ]:
+        tasks = 50
+    else:
+        tasks = 1
+
     main_executor = create_executor(
         pipeline,
-        tasks=50,
+        tasks=tasks,
         local=args.local,
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/fineweb2_filtered/{language}/logs",
