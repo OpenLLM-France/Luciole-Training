@@ -64,7 +64,7 @@ for checkpoint_dir in *; do
     echo "Processing checkpoint: $checkpoint_dir"
 
     lighteval vllm \
-        "pretrained=$checkpoint_dir,dtype="bfloat16"" \
+        "model_name=$checkpoint_dir,dtype="bfloat16"" \
         "$task_to_evaluate" \
         --output-dir $output_dir \
         --max-samples 1000 \

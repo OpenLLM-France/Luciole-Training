@@ -1,0 +1,7 @@
+community|fineweb2:arb_Arab|0|0
+community|fineweb2:deu_Latn|0|0
+community|fineweb2:fra_Latn|0|0
+community|fineweb2:ita_Latn|0|0
+community|fineweb2:nld_Latn|0|0
+community|fineweb2:por_Latn|0|0
+community|fineweb2:cat_Latn|0|0

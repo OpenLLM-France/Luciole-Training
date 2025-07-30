@@ -44,17 +44,18 @@ SAMPLE_SUBSETS = [
     "nld_Latn",
     "por_Latn",
     "cat_Latn",
-    "aai_Latn",
 ]
 
 # LOAD FINEWEB 2
-main_dir = os.path.join(os.getenv("OpenLLM_OUTPUT", "benchmarks/fineweb2"))
-folder = snapshot_download(
-    "HuggingFaceFW/fineweb-2",
-    repo_type="dataset",
-    local_dir=os.path.join(main_dir, "original_test_set"),
-    allow_patterns=[f"data/{language}/test/*" for language in SAMPLE_SUBSETS],
-)
+main_dir = os.path.join(os.getenv("OpenLLM_OUTPUT"), "benchmarks/fineweb2")
+os.makedirs(main_dir, exist_ok=True)
+if not os.path.exists(os.path.join(main_dir, "original_test_set")):
+    folder = snapshot_download(
+        "HuggingFaceFW/fineweb-2",
+        repo_type="dataset",
+        local_dir=os.path.join(main_dir, "original_test_set"),
+        allow_patterns=[f"data/{language}/test/*" for language in SAMPLE_SUBSETS],
+    )
 
 # SPLIT
 for language in SAMPLE_SUBSETS:

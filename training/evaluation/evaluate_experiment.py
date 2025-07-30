@@ -32,7 +32,7 @@ cd {hf_ckpt_dir}
 mkdir -p {output_dir}
 
 lighteval vllm \\
-    "pretrained={model_name},dtype=bfloat16" \\
+    "model_name={model_name},dtype=bfloat16" \\
     "{task_to_evaluate}" \\
     --output-dir {output_dir} \\
     {extra_arg}
@@ -55,6 +55,11 @@ def main():
         help="Use multilingual task configuration.",
     )
     parser.add_argument(
+        "--fineweb",
+        action="store_true",
+        help="Use fineweb2 task configuration.",
+    )
+    parser.add_argument(
         "--max_samples",
         type=int,
         default=1000,
@@ -67,6 +72,10 @@ def main():
     )
     args = parser.parse_args()
 
+    assert not (
+        args.multilingual and args.fineweb
+    ), "Both --multilingual and --fineweb cannot be activated simultaneously"
+
     experiment_path = Path(args.experiment_path)
     hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
     output_dir = experiment_path / "evaluation"
@@ -78,6 +87,8 @@ def main():
     extra_arg = ""
     if args.multilingual:
         extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
+    if args.fineweb:
+        extra_arg += "--custom-tasks custom_benchmarks/fineweb_evals.py \\"
     if args.max_samples > 0:
         extra_arg += f"--max-samples {args.max_samples} \\"
 
