@@ -174,6 +174,8 @@ def submit_job(**kwargs):
         base_model_name = os.path.splitext(os.path.basename(kwargs["base_checkpoint"]))[
             0
         ]
+        if len(base_model_name)>20:
+            base_model_name = base_model_name.split("-epoch", 1)[0]
         model_part = f'{kwargs["arch"]}_from_{base_model_name}'
     else:
         model_part = kwargs["arch"]

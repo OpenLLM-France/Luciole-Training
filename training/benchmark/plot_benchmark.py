@@ -174,23 +174,24 @@ def load_data(input_folder):
         xp_folder = os.path.join(input_folder, folder)
         if not os.path.isfile(xp_folder):
             try:
-                job_folder = [f for f in os.listdir(xp_folder) if f.startswith("job_")][
-                    0
-                ]
-                job_folder = os.path.join(xp_folder, job_folder)
-                files = os.listdir(job_folder)
-                stat_file = [
-                    f for f in files if f.startswith("stats_") and f.endswith(".json")
-                ][0]
-                stat_file = os.path.join(job_folder, stat_file)
-                config_file = [
-                    f for f in files if f.startswith("config_") and f.endswith(".json")
-                ][0]
-                config_file = os.path.join(job_folder, config_file)
-                with open(stat_file, "r") as f:
-                    stat_data = json.load(f)
-                with open(config_file, "r") as f:
-                    config = json.load(f)
+                job_folders = [f for f in os.listdir(xp_folder) if f.startswith("job_")]
+                for job_folder in job_folders:
+                    job_folder = os.path.join(xp_folder, job_folder)
+                    files = os.listdir(job_folder)
+                    stat_file = [
+                        f for f in files if f.startswith("stats_") and f.endswith(".json")
+                    ][0]
+                    stat_file = os.path.join(job_folder, stat_file)
+                    config_file = [
+                        f for f in files if f.startswith("config_") and f.endswith(".json")
+                    ][0]
+                    config_file = os.path.join(job_folder, config_file)
+                    if os.path.exists(stat_file) and os.path.exists(config_file):
+                        with open(stat_file, "r") as f:
+                            stat_data = json.load(f)
+                        with open(config_file, "r") as f:
+                            config = json.load(f)
+                        break
             except Exception as e:
                 print(f"Error loading data for {folder}: {e}")
                 continue

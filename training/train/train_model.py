@@ -110,6 +110,15 @@ if __name__ == "__main__":
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
+    elif args.mode in ["phase1", "phase2", "annealing"]:
+        if args.mode == "phase1":
+            max_steps = 3e12 // (seq_length * batch_size)    # TODO: placeholder
+        elif args.mode == "phase2":
+            max_steps = 1e12 // (seq_length * batch_size)    # TODO: placeholder
+        elif args.mode == "annealing":
+            max_steps = 1e12 // (seq_length * batch_size)    # TODO: placeholder
+        every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
+        resume_if_exists = True
     else:
         number_of_tokens = args.mode
         max_steps = number_of_tokens // (seq_length * batch_size)

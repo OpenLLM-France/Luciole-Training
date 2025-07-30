@@ -16,6 +16,8 @@ SUPPORTED_ARCHITECTURES = [
     "nemotronh8b",
     "nemotronh47b",
     "nemotron22b",
+    "nemotron4b",
+    "nemotron8b",
     "qwen32b",
     "mistral12b",
     "ablation_llama90M",
@@ -26,7 +28,7 @@ SUPPORTED_ARCHITECTURES = [
 
 
 def to_nb_tokens(x):
-    if x == "debug" or x == "benchmark" or x == "benchmark100":
+    if x in ["debug", "benchmark", "benchmark100", "phase1", "phase2", "annealing"]:
         return x
     x = x.replace("b", " * 1_000_000_000")
     x = x.replace("m", " * 1_000_000")
@@ -99,14 +101,15 @@ def read_datamix_file(file):
 def get_check_data_and_tokenizer(config, base_checkpoint):
     data_paths, tokenizer_name = read_datamix_file(config)
     if base_checkpoint:
-        with open(
-            os.path.join(base_checkpoint, "context", "tokenizer_name.txt"), "r"
-        ) as f:
-            base_model_tokenizer = f.read().strip()
-        if tokenizer_name != base_model_tokenizer:
-            raise ValueError(
-                f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
-            )
+        if os.path.exists(os.path.join(base_checkpoint, "context", "tokenizer_name.txt")):
+            with open(
+                os.path.join(base_checkpoint, "context", "tokenizer_name.txt"), "r"
+            ) as f:
+                base_model_tokenizer = f.read().strip()
+            if tokenizer_name != base_model_tokenizer:
+                raise ValueError(
+                    f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
+                )
     return data_paths, tokenizer_name
 
 
