@@ -56,8 +56,8 @@ def create_slurm_script(
 
     train_path = Path(__file__).resolve().parent
 
-    logger.info(f"Train script path: {train_path}/train_model.py")
-
+    logger.info(f"🚂 Train script path: {train_path}/train_model.py")
+    
     args = f"{config} --arch {arch} --name {job_name} --mode {mode} --output_dir {output_dir}"
     if fp8:
         args += " --fp8"
@@ -147,7 +147,7 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train_model.py {args}
 def write_launch_slurm(slurm_path, slurm_content):
     with open(slurm_path, "w") as fout:
         fout.write(slurm_content)
-    logger.info(f"Generated slurm script : {slurm_path}")
+    logger.info(f"📝 Generated slurm script : {slurm_path}")
     try:
         result = subprocess.run(
             ["sbatch", slurm_path], check=True, capture_output=True, text=True
@@ -160,7 +160,7 @@ def write_launch_slurm(slurm_path, slurm_content):
         job_id = int(match.group(1))
     else:
         raise ValueError("Failed to parse job ID from sbatch output.")
-    logger.info(f"Job submitted {job_id}")
+    logger.info(f"✅ Job submitted {job_id}")
     return job_id
 
 
@@ -210,7 +210,7 @@ def submit_job(**kwargs):
         os.path.join(xp_output_dir, "completed.txt")
     ):
         logger.info(
-            f"Experiment {xp_output_dir} already exists, skipping job submission. If you want to force submission, remove 'completed.txt'"
+            f"⏭️ Experiment {xp_output_dir} already exists, skipping job submission. If you want to force submission, remove 'completed.txt'"
         )
         return None, xp_output_dir
 
@@ -225,13 +225,13 @@ def submit_job(**kwargs):
     args.pop("name_prefix")
     slurm_script = create_slurm_script(**args)
 
-    logger.info(f"Experiment name : {job_name}")
-    logger.info(f"Experiment path : {xp_output_dir}")
+    logger.info(f"🧪 Experiment name : {job_name}")
+    logger.info(f"📂 Experiment path : {xp_output_dir}")
 
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
 
     shutil.copy2(config, xp_output_dir)
-    logger.info(f"Copied datamix file : {config} to {xp_output_dir}")
+    logger.info(f"📄 Copied datamix file : {config} to {xp_output_dir}")
 
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
 
@@ -241,7 +241,7 @@ def submit_job(**kwargs):
     command_path = os.path.join(sub_xp_output_dir, "command.sh")
     with open(command_path, "w") as f:
         f.write(command + "\n")
-    logger.info(f"Run saved in : {sub_xp_output_dir}")
+    logger.info(f"📁 Run saved in : {sub_xp_output_dir}")
     shutil.copy2(sbatch_script_path, sub_xp_output_dir)
     shutil.copy2(config, sub_xp_output_dir)
 

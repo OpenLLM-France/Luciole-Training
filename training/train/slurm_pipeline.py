@@ -145,10 +145,10 @@ if __name__ == "__main__":
         for jid in [job_id, conversion_id]:
             try:
                 subprocess.run(["scancel", str(jid)], check=True)
-                logger.info(f"Cancelled job {jid}")
+                logger.info(f"❌ Cancelled job {jid}")
             except subprocess.CalledProcessError as cancel_err:
                 logger.warning(f"Failed to cancel job {jid}: {cancel_err}")
         logger.error(
-            "Job were cancelled because an error was raised when submitting the jobs!"
+            "💥 Job were cancelled because an error was raised when submitting the jobs!"
         )
         raise
