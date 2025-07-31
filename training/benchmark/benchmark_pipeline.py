@@ -13,22 +13,30 @@ CONFIGS_DICT = {
             dict(arch="llama1b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
             dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=1, tensor_parallelism=1),
         ],
+        "minimal":
+            [
+                dict(arch="llama1b"),
+                dict(arch="llama8b"),
+                dict(arch="llama3b"),
+                dict(arch="nemotronh8b"),
+                dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+                dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+                dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+                dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+            ],
         "full":[
-            dict(arch="llama1b"),
+            
             # llama8b
-            dict(arch="llama8b"),
             dict(arch="llama8b", fp8=True),
             dict(arch="llama8b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1),
             dict(arch="llama8b", fp8=True, seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1),
 
             # llama3b
-            dict(arch="llama3b"),
             dict(arch="llama3b", fp8=True),
             dict(arch="llama3b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
-
+            dict(arch="llama3b", fp8=True, seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
 
             # nemotronh8b
-            dict(arch="nemotronh8b"),
             dict(arch="nemotronh8b", fp8=True),
 
             # nemotron22b
@@ -45,18 +53,18 @@ CONFIGS_DICT = {
 
             # llama24b
             dict(arch="llama24b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=2),
-            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
             dict(arch="llama24b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=2, fp8=True),
 
             # nemotron8b
             dict(arch="nemotron8b", tensor_parallelism=2, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
-            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),
             dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
 
             # nemotron4b
             dict(arch="nemotron4b", tensor_parallelism=1, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
-            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
             dict(arch="nemotron4b", tensor_parallelism=1, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),
+            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
         ],
         "extra": [
             # mistral12b
@@ -90,7 +98,7 @@ CONFIGS_DICT = {
 def get_configs(mode):
     configs = CONFIGS_DICT['debug']
     if mode in ["minimal", "full", "extra"]:
-        pass
+        configs = configs + CONFIGS_DICT["minimal"]
     if mode in ["full", "extra"]:
         configs = configs + CONFIGS_DICT["full"]
     if mode in ["extra"]:
