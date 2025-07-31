@@ -165,6 +165,10 @@ if __name__ == "__main__":
             ]
             add_sampler_filter(pipeline, args.sample_rate)
 
+            if collection in ["us-pd-books", "english-pd", "german-pd"]:
+                tasks = 50
+            else:
+                tasks = 10
             filter_executor = create_executor(
                 pipeline,
                 local=args.local,
@@ -172,8 +176,8 @@ if __name__ == "__main__":
                 logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs/{collection}",
                 job_name=collection,
                 partition="prepost",
-                cpus_per_task=1,
-                tasks=10,
+                cpus_per_task=2,
+                tasks=tasks,
                 time="20:00:00",
                 # depends_job_id=""
             )
