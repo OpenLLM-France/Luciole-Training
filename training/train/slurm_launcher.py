@@ -48,11 +48,11 @@ def create_slurm_script(
     if mode == "debug" or mode.startswith("benchmark"):
         qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
         time = "01:30:00" if mode == "benchmark100" else "01:00:00"
-    elif mode == "20b" or mode == "35b":
+    elif mode.endswith("b"):
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
     else:
-        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, 20b or 35b.")
+        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
 
     train_path = Path(__file__).resolve().parent
 

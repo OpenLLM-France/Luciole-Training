@@ -1,6 +1,7 @@
 import os
 import subprocess
 import logging
+import argparse
 from pathlib import Path
 from slurm_launcher import (
     create_parser,
@@ -31,7 +32,7 @@ def create_slurm_conversion_script(job_id, xp_output_dir, email=None):
 #SBATCH --cpus-per-task=16
 #SBATCH --time=00:30:00
 #SBATCH --hint=nomultithread
-#SBATCH --qos=qos_gpu_h100-dev
+#SBATCH --qos=qos_gpu_h100-t3
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 {dependency}
@@ -55,14 +56,14 @@ srun torchrun $DISTRIBUTED_ARGS {convert_script_path}/convert_experiment.py {exp
     return script
 
 
-def submit_conversion(job_id, xp_output_dir):
+def submit_conversion(job_id, xp_output_dir, email=None):
     os.makedirs(os.path.join(xp_output_dir, "conversion"), exist_ok=True)
     if os.path.exists(os.path.join(xp_output_dir, "conversion", "completed.txt")):
         logger.info(
             f"Checkpoints already converted in {xp_output_dir}, skipping job submission. If you want to force submission, remove 'conversion/completed.txt'"
         )
         return None
-    slurm_script = create_slurm_conversion_script(job_id, xp_output_dir)
+    slurm_script = create_slurm_conversion_script(job_id, xp_output_dir, email=email)
     sbatch_script_path = os.path.join(xp_output_dir, "conversion/conversion.slurm")
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
     return job_id
@@ -95,8 +96,8 @@ python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} 
     return script
 
 
-def submit_evaluation(job_id, xp_output_dir, task="en.txt"):
-    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task)
+def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None):
+    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email)
     sbatch_script_path = os.path.join(
         xp_output_dir, f"evaluation/evaluation_{os.path.splitext(task)[0]}.slurm"
     )
@@ -106,13 +107,20 @@ def submit_evaluation(job_id, xp_output_dir, task="en.txt"):
 
 
 def update_email_args(step, source_args):
-    args = source_args.copy()
-    if args.email_when == "all" or args.email_when == "train":
-        args.email = args.email
+    args = argparse.Namespace(**vars(source_args))
+    if step=="train":
+        if args.email_when == "all" or args.email_when == "train":
+            args.email = args.email
+        else:
+            args.email = None
+        del args.email_when
+        return args
+    if step=="eval" and (args.email_when == "all" or args.email_when == "eval"):
+        return args.email
+    if step=="conversion" and (args.email_when == "all" or args.email_when == "conversion"):
+        return args.email
     else:
-        args.email = None
-    return args
-
+        return None
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -123,31 +131,43 @@ if __name__ == "__main__":
         help="At which step do you want to send emails",
         default="all",
     )
+    parser.add_argument(
+        "--skip_eval",
+        help="Does it skip evals?",
+        default=False,
+        action="store_true",
+    )
     source_args = parser.parse_args()
+    skip_eval = source_args.skip_eval
+    job_id = None
+    conversion_id = None
+    del source_args.skip_eval
     try:
         job_id, xp_output_dir = pre_submit(update_email_args("train", source_args))
         conversion_id = submit_conversion(
             job_id, xp_output_dir, email=update_email_args("conversion", source_args)
         )
-        submit_evaluation(
-            conversion_id,
-            xp_output_dir,
-            task="en.txt",
-            email=update_email_args("eval", source_args),
-        )
-        submit_evaluation(
-            conversion_id,
-            xp_output_dir,
-            task="fr.txt",
-            email=update_email_args("eval", source_args),
-        )
+        if not skip_eval:
+            submit_evaluation(
+                conversion_id,
+                xp_output_dir,
+                task="en.txt",
+                email=update_email_args("eval", source_args),
+            )
+            submit_evaluation(
+                conversion_id,
+                xp_output_dir,
+                task="fr.txt",
+                email=update_email_args("eval", source_args),
+            )
     except Exception:
         for jid in [job_id, conversion_id]:
-            try:
-                subprocess.run(["scancel", str(jid)], check=True)
-                logger.info(f"❌ Cancelled job {jid}")
-            except subprocess.CalledProcessError as cancel_err:
-                logger.warning(f"Failed to cancel job {jid}: {cancel_err}")
+            if jid:
+                try:
+                    subprocess.run(["scancel", str(jid)], check=True)
+                    logger.info(f"❌ Cancelled job {jid}")
+                except subprocess.CalledProcessError as cancel_err:
+                    logger.warning(f"Failed to cancel job {jid}: {cancel_err}")
         logger.error(
             "💥 Job were cancelled because an error was raised when submitting the jobs!"
         )
