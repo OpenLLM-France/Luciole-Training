@@ -9,8 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def set_recipe_trainer(recipe, args, max_steps):
-    recipe.trainer.max_steps = max_steps
+def set_recipe_trainer(recipe, args):
     recipe.trainer.val_check_interval = (
         5 if args.mode in ["debug", "benchmark", "benchmark100"] else 1000
     )

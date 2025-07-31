@@ -71,7 +71,6 @@ if __name__ == "__main__":
         from recipes.recipe_llama import get_recipe
     elif arch.startswith("nemotron"):
         from recipes.recipe_nemotronh import get_recipe
-
         if arch == "nemotronh47b":
             args.fp8 = True
     elif arch.startswith("mixtral") or arch.startswith("mistral"):
@@ -88,44 +87,16 @@ if __name__ == "__main__":
         performance_mode_if_possible=args.performance_mode,
     )
     recipe = pretrain_recipe(**recipes_args)
-
-    batch_size = args.batch_size if args.batch_size else recipe.data.global_batch_size
-    seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
+    recipe = set_recipe_trainer(recipe, args)
 
     data_args = dict(
         paths=data_paths,
-        global_batch_size=batch_size,
+        global_batch_size=args.batch_size if args.batch_size else recipe.data.global_batch_size,
         micro_batch_size=recipe.data.micro_batch_size,
-        seq_length=seq_length,
+        seq_length=args.seq_length if args.seq_length else recipe.data.seq_length,
         tokenizer_name=tokenizer_name,
         seed=args.seed,
     )
-
-    data = create_data(data_args)
-    recipe.data = data
-    recipe.model.tokenizer = data.tokenizer
-    
-    if args.mode in ["debug", "benchmark", "benchmark100"]:
-        max_steps = 1 if args.mode == "debug" else 25
-        max_steps = 100 if args.mode == "benchmark100" else max_steps
-        resume_if_exists = args.mode.startswith("benchmark")
-        every_n_train_steps = max_steps
-    elif args.mode in ["phase1", "phase2", "annealing"]:
-        if args.mode == "phase1":
-            max_steps = 3e12 // (seq_length * batch_size)    # TODO: placeholder
-        elif args.mode == "phase2":
-            max_steps = 1e12 // (seq_length * batch_size)    # TODO: placeholder
-        elif args.mode == "annealing":
-            max_steps = 1e12 // (seq_length * batch_size)    # TODO: placeholder
-        every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
-        resume_if_exists = True
-    else:
-        number_of_tokens = args.mode
-        max_steps = number_of_tokens // (seq_length * batch_size)
-        resume_if_exists = True
-        every_n_train_steps = 1_000_000_000 // (seq_length * batch_size)
-
-    recipe = set_recipe_trainer(recipe, args, max_steps)
 
     if arch == "llama24b":
         from recipes.recipe_llama import set_llama24b_recipe
@@ -135,9 +106,36 @@ if __name__ == "__main__":
         recipe = set_ablation_recipe(recipe, arch)
         data_args['seq_length'] = recipe.data.seq_length
         data_args['global_batch_size'] = recipe.data.global_batch_size
-        
-    # MODEL
-    # recipe.model.config.seq_length = seq_length
+
+    data = create_data(data_args)
+    recipe.data = data
+    recipe.model.tokenizer = data.tokenizer
+    recipe.model.config.seq_length = recipe.data.seq_length
+    
+    if args.mode in ["debug", "benchmark", "benchmark100"]:
+        max_steps = 1 if args.mode == "debug" else 25
+        max_steps = 100 if args.mode == "benchmark100" else max_steps
+        resume_if_exists = args.mode.startswith("benchmark")
+        every_n_train_steps = max_steps
+    elif args.mode in ["phase1", "phase2", "annealing"]:
+        if args.mode == "phase1":
+            max_steps = 3e12 // (data_args['seq_length'] * data_args['batch_size'])    # TODO: placeholder
+        elif args.mode == "phase2":
+            max_steps = 1e12 // (data_args['seq_length'] * data_args['batch_size'])    # TODO: placeholder
+        elif args.mode == "annealing":
+            max_steps = 1e12 // (data_args['seq_length'] * data_args['batch_size'])    # TODO: placeholder
+        every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['batch_size'])
+        resume_if_exists = True
+    else:
+        number_of_tokens = args.mode
+        max_steps = number_of_tokens // (data_args['seq_length'] * data_args['batch_size'])
+        resume_if_exists = True
+        if number_of_tokens < 1_000_000_000:
+            every_n_train_steps = 250_000_000 // (data_args['seq_length'] * data_args['batch_size'])
+        else:
+            every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['batch_size'])
+
+    recipe.trainer.max_steps = max_steps
 
     # OPTIM
     if (
