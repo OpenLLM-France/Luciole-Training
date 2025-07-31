@@ -100,7 +100,7 @@ def plot_horizontal_bar(
 
     elif color_column in ["dataset", "group", "subset", "language"]:
         unique_categories = df[color_column].astype("category").cat.categories
-        palette = sb.color_palette("colorblind", len(unique_categories))
+        palette = sb.color_palette("tab20", len(unique_categories))
 
         color_map = dict(zip(unique_categories, palette))
         colors = df[color_column].map(color_map)
