@@ -1,17 +1,16 @@
-
-
 import os
-# from megatron.data import indexed_dataset
 from nemo_patch import indexed_dataset
 import transformers
 import tqdm
-
+import argparse
 
 
 def inspect_tokens(bin_file):
     assert os.path.isfile(bin_file), f"File {bin_file} does not exist"
     tokenizer_name_file = os.path.join(os.path.dirname(bin_file), "tokenizer_name.txt")
-    assert os.path.isfile(tokenizer_name_file), f"File {tokenizer_name_file} does not exist"
+    assert os.path.isfile(
+        tokenizer_name_file
+    ), f"File {tokenizer_name_file} does not exist"
     with open(tokenizer_name_file, "r") as f:
         tokenizer_name = f.read().strip()
     basename = os.path.splitext(bin_file)[0]
@@ -45,14 +44,13 @@ def inspect_tokens(bin_file):
     print(f"Number of tokens: {num_tokens}")
     print(f"Number of characters: {num_chars}")
 
-import argparse
+
 parser = argparse.ArgumentParser()
 parser.add_argument("file")
 args = parser.parse_args()
 bin_file = args.file
 
 # bin_file = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokens_ablation/fineweb2_fra_Latn_cluster_1_text_document.bin"
-
 # bin_file = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenizer_65k_latin/fineweb2_fra_Latn_cluster_1_text_document.bin"
 
 inspect_tokens(bin_file)
