@@ -48,6 +48,9 @@ def create_slurm_script(
     if mode == "debug" or mode.startswith("benchmark"):
         qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
         time = "01:30:00" if mode == "benchmark100" else "01:00:00"
+    elif mode=="1b":
+        qos = "qos_gpu_h100-dev"
+        time = "02:00:00"
     elif mode.endswith("b"):
         qos = "qos_gpu_h100-t3"
         time = "20:00:00"
@@ -230,8 +233,10 @@ def submit_job(**kwargs):
 
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
 
-    shutil.copy2(config, xp_output_dir)
-    logger.info(f"📄 Copied datamix file : {config} to {xp_output_dir}")
+    config_output_dir = os.path.join(xp_output_dir, "datamix")
+    os.makedirs(config_output_dir, exist_ok=True)
+    shutil.copy2(config, config_output_dir)
+    logger.info(f"📄 Copied datamix file : {config} to {config_output_dir}")
 
     job_id = write_launch_slurm(sbatch_script_path, slurm_script)
 
