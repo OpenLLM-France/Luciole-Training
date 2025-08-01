@@ -6,6 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.feature_selection import mutual_info_regression
 from sklearn.preprocessing import MinMaxScaler
+import numpy as np
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 
@@ -65,6 +66,40 @@ def plot_heatmap(
         plt.close()
 
 
+def plot_datamix_vs_target(df, output_dir):
+    """
+    Save one plot per datamix column (vs all target columns) as separate images.
+
+    Parameters:
+    - df: pandas DataFrame with 'datamix:' and 'target:' columns
+    - output_dir: directory where plots will be saved
+    """
+    datamix_col = df.columns[df.columns.str.startswith("datamix:")]
+    target_col = df.columns[df.columns.str.startswith("target:")]
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    for datamix_ref in datamix_col:
+        plt.figure(figsize=(8, 6))
+
+        for target_ref in target_col:
+            plt.plot(df[datamix_ref], df[target_ref], ".", label=target_ref)
+
+        plt.title(datamix_ref)
+        plt.xlabel(datamix_ref)
+        plt.ylabel("Target Values")
+        # plt.xscale('log')
+        plt.yscale("log")
+        plt.legend()
+        plt.tight_layout()
+
+        save_path = os.path.join(
+            output_dir, f"{datamix_ref.replace(':', '_')}_plot.png"
+        )
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -97,7 +132,7 @@ if __name__ == "__main__":
                 continue
             df_results = df_results[df_results["metric"] == metric]
             df_results = df_results[df_results["task"].isin(tasks)]
-            df_results = df_results[df_results["steps"] == 951]
+            df_results = df_results[np.isclose(df_results["steps"], 1000, atol=10)]
 
             # df_results = df_results[round(df_results["tokens"], 1) == tokens]
             results = df_results[["task", "score"]].to_dict(orient="records")
@@ -106,6 +141,7 @@ if __name__ == "__main__":
             out.append({**datamix, **results})
 
     df = pd.DataFrame(out)
+    df.to_csv(os.path.join(args.expe_dir, "regmix_results.csv"))
 
     df.loc[:, df.columns.str.startswith("datamix:")] = df.loc[
         :, df.columns.str.startswith("datamix:")
@@ -114,17 +150,19 @@ if __name__ == "__main__":
     df = df[sorted(df.columns)]
 
     df.to_csv(os.path.join(args.expe_dir, "regmix_results.csv"))
-
-    # CORRELATION
     datamix_col = df.columns[df.columns.str.startswith("datamix:")]
     target_col = df.columns[df.columns.str.startswith("target:")]
 
+    # DATAMIX
+    plot_datamix_vs_target(df, args.expe_dir)
+
+    # CORRELATION
     for method in ["spearman", "pearson", "kendall", "mutual_info"]:
         corr_matrix = compute_correlation_matrix(
             df, datamix_col, target_col, method=method
         )
-        print(f"\nMethod: {method}")
-        print(corr_matrix)
+        # print(f"\nMethod: {method}")
+        # print(corr_matrix)
         plot_heatmap(
             corr_matrix,
             title=f"{method.capitalize()} Correlation Heatmap",
