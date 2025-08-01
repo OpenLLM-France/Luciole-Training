@@ -69,13 +69,14 @@ def submit_conversion(job_id, xp_output_dir, email=None):
     return job_id
 
 
-def create_slurm_eval_script(job_id, xp_output_dir, task, email=None):
+def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="accelerate", fineweb=False):
     job_name = f"evaluation_of_{job_id}"
     experiment_dir = xp_output_dir
     path_to_evaluation = Path(__file__).resolve().parent.parent
     path_to_evaluation = f"{path_to_evaluation}/evaluation"
     task_path = os.path.join(path_to_evaluation, "tasks", task)
-    multilingual = False if task == "en" else True
+    multilingual = False if task == "en.txt" else True
+    fineweb = True if task=="fineweb2.txt" else False
     dependency = f"#SBATCH --dependency=afterok:{job_id}" if job_id else ""
 
     script = f"""#!/bin/bash
@@ -91,13 +92,13 @@ def create_slurm_eval_script(job_id, xp_output_dir, task, email=None):
 {dependency}
 {generate_email_line(email)}
 
-python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} {"--multilingual" if multilingual else ""}
+python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} --command {command} {"--multilingual" if multilingual else ""} {"--fineweb" if fineweb else ""} 
 """
     return script
 
 
-def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None):
-    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email)
+def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None, command="accelerate"):
+    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email, command=command)
     sbatch_script_path = os.path.join(
         xp_output_dir, f"evaluation/evaluation_{os.path.splitext(task)[0]}.slurm"
     )
@@ -132,34 +133,30 @@ if __name__ == "__main__":
         default="all",
     )
     parser.add_argument(
-        "--skip_eval",
-        help="Does it skip evals?",
-        default=False,
-        action="store_true",
+        "--tasks",
+        help="Tasks, skip if empty",
+        type=str,
+        nargs="+",
+        default=[],
     )
     source_args = parser.parse_args()
-    skip_eval = source_args.skip_eval
+    tasks = source_args.tasks
     job_id = None
     conversion_id = None
-    del source_args.skip_eval
+    del source_args.tasks
     try:
         job_id, xp_output_dir = pre_submit(update_email_args("train", source_args))
         conversion_id = submit_conversion(
             job_id, xp_output_dir, email=update_email_args("conversion", source_args)
         )
-        if not skip_eval:
-            submit_evaluation(
-                conversion_id,
-                xp_output_dir,
-                task="en.txt",
-                email=update_email_args("eval", source_args),
-            )
-            submit_evaluation(
-                conversion_id,
-                xp_output_dir,
-                task="fr.txt",
-                email=update_email_args("eval", source_args),
-            )
+        if tasks:
+            for task in tasks:
+                submit_evaluation(
+                    conversion_id,
+                    xp_output_dir,
+                    task=task,
+                    email=update_email_args("eval", source_args),
+                )
     except Exception:
         for jid in [job_id, conversion_id]:
             if jid:

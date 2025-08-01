@@ -103,17 +103,11 @@ def plot_datamix_vs_target(df, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--expe_dir",
+        "expe_dir",
         type=str,
-        default=os.path.join(MAIN_PATH, "ablations/train/regmix/common-pile"),
     )
     args = parser.parse_args()
 
-    tasks = [
-        "helm|the_pile:commoncrawl|0",
-        "helm|the_pile:stackexchange|0",
-        "helm|the_pile:wikipedia|0",
-    ]
     metric = "word_perplexity"
 
     # READ RESULTS
@@ -131,7 +125,6 @@ if __name__ == "__main__":
             if df_results is None:
                 continue
             df_results = df_results[df_results["metric"] == metric]
-            df_results = df_results[df_results["task"].isin(tasks)]
             df_results = df_results[np.isclose(df_results["steps"], 1000, atol=10)]
 
             # df_results = df_results[round(df_results["tokens"], 1) == tokens]
@@ -139,7 +132,7 @@ if __name__ == "__main__":
             results = {"target:" + d["task"]: d["score"] for d in results}
 
             out.append({**datamix, **results})
-
+    print("Processing...")
     df = pd.DataFrame(out)
     df.to_csv(os.path.join(args.expe_dir, "regmix_results.csv"))
 
@@ -156,6 +149,8 @@ if __name__ == "__main__":
     # DATAMIX
     plot_datamix_vs_target(df, args.expe_dir)
 
+    print(f"Plots saved to {args.expe_dir}")
+
     # CORRELATION
     for method in ["spearman", "pearson", "kendall", "mutual_info"]:
         corr_matrix = compute_correlation_matrix(
@@ -169,3 +164,4 @@ if __name__ == "__main__":
             show=False,
             save_path=os.path.join(args.expe_dir, f"{method}.png"),
         )
+    print(f"Correlation plots saved to {args.expe_dir}")

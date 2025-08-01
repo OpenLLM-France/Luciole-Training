@@ -79,11 +79,12 @@ if __name__ == "__main__":
     main_path = os.getenv("OpenLLM_OUTPUT")
 
     parser = argparse.ArgumentParser(
-        add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        add_help=True, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
         "name",
         type=str,
+        help="Name of the folder that will contain all the datamixes"
     )
     parser.add_argument(
         "--data_path",
@@ -95,11 +96,13 @@ if __name__ == "__main__":
         "--start_with",
         type=str,
         default="",
+        help="Select a subset of datasets names that startswith with the string (e.g. 'common-pile')"
     )
     parser.add_argument(
         "--regex",
         type=str,
         default=".*",
+        help="Select a subset of datasets names based on the regex (e.g. '.*fr')"
     )
     parser.add_argument(
         "--output_dir",
@@ -111,8 +114,8 @@ if __name__ == "__main__":
         "--max_seed",
         type=int,
         default=50,
+        help="Number of datamixes"
     )
-    parser.add_argument("--help", "-h", action="store_true")
     args = parser.parse_args()
     output_dir = os.path.join(args.output_dir, args.name)
 
@@ -147,6 +150,6 @@ if __name__ == "__main__":
         os.makedirs(output_dir, exist_ok=True)
         with open(f"{output_dir}/regmix_{seed}.json", "w") as f:
             json.dump(out, f, indent=4)
-
+    print(f"Datamixes saved to {output_dir}")
     df.to_csv(f"{output_dir}/regmix_weights.csv")
-    plot_weight_distributions(df.sort_values("total_tokens", ascending=False).head(20))
+    # plot_weight_distributions(df.sort_values("total_tokens", ascending=False).head(20))
