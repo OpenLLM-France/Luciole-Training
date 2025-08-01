@@ -46,27 +46,29 @@ SAMPLE_SUBSETS = [
     "cat_Latn",
 ]
 
-# LOAD FINEWEB 2
 main_dir = os.path.join(os.getenv("OpenLLM_OUTPUT"), "benchmarks/fineweb2")
 os.makedirs(main_dir, exist_ok=True)
-if not os.path.exists(os.path.join(main_dir, "original_test_set")):
-    folder = snapshot_download(
-        "HuggingFaceFW/fineweb-2",
-        repo_type="dataset",
-        local_dir=os.path.join(main_dir, "original_test_set"),
-        allow_patterns=[f"data/{language}/test/*" for language in SAMPLE_SUBSETS],
-    )
 
-# SPLIT
 for language in SAMPLE_SUBSETS:
-    output_path = os.path.join(main_dir, f"processed_data/{language}")
-    if not os.path.exists(output_path):
+    original_path = os.path.join(main_dir, "original_test_set")
+    processed_path = os.path.join(main_dir, f"processed_data/{language}")
+
+    # Download only once if original_test_set doesn't exist
+    if not os.path.exists(original_path):
+        snapshot_download(
+            "HuggingFaceFW/fineweb-2",
+            repo_type="dataset",
+            local_dir=original_path,
+            allow_patterns=[f"data/{lang}/test/*" for lang in SAMPLE_SUBSETS],
+        )
+
+    # Process dataset for each language if not already processed
+    if not os.path.exists(processed_path):
         print(f"Loading {language}")
-        ds = load_dataset(
-            os.path.join(main_dir, f"original_test_set/data/{language}/test")
-        )["train"]
+        ds = load_dataset(os.path.join(original_path, f"data/{language}/test"))["train"]
         ds = ds.map(lambda x: {"text": x["text"][:1000]})
-        ds.to_json(os.path.join(output_path, "data.jsonl"))
+        os.makedirs(processed_path, exist_ok=True)
+        ds.to_json(os.path.join(processed_path, "data.jsonl"))
 
 
 def prompt_fn(line, task_name: str = None):

@@ -77,11 +77,7 @@ module purge
 module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
-pip install lighteval[extended_tasks,math,multilingual,vllm]
-pip install "transformers==4.51.3"
-pip install "datasets==3.6.0"
-pip install hf-xet
-pip install matplotlib
+pip install -U lighteval[multilingual,vllm]
 ```
 
 Warning: in more recent versions of `lighteval`,
@@ -105,10 +101,13 @@ conda activate eval-env
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export HF_DATASETS_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export HF_HUB_OFFLINE=1
 
-lighteval accelerate "model_name=gpt2" "tasks/en.txt" --max-samples 1000
-lighteval accelerate "model_name=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
-lighteval accelerate "model_name=gpt2" "tasks/fineweb2.txt" --custom-tasks custom_benchmarks/fineweb_evals.py --max-samples 1000
+lighteval accelerate "pretrained=gpt2" "tasks/the_pile.txt" --max-samples 1000
+lighteval accelerate "pretrained=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
+lighteval accelerate "pretrained=gpt2" "tasks/fineweb2.txt" --custom-tasks custom_benchmarks/fineweb_evals.py --max-samples 1000
 ```
 
 Don't forget to load gpt2 model in the cache: `huggingface-cli download gpt2`

@@ -87,22 +87,35 @@ if __name__ == "__main__":
         help="Path to the data directory",
     )
     parser.add_argument(
+        "--start_with",
+        type=str,
+        default="",
+    )
+    parser.add_argument(
         "--output_dir",
         type=str,
         default=os.path.join(main_path, "ablations/regmix"),
         help="Output directory",
     )
-
+    parser.add_argument(
+        "--max_seed",
+        type=int,
+        default=50,
+    )
     parser.add_argument("--help", "-h", action="store_true")
     args = parser.parse_args()
+    output_dir = os.path.join(
+        args.output_dir, args.start_with if args.start_with != "" else "all"
+    )
 
     # Load your data (only if not just --help)
     df = pd.read_csv(os.path.join(args.data_path, "stats/all_stats_merged.csv"))
+    df = df[df["name"].str.startswith(args.start_with)]
     df = df[["name", "total_tokens"]]
     df["total_tokens_dist"] = df["total_tokens"] / df["total_tokens"].sum()
-    df["name_pro"] = df["name"] + "_text_document"
+    df["name"] = df["name"] + "_text_document"
 
-    for seed in range(50):
+    for seed in range(args.max_seed):
         np.random.seed(seed)
         n_datasets = len(df)
 
@@ -110,16 +123,19 @@ if __name__ == "__main__":
         weight = np.random.dirichlet(lambda_param * df["total_tokens_dist"])
         df[f"weight_{seed}"] = weight
 
+        df_seed = df[["name", f"weight_{seed}"]].rename(
+            columns={f"weight_{seed}": "weight"}
+        )
+        df_seed = df_seed[df_seed["weight"] > 0]
+
         out = {
             "data_path": args.data_path,
-            "train": df[["name_pro", f"weight_{seed}"]]
-            .rename(columns={f"weight_{seed}": "weight"})
-            .to_dict(orient="records"),
+            "train": df_seed.to_dict(orient="records"),
         }
 
-        os.makedirs(args.output_dir, exist_ok=True)
-        with open(f"{args.output_dir}/regmix_{seed}.json", "w") as f:
+        os.makedirs(output_dir, exist_ok=True)
+        with open(f"{output_dir}/regmix_{seed}.json", "w") as f:
             json.dump(out, f, indent=4)
 
-    df.to_csv(f"{args.output_dir}/regmix_weights.csv")
+    df.to_csv(f"{output_dir}/regmix_weights.csv")
     plot_weight_distributions(df.sort_values("total_tokens", ascending=False).head(20))
