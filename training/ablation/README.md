@@ -12,6 +12,9 @@ cd ../ablation
 python fit_exp_law.py --dir /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/regmix/french_datamix
 ```
 
+Low correlation is better than high correlation. Tasks evaluate the perplexity and we are interested in the log proba so we want to minimize the correlation. See https://arxiv.org/abs/2403.16952
+Plot made by fit_exp_law show the model weights matrix T (see figure 4 in the paper and equation 1)
+
 ## Install requirements
 
 You should create a new environment for evaluation.
