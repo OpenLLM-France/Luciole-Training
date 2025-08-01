@@ -5,6 +5,7 @@ import torch
 from estimator import TorchExpEstimator
 from sklearn.metrics import mean_squared_error
 import numpy as np
+import matplotlib as plt
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 
@@ -42,3 +43,34 @@ if __name__ == "__main__":
     mse = mean_squared_error(y, y_pred)
 
     torch.save(model.model.state_dict(), os.path.join(args.dir, "torch_exp_model.pth"))
+
+    # PLOT T
+    fig = plt.figure(figsize=(6, 5))
+    T_mat = model.model.T.detach().cpu().numpy()
+    absmax = abs(T_mat).max()
+    print(T_mat)
+    plt.imshow(
+        T_mat,
+        aspect="auto",
+        interpolation="nearest",
+        cmap="seismic",
+        vmin=-absmax,
+        vmax=absmax,
+    )
+
+    # Set ticks and labels
+    plt.xticks(
+        ticks=range(len(datamix_labels)),
+        labels=datamix_labels,
+        rotation=45,
+        ha="right",
+        fontsize=8,
+    )
+    plt.yticks(ticks=range(len(target_labels)), labels=target_labels, fontsize=8)
+
+    plt.title("Learned T matrix")
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(args.dir, "learned_T_matrix.png"), dpi=300, bbox_inches="tight"
+    )
