@@ -24,5 +24,6 @@ module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
 pip install -U lighteval[multilingual,vllm]
-pip install seaborn 
+pip install seaborn
+pip install "datasets<4.0.0"
 ```
