@@ -5,7 +5,7 @@ import torch
 from estimator import TorchExpEstimator
 from sklearn.metrics import mean_squared_error
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 
