@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 
 
 def plot_weight_distributions(
@@ -81,6 +82,10 @@ if __name__ == "__main__":
         add_help=False, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
+        "name",
+        type=str,
+    )
+    parser.add_argument(
         "--data_path",
         type=str,
         default=os.path.join(main_path, "data/tokenized_data/tokens_training_v2"),
@@ -90,6 +95,11 @@ if __name__ == "__main__":
         "--start_with",
         type=str,
         default="",
+    )
+    parser.add_argument(
+        "--regex",
+        type=str,
+        default=".*",
     )
     parser.add_argument(
         "--output_dir",
@@ -104,13 +114,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--help", "-h", action="store_true")
     args = parser.parse_args()
-    output_dir = os.path.join(
-        args.output_dir, args.start_with if args.start_with != "" else "all"
-    )
+    output_dir = os.path.join(args.output_dir, args.name)
+
+    pattern = re.compile(args.regex)
 
     # Load your data (only if not just --help)
     df = pd.read_csv(os.path.join(args.data_path, "stats/all_stats_merged.csv"))
     df = df[df["name"].str.startswith(args.start_with)]
+    df = df[df["name"].str.contains(pattern, regex=True, na=False)]
     df = df[["name", "total_tokens"]]
     df["total_tokens_dist"] = df["total_tokens"] / df["total_tokens"].sum()
     df["name"] = df["name"] + "_text_document"
