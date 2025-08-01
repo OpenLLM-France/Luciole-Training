@@ -93,7 +93,8 @@ def main():
     if args.multilingual:
         extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
     if args.fineweb:
-        custom_path = os.path.abspath("custom_benchmarks/fineweb_evals.py")
+        current_dir = os.path.dirname(__file__)
+        custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\"
     if args.max_samples > 0:
         extra_arg += f"--max-samples {args.max_samples} \\"

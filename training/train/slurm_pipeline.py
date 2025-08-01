@@ -75,7 +75,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="a
     path_to_evaluation = Path(__file__).resolve().parent.parent
     path_to_evaluation = f"{path_to_evaluation}/evaluation"
     task_path = os.path.join(path_to_evaluation, "tasks", task)
-    multilingual = False if task == "en.txt" else True
+    multilingual = True if task not in ["en.txt", "fineweb2.txt"] else False
     fineweb = True if task=="fineweb2.txt" else False
     dependency = f"#SBATCH --dependency=afterok:{job_id}" if job_id else ""
 
