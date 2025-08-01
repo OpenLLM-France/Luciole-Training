@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 import argparse
+import os
 
 SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=eval
@@ -31,7 +32,7 @@ cd {hf_ckpt_dir}
 
 mkdir -p {output_dir}
 
-lighteval vllm \\
+lighteval {command} \\
     "model_name={model_name},dtype=bfloat16" \\
     "{task_to_evaluate}" \\
     --output-dir {output_dir} \\
@@ -48,6 +49,9 @@ def main():
     )
     parser.add_argument(
         "task_to_evaluate", type=str, help="Path to the task txt file or task name."
+    )
+    parser.add_argument(
+        "--command", type=str, default="vllm", choices=["vllm", "accelerate"], help=""
     )
     parser.add_argument(
         "--multilingual",
@@ -79,6 +83,7 @@ def main():
     experiment_path = Path(args.experiment_path)
     hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
     output_dir = experiment_path / "evaluation"
+    assert hf_ckpt_dir.is_dir(), f"Directory does not exist: {hf_ckpt_dir}"
     output_dir.mkdir(parents=True, exist_ok=True)
     task_to_evaluate = Path(args.task_to_evaluate)
 
@@ -88,7 +93,8 @@ def main():
     if args.multilingual:
         extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
     if args.fineweb:
-        extra_arg += "--custom-tasks custom_benchmarks/fineweb_evals.py \\"
+        custom_path = os.path.abspath("custom_benchmarks/fineweb_evals.py")
+        extra_arg += f"--custom-tasks {custom_path} \\"
     if args.max_samples > 0:
         extra_arg += f"--max-samples {args.max_samples} \\"
 
@@ -99,6 +105,7 @@ def main():
 
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             hf_ckpt_dir=hf_ckpt_dir.resolve(),
+            command=args.command,
             model_name=ckpt_name,
             output_dir=output_dir,
             log_dir=log_dir,
