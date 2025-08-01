@@ -78,6 +78,7 @@ module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
 pip install -U lighteval[multilingual,vllm]
+pip install seaborn 
 ```
 
 Warning: in more recent versions of `lighteval`,
