@@ -23,6 +23,7 @@ CONFIGS_DICT = {
                 dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
                 dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
                 dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+                dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
             ],
         "full":[
             

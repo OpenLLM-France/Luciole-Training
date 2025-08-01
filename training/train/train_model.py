@@ -1,6 +1,7 @@
 import argparse
 import torch
 import os
+import math
 import sys
 import logging
 import fiddle
@@ -119,31 +120,33 @@ if __name__ == "__main__":
         every_n_train_steps = max_steps
     elif args.mode in ["phase1", "phase2", "annealing"]:
         if args.mode == "phase1":
-            max_steps = 3e12 // (data_args['seq_length'] * data_args['batch_size'])    # TODO: placeholder
+            max_steps = 3e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
         elif args.mode == "phase2":
-            max_steps = 1e12 // (data_args['seq_length'] * data_args['batch_size'])    # TODO: placeholder
+            max_steps = 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
         elif args.mode == "annealing":
-            max_steps = 1e12 // (data_args['seq_length'] * data_args['batch_size'])    # TODO: placeholder
-        every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['batch_size'])
+            max_steps = 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
+        every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
         resume_if_exists = True
+    elif arch=="ablation_llama90M":
+        recipe.optim.lr_scheduler.warmup_steps = 50
+        max_steps = 1000
+        resume_if_exists = True
+        every_n_train_steps = 250
     else:
         number_of_tokens = args.mode
-        max_steps = number_of_tokens // (data_args['seq_length'] * data_args['batch_size'])
+        max_steps = math.ceil(
+            number_of_tokens / (data_args['seq_length'] * data_args['global_batch_size'])
+        )
         resume_if_exists = True
-        if number_of_tokens < 1_000_000_000:
-            every_n_train_steps = 250_000_000 // (data_args['seq_length'] * data_args['batch_size'])
+        if number_of_tokens <= 1_000_000_000:
+            every_n_train_steps = 250_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
         else:
-            every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['batch_size'])
+            every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
 
     recipe.trainer.max_steps = max_steps
 
-    # OPTIM
-    if (
-        isinstance(args.mode, str) or args.mode <= 50_000_000_000
-    ):  # if less than 50B tokens, shorter warmup
-        recipe.optim.lr_scheduler.warmup_steps = 500
+    # OPTIM 
     # optimizer_warmup_steps = 2000
-
     # LOGGER
     # recipe.log.log_dir = output_dir
     # recipe.log.name = args.name

@@ -24,6 +24,7 @@ SUPPORTED_ARCHITECTURES = [
     "ablation_llama210M",
     "ablation_llama400M",
     "ablation_llama530M",
+    "qwen30ba3b"
 ]
 
 
