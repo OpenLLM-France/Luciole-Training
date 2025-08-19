@@ -112,12 +112,13 @@ if __name__ == "__main__":
     recipe.data = data
     recipe.model.tokenizer = data.tokenizer
     recipe.model.config.seq_length = recipe.data.seq_length
-    
+    recipe.trainer.max_time = "00:19:40:00"
     if args.mode in ["debug", "benchmark", "benchmark100"]:
         max_steps = 1 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
+        recipe.trainer.max_time = "00:01:00:00"
     elif args.mode in ["phase1", "phase2", "annealing"]:
         if args.mode == "phase1":
             max_steps = 3e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
@@ -127,7 +128,7 @@ if __name__ == "__main__":
             max_steps = 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
         every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
         resume_if_exists = True
-    elif arch=="ablation_llama90M":
+    elif arch=="ablation_llama90m":
         recipe.optim.lr_scheduler.warmup_steps = 50
         max_steps = 1000
         resume_if_exists = True

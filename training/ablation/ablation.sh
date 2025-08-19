@@ -16,7 +16,7 @@ count=0
 for file in "$EXAMPLE_DIR_PATH"/*.json; do
     if [[ -f "$file" ]]; then
         echo "Launching slurm_pipeline.py for $file"
-        python3 ../train/slurm_pipeline.py --config "$file" --arch ablation_llama90M --mode 1b --output_dir regmix/$1 --tasks "${@:2}"
+        python3 ../train/slurm_pipeline.py --config "$file" --arch ablation_llama90m --mode 1b --output_dir regmix/$1 --tasks "${@:2}"
         ((count++))
         if [[ $count -ge $MAX_JOBS ]]; then
             echo "Reached the maximum of $MAX_JOBS jobs. Stopping."

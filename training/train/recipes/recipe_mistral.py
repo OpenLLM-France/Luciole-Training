@@ -9,8 +9,8 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     if arch == "mixtral8x7":
         from nemo.collections.llm.recipes.mixtral_8x7b import pretrain_recipe
 
-        # if performance_mode_if_possible:  # set tp to 8 no good
-        #     recipe_args["performance_mode"] = True
+        if performance_mode_if_possible:  # set tp to 8 no good
+            recipe_args["performance_mode"] = True
     elif arch == "mistral12b":
         from nemo.collections.llm.recipes.mistral_nemo_12b import pretrain_recipe
 
