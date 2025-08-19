@@ -24,6 +24,7 @@ def set_recipe_trainer(recipe, args):
         else:
             recipe.trainer.plugins = bf16_with_fp8_mixed()
             recipe.trainer.plugins.grad_reduce_in_fp32 = False
+            recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = False
 
     # STRATEGY
     if args.tensor_parallelism:
@@ -54,11 +55,11 @@ def set_recipe_trainer(recipe, args):
         logger.warning(
             f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
         )
-        recipe.trainer.strategy.tensor_model_parallel_size = 4
-        # if recipe.data.micro_batch_size > 1:
-        #     recipe.data.micro_batch_size = recipe.data.micro_batch_size // 2
-        # else:
-        recipe.trainer.strategy.pipeline_model_parallel_size = (
-            recipe.trainer.strategy.pipeline_model_parallel_size * 2
-        )
+        # recipe.trainer.strategy.tensor_model_parallel_size = 4
+        # # if recipe.data.micro_batch_size > 1:
+        # #     recipe.data.micro_batch_size = recipe.data.micro_batch_size // 2
+        # # else:
+        # recipe.trainer.strategy.pipeline_model_parallel_size = (
+        #     recipe.trainer.strategy.pipeline_model_parallel_size * 2
+        # )
     return recipe
