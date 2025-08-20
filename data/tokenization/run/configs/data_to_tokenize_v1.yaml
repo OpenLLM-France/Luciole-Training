@@ -337,16 +337,16 @@ dataset_groups:
       # FR
       - name: hplt2_edu1_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-        regex: .*/edu_1_rank.*\.jsonl\.gz$
+        regex: .*/edu_1_.*\.jsonl\.gz$
       - name: hplt2_edu2_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-        regex: .*/edu_2_rank.*\.jsonl\.gz$
+        regex: .*/edu_2_.*\.jsonl\.gz$
       - name: hplt2_edu3_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-        regex: .*/edu_3_rank.*\.jsonl\.gz$
+        regex: .*/edu_3_.*\.jsonl\.gz$
       - name: hplt2_edu4_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-        regex: .*/edu_4_rank.*\.jsonl\.gz$
+        regex: .*/edu_4_.*\.jsonl\.gz$
       ## Fineweb 2
       # FR
       - name: fineweb2_edu1_fr
