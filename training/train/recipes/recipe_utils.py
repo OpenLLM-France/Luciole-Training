@@ -10,9 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 def set_recipe_trainer(recipe, args):
-    recipe.trainer.val_check_interval = (
-        5 if args.mode in ["debug", "benchmark", "benchmark100"] else 1000
-    )
     recipe.trainer.limit_val_batches = 0.0
     recipe.trainer.log_every_n_steps = (
         1 if args.mode in ["debug", "benchmark", "benchmark100"] else 1
@@ -33,14 +30,18 @@ def set_recipe_trainer(recipe, args):
         recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
     recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
     if args.virtual_pipeline_parallelism:
-        recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
-            args.virtual_pipeline_parallelism
-        )
+        if args.virtual_pipeline_parallelism==-1:
+            recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
+        else:
+            recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
+                args.virtual_pipeline_parallelism
+            )
     if args.context_parallelism:
         recipe.trainer.strategy.context_parallel_size = args.context_parallelism
+    if recipe.trainer.strategy.tensor_model_parallel_size==1:
+        recipe.trainer.strategy.sequence_parallel = False
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
-
     num_gpus = recipe.trainer.devices * recipe.trainer.num_nodes
     if recipe.data.micro_batch_size > 1 and recipe.data.global_batch_size >= num_gpus:
         logger.warning(

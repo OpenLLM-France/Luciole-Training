@@ -184,9 +184,10 @@ def submit_job(**kwargs):
         model_part = kwargs["arch"]
     job_name_parts = [
         model_part,
-        config_name,
         kwargs["mode"],
     ]
+    if kwargs["mode"] in ["benchmark", "debug", "benchmark100"]:
+        job_name_parts.append(config_name)
     if kwargs.get("seed"):
         job_name_parts.append(f"s{kwargs['seed']}")
     if kwargs["mode"].startswith("benchmark"):

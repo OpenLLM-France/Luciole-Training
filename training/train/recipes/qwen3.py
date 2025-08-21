@@ -261,7 +261,7 @@ def pretrain_recipe(
     val_check_interval: int = 500,
     # Data
     global_batch_size=32,
-    micro_batch_size=2,
+    micro_batch_size=1, # 2
     seq_length=4096,
     # Optimizer
     warmup_steps=500,
