@@ -161,14 +161,13 @@ def launch_plot(job_list, input_folder, output_folder):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_nodes", type=int, default=2)
-    parser.add_argument("--output_benchmark_folder", type=str, default=None)
+    parser.add_argument("--output_benchmark_folder", type=str, default="")
     parser.add_argument("--output_plot_folder", type=str, default=None)
     parser.add_argument("--mode", default="debug", choices=["debug", "minimal", "full", "extra"])
     args = parser.parse_args()
 
-    output_benchmark_folder = args.output_benchmark_folder or str(args.num_nodes)
     base_config = dict(
-        output_dir=os.path.join(os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"), output_benchmark_folder),
+        output_dir=os.path.join(os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"), args.output_benchmark_folder, args.num_nodes),
         num_nodes=args.num_nodes,
         config="../datamix/mock.json",
         mode="benchmark",

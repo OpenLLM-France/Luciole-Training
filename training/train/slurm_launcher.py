@@ -43,20 +43,23 @@ def create_slurm_script(
     seed,
     base_checkpoint,
     performance_mode,
+    qos,
 ):
-    # Choix des paramètres en fonction du mode
+
     if mode == "debug" or mode.startswith("benchmark"):
-        qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
+        default_qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
         time = "01:30:00" if mode == "benchmark100" else "01:00:00"
     elif mode=="1b":
-        qos = "qos_gpu_h100-dev"
+        default_qos = "qos_gpu_h100-dev"
         time = "02:00:00"
     elif mode.endswith("b"):
-        qos = "qos_gpu_h100-t3"
+        default_qos = "qos_gpu_h100-t3"
         time = "20:00:00"
     else:
         raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
 
+    qos = qos if qos else default_qos
+    
     train_path = Path(__file__).resolve().parent
 
     logger.info(f"🚂 Train script path: {train_path}/train_model.py")
@@ -157,6 +160,7 @@ def write_launch_slurm(slurm_path, slurm_content):
         )
     except subprocess.CalledProcessError as e:
         logger.error(f"Job submission failed: {e}")
+        logger.error(f"stedrr: {e.stderr}")
         exit(1)
     match = re.search(r"Submitted batch job (\d+)", result.stdout)
     if match:
@@ -293,11 +297,12 @@ def create_parser():
         "--base_checkpoint",
         default=None,
         type=str,
-        help="The path to a nemo checkpoint to make continual learning",
+        help="The path to a nemo checkpoint to make continual learning.",
     )
     parser.add_argument(
-        "--performance_mode", "--perf", default=False, action="store_true"
+        "--performance_mode", "--perf", default=False, action="store_true", help="If given, activates performance_mode of the recipe if available."
     )
+    parser.add_argument("--qos", default=None, help="If given, it will override the default qos.")
     return parser
 
 
