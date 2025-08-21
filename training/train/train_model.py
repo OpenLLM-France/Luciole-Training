@@ -145,7 +145,8 @@ if __name__ == "__main__":
             every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
 
     recipe.trainer.max_steps = max_steps
-
+    recipe.trainer.val_check_interval = max_steps
+    
     # OPTIM 
     # optimizer_warmup_steps = 2000
     # LOGGER
