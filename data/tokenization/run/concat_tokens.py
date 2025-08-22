@@ -22,12 +22,12 @@ if __name__ == "__main__":
         "inputs",
         type=str,
         nargs="+",
-        help="Input indexed dataset filenames (with extension .bin or without extension)",
+        help="Input indexed dataset filenames (without extension)",
     )
     parser.add_argument(
         "output",
         type=str,
-        help="Output filenames prefix (with extension .bin or without extension)",
+        help="Output filename prefix (without extension)",
     )
     parser.add_argument(
         "--vocab_size",
