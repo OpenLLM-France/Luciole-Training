@@ -87,7 +87,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="a
 #SBATCH --cpus-per-task=1
 #SBATCH --time=00:05:00
 #SBATCH --hint=nomultithread
-#SBATCH --qos=qos_cpu-dev
+#SBATCH --qos=qos_cpu-t3
 #SBATCH --account=qgz@cpu
 {dependency}
 {generate_email_line(email)}

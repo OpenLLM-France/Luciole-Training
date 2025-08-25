@@ -129,10 +129,15 @@ if __name__ == "__main__":
         every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
         resume_if_exists = True
     elif arch=="ablation_llama90m":
-        recipe.optim.lr_scheduler.warmup_steps = 50
         max_steps = 1000
         resume_if_exists = True
-        every_n_train_steps = 250
+        every_n_train_steps = 500
+        from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
+        recipe.optim.lr_scheduler = run.Config(
+            WarmupAnnealingScheduler,
+            warmup_steps=50,
+            min_lr=recipe.optim.config.lr
+        )
     else:
         number_of_tokens = args.mode
         max_steps = math.ceil(
@@ -146,7 +151,10 @@ if __name__ == "__main__":
 
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
-    
+
+    from recipes.recipe_utils import set_custom_scheduler
+    recipe = set_custom_scheduler(recipe, constant_lr=False)
+
     # OPTIM 
     # optimizer_warmup_steps = 2000
     # LOGGER

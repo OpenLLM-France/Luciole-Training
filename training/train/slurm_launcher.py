@@ -190,7 +190,7 @@ def submit_job(**kwargs):
         model_part,
         kwargs["mode"],
     ]
-    if kwargs["mode"] in ["benchmark", "debug", "benchmark100"]:
+    if kwargs["mode"] in ["benchmark", "debug", "benchmark100"] or model_part.startswith("ablation"):
         job_name_parts.append(config_name)
     if kwargs.get("seed"):
         job_name_parts.append(f"s{kwargs['seed']}")
