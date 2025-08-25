@@ -3,7 +3,7 @@
 # folder_containing_datamixes is the path of a folder in $OpenLLM_OUTPUT/ablations/regmix
 # See training/evaluation/tasks for the available tasks
 
-ENVIRONMENT="dev"
+ENVIRONMENT="t3"
 
 if [[ "$ENVIRONMENT" == "dev" ]]; then
     QOS="qos_gpu_h100-dev"
