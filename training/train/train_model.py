@@ -119,6 +119,7 @@ if __name__ == "__main__":
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
         recipe.trainer.max_time = "00:01:00:00"
+        recipe.optim.lr_scheduler.warmup_steps = 25
     elif args.mode in ["phase1", "phase2", "annealing"]:
         if args.mode == "phase1":
             max_steps = 3e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
@@ -152,9 +153,6 @@ if __name__ == "__main__":
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
 
-    from recipes.recipe_utils import set_custom_scheduler
-    recipe = set_custom_scheduler(recipe, constant_lr=False)
-
     # OPTIM 
     # optimizer_warmup_steps = 2000
     # LOGGER
@@ -171,6 +169,7 @@ if __name__ == "__main__":
         monitor="step",
         mode="max",
         every_n_epochs=None,
+        save_optim_on_train_end=True
     )
 
     # RESUME
@@ -178,6 +177,7 @@ if __name__ == "__main__":
         nl.AutoResume,
         resume_if_exists=resume_if_exists,
         resume_ignore_no_checkpoint=True,
+        resume_past_end=True,
         restore_config=nl.RestoreConfig(path=args.base_checkpoint)
         if args.base_checkpoint
         else None,
