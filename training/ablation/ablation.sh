@@ -13,19 +13,19 @@ else
     MAX_JOBS=100
 fi
 
-DATAMIXES_DIR_PATH="$OpenLLM_OUTPUT/ablations/regmix/$1"
+DATAMIXES_DIR_PATH="$OpenLLM_OUTPUT/ablations/datamix/$1"
 count=0
 
 for file in "$DATAMIXES_DIR_PATH"/*.json; do
     if [[ -f "$file" ]]; then
-        echo "Launching slurm_pipeline.py for $file"
+        echo "     🚀 Launching slurm_pipeline.py for $file"
         output=$(python3 ../train/slurm_pipeline.py --config "$file" \
                                                     --arch ablation_llama90m \
                                                     --qos $QOS \
                                                     --mode 1b \
                                                     --output_dir regmix/$1 \
                                                     --tasks "${@:2}")
-        if [[ $output == *"Job submitted"* ]]; then
+        if [[ $output == *"Job submitted (train)"* ]]; then
             ((count++))
             if [[ $count -ge $MAX_JOBS ]]; then
                 echo "Reached the maximum of $MAX_JOBS jobs. Stopping."

@@ -9,7 +9,7 @@ bash ablation.sh french_datamix fineweb2.txt
 cd ../evaluation
 python analyze_results.py $OpenLLM_OUTPUT/ablations/train/regmix/french_datamix
 cd ../ablation
-python fit_exp_law.py --dir /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train/regmix/french_datamix
+python fit_exp_law.py --dir $OpenLLM_OUTPUT/ablations/train/regmix/french_datamix
 ```
 
 Low correlation is better than high correlation. Tasks evaluate the perplexity and we are interested in the log proba so we want to minimize the correlation. See https://arxiv.org/abs/2403.16952

@@ -74,6 +74,11 @@ def main():
         default=None,
         help="A dependency after which it should launch the evals",
     )
+    parser.add_argument(
+        "--skip_existing",
+        action="store_true",
+        help="Skip evaluation if output already exists.",
+    )
     args = parser.parse_args()
 
     assert not (
@@ -99,11 +104,20 @@ def main():
     if args.max_samples > 0:
         extra_arg += f"--max-samples {args.max_samples} \\"
 
+    skipped_all = True
     for ckpt in checkpoints:
         ckpt_name = ckpt.name.replace("=", "_")  # escape '=' just in case
         log_dir = output_dir / "slurm_logs"
         log_dir.mkdir(parents=True, exist_ok=True)
 
+        if args.skip_existing:
+            completed_path = output_dir / "results" / ckpt_name
+            if os.path.exists(completed_path):
+                completed_files = os.listdir(completed_path)
+                if any(f.startswith("results_") and f.endswith(".json") for f in completed_files):
+                    print(f"Skipping evaluation for {ckpt_name} of {os.path.basename(experiment_path)} as results already exist ({completed_files}).")
+                    continue
+        skipped_all = False
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             hf_ckpt_dir=hf_ckpt_dir.resolve(),
             command=args.command,
@@ -124,7 +138,10 @@ def main():
 
         print(f"Submitting job for checkpoint: {ckpt_name}")
         subprocess.run(["sbatch", str(job_filename)], check=True)
-
+    if args.skip_existing and skipped_all:
+        completed_file = output_dir / "completed.txt"
+        with open(completed_file, "w") as f:
+            f.write("")
 
 if __name__ == "__main__":
     main()
