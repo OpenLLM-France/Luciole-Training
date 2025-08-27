@@ -98,7 +98,7 @@ def create_slurm_script(
 #SBATCH --error={output_dir}/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
-#SBATCH --account=wuh@h100
+#SBATCH --account=zwy@h100
 #SBATCH --constraint=h100
 {generate_email_line(email, email_types)}
 
@@ -150,7 +150,7 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train_model.py {args}
 
 
 
-def write_launch_slurm(slurm_path, slurm_content):
+def write_launch_slurm(slurm_path, slurm_content, task=""):
     with open(slurm_path, "w") as fout:
         fout.write(slurm_content)
     logger.info(f"📝 Generated slurm script : {slurm_path}")
@@ -167,7 +167,7 @@ def write_launch_slurm(slurm_path, slurm_content):
         job_id = int(match.group(1))
     else:
         raise ValueError("Failed to parse job ID from sbatch output.")
-    logger.info(f"✅ Job submitted {job_id}")
+    logger.info(f"✅ Job submitted ({task}) with job id : {job_id}")
     return job_id
 
 
@@ -243,8 +243,7 @@ def submit_job(**kwargs):
     shutil.copy2(config, config_output_dir)
     logger.info(f"📄 Copied datamix file : {config} to {config_output_dir}")
 
-    job_id = write_launch_slurm(sbatch_script_path, slurm_script)
-
+    job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="train")
     sub_xp_output_dir = os.path.join(xp_output_dir, f"job_{job_id}")
     os.makedirs(sub_xp_output_dir, exist_ok=True)
     command = " ".join([os.path.basename(sys.executable)] + sys.argv)

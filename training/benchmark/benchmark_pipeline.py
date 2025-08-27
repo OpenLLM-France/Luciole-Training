@@ -1,4 +1,5 @@
 import os
+import logging
 import argparse
 import subprocess
 import sys
@@ -11,7 +12,7 @@ from train.slurm_launcher import submit_job
 CONFIGS_DICT = {
         "debug": [
             dict(arch="llama1b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
-            dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=1, tensor_parallelism=1),   # should fail OOM
+            # dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=1, tensor_parallelism=1),   # should fail OOM
         ],
         "minimal":
             [
@@ -120,6 +121,7 @@ def launch_jobs(base_config, mode):
         if job:
             job_list.append(str(job))
             job_folder_list.append(folder)
+        print()
     return job_list, job_folder_list
 
 def launch_checker(job_list, job_folder_list):
@@ -142,10 +144,13 @@ def launch_checker(job_list, job_folder_list):
             job_id = int(match.group(1))
         else:
             raise ValueError("Failed to parse job ID from sbatch output.")
+        logging.info(f"Checker for {job} ({os.path.basename(folder)}) submitted with: {job_id}")
         checker_job_list.append(str(job_id))
+    print()
     return checker_job_list
 
 def launch_plot(job_list, input_folder, output_folder):
+    logging.info(f"Plotting results from {input_folder} to {output_folder}")
     subprocess.run(
         [
             "sbatch",
@@ -167,7 +172,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     base_config = dict(
-        output_dir=os.path.join(os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"), args.output_benchmark_folder, args.num_nodes),
+        output_dir=os.path.join(os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"), args.output_benchmark_folder, f"{args.num_nodes}"),
         num_nodes=args.num_nodes,
         config="../datamix/mock.json",
         mode="benchmark",
@@ -185,6 +190,7 @@ if __name__ == "__main__":
         seed=None,
         base_checkpoint=None,
         performance_mode=False,
+        qos=None,
     )
 
     job_list, job_folder_list = launch_jobs(base_config, args.mode)

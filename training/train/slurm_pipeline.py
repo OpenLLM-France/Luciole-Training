@@ -65,12 +65,12 @@ def submit_conversion(job_id, xp_output_dir, email=None):
         return None
     slurm_script = create_slurm_conversion_script(job_id, xp_output_dir, email=email)
     sbatch_script_path = os.path.join(xp_output_dir, "conversion/conversion.slurm")
-    job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+    job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="conversion")
     return job_id
 
 
-def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="accelerate", fineweb=False):
-    job_name = f"evaluation_of_{job_id}"
+def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="accelerate", fineweb=False, skip_existing_evals=True):
+    job_name = f"evaluation_of_{job_id}_{os.path.basename(xp_output_dir)}"
     experiment_dir = xp_output_dir
     path_to_evaluation = Path(__file__).resolve().parent.parent
     path_to_evaluation = f"{path_to_evaluation}/evaluation"
@@ -92,18 +92,23 @@ def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="a
 {dependency}
 {generate_email_line(email)}
 
-python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} --command {command} {"--multilingual" if multilingual else ""} {"--fineweb" if fineweb else ""} 
+python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} --command {command} {"--skip_existing" if skip_existing_evals else ""} {"--multilingual" if multilingual else ""} {"--fineweb" if fineweb else ""} 
 """
     return script
 
 
 def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None, command="accelerate"):
+    os.makedirs(os.path.join(xp_output_dir, "evaluation"), exist_ok=True)
+    if os.path.exists(os.path.join(xp_output_dir, "evaluation", "completed.txt")):
+        logger.info(
+            f"Evaluations already done for {xp_output_dir}, skipping job submission. If you want to force submission, remove 'conversion/completed.txt'"
+        )
+        return None
     slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email, command=command)
     sbatch_script_path = os.path.join(
         xp_output_dir, f"evaluation/evaluation_{os.path.splitext(task)[0]}.slurm"
     )
-    os.makedirs(os.path.join(xp_output_dir, "evaluation"), exist_ok=True)
-    job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+    job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="evaluation")
     return job_id
 
 
@@ -157,6 +162,7 @@ if __name__ == "__main__":
                     task=task,
                     email=update_email_args("eval", source_args),
                 )
+        print()
     except Exception:
         for jid in [job_id, conversion_id]:
             if jid:
