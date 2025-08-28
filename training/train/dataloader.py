@@ -6,6 +6,7 @@ from nemo.collections import llm
 import fiddle as fdl
 import json
 import nemo_run as run
+from tqdm import tqdm
 
 def create_data(data_args: dict):
     tokenizer = get_tokenizer(
@@ -85,12 +86,12 @@ def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
 
 
 def run_dataloader(
-    folder_path, dataset_name, tokenizer_name, number_of_data, seq_length, force=False
+    folder_path, output_path, dataset_name, tokenizer_name, number_of_data, seq_length, force=False
 ):
     token_file_path = os.path.join(
-        folder_path, f"batch_examples_seq{seq_length}", f"{dataset_name}.txt"
+        output_path, f"batch_examples_seq{seq_length}", f"{dataset_name}.txt"
     )
-    dist_file_dir = os.path.join(folder_path, f"batch_distribution_seq{seq_length}")
+    dist_file_dir = os.path.join(output_path, f"batch_distribution_seq{seq_length}")
 
     if os.path.exists(token_file_path) and not force:
         print(f"File {token_file_path} already exists. Skipping...")
@@ -103,14 +104,16 @@ def run_dataloader(
 
     # Build and load the data
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
-    recipe.data = create_data(
-        {
-            "paths": os.path.join(folder_path, dataset_name),
-            "tokenizer_name": tokenizer_name,
-            "global_batch_size": 1,
-            "seq_length": seq_length,
-        }
+    recipe.data = fdl.build(create_data(
+            {
+                "paths": os.path.join(folder_path, dataset_name),
+                "tokenizer_name": tokenizer_name,
+                "global_batch_size": 1,
+                "seq_length": seq_length,
+            }
+        )
     )
+    
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
 
@@ -121,15 +124,15 @@ def run_dataloader(
         number_of_distributions=int(number_of_data) * 10,
     )
 
-    # Save token text
-    with open(token_file_path, "w", encoding="utf-8") as token_file:
-        token_file.write(output_text)
-
     # Save distribution
     with open(
         os.path.join(dist_file_dir, f"{dataset_name}.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(distribution, f)
+
+    # Save token text
+    with open(token_file_path, "w", encoding="utf-8") as token_file:
+        token_file.write(output_text)
 
 
 if __name__ == "__main__":
@@ -148,20 +151,25 @@ if __name__ == "__main__":
         action="store_true",
         help="Force re-generation of data even if it already exists.",
     )
+    parser.add_argument("--output_path", default=None, type=str)
     args = parser.parse_args()
+
+    output_path = args.output_path if args.output_path else args.folder_path
 
     with open(os.path.join(args.folder_path, "tokenizer_name.txt"), "r") as f:
         tokenizer_name = f.read().strip()
 
-    for file in os.listdir(args.folder_path):
-        dataset_name = file.split(".")[0]
+    files = os.listdir(args.folder_path)
+    files = [file for file in files if file.endswith("text_document.idx")]
 
-        if file.endswith("text_document.idx"):
-            run_dataloader(
-                args.folder_path,
-                dataset_name,
-                tokenizer_name,
-                number_of_data=args.number_of_data,
-                seq_length=args.seq_length,
-                force=args.force,
-            )
+    for file in tqdm(files, desc="Processing datasets"):
+        dataset_name = file.split(".")[0]
+        run_dataloader(
+            args.folder_path,
+            output_path,
+            dataset_name,
+            tokenizer_name,
+            number_of_data=args.number_of_data,
+            seq_length=args.seq_length,
+            force=args.force,
+        )
