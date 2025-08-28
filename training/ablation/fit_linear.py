@@ -2,7 +2,7 @@ import os
 import argparse
 import pandas as pd
 import torch
-from estimator import TorchExpEstimator
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     N, input_dim = x.shape
     N, output_dim = y.shape
 
-    model = TorchExpEstimator(input_dim=input_dim, output_dim=output_dim)
+    model = LinearRegression()
     model.fit(x, y)
 
     y_pred = model.predict(x)
@@ -48,25 +48,20 @@ if __name__ == "__main__":
     mse = mean_squared_error(y, y_pred)
     print(f"MSE: {mse}")
 
-    torch.save(
-        model.model.state_dict(), os.path.join(args.dir, "out", "torch_exp_model.pth")
-    )
+    W = model.coef_  # shape (n_features_y, n_features_x) in sklearn's convention
+    b = model.intercept_  # shape (n_features_y,)
 
-    # PLOT T
-    fig = plt.figure(figsize=(6, 5))
-    T_mat = model.model.T.detach().cpu().numpy()
-    absmax = abs(T_mat).max()
-    print(T_mat)
+    absmax = abs(W).max()
+
+    plt.figure()
     plt.imshow(
-        T_mat.transpose(),
+        W.T,
         aspect="auto",
         interpolation="nearest",
         cmap="seismic",
         vmin=-absmax,
         vmax=absmax,
     )
-
-    # Set ticks and labels
     plt.yticks(
         ticks=range(len(datamix_labels)),
         labels=datamix_labels,
@@ -79,19 +74,13 @@ if __name__ == "__main__":
         rotation=45,
         ha="right",
     )
-
-    plt.title("Learned T matrix")
     plt.colorbar()
     plt.tight_layout()
-    plt.savefig(
-        os.path.join(args.dir, "out", "learned_T_matrix.png"),
-        dpi=300,
-        bbox_inches="tight",
-    )
+    plt.savefig(os.path.join(args.dir, "out", "linear_model_weights.png"), dpi=300)
 
     plt.figure()
     plt.plot(y, y_pred, ".", label=target_labels)
     plt.legend()
     plt.xlabel("True target values")
     plt.ylabel("Predicted target values")
-    plt.savefig(os.path.join(args.dir, "out", "exp_model_predictions.png"), dpi=300)
+    plt.savefig(os.path.join(args.dir, "out", "linear_model_predictions.png"), dpi=300)
