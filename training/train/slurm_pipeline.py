@@ -97,14 +97,14 @@ python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} 
     return script
 
 
-def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None, command="accelerate"):
+def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None, command="accelerate", skip_existing_evals=True):
     os.makedirs(os.path.join(xp_output_dir, "evaluation"), exist_ok=True)
     if os.path.exists(os.path.join(xp_output_dir, "evaluation", "completed.txt")):
         logger.info(
             f"Evaluations already done for {xp_output_dir}, skipping job submission. If you want to force submission, remove 'conversion/completed.txt'"
         )
         return None
-    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email, command=command)
+    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email, command=command, skip_existing_evals=skip_existing_evals)
     sbatch_script_path = os.path.join(
         xp_output_dir, f"evaluation/evaluation_{os.path.splitext(task)[0]}.slurm"
     )
@@ -144,11 +144,19 @@ if __name__ == "__main__":
         nargs="+",
         default=[],
     )
+    parser.add_argument(
+        "--skip_existing_evals",
+        action="store_true",
+        help="Skip existing evaluations",
+        default=False,
+    )
     source_args = parser.parse_args()
     tasks = source_args.tasks
+    skip_existing_evals = source_args.skip_existing_evals
     job_id = None
     conversion_id = None
     del source_args.tasks
+    del source_args.skip_existing_evals
     try:
         job_id, xp_output_dir = pre_submit(update_email_args("train", source_args))
         conversion_id = submit_conversion(
@@ -161,6 +169,7 @@ if __name__ == "__main__":
                     xp_output_dir,
                     task=task,
                     email=update_email_args("eval", source_args),
+                    skip_existing_evals=skip_existing_evals,
                 )
         print()
     except Exception:

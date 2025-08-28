@@ -44,11 +44,14 @@ def create_slurm_script(
     base_checkpoint,
     performance_mode,
     qos,
+    account,
 ):
 
     if mode == "debug" or mode.startswith("benchmark"):
         default_qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
         time = "01:30:00" if mode == "benchmark100" else "01:00:00"
+    elif qos and qos=="qos_gpu_h100-as":
+        time = "100:00:00"
     elif mode=="1b":
         default_qos = "qos_gpu_h100-dev"
         time = "02:00:00"
@@ -59,6 +62,7 @@ def create_slurm_script(
         raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
 
     qos = qos if qos else default_qos
+    account = "wuh@h100" if not account else account
     
     train_path = Path(__file__).resolve().parent
 
@@ -98,7 +102,7 @@ def create_slurm_script(
 #SBATCH --error={output_dir}/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
-#SBATCH --account=zwy@h100
+#SBATCH --account={account}
 #SBATCH --constraint=h100
 {generate_email_line(email, email_types)}
 
@@ -302,6 +306,7 @@ def create_parser():
         "--performance_mode", "--perf", default=False, action="store_true", help="If given, activates performance_mode of the recipe if available."
     )
     parser.add_argument("--qos", default=None, help="If given, it will override the default qos.")
+    parser.add_argument("--account", default=None, help="If given, it will override the default account (wuh@h100).")
     return parser
 
 

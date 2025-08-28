@@ -78,6 +78,7 @@ def main():
         "--skip_existing",
         action="store_true",
         help="Skip evaluation if output already exists.",
+        default=False,
     )
     args = parser.parse_args()
 

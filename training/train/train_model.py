@@ -114,11 +114,11 @@ if __name__ == "__main__":
     recipe.model.config.seq_length = recipe.data.seq_length
     recipe.trainer.max_time = "00:19:40:00"
     if args.mode in ["debug", "benchmark", "benchmark100"]:
-        max_steps = 1 if args.mode == "debug" else 25
+        max_steps = 2 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
-        recipe.trainer.max_time = "00:01:00:00"
+        recipe.trainer.max_time = "00:01:20:00" if args.mode == "benchmark100" else "00:00:50:00"
         recipe.optim.lr_scheduler.warmup_steps = 25
     elif args.mode in ["phase1", "phase2", "annealing"]:
         if args.mode == "phase1":
@@ -129,6 +129,7 @@ if __name__ == "__main__":
             max_steps = 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
         every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
         resume_if_exists = True
+        recipe.trainer.max_time = "04:00:00:00" # will not be reset after relaunching so need to increment it
     elif arch=="ablation_llama90m":
         max_steps = 1000
         resume_if_exists = True
@@ -152,13 +153,6 @@ if __name__ == "__main__":
 
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
-
-    # OPTIM 
-    # optimizer_warmup_steps = 2000
-    # LOGGER
-    # recipe.log.log_dir = output_dir
-    # recipe.log.name = args.name
-    # recipe.log.tensorboard = tensorboard_logger(name=args.name)
 
     # CKPT
     recipe.log.ckpt = run.Config(
