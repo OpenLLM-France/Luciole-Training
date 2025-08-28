@@ -82,9 +82,7 @@ if __name__ == "__main__":
         add_help=True, formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "name",
-        type=str,
-        help="Name of the folder that will contain all the datamixes"
+        "name", type=str, help="Name of the folder that will contain all the datamixes"
     )
     parser.add_argument(
         "--data_path",
@@ -96,26 +94,21 @@ if __name__ == "__main__":
         "--start_with",
         type=str,
         default="",
-        help="Select a subset of datasets names that startswith with the string (e.g. 'common-pile')"
+        help="Select a subset of datasets names that startswith with the string (e.g. 'common-pile')",
     )
     parser.add_argument(
         "--regex",
         type=str,
         default=".*",
-        help="Select a subset of datasets names based on the regex (e.g. '.*fr')"
+        help="Select a subset of datasets names based on the regex (e.g. '.*fr')",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default=os.path.join(main_path, "ablations/regmix"),
+        default=os.path.join(main_path, "ablations/datamix"),
         help="Output directory",
     )
-    parser.add_argument(
-        "--max_seed",
-        type=int,
-        default=50,
-        help="Number of datamixes"
-    )
+    parser.add_argument("--max_seed", type=int, default=50, help="Number of datamixes")
     args = parser.parse_args()
     output_dir = os.path.join(args.output_dir, args.name)
 
@@ -133,8 +126,10 @@ if __name__ == "__main__":
         np.random.seed(seed)
         n_datasets = len(df)
 
-        lambda_param = np.random.uniform(0.1, 5)
-        weight = np.random.dirichlet(lambda_param * df["total_tokens_dist"])
+        lambda_param = 0.1
+        # lambda_param = np.random.uniform(0.1, 1)
+        # weight = np.random.dirichlet(lambda_param * df["total_tokens_dist"])
+        weight = np.random.dirichlet(lambda_param * np.ones(n_datasets))
         df[f"weight_{seed}"] = weight
 
         df_seed = df[["name", f"weight_{seed}"]].rename(
@@ -152,4 +147,14 @@ if __name__ == "__main__":
             json.dump(out, f, indent=4)
     print(f"Datamixes saved to {output_dir}")
     df.to_csv(f"{output_dir}/regmix_weights.csv")
+
+    weight_cols = [c for c in df.columns if str(c).startswith("weight_")]
+    weights = df[weight_cols]
+    plt.imshow(weights.values, aspect="auto")
+    plt.colorbar()
+    plt.title("Weight Distributions")
+    plt.ylabel("Datasets")
+    plt.xlabel("Seeds")
+    plt.savefig(f"{output_dir}/regmix_weights.png", dpi=300)
+
     # plot_weight_distributions(df.sort_values("total_tokens", ascending=False).head(20))

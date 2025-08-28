@@ -143,8 +143,8 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/arxiv_abstracts_filtered/data
       - name: common-pile_arxiv-papers_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/arxiv_papers_filtered/data
-      # - name: common-pile_cccc_en
-      #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/cccc_filtered/data
+      - name: common-pile_cccc_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/cccc_filtered/data
       - name: common-pile_github-archive_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/github_archive_filtered/data
       # Claire
@@ -174,6 +174,9 @@ dataset_groups:
       - name: parlement_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/
         regex: .*/(interventionsparlement|discourspublics|questionsecritesparlement|amendementsparlement)/data/.*\.jsonl\.gz
+      # Open-data (wo balo)
+      - name: opendata_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/opendata/data/
       # HALvest
       # - name: halvest_ar
       #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/halvest/ar

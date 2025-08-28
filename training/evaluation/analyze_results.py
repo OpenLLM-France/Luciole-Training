@@ -109,6 +109,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     metric = "word_perplexity"
+    os.makedirs(os.path.join(args.expe_dir, "out"), exist_ok=True)
 
     # READ RESULTS
     out = []
@@ -132,9 +133,9 @@ if __name__ == "__main__":
             results = {"target:" + d["task"]: d["score"] for d in results}
 
             out.append({**datamix, **results})
-    print("Processing...")
+
     df = pd.DataFrame(out)
-    df.to_csv(os.path.join(args.expe_dir, "regmix_results.csv"))
+    df.to_csv(os.path.join(args.expe_dir, "out", "regmix_results.csv"))
 
     df.loc[:, df.columns.str.startswith("datamix:")] = df.loc[
         :, df.columns.str.startswith("datamix:")
@@ -142,14 +143,14 @@ if __name__ == "__main__":
     df = df.dropna(subset=df.columns[df.columns.str.startswith("target:")])
     df = df[sorted(df.columns)]
 
-    df.to_csv(os.path.join(args.expe_dir, "regmix_results.csv"))
+    df.to_csv(os.path.join(args.expe_dir, "out", "regmix_results.csv"))
     datamix_col = df.columns[df.columns.str.startswith("datamix:")]
     target_col = df.columns[df.columns.str.startswith("target:")]
 
     # DATAMIX
     plot_datamix_vs_target(df, args.expe_dir)
 
-    print(f"Plots saved to {args.expe_dir}")
+    print(f"Plots saved in {args.expe_dir}/out")
 
     # CORRELATION
     for method in ["spearman", "pearson", "kendall", "mutual_info"]:
@@ -162,6 +163,6 @@ if __name__ == "__main__":
             corr_matrix,
             title=f"{method.capitalize()} Correlation Heatmap",
             show=False,
-            save_path=os.path.join(args.expe_dir, f"{method}.png"),
+            save_path=os.path.join(args.expe_dir, "out", f"{method}.png"),
         )
-    print(f"Correlation plots saved to {args.expe_dir}")
+    print(f"Correlation plots saved in {args.expe_dir}/out")
