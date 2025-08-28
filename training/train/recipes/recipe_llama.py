@@ -32,7 +32,7 @@ def set_llama24b_recipe(recipe, args):
     recipe.model.config.num_query_groups = 8
     recipe.model.config.hidden_size = 6144
     recipe.model.config.ffn_hidden_size = 24576
-    if recipe.data.seq_length >= 8192 and not not args.context_parallelism:
+    if recipe.data.seq_length >= 8192 and not args.context_parallelism:
         recipe.trainer.strategy.context_parallel_size = 2
     elif not args.context_parallelism:
         recipe.trainer.strategy.context_parallel_size = 1

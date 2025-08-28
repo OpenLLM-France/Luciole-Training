@@ -114,7 +114,7 @@ if __name__ == "__main__":
     # READ RESULTS
     out = []
     for expe_name in os.listdir(args.expe_dir):
-        if os.path.isdir(os.path.join(args.expe_dir, expe_name)):
+        if os.path.isdir(os.path.join(args.expe_dir, expe_name)) and expe_name!="out":
             expe_path = os.path.join(args.expe_dir, expe_name)
 
             # Read datamix
