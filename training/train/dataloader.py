@@ -91,6 +91,9 @@ def run_dataloader(
     token_file_path = os.path.join(
         output_path, f"batch_examples_seq{seq_length}", f"{dataset_name}.txt"
     )
+    text_file_path = os.path.join(
+        output_path, f"batch_texts_seq{seq_length}", f"{dataset_name}.txt"
+    )
     dist_file_dir = os.path.join(output_path, f"batch_distribution_seq{seq_length}")
 
     if os.path.exists(token_file_path) and not force:
@@ -100,6 +103,7 @@ def run_dataloader(
     print(f"Processing dataset: {dataset_name} with seq_length: {seq_length}")
     # Ensure output directories exist
     os.makedirs(os.path.dirname(token_file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(text_file_path), exist_ok=True)
     os.makedirs(dist_file_dir, exist_ok=True)
 
     # Build and load the data
@@ -129,6 +133,11 @@ def run_dataloader(
         os.path.join(dist_file_dir, f"{dataset_name}.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(distribution, f)
+
+    text = "".join(output_text)
+    text = text.replace("▁", " ").strip()
+    with open(text_file_path, "w", encoding="utf-8") as text_file:
+        text_file.write(text)
 
     # Save token text
     with open(token_file_path, "w", encoding="utf-8") as token_file:
