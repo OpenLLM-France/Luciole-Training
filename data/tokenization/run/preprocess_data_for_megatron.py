@@ -383,6 +383,9 @@ def main():
             print(
                 f"Found {len(json_files)} .json or .jsonl or json.gz or .jsonl.gz files."
             )
+        print("File list:")
+        for rf in json_files:
+            print("  ", rf)
     else:
         assert os.path.exists(args.input), f"File does not exist: {args.input}"
         json_files = [args.input]
