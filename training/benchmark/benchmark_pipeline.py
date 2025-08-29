@@ -20,61 +20,70 @@ CONFIGS_DICT = {
                 dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
                 dict(arch="llama8b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1),
                 dict(arch="nemotronh8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-                dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, virtual_pipeline_parallelism=-1),
-                dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1),
+                dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4, virtual_pipeline_parallelism=-1),
+                dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4),
                 dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=2),
             ],
         "full":[
-            
-            # llama1b
-            dict(arch="llama1b"),
-
             # llama3b
-            dict(arch="llama3b"),
-            dict(arch="llama3b", fp8=True),
-            dict(arch="llama3b", fp8=True, seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
+            dict(arch="llama3b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", fp8=True),
 
             # nemotron4b
-            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),
             dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
 
             # llama8b
+            dict(arch="llama8b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1, fp8=True),
+            
+            # nemotronh8b
+            dict(arch="nemotronh8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
+            
+            # nemotron8b
+            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+            dict(arch="nemotron8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
+            
+            # nemotron22b
+            dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4, virtual_pipeline_parallelism=-1, fp8=True),
+            
+            # llama24b
+            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4, fp8=True),
+            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1),
+            
+            # qwen30bA3b
+            # dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=1, fp8=True),
+        ],
+        "seq_8192": [
+            # llama1b
+            dict(arch="llama1b"),
+            
+            # llama3b
+            dict(arch="llama3b"),
+            dict(arch="llama3b", fp8=True),
+            
+            # nemotron4b
+            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),
+            
+            # llama8b
             dict(arch="llama8b"),
             dict(arch="llama8b", fp8=True),
-            dict(arch="llama8b", fp8=True, seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1),
             
             # nemotronh8b
             dict(arch="nemotronh8b"),
             dict(arch="nemotronh8b", fp8=True),
-            dict(arch="nemotronh8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
             
-            # nemotron8b
-            dict(arch="nemotron8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-            dict(arch="nemotron8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
-            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
-            
-            # nemotron22b
-            dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, fp8=True, virtual_pipeline_parallelism=-1),
             dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=2, fp8=True, virtual_pipeline_parallelism=-1),
             
-            # llama24b
-            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, fp8=True),
             dict(arch="llama24b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=2, fp8=True),
-            
+        ],
+        "extra": [
             # qwen30bA3b
             dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=1),
-            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=1, fp8=True),
-            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=2, fp8=True),
             
             # qwen32b
             dict(arch="qwen32b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-            dict(arch="qwen32b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
-
+            
             # nemotronh47b
             dict(arch="nemotronh47b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4),
-        ],
-        "extra": [
+            
             # mistral12b
             dict(arch="mistral12b"),
             dict(arch="mistral12b", fp8=True),
@@ -89,21 +98,26 @@ CONFIGS_DICT = {
             # nemotron8b
             dict(arch="nemotron8b", tensor_parallelism=2, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
             dict(arch="nemotron8b", tensor_parallelism=2, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),      
-            
+            dict(arch="nemotron8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+
             # qwen30bA3b
             dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=2, pipeline_parallelism=2),
             dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=2, pipeline_parallelism=2, fp8=True),
-            
+            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=2, fp8=True),
+
             # qwen32b
             dict(arch="qwen32b", tensor_parallelism=4, pipeline_parallelism=4, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
+            dict(arch="qwen32b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
         ]
     }
 
 
 def get_configs(mode):
     configs = CONFIGS_DICT['debug']
-    if mode in ["minimal", "full", "extra"]:
+    if mode in ["minimal", "full", "extra", "seq_8192"]:
         configs = configs + CONFIGS_DICT["minimal"]
+    if mode in ["seq_8192"]:
+        configs = configs + CONFIGS_DICT["seq_8192"]
     if mode in ["full", "extra"]:
         configs = configs + CONFIGS_DICT["full"]
     if mode in ["extra"]:
@@ -168,7 +182,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_nodes", type=int, default=2)
     parser.add_argument("--output_benchmark_folder", type=str, default="")
     parser.add_argument("--output_plot_folder", type=str, default=None)
-    parser.add_argument("--mode", default="debug", choices=["debug", "minimal", "full", "extra"])
+    parser.add_argument("--mode", default="debug", choices=["debug", "minimal", "full", "extra", "seq_8192"])
     args = parser.parse_args()
 
     base_config = dict(
@@ -191,6 +205,7 @@ if __name__ == "__main__":
         base_checkpoint=None,
         performance_mode=False,
         qos=None,
+        account="zwy@h100",
     )
 
     job_list, job_folder_list = launch_jobs(base_config, args.mode)
