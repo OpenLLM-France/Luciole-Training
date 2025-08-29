@@ -139,7 +139,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--tasks",
-        help="Tasks, skip if empty",
+        help="Tasks to evaulate on, skip if empty. If multiple, separate by space",
         type=str,
         nargs="+",
         default=[],
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip_existing_evals",
         action="store_true",
-        help="Skip existing evaluations",
+        help="Skip evaluations if evaluation results already exist (even if tasks are different).",
         default=False,
     )
     source_args = parser.parse_args()
