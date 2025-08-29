@@ -264,43 +264,45 @@ def submit_job(**kwargs):
 def create_parser():
     from utils import SUPPORTED_ARCHITECTURES
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="../datamix/mock.json")
+    parser.add_argument("--config", default="../datamix/mock.json", help="Path to the datamix, should be a json or yaml file.", type=str)
     parser.add_argument(
         "--arch",
         default="llama1b",
         type=str,
         choices=SUPPORTED_ARCHITECTURES,
     )
-    parser.add_argument("--name_prefix", default="", type=str)
-    parser.add_argument("--email", default=None)
+    parser.add_argument("--name_prefix", default="", type=str, help="Prefix to add to the experiment name.")
+    parser.add_argument("--email", default=None, type=str, help="Email to send notifications to.")
     parser.add_argument(
         "--email_types",
         default="ALL",
         help="Triggers used for emails (BEGIN, END, FAIL...)",
     )
-    parser.add_argument("--output_dir", default="")
+    parser.add_argument("--output_dir", default="", help="Subdirectory in --output_path where to save the experiment.")
     parser.add_argument(
         "--output_path",
         default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
+        help="Base directory where to save experiments.",
+        type=str,
     )
-    parser.add_argument("--num_nodes", default=1, type=int)
-    parser.add_argument("--gpus_per_node", default=4, type=int)
-    parser.add_argument("--mode", default="debug", type=str)
-    parser.add_argument("--fp8", default=False, action="store_true")
+    parser.add_argument("--num_nodes", default=1, type=int, help="Number of nodes to use.")
+    parser.add_argument("--gpus_per_node", default=4, type=int, help="Number of GPUs per node to use.")
+    parser.add_argument("--mode", default="debug", type=str, help="Training mode, can be : debug, benchmark, benchmark100, phase1, phase2, annealing, Xb (e.g. 5b, 35b).")
+    parser.add_argument("--fp8", default=False, action="store_true", help="If given, activates fp8 training if available.")
     parser.add_argument("--tensor_parallelism", "--tp", default=None, type=int)
     parser.add_argument("--pipeline_parallelism", "--pp", default=None, type=int)
     parser.add_argument("--context_parallelism", "--cp", default=None, type=int)
     parser.add_argument(
-        "--virtual_pipeline_parallelism", "--vpp", default=None, type=int
+        "--virtual_pipeline_parallelism", "--vpp", default=None, type=int, help="If -1, deactivates virtual pipeline parallelism."
     )
-    parser.add_argument("--seq_length", default=None, type=int)
-    parser.add_argument("--batch_size", default=None, type=int)
+    parser.add_argument("--seq_length", default=None, type=int, help="Sequence length to use for training, overrides the model default value.")
+    parser.add_argument("--batch_size", default=None, type=int, help="Batch size to use for training, overrides the model default value.")
     parser.add_argument("--seed", default=None, type=int)
     parser.add_argument(
         "--base_checkpoint",
         default=None,
         type=str,
-        help="The path to a nemo checkpoint to make continual learning.",
+        help="The path to a nemo compatible checkpoint to make continual learning.",
     )
     parser.add_argument(
         "--performance_mode", "--perf", default=False, action="store_true", help="If given, activates performance_mode of the recipe if available."
