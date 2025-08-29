@@ -40,7 +40,7 @@ def create_slurm_conversion_script(job_id, xp_output_dir, email=None):
 
 source {set_env_path}
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
-MASTER_PORT=6000
+MASTER_PORT=$((10000 + $SLURM_JOB_ID))
 
 DISTRIBUTED_ARGS=" \
         --nproc_per_node 1 \
@@ -81,7 +81,7 @@ def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="a
 
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
-#SBATCH --output={xp_output_dir}/evaluation/slurm_logs/pipeline_log_%j.out
+#SBATCH --output={xp_output_dir}/evaluation/slurm_logs/pipeline_log_{task.replace(".txt", "")}_%j.out
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1

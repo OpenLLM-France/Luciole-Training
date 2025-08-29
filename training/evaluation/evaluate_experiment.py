@@ -5,7 +5,7 @@ import os
 
 SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=eval
-#SBATCH --output={log_dir}/eval_log_%j.out
+#SBATCH --output={log_dir}/eval_log_{log_name}_%j.out
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -125,6 +125,7 @@ def main():
             model_name=ckpt_name,
             output_dir=output_dir,
             log_dir=log_dir,
+            log_name=f"{task_to_evaluate.stem}_{ckpt_name}",
             task_to_evaluate=task_to_evaluate.resolve(),
             max_samples=args.max_samples,
             extra_arg=extra_arg,
