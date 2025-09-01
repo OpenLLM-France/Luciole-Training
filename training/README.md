@@ -35,15 +35,35 @@ If you want to train a Mamba model:
 pip install --user --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
 
-### Train
+### Pipeline
 
-Here is an example of training command,
-to train on 20B tokens:
+Here is an example of pipeline command, which will train, convert and evaluate your model:
 ```bash
 cd train/
-python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b [--email xxx@xxx.com] [--num_nodes 4]
+python slurm_pipeline.py --config xxx.json --output_dir xxx --mode 35b [--email xxx@xxx.com] [--num_nodes 4] --tasks task1.txt task2.txt
 ```
-Use `--mode debug` to try your script before running it.
+If no tasks are given it will just train and convert.
+Don't forget to use `--mode debug` to try your script before running it.
+
+The script will print the path of your experiment so you can easily ``cd``. 
+In the experiment folder, once it has finished, you should have :
+- a folder with the same name as the experiment where you can find the checkpoints
+- a `datamix` folder containing all used datamixes
+- a `failed.out` where errors raised during training are written
+- a `completed.txt` showing that training completed sucessfully 
+- a `huggingface_checkpoints` folder where you will find the converted checkpoints
+- a folder for each job `job_xxx` where you will find the log, config, `command.sh` (command used to launch the job), the `launch.slurm` and datamix of that job
+- a `conversion` folder where you will find the log, `conversion.slurm` and a `completed.txt`
+- a `evaluation` folder where you will find a slurm for each checkpoints, a `results` folder with a subfolder per checkpoint and a json per ablation run in it. There is also a `slurm_logs` with logs of the evaluation for each task and checkpoint.
+
+### Train
+
+Here is an example of training command:
+```bash
+cd train/
+python slurm_launcher.py --config xxx.json --output_dir xxx --mode 35b [--email xxx@xxx.com] [--num_nodes 4]
+```
+Don't forget to use `--mode debug` to try your script before running it.
 
 ### Estimate training time for a 1b model
 
