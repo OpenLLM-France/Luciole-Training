@@ -1,0 +1,34 @@
+# Megamath
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/megamath-web-filtered_part1_math_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/megamath-web-filtered_part2_math_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/megamath-web-filtered_math_text_document
+
+# Starcoder
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/starcoder-data_high-stars_code_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/starcoder-data_low-stars_code_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/starcoder-data_code_text_document
+
+# DCLM
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part1_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part2_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part3_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part4_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part5_en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/dclm-dolmino_en_text_document
+
+# Fineweb-edu
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part1_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part2_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part3_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part4_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part5_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part6_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part7_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part8_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part9_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part10_en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/fineweb-edu_en
