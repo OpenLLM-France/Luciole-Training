@@ -16,4 +16,8 @@ helm|boolq|0|0
 leaderboard|hellaswag|0|0
 leaderboard|winogrande|0|0
 
+# Common Sense
+helm|siqa|0|0
+helm|commonsenseqa|0|0
+
 
