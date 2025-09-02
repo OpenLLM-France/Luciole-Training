@@ -64,6 +64,11 @@ def main():
         help="Use fineweb2 task configuration.",
     )
     parser.add_argument(
+        "--lucie",
+        action="store_true",
+        help="Use lucie task configuration.",
+    )
+    parser.add_argument(
         "--max_samples",
         type=int,
         default=1000,
@@ -102,6 +107,10 @@ def main():
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\"
+    if args.lucie:
+        current_dir = os.path.dirname(__file__)
+        custom_path = os.path.join(current_dir, "custom_benchmarks", "lucie2_evals.py")
+        extra_arg += f"--custom-tasks {custom_path} \\"
     if args.max_samples > 0:
         extra_arg += f"--max-samples {args.max_samples} \\"
 
@@ -115,8 +124,13 @@ def main():
             completed_path = output_dir / "results" / ckpt_name
             if os.path.exists(completed_path):
                 completed_files = os.listdir(completed_path)
-                if any(f.startswith("results_") and f.endswith(".json") for f in completed_files):
-                    print(f"Skipping evaluation for {ckpt_name} of {os.path.basename(experiment_path)} as results already exist ({completed_files}).")
+                if any(
+                    f.startswith("results_") and f.endswith(".json")
+                    for f in completed_files
+                ):
+                    print(
+                        f"Skipping evaluation for {ckpt_name} of {os.path.basename(experiment_path)} as results already exist ({completed_files})."
+                    )
                     continue
         skipped_all = False
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
@@ -144,6 +158,7 @@ def main():
         completed_file = output_dir / "completed.txt"
         with open(completed_file, "w") as f:
             f.write("")
+
 
 if __name__ == "__main__":
     main()

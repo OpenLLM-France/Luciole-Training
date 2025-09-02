@@ -182,6 +182,13 @@ class Encoder(object):
             ids = {}
             for key in self.args.json_keys:
                 text = data[key]
+                if self.args.remove_prefix:
+                    if "metadata" in data and "prefix" in data["metadata"]:
+                        text = text[len(data["metadata"]["prefix"]) :]
+                    else:
+                        print("Cannot remove prefix, no prefix field in json.")
+                        if "metadata" in data:
+                            print("Available metadata keys:", data["metadata"].keys())
                 if self.args.apply_ftfy:
                     text = ftfy.fix_text(text)
                 doc_ids = []
@@ -231,6 +238,11 @@ def get_args():
         "--keep-newlines",
         action="store_true",
         help="Keep newlines between sentences when splitting.",
+    )
+    group.add_argument(
+        "--remove-prefix",
+        action="store_true",
+        help="Remove prefix to the data.",
     )
     group.add_argument(
         "--text_file", action="store_true", help="Use text file instead of json."

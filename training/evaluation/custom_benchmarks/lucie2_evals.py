@@ -32,40 +32,52 @@ Author: Olivier Gouvert
 from lighteval.tasks.lighteval_task import LightevalTaskConfig
 from lighteval.tasks.requests import Doc
 from lighteval.metrics.metrics import Metrics
-from huggingface_hub import snapshot_download
 from datasets import load_dataset
 import os
+import yaml
 
 SAMPLE_SUBSETS = [
-    "arb_Arab",
-    "deu_Latn",
-    "fra_Latn",
-    "ita_Latn",
-    "nld_Latn",
-    "por_Latn",
-    "cat_Latn",
+    "gutenberg_fr",
+    "wikimedia_fr",
+    "opene-edition_fr",
+    "gallica_press_fr",
 ]
 
-main_dir = os.path.join(os.getenv("OpenLLM_OUTPUT"), "benchmarks/fineweb2")
+# Build the path relative to the script
+config_path = os.path.join(
+    "~/OpenLLM-BPI-Training",
+    "data",
+    "tokenization",
+    "run",
+    "configs",
+    "data_to_tokenize_v1.yaml",
+)
+config_path = os.path.expanduser(config_path)
+
+with open(config_path, "r") as f:
+    config = yaml.safe_load(f)
+# datasets = config["dataset_groups"][0]["datasets"]
+# print(datasets)
+datasets = {
+    ds["name"]: ds["path"]
+    for group in config["dataset_groups"]
+    for ds in group["datasets"]
+}
+
+main_dir = os.path.join(os.getenv("OpenLLM_OUTPUT"), "benchmarks/lucie2")
 os.makedirs(main_dir, exist_ok=True)
 
-for language in SAMPLE_SUBSETS:
-    original_path = os.path.join(main_dir, "original_test_set")
-    processed_path = os.path.join(main_dir, f"processed_data/{language}")
-
-    # Download only once if original_test_set doesn't exist
-    if not os.path.exists(original_path):
-        snapshot_download(
-            "HuggingFaceFW/fineweb-2",
-            repo_type="dataset",
-            local_dir=original_path,
-            allow_patterns=[f"data/{lang}/test/*" for lang in SAMPLE_SUBSETS],
-        )
+for subset in SAMPLE_SUBSETS:
+    processed_path = os.path.join(main_dir, f"processed_data/{subset}")
 
     # Process dataset for each language if not already processed
     if not os.path.exists(processed_path):
-        print(f"Loading {language}")
-        ds = load_dataset(os.path.join(original_path, f"data/{language}/test"))["train"]
+        print(f"Loading {subset}")
+        ds = load_dataset(
+            "json",
+            data_files=f"{datasets[subset]}/*00000.jsonl.gz",
+            split="train[:1000]",
+        )
         ds = ds.map(lambda x: {"text": x["text"][:2048]})
         os.makedirs(processed_path, exist_ok=True)
         ds.to_json(os.path.join(processed_path, "data.jsonl"))
@@ -105,7 +117,7 @@ class CustomSubsetTask(LightevalTaskConfig):
 
 SUBSET_TASKS = [
     CustomSubsetTask(
-        name=f"fineweb2:{subset}",
+        name=f"lucie2:{subset}",
         hf_repo=os.path.join(main_dir, f"processed_data/{subset}"),
     )
     for subset in SAMPLE_SUBSETS

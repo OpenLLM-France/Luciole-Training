@@ -29,6 +29,11 @@ if __name__ == "__main__":
         default="",
         help="Tokenize only datasets whose name start with this value",
     )
+    parser.add_argument(
+        "--remove-prefix",
+        action="store_true",
+        help="Remove prefix to the data.",
+    )
     args = parser.parse_args()
     yaml_file = args.yaml_file
     tokens_dataset_path = args.output_dir
@@ -98,6 +103,7 @@ if __name__ == "__main__":
                                 os.path.join(tokens_dataset_path, name),
                                 tokenizer_name,
                                 regex_filter,
+                                "--remove-prefix" if args.remove_prefix else "",
                             ]
                         )
                 else:

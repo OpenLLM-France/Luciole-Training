@@ -41,6 +41,7 @@ if __name__ == "__main__":
             out.append({**datamix, **results})
 
     df = pd.DataFrame(out)
+    # df.to_csv(os.path.join(args.expe_dir, "out", "regmix_results_before_cleaning.csv"))
 
     df.loc[:, df.columns.str.startswith("datamix:")] = df.loc[
         :, df.columns.str.startswith("datamix:")
