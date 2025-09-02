@@ -156,6 +156,11 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/open/en
       - name: claire_open_fr
         path: /lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Claire/open/fr
+      # from CEA
+      - name: insee_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/insee
+      - name: hal-cea_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hal_cea_filtered/data
       # Lucie 
       - name: stac_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/stac/data
