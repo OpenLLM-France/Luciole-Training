@@ -20,6 +20,8 @@ task_group_mapping = {
         ("leaderboard|winogrande|0", "acc"),
         ("lighteval|openbookqa|0", "acc_norm"),
         ("lighteval|piqa|0", "acc_norm"),
+        ("helm|siqa|0|0", "pem"),
+        ("helm|commonsenseqa|0|0", "pem"),
     ],
     "fr": [
         ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm_pmi"),
