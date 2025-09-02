@@ -19,6 +19,7 @@ INPUT_FOLDER=$1
 OUTPUT_PATH=$2
 TOKENIZER_NAME=$3 
 REGEX_FILTER=$4
+REMOVE_PREFIX=$5
 
 echo "Starting tokenization for $INPUT_FOLDER"
 echo "Output will be saved to $OUTPUT_PATH"
@@ -36,4 +37,5 @@ python preprocess_data_for_megatron.py \
     --apply-ftfy \
     --workers=40 \
     --regex-filter $REGEX_FILTER \
-    --log-interval 10000
+    --log-interval 10000 \
+    $REMOVE_PREFIX

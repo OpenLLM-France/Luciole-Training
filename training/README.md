@@ -126,9 +126,9 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 
-lighteval accelerate "pretrained=gpt2" "tasks/the_pile.txt" --max-samples 1000
-lighteval accelerate "pretrained=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
-lighteval accelerate "pretrained=gpt2" "tasks/fineweb2.txt" --custom-tasks custom_benchmarks/fineweb_evals.py --max-samples 1000
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/the_pile.txt" --max-samples 1000
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fineweb2.txt" --custom-tasks custom_benchmarks/fineweb_evals.py --max-samples 1000
 ```
 
 Don't forget to load gpt2 model in the cache: `huggingface-cli download gpt2`

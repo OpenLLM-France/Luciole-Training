@@ -8,11 +8,13 @@ import json
 import nemo_run as run
 from tqdm import tqdm
 
+
 def create_data(data_args: dict):
     tokenizer = get_tokenizer(
         tokenizer_name=data_args.pop("tokenizer_name"), use_fast=True
     )
-    data = run.Config(PreTrainingDataModule,
+    data = run.Config(
+        PreTrainingDataModule,
         num_workers=8,
         pin_memory=True,
         tokenizer=tokenizer,
@@ -86,7 +88,13 @@ def configure_recipe(nodes: int = 1, gpus_per_node: int = 1):
 
 
 def run_dataloader(
-    folder_path, output_path, dataset_name, tokenizer_name, number_of_data, seq_length, force=False
+    folder_path,
+    output_path,
+    dataset_name,
+    tokenizer_name,
+    number_of_data,
+    seq_length,
+    force=False,
 ):
     token_file_path = os.path.join(
         output_path, f"batch_examples_seq{seq_length}", f"{dataset_name}.txt"
@@ -108,7 +116,8 @@ def run_dataloader(
 
     # Build and load the data
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
-    recipe.data = fdl.build(create_data(
+    recipe.data = fdl.build(
+        create_data(
             {
                 "paths": os.path.join(folder_path, dataset_name),
                 "tokenizer_name": tokenizer_name,
@@ -117,7 +126,7 @@ def run_dataloader(
             }
         )
     )
-    
+
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
 
@@ -134,10 +143,10 @@ def run_dataloader(
     ) as f:
         json.dump(distribution, f)
 
-    text = "".join(output_text)
-    text = text.replace("▁", " ").strip()
-    with open(text_file_path, "w", encoding="utf-8") as text_file:
-        text_file.write(text)
+    # text = "".join(output_text)
+    # text = text.replace("▁", " ").strip()
+    # with open(text_file_path, "w", encoding="utf-8") as text_file:
+    #     text_file.write(text)
 
     # Save token text
     with open(token_file_path, "w", encoding="utf-8") as token_file:
