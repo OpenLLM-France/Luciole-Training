@@ -185,10 +185,6 @@ class Encoder(object):
                 if self.args.remove_prefix:
                     if "metadata" in data and "prefix" in data["metadata"]:
                         text = text[len(data["metadata"]["prefix"]) :]
-                    else:
-                        print("Cannot remove prefix, no prefix field in json.")
-                        if "metadata" in data:
-                            print("Available metadata keys:", data["metadata"].keys())
                 if self.args.apply_ftfy:
                     text = ftfy.fix_text(text)
                 doc_ids = []
