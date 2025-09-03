@@ -83,7 +83,6 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--weights",
         type=float,
-        required=True,
         help="Weights for the prompts",
         nargs="+",
     )
