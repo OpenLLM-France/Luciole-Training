@@ -48,6 +48,7 @@ DISTRIBUTED_ARGS=" \
         --node_rank $SLURM_PROCID \
         --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
         --rdzv_backend c10d \
+        --rdzv_id $SLURM_JOB_ID \
         --max_restarts 0 \
        "
 echo $1
