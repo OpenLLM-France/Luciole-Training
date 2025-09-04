@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def set_recipe_trainer(recipe, args):
     recipe.trainer.limit_val_batches = 0.0
     recipe.trainer.log_every_n_steps = (
-        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 1
+        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
     recipe.trainer.callbacks = [run.Config(TimingCallback)]
     if args.fp8:
