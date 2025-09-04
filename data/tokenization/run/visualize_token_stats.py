@@ -17,7 +17,7 @@ import json
 
 def format_tokens(tokens):
     if tokens >= 1e12:
-        return f"{tokens / 1e12:.1f} T"
+        return f"{tokens / 1e12:.2f} T"
     elif tokens >= 1e9:
         return f"{tokens / 1e9:.1f} B"
     elif tokens >= 1e6:
