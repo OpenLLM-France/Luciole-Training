@@ -143,11 +143,6 @@ def run_dataloader(
     ) as f:
         json.dump(distribution, f)
 
-    # text = "".join(output_text)
-    # text = text.replace("▁", " ").strip()
-    # with open(text_file_path, "w", encoding="utf-8") as text_file:
-    #     text_file.write(text)
-
     # Save token text
     with open(token_file_path, "w", encoding="utf-8") as token_file:
         token_file.write(output_text)
