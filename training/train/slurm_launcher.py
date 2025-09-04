@@ -74,7 +74,7 @@ def create_slurm_script(
 ):
 
     time, qos = get_time_limit_and_qos(mode, num_nodes, qos)
-    account = "wuh@h100" if not account else account
+    account = "zwy@h100" if not account else account
     
     train_path = Path(__file__).resolve().parent
 
