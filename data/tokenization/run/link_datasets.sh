@@ -103,10 +103,14 @@ main_patterns=(
     youtube_fr*
     wikimedia_nl*
     europarl_aligned*
+    starcoder_olmomix*
+    stack-edu_code*
+    infiwebmath-filtered*
+    finemath-filtered*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \
-    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_phase_1" \
+    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2" \
     "${main_patterns[@]}"
 
 # --- Web non-english tokens ---
@@ -123,12 +127,12 @@ main_patterns=(
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix" \
-    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_phase_1" \
+    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2" \
     "${main_patterns[@]}"
 
 # --- Grouped tokens ---
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped" \
-    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_phase_1"
+    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2"
 
 
