@@ -5,10 +5,6 @@
 [Repeeat](../../../data/tokenization/run/chronicles/phase_1/repeats.csv)
 [Datamix](../../../data/tokenization/run/chronicles/phase_1/datamix.json)
 
-```bash 
-python slurm_launcher.py 
-```
-
 ```bash
 cd train/
 python slurm_launcher.py --output_path $OpenLLM_OUTPUT/train --mode phase1 --num_nodes 128 --arch llama1b --slurm_array 3 --email ogouvert@linagora.com
