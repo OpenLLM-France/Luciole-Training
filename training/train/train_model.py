@@ -11,6 +11,7 @@ import nemo_run as run
 
 from dataloader import create_data
 from recipes.recipe_utils import set_recipe_trainer
+from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
 from utils import (
     get_check_data_and_tokenizer,
     save_stats,
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--base_checkpoint", default=None, type=str)
     parser.add_argument("--performance_mode", default=False, action="store_true")
+    parser.add_argument("--max_time_per_run", default="04:00:00:00", type=str)
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -102,39 +104,63 @@ if __name__ == "__main__":
     if arch == "llama24b":
         from recipes.recipe_llama import set_llama24b_recipe
         recipe = set_llama24b_recipe(recipe, args)
+    elif arch == "nemotron1b":
+        from recipes.recipe_nemotronh import set_nemotron1b_recipe
+        recipe = set_nemotron1b_recipe(recipe, args)
+        data_args['seq_length'] = recipe.data.seq_length
+        data_args['global_batch_size'] = recipe.data.global_batch_size
     elif arch.startswith("ablation"):
         from recipes.recipe_ablations import set_ablation_recipe
         recipe = set_ablation_recipe(recipe, arch)
         data_args['seq_length'] = recipe.data.seq_length
         data_args['global_batch_size'] = recipe.data.global_batch_size
-
+    if  args.mode in ["phase1", "phase2", "annealing"]:
+        # recipe.data.seq_length = 4096
+        # recipe.data.global_batch_size = 1024
+        data_args['seq_length'] = 4096
+        data_args['global_batch_size'] = 1024
+        
     data = create_data(data_args)
     recipe.data = data
     recipe.model.tokenizer = data.tokenizer
     recipe.model.config.seq_length = recipe.data.seq_length
-    recipe.trainer.max_time = "00:19:40:00"
+    # recipe.trainer.max_time = "00:19:40:00"
+    resume_ignore_no_checkpoint = True
     if args.mode in ["debug", "benchmark", "benchmark100"]:
         max_steps = 2 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
-        recipe.trainer.max_time = "00:01:20:00" if args.mode == "benchmark100" else "00:00:50:00"
+        # recipe.trainer.max_time = "00:01:20:00" if args.mode == "benchmark100" else "00:00:50:00"
         recipe.optim.lr_scheduler.warmup_steps = 25
     elif args.mode in ["phase1", "phase2", "annealing"]:
+        recipe.optim.config.lr = 3e-4
+        warmup = 0  # 2000
+        min_lr = recipe.optim.config.lr
         if args.mode == "phase1":
-            max_steps = 3e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
+            max_steps = 15 # 834465 # 3.5e12 // (data_args['seq_length'] * data_args['global_batch_size'])
+            warmup = 5
         elif args.mode == "phase2":
-            max_steps = 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
+            resume_ignore_no_checkpoint = False
+            max_steps = 15+10 # 238418 # 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])
         elif args.mode == "annealing":
-            max_steps = 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])    # TODO: placeholder
-        every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
+            # resume_ignore_no_checkpoint = False
+            warmup = 2
+            max_steps = 5 # 119209 # 0.5e12 // (data_args['seq_length'] * data_args['global_batch_size'])
+            min_lr = 3e-5
+        # every_n_train_steps = 10_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
+        every_n_train_steps = 5
         resume_if_exists = True
-        recipe.trainer.max_time = "04:00:00:00" # will not be reset after relaunching so need to increment it
+        # recipe.trainer.max_time = None # will not be reset after relaunching so need to increment it
+        recipe.optim.lr_scheduler = run.Config(
+                WarmupAnnealingScheduler,
+                warmup_steps=warmup,
+                min_lr=min_lr
+            )
     elif arch=="ablation_llama90m":
         max_steps = 1000
         resume_if_exists = True
         every_n_train_steps = 500
-        from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
         recipe.optim.lr_scheduler = run.Config(
             WarmupAnnealingScheduler,
             warmup_steps=50,
@@ -163,7 +189,7 @@ if __name__ == "__main__":
         monitor="step",
         mode="max",
         every_n_epochs=None,
-        save_optim_on_train_end=True
+        save_optim_on_train_end=True   # set to True if you want to continue training even if max_steps was reached 
     )
 
     # RESUME
@@ -171,14 +197,17 @@ if __name__ == "__main__":
         nl.AutoResume,
         resume_if_exists=resume_if_exists,
         resume_ignore_no_checkpoint=True,
-        resume_past_end=True,
-        restore_config=nl.RestoreConfig(path=args.base_checkpoint)
+        resume_past_end=True,   # set to True if you want to continue training even if max_steps was reached 
+        restore_config=nl.RestoreConfig(path=args.base_checkpoint)#, load_optim_state=True)
         if args.base_checkpoint
         else None,
     )
 
     job_id = os.environ.get("SLURM_JOB_ID", "0")
-    job_output = os.path.join(output_dir, f"job_{job_id}")
+    sub_xp = ""
+    if args.mode in ["phase1", "phase2", "annealing"]:
+        sub_xp = f"_{args.mode}"
+    job_output = os.path.join(output_dir, f"job{sub_xp}_{job_id}")
     os.makedirs(job_output, exist_ok=True)
     save_config(
         job_output,
@@ -192,4 +221,5 @@ if __name__ == "__main__":
 
     if str(args.mode).startswith("benchmark"):
         save_stats(job_output, args.name)
-    write_completion(output_dir)
+    if str(args.mode) not in ["debug", "phase1", "phase2", "annealing"]:
+        write_completion(output_dir)

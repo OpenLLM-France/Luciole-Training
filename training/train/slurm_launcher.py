@@ -11,6 +11,32 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def get_time_limit_and_qos(mode, num_nodes, qos=None):
+    if mode == "debug" or mode.startswith("benchmark"):
+        default_qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
+        time = "01:30:00" if mode == "benchmark100" else "01:00:00"
+    elif qos and qos=="qos_gpu_h100-as":
+        time = "100:00:00"
+    elif mode=="1b":
+        default_qos = "qos_gpu_h100-dev"
+        time = "02:00:00"
+    elif mode.endswith("b"):
+        default_qos = "qos_gpu_h100-t3"
+        time = "20:00:00"
+    elif mode.startswith("phase") or mode=="annealing":
+        if num_nodes<=8:
+            default_qos = "qos_gpu_h100-dev"
+            time = "00:30:00"
+        else:
+            default_qos = "qos_gpu_h100-as"
+            time = "96:00:00"
+    else:
+        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
+
+    qos = qos if qos else default_qos
+    if qos == "qos_gpu_h100-dev":
+        time = "02:00:00"
+    return time, qos
 
 def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL"):
     email_line = ""
@@ -47,21 +73,7 @@ def create_slurm_script(
     account,
 ):
 
-    if mode == "debug" or mode.startswith("benchmark"):
-        default_qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "01:30:00" if mode == "benchmark100" else "01:00:00"
-    elif qos and qos=="qos_gpu_h100-as":
-        time = "100:00:00"
-    elif mode=="1b":
-        default_qos = "qos_gpu_h100-dev"
-        time = "02:00:00"
-    elif mode.endswith("b"):
-        default_qos = "qos_gpu_h100-t3"
-        time = "20:00:00"
-    else:
-        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
-
-    qos = qos if qos else default_qos
+    time, qos = get_time_limit_and_qos(mode, num_nodes, qos)
     account = "wuh@h100" if not account else account
     
     train_path = Path(__file__).resolve().parent
@@ -89,6 +101,9 @@ def create_slurm_script(
         args += f" --seed {seed}"
     if base_checkpoint:
         args += f" --base_checkpoint {base_checkpoint}"
+    job_log_file = f"job_%j"
+    if mode in ["phase1", "phase2", "annealing"]:
+        job_log_file = f"job_{mode}_%j"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
@@ -98,8 +113,8 @@ def create_slurm_script(
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/job_%j/log.out 
-#SBATCH --error={output_dir}/failed.out 
+#SBATCH --output={output_dir}/{job_log_file}/log.out 
+#SBATCH --error={output_dir}/{job_log_file}/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
 #SBATCH --account={account}
@@ -132,6 +147,9 @@ export TOKENIZERS_PARALLELISM=false
 
 module purge
 module load arch/h100 nemo/2.3.1
+
+exec 1> >(tee -a {output_dir}/log.out >&1)
+exec 2> >(tee -a {output_dir}/failed.out >&2)
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -174,28 +192,21 @@ def write_launch_slurm(slurm_path, slurm_content, task=""):
     logger.info(f"✅ Job submitted ({task}) with job id : {job_id}")
     return job_id
 
-
-def submit_job(**kwargs):
-    config = kwargs["config"]
-    if not os.path.exists(config):
-        raise RuntimeError(f"Config : {config} does not exist")
-
-    config_name = os.path.splitext(os.path.basename(config))[0]
-    if kwargs.get("base_checkpoint"):
-        base_model_name = os.path.splitext(os.path.basename(kwargs["base_checkpoint"]))[
-            0
-        ]
+def get_job_name(kwargs):
+    config_name = os.path.splitext(os.path.basename(kwargs["config"]))[0]
+    if kwargs.get("base_checkpoint") and kwargs["mode"] not in ["annealing"]:
+        base_model_name = os.path.splitext(os.path.basename(kwargs["base_checkpoint"]))[0]
         if len(base_model_name)>20:
-            base_model_name = base_model_name.split("-epoch", 1)[0]
+            base_model_name = base_model_name.split("--", 1)[0]
         model_part = f'{kwargs["arch"]}_from_{base_model_name}'
     else:
         model_part = kwargs["arch"]
-    job_name_parts = [
-        model_part,
-        kwargs["mode"],
-    ]
+    job_name_parts = [model_part]
     if kwargs["mode"] in ["benchmark", "debug", "benchmark100"] or model_part.startswith("ablation"):
         job_name_parts.append(config_name)
+        job_name_parts.append(kwargs["mode"])
+    elif kwargs["mode"] in ["annealing"]:
+        job_name_parts.append(kwargs["mode"])
     if kwargs.get("seed"):
         job_name_parts.append(f"s{kwargs['seed']}")
     if kwargs["mode"].startswith("benchmark"):
@@ -214,11 +225,26 @@ def submit_job(**kwargs):
         job_name_parts.append(f"cp{kwargs['context_parallelism']}")
     if kwargs.get("virtual_pipeline_parallelism"):
         job_name_parts.append(f"vpp{kwargs['virtual_pipeline_parallelism']}")
-    job_name = "_".join(job_name_parts)
+    return "_".join(job_name_parts).replace(".", "_")
+    
 
+def submit_job(**kwargs):
+    config = kwargs["config"]
+    if not os.path.exists(config):
+        raise RuntimeError(f"Config : {config} does not exist")
+
+    job_name = get_job_name(kwargs)
+    
     xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
+    if not os.path.exists(xp_output_dir) and kwargs["mode"]=="annealing" and kwargs["base_checkpoint"] is None:
+        phase1_xp = job_name.replace("_annealing", "")
+        if os.path.exists(os.path.join(kwargs["output_dir"], phase1_xp)):
+            last = os.listdir(os.path.join(kwargs["output_dir"], phase1_xp, phase1_xp, "checkpoints"))
+            last = [f for f in last if f.endswith("-last")][0]
+            kwargs["base_checkpoint"] = os.path.join(kwargs["output_dir"], phase1_xp, phase1_xp, "checkpoints", last)
+            logger.info(f"🔍 Found phase 1 and 2 experiments in {phase1_xp}, setting base_checkpoint to {kwargs['base_checkpoint']} for annealing phase")
 
-    if kwargs["mode"] != "debug" and os.path.exists(
+    if kwargs["mode"] not in[ "debug", "phase1", "phase2", "annealing"] and os.path.exists(
         os.path.join(xp_output_dir, "completed.txt")
     ):
         logger.info(
@@ -248,7 +274,10 @@ def submit_job(**kwargs):
     logger.info(f"📄 Copied datamix file : {config} to {config_output_dir}")
 
     job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="train")
-    sub_xp_output_dir = os.path.join(xp_output_dir, f"job_{job_id}")
+    sub_xp = ""
+    if kwargs["mode"] in ["phase1", "phase2", "annealing"]:
+        sub_xp = f"_{kwargs['mode']}"
+    sub_xp_output_dir = os.path.join(xp_output_dir, f"job{sub_xp}_{job_id}")
     os.makedirs(sub_xp_output_dir, exist_ok=True)
     command = " ".join([os.path.basename(sys.executable)] + sys.argv)
     command_path = os.path.join(sub_xp_output_dir, "command.sh")
