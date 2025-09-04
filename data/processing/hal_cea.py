@@ -17,10 +17,10 @@ if __name__ == "__main__":
     pipeline = [
         JsonlReader(args.path),
         LambdaFilter(
-            lambda doc: doc.metadata["nb_formula_errors"] / max(1, doc.metadata["nb_formulas"]) < 0.2,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/hal_cea_filtered/removed"
-            ),
+            lambda doc: doc.metadata["nb_formula_errors"]
+            / max(1, doc.metadata["nb_formulas"])
+            < 0.2,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/hal_cea_filtered/removed"),
         ),
         JsonlWriter(
             f"{DATA_PATH}/hal_cea_filtered/data",

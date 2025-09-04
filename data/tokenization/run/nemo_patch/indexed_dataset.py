@@ -638,7 +638,7 @@ class MMapIndexedDatasetBuilder(object):
 
     def add_doc(self, tensor, sizes):
         np_array = np.array(tensor, dtype=self._dtype)
-        self._data_file.write(np_array.tobytes(order='C'))
+        self._data_file.write(np_array.tobytes(order="C"))
         self._sizes.extend(sizes)
         self._doc_idx.append(len(self._sizes))
 
@@ -655,7 +655,7 @@ class MMapIndexedDatasetBuilder(object):
         self._doc_idx.extend((offset + index.doc_idx)[1:])
 
         # Concatenate data
-        with open(data_file_path(another_file), 'rb') as f:
+        with open(data_file_path(another_file), "rb") as f:
             shutil.copyfileobj(f, self._data_file)
 
     def finalize(self, index_file):

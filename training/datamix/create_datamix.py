@@ -129,7 +129,9 @@ if __name__ == "__main__":
 
     df = apply_rehydratation(df, rehydratation_mapping)
 
-    df["upsampling"] = df.apply(lambda row: getattr(final_args, row["dataset"].replace('-','_')), axis=1)
+    df["upsampling"] = df.apply(
+        lambda row: getattr(final_args, row["dataset"].replace("-", "_")), axis=1
+    )
     df["total_tokens_upsampled"] = df["total_tokens_rehydrated"] * df["upsampling"]
     df["weight"] = df["total_tokens_upsampled"].transform(lambda x: x / x.sum())
     df = df[df["weight"] > 0]

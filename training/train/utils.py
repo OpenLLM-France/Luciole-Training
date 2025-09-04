@@ -25,7 +25,7 @@ SUPPORTED_ARCHITECTURES = [
     "ablation_llama210m",
     "ablation_llama400m",
     "ablation_llama530m",
-    "qwen30ba3b"
+    "qwen30ba3b",
 ]
 
 
@@ -103,7 +103,9 @@ def read_datamix_file(file):
 def get_check_data_and_tokenizer(config, base_checkpoint):
     data_paths, tokenizer_name, total_tokens = read_datamix_file(config)
     if base_checkpoint:
-        if os.path.exists(os.path.join(base_checkpoint, "context", "tokenizer_name.txt")):
+        if os.path.exists(
+            os.path.join(base_checkpoint, "context", "tokenizer_name.txt")
+        ):
             with open(
                 os.path.join(base_checkpoint, "context", "tokenizer_name.txt"), "r"
             ) as f:
