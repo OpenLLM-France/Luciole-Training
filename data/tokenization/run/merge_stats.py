@@ -42,17 +42,8 @@ if __name__ == "__main__":
         type=str,
         help="Directory that contains all your tokenized datasets (.idx)",
     )
-    parser.add_argument(
-        "--output_name",
-        type=str,
-        default=None,
-        help="Name of the output directory in chronicles that will contain the merged stats",
-    )
     args = parser.parse_args()
     token_dir = args.token_dir
-    output_name = args.output_name
-    if output_name is not None:
-        os.makedirs(f"chronicles/{output_name}", exist_ok=True)
 
     merged_df = merge_stats(os.path.join(token_dir, "stats"))
     merged_df = pd.concat(
@@ -62,11 +53,7 @@ if __name__ == "__main__":
 
     for output_csv_path in [
         os.path.join(token_dir, "stats/all_stats_merged.csv"),
-        f"chronicles/{output_name}/all_stats_merged.csv"
-        if output_name is not None
-        else None,
+        "chronicles/all_stats_merged.csv",
     ]:
-        if output_csv_path is None:
-            continue
         merged_df.to_csv(output_csv_path, index=False)
         print(f"Merged stats saved to {output_csv_path}")
