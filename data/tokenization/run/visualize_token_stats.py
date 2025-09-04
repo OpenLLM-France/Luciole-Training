@@ -244,20 +244,15 @@ if __name__ == "__main__":
         description="Plot token treemaps by language and dataset."
     )
     parser.add_argument(
-        "--input_path",
+        "--dir",
         type=str,
-        default="chronicles/all_stats_merged.csv",
-        help="Path to the all_stats.",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="chronicles/figs/",
+        default="chronicles/phase_1",
         help="Path to the all_stats.",
     )
     args = parser.parse_args()
-    input_path = args.input_path
-    output_dir = args.output_dir
+    dir = args.dir
+    input_path = os.path.join(dir, "all_stats_merged.csv")
+    output_dir = os.path.join(dir, "figs")
     os.makedirs(output_dir, exist_ok=True)
 
     df = pd.read_csv(input_path)
@@ -330,11 +325,11 @@ if __name__ == "__main__":
     plot_box_plot_from_summary(df, "name", os.path.join(output_dir, "boxplot_all.png"))
 
     # Treemap
-    plot_treemap(
-        language_df, "language", os.path.join(output_dir, "treemap_language.png")
-    )
-    plot_treemap(
-        dataset_df, "dataset", os.path.join(output_dir, "treemap_datasets.png")
-    )
-    plot_treemap(group_df, "group", os.path.join(output_dir, "treemap_group.png"))
-    plot_treemap(df, "name", os.path.join(output_dir, "treemap_all.png"))
+    # plot_treemap(
+    #     language_df, "language", os.path.join(output_dir, "treemap_language.png")
+    # )
+    # plot_treemap(
+    #     dataset_df, "dataset", os.path.join(output_dir, "treemap_datasets.png")
+    # )
+    # plot_treemap(group_df, "group", os.path.join(output_dir, "treemap_group.png"))
+    # plot_treemap(df, "name", os.path.join(output_dir, "treemap_all.png"))
