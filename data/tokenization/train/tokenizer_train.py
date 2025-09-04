@@ -54,7 +54,7 @@ def build_tokenizer(
     # split_pattern: str = r"(\b(?i:'s|'t|'re|'ve|'m|'ll|'d|j'|t'|m'|s'|l'|n'|d'|c'|qu'|y'|jusqu'|lorsqu'|aujourd'hui)\b)|[^\r\n\p{L}\-\p{N}]?[\p{L}\-]+|\p{N}| ?[^\s\p{L}\-\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
     # split_pattern: str = r"\b(?i:['’][stmd]|['’][rv]e|['’]ll|[jtmslndcy]['’]|qu['’]|jusqu['’]|lorsqu['’]|puisqu['’]|quoiqu['’]|aujourd['’]hui)\b|\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
     # split_pattern: str = r"\b(?i:['’][stmd]|['’][rv]e|['’]ll| ?[jtmslndcy]['’]| ?qu['’]| ?jusqu['’]| ?lorsqu['’]| ?puisqu['’]| ?quoiqu['’]| ?aujourd['’]hui)\b| ?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
-    split_pattern: str =   r"(?i: ?(?:[jtmslndcy]['’]|qu['’]|jusqu['’]|lorsqu['’]|puisqu['’]|quoiqu['’]|aujourd['’]hui)|['’][stmd]|['’][rv]e|['’]ll)| ?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
+    split_pattern: str = r"(?i: ?(?:[jtmslndcy]['’]|qu['’]|jusqu['’]|lorsqu['’]|puisqu['’]|quoiqu['’]|aujourd['’]hui)|['’][stmd]|['’][rv]e|['’]ll)| ?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+",
     dropout: Optional[float] = None,
     add_prefix_space: bool = True,
     fuse_unk: Optional[float] = True,

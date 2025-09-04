@@ -74,6 +74,7 @@ if __name__ == "__main__":
         from recipes.recipe_llama import get_recipe
     elif arch.startswith("nemotron"):
         from recipes.recipe_nemotronh import get_recipe
+
         if arch == "nemotronh47b":
             args.fp8 = True
     elif arch.startswith("mixtral") or arch.startswith("mistral"):
@@ -94,7 +95,9 @@ if __name__ == "__main__":
 
     data_args = dict(
         paths=data_paths,
-        global_batch_size=args.batch_size if args.batch_size else recipe.data.global_batch_size,
+        global_batch_size=args.batch_size
+        if args.batch_size
+        else recipe.data.global_batch_size,
         micro_batch_size=recipe.data.micro_batch_size,
         seq_length=args.seq_length if args.seq_length else recipe.data.seq_length,
         tokenizer_name=tokenizer_name,
@@ -103,21 +106,24 @@ if __name__ == "__main__":
 
     if arch == "llama24b":
         from recipes.recipe_llama import set_llama24b_recipe
+
         recipe = set_llama24b_recipe(recipe, args)
     elif arch == "nemotron1b":
         from recipes.recipe_nemotronh import set_nemotron1b_recipe
+
         recipe = set_nemotron1b_recipe(recipe, args)
-        data_args['seq_length'] = recipe.data.seq_length
-        data_args['global_batch_size'] = recipe.data.global_batch_size
+        data_args["seq_length"] = recipe.data.seq_length
+        data_args["global_batch_size"] = recipe.data.global_batch_size
     elif arch.startswith("ablation"):
         from recipes.recipe_ablations import set_ablation_recipe
+
         recipe = set_ablation_recipe(recipe, arch)
-        data_args['seq_length'] = recipe.data.seq_length
-        data_args['global_batch_size'] = recipe.data.global_batch_size
-    if  args.mode in ["phase1", "phase2", "annealing"]:
-        data_args['seq_length'] = 4096
-        data_args['global_batch_size'] = 1024
-        
+        data_args["seq_length"] = recipe.data.seq_length
+        data_args["global_batch_size"] = recipe.data.global_batch_size
+    if args.mode in ["phase1", "phase2", "annealing"]:
+        data_args["seq_length"] = 4096
+        data_args["global_batch_size"] = 1024
+
     data = create_data(data_args)
     recipe.data = data
     recipe.model.tokenizer = data.tokenizer
@@ -130,48 +136,62 @@ if __name__ == "__main__":
         every_n_train_steps = max_steps
         recipe.optim.lr_scheduler.warmup_steps = 25
     elif args.mode in ["phase1", "phase2", "annealing"]:
-        assert total_tokens is not None, "total_tokens should be set for phase1/phase2/annealing"
+        assert (
+            total_tokens is not None
+        ), "total_tokens should be set for phase1/phase2/annealing"
         recipe.optim.config.lr = 3e-4
         warmup = 0
         min_lr = recipe.optim.config.lr
         if args.mode == "phase1":
-            max_steps =  math.ceil(total_tokens / (data_args['seq_length'] * data_args['global_batch_size']))
+            max_steps = math.ceil(
+                total_tokens
+                / (data_args["seq_length"] * data_args["global_batch_size"])
+            )
             warmup = 2000
         elif args.mode == "phase2":
             resume_ignore_no_checkpoint = False
-            max_steps = math.ceil(total_tokens // (data_args['seq_length'] * data_args['global_batch_size']))
+            max_steps = math.ceil(
+                total_tokens
+                // (data_args["seq_length"] * data_args["global_batch_size"])
+            )
         elif args.mode == "annealing":
             resume_ignore_no_checkpoint = False
             warmup = 100
-            max_steps = math.ceil(total_tokens // (data_args['seq_length'] * data_args['global_batch_size']))
-            min_lr = 3e-5
-        every_n_train_steps = 10_000    # computed for each model
-        resume_if_exists = True
-        logging.info(f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}")
-        recipe.optim.lr_scheduler = run.Config(
-                WarmupAnnealingScheduler,
-                warmup_steps=warmup,
-                min_lr=min_lr
+            max_steps = math.ceil(
+                total_tokens
+                // (data_args["seq_length"] * data_args["global_batch_size"])
             )
-    elif arch=="ablation_llama90m":
+            min_lr = 3e-5
+        every_n_train_steps = 10_000  # computed for each model
+        resume_if_exists = True
+        logging.info(
+            f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}"
+        )
+        recipe.optim.lr_scheduler = run.Config(
+            WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
+        )
+    elif arch == "ablation_llama90m":
         max_steps = 1000
         resume_if_exists = True
         every_n_train_steps = 500
         recipe.optim.lr_scheduler = run.Config(
-            WarmupAnnealingScheduler,
-            warmup_steps=50,
-            min_lr=recipe.optim.config.lr
+            WarmupAnnealingScheduler, warmup_steps=50, min_lr=recipe.optim.config.lr
         )
     else:
         number_of_tokens = args.mode
         max_steps = math.ceil(
-            number_of_tokens / (data_args['seq_length'] * data_args['global_batch_size'])
+            number_of_tokens
+            / (data_args["seq_length"] * data_args["global_batch_size"])
         )
         resume_if_exists = True
         if number_of_tokens <= 1_000_000_000:
-            every_n_train_steps = 250_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
+            every_n_train_steps = 250_000_000 // (
+                data_args["seq_length"] * data_args["global_batch_size"]
+            )
         else:
-            every_n_train_steps = 1_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
+            every_n_train_steps = 1_000_000_000 // (
+                data_args["seq_length"] * data_args["global_batch_size"]
+            )
 
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
@@ -185,7 +205,7 @@ if __name__ == "__main__":
         monitor="step",
         mode="max",
         every_n_epochs=None,
-        save_optim_on_train_end=True   # set to True if you want to continue training even if max_steps was reached 
+        save_optim_on_train_end=True,  # set to True if you want to continue training even if max_steps was reached
     )
 
     # RESUME
@@ -193,8 +213,10 @@ if __name__ == "__main__":
         nl.AutoResume,
         resume_if_exists=resume_if_exists,
         resume_ignore_no_checkpoint=True,
-        resume_past_end=True,   # set to True if you want to continue training even if max_steps was reached 
-        restore_config=nl.RestoreConfig(path=args.base_checkpoint)#, load_optim_state=True)
+        resume_past_end=True,  # set to True if you want to continue training even if max_steps was reached
+        restore_config=nl.RestoreConfig(
+            path=args.base_checkpoint
+        )  # , load_optim_state=True)
         if args.base_checkpoint
         else None,
     )

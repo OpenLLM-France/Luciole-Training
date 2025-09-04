@@ -8,14 +8,15 @@ from datatrove.pipeline.filters import LambdaFilter
 from datatrove.data import DocumentsPipeline
 
 
-
 def get_age(field, default=None):
     if not field:
         return default
     return int(field)
 
+
 global _authors_info
 _authors_info = {}
+
 
 def filter_gutenberg(x, language, current_year=2025):
     global _authors_info
@@ -45,7 +46,9 @@ def filter_gutenberg(x, language, current_year=2025):
     return age_ok and copyright_ok
 
 
-def clean_text_pipeline(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+def clean_text_pipeline(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
     for document in data:
         document.text = clean_text(document.text)
         yield document
@@ -62,7 +65,6 @@ def clean_text(text):
     text = remove_gallica_mention(text)
     text = remove_licence(text)
     return text
-
 
 
 if __name__ == "__main__":

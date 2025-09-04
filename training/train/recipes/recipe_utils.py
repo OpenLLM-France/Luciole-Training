@@ -1,11 +1,12 @@
 import nemo_run as run
 import torch
 import logging
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
+from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
 from nemo.utils.exp_manager import TimingCallback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def set_recipe_trainer(recipe, args):
     recipe.trainer.limit_val_batches = 0.0
@@ -25,7 +26,6 @@ def set_recipe_trainer(recipe, args):
             recipe.trainer.plugins.grad_reduce_in_fp32 = False
             recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = False
 
-
     # STRATEGY
     if args.tensor_parallelism:
         recipe.trainer.strategy.tensor_model_parallel_size = args.tensor_parallelism
@@ -33,7 +33,7 @@ def set_recipe_trainer(recipe, args):
         recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
     recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
     if args.virtual_pipeline_parallelism:
-        if args.virtual_pipeline_parallelism==-1:
+        if args.virtual_pipeline_parallelism == -1:
             recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
         else:
             recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
@@ -41,7 +41,7 @@ def set_recipe_trainer(recipe, args):
             )
     if args.context_parallelism:
         recipe.trainer.strategy.context_parallel_size = args.context_parallelism
-    if recipe.trainer.strategy.tensor_model_parallel_size==1:
+    if recipe.trainer.strategy.tensor_model_parallel_size == 1:
         recipe.trainer.strategy.sequence_parallel = False
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism

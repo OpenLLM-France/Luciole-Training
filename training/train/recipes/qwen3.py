@@ -1,17 +1,32 @@
 from dataclasses import dataclass
-from functools import cached_property, partial
-from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable, Optional
-
+from typing import Annotated, Callable, Optional
 import torch
 from torch import nn
-
-from nemo.collections.llm.gpt.model.base import GPTModel, torch_dtype_from_mcore_config
+from nemo.collections.llm.gpt.model.base import GPTModel
 from nemo.collections.llm.gpt.model.qwen2 import Qwen2Config
 from nemo.collections.llm.utils import Config
-from nemo.lightning import OptimizerModule, io, teardown
-from nemo.lightning.io.state import TransformFns
-from nemo.lightning.pytorch.utils import dtype_from_hf
+from nemo.lightning import OptimizerModule
+import lightning.pytorch as pl
+import nemo_run as run
+from nemo.collections.common.tokenizers.huggingface.auto_tokenizer import AutoTokenizer
+from nemo.collections.llm.api import pretrain
+from nemo.collections.llm.gpt.data.mock import MockDataModule
+from nemo.collections.llm.recipes.log.default import (
+    default_log,
+    default_resume,
+    tensorboard_logger,
+)
+from nemo.collections.llm.recipes.optim.adam import (
+    distributed_fused_adam_with_cosine_annealing,
+)
+from nemo.utils.exp_manager import TimingCallback
+from lightning.pytorch.callbacks.callback import Callback
+from megatron.core.distributed import DistributedDataParallelConfig
+from nemo import lightning as nl
+from nemo.collections.llm.recipes.precision.mixed_precision import (
+    bf16_mixed,
+    fp16_mixed,
+)
 
 
 @dataclass
@@ -26,7 +41,7 @@ class Qwen3Config(Qwen2Config):
     num_query_groups: int = 8
     max_position_embeddings: int = 40960
     vocab_size: int = 151936
-    
+
 
 @dataclass
 class Qwen3MoEConfig(Qwen3Config):
@@ -43,6 +58,7 @@ class Qwen3MoEConfig(Qwen3Config):
     moe_token_dispatcher_type: str = "alltoall"
     moe_permute_fusion: bool = True
 
+
 @dataclass
 class Qwen3Config30B_A3B(Qwen3MoEConfig):
     """
@@ -57,7 +73,6 @@ class Qwen3Config30B_A3B(Qwen3MoEConfig):
     moe_ffn_hidden_size: int = 768
 
 
-
 class Qwen3Model(GPTModel):
     """
     Base model for Qwen 3
@@ -67,25 +82,16 @@ class Qwen3Model(GPTModel):
         self,
         config: Annotated[Optional[Qwen3Config], Config[Qwen3Config]] = None,
         optim: Optional[OptimizerModule] = None,
-        tokenizer: Optional["TokenizerSpec"] = None,
+        tokenizer=None,
         model_transform: Optional[Callable[[nn.Module], nn.Module]] = None,
     ):
-        super().__init__(config or Qwen3Config(), optim=optim, tokenizer=tokenizer, model_transform=model_transform)
+        super().__init__(
+            config or Qwen3Config(),
+            optim=optim,
+            tokenizer=tokenizer,
+            model_transform=model_transform,
+        )
 
-from typing import Optional
-
-import lightning.pytorch as pl
-import nemo_run as run
-import torch
-from nemo.collections.common.tokenizers.huggingface.auto_tokenizer import AutoTokenizer
-
-from nemo.collections.llm.api import finetune, pretrain
-from nemo.collections.llm.gpt.data.mock import MockDataModule
-from nemo.collections.llm.peft import PEFT_STR2CLS
-from nemo.collections.llm.recipes.finetune_default import default_finetune_recipe
-from nemo.collections.llm.recipes.log.default import default_log, default_resume, tensorboard_logger
-from nemo.collections.llm.recipes.optim.adam import distributed_fused_adam_with_cosine_annealing
-from nemo.utils.exp_manager import TimingCallback
 
 NAME = "qwen3_30b_a3b"
 
@@ -102,17 +108,6 @@ NAME = "qwen3_30b_a3b"
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from typing import Optional
-
-import lightning.pytorch as pl
-import nemo_run as run
-import torch
-from lightning.pytorch.callbacks.callback import Callback
-from megatron.core.distributed import DistributedDataParallelConfig
-
-from nemo import lightning as nl
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_mixed, fp16_mixed
 
 
 def qwen3_model() -> run.Config[pl.LightningModule]:
@@ -261,7 +256,7 @@ def pretrain_recipe(
     val_check_interval: int = 500,
     # Data
     global_batch_size=32,
-    micro_batch_size=1, # 2
+    micro_batch_size=1,  # 2
     seq_length=4096,
     # Optimizer
     warmup_steps=500,
@@ -350,7 +345,9 @@ def pretrain_recipe(
             micro_batch_size=micro_batch_size,
             tokenizer=run.Config(AutoTokenizer, "Qwen/Qwen3-30B-A3B"),
         ),
-        log=default_log(dir=dir, name=name, tensorboard_logger=tensorboard_logger(name=name)),
+        log=default_log(
+            dir=dir, name=name, tensorboard_logger=tensorboard_logger(name=name)
+        ),
         optim=distributed_fused_adam_with_cosine_annealing(
             precision=precision,
             warmup_steps=warmup_steps,
