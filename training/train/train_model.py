@@ -140,7 +140,6 @@ if __name__ == "__main__":
             total_tokens is not None
         ), "total_tokens should be set for phase1/phase2/annealing"
         recipe.optim.config.lr = 3e-4
-        warmup = 0
         min_lr = recipe.optim.config.lr
         if args.mode == "phase1":
             max_steps = math.ceil(
@@ -154,14 +153,15 @@ if __name__ == "__main__":
                 total_tokens
                 // (data_args["seq_length"] * data_args["global_batch_size"])
             )
+            warmup = 0
         elif args.mode == "annealing":
             resume_ignore_no_checkpoint = False
-            warmup = 100
             max_steps = math.ceil(
                 total_tokens
                 // (data_args["seq_length"] * data_args["global_batch_size"])
             )
-            min_lr = 3e-5
+            min_lr = 3e-5   # TODO: 0.0 ???
+            warmup = 100
         every_n_train_steps = 10_000  # computed for each model
         resume_if_exists = True
         logging.info(
