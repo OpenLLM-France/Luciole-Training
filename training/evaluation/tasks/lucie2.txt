@@ -1,0 +1,4 @@
+community|lucie2:gutenberg_fr|0|0
+community|lucie2:wikimedia_fr|0|0
+community|lucie2:opene-edition_fr|0|0
+community|lucie2:gallica_press_fr|0|0
