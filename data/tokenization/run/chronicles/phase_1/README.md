@@ -2,11 +2,24 @@
 
 [Data Distribution CSV](all_stats_merged.csv)
 
-## Main datasets distribution
-![Main dataset distribution](figs/bar_datasets.png)
+## Natural distribution
 
-## Language distribution
-![Language distribution](figs/bar_language.png)
+### Main datasets
+![Main dataset distribution](figs/raw/bar_datasets.png)
 
-## Detailed distribution
-![All distributions](figs/bar_all.png)
+### Language
+![Language distribution](figs/raw/bar_language.png)
+
+### All datasets
+![All distributions](figs/raw/bar_all.png)
+
+## Upsampled distribution
+
+### Main datasets
+![Main dataset distribution](figs/repeated/bar_datasets.png)
+
+### Language
+![Language distribution](figs/repeated/bar_language.png)
+
+### All datasets
+![All distributions](figs/repeated/bar_all.png)

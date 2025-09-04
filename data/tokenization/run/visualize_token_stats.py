@@ -249,13 +249,30 @@ if __name__ == "__main__":
         default="chronicles/phase_1",
         help="Path to the all_stats.",
     )
+    parser.add_argument(
+        "--repeat",
+        action="store_true",
+        help="Whether to repeat datasets according to repeats.csv.",
+    )
     args = parser.parse_args()
     dir = args.dir
+    repeat = args.repeat
+
     input_path = os.path.join(dir, "all_stats_merged.csv")
-    output_dir = os.path.join(dir, "figs")
+    if repeat:
+        output_dir = os.path.join(dir, "figs/repeated")
+    else:
+        output_dir = os.path.join(dir, "figs/raw")
     os.makedirs(output_dir, exist_ok=True)
 
     df = pd.read_csv(input_path)
+    if repeat:
+        repeats = pd.read_csv(os.path.join(dir, "repeats.csv"))
+        df = df.merge(repeats, on="name", how="left")
+        df["repeat"] = df["repeat"].fillna(0)
+        df["total_tokens"] = df["total_tokens"] * df["repeat"]
+        print(df)
+
     df["group"] = df.apply(
         lambda row: f"{row['dataset']}_{row['subset']}"
         if pd.notnull(row["subset"])
