@@ -1,35 +1,28 @@
 import os
 import argparse
-import pandas as pd
 import torch
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
+from utils import read_results
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dir",
+        "path",
         type=str,
-        default=os.path.join(MAIN_PATH, "ablations/train/regmix/common-pile_v2"),
     )
     args = parser.parse_args()
+    os.makedirs(os.path.join(args.path, "out/linear_fit"), exist_ok=True)
 
-    df = pd.read_csv(os.path.join(args.dir, "out", "regmix_results.csv"))
+    datamix, target = read_results(os.path.join(args.path, "out", "regmix_results.csv"))
 
-    # FIT
-    datamix = df.loc[:, df.columns.str.startswith("datamix:")]
     datamix_labels = datamix.columns
     print(f"Datamix labels: {datamix_labels}")
-    target = df.loc[
-        :,
-        df.columns.str.startswith("target:")
-        & ~df.columns.str.contains("_average")
-        & ~df.columns.str.contains("all"),
-    ]
+
     target_labels = target.columns
     print(f"Target labels: {target_labels}")
 
@@ -76,11 +69,13 @@ if __name__ == "__main__":
     )
     plt.colorbar()
     plt.tight_layout()
-    plt.savefig(os.path.join(args.dir, "out", "linear_model_weights.png"), dpi=300)
+    plt.savefig(os.path.join(args.path, "out/linear_fit", "model_weights.png"), dpi=300)
 
     plt.figure()
     plt.plot(y, y_pred, ".", label=target_labels)
     plt.legend()
     plt.xlabel("True target values")
     plt.ylabel("Predicted target values")
-    plt.savefig(os.path.join(args.dir, "out", "linear_model_predictions.png"), dpi=300)
+    plt.savefig(
+        os.path.join(args.path, "out/linear_fit", "model_predictions.png"), dpi=300
+    )

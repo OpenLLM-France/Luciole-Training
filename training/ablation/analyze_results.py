@@ -5,6 +5,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.feature_selection import mutual_info_regression
 from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 
 def plot_datamix_vs_target(df, output_dir):
@@ -18,24 +20,50 @@ def plot_datamix_vs_target(df, output_dir):
     datamix_col = df.columns[df.columns.str.startswith("datamix:")]
     target_col = df.columns[df.columns.str.startswith("target:")]
 
-    os.makedirs(output_dir, exist_ok=True)
-
     for datamix_ref in datamix_col:
-        plt.figure(figsize=(8, 6))
-
         for target_ref in target_col:
+            plt.figure(figsize=(8, 6))
+
+            # Scatter plot
             plt.plot(df[datamix_ref], df[target_ref], ".", label=target_ref)
 
-        plt.title(datamix_ref)
-        plt.xlabel(datamix_ref)
-        plt.ylabel("Target Values")
-        plt.yscale("log")
-        plt.legend()
-        plt.tight_layout()
+            # Prepare data
+            x = df[datamix_ref].values.reshape(-1, 1)
+            y = df[target_ref].values
 
-        save_path = os.path.join(output_dir, f"{datamix_ref.replace(':', '_')}.png")
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
-        plt.close()
+            # Fit linear regression
+            model = LinearRegression()
+            model.fit(x, y)
+
+            slope = model.coef_[0]
+            intercept = model.intercept_
+
+            # Regression line
+            x_line = np.linspace(x.min(), x.max(), 100).reshape(-1, 1)
+            y_line = model.predict(x_line)
+            plt.plot(
+                x_line,
+                y_line,
+                "r-",
+                label=f"Linear fit (y={slope:.2f}x+{intercept:.2f})",
+            )
+
+            # Labels and save
+            plt.title(datamix_ref)
+            plt.xlabel(datamix_ref)
+            plt.ylabel("Target Values")
+            plt.legend()
+            plt.tight_layout()
+
+            save_path = os.path.join(
+                output_dir,
+                f"{datamix_ref.replace(':', '_')}",
+                f"{target_ref.replace(':', '_')}.png",
+            )
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+            plt.close()
 
 
 def compute_correlation_matrix(df, features, targets, method="pearson"):
