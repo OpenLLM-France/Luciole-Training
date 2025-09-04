@@ -74,7 +74,7 @@ def create_slurm_script(
 ):
 
     time, qos = get_time_limit_and_qos(mode, num_nodes, qos)
-    account = "zwy@h100" if not account else account
+    account = "wuh@h100" if not account else account
     
     train_path = Path(__file__).resolve().parent
 
@@ -255,10 +255,19 @@ def submit_job(**kwargs):
             f"⏭️ Experiment {xp_output_dir} already exists, skipping job submission. If you want to force submission, remove 'completed.txt'"
         )
         return None, xp_output_dir
-
+    
     os.makedirs(xp_output_dir, exist_ok=True)
-
+    sub_xp = ""
     array = kwargs.pop("slurm_array", None)
+    if kwargs["mode"] in["phase1", "phase2", "annealing"]:
+        kwargs["account"] = "zwy@h100" if not kwargs.get("account") else kwargs["account"]
+        kwargs["qos"] = "qos_gpu_h100-as" if not kwargs.get("qos") else kwargs["qos"]
+        if kwargs["mode"]=="phase1":
+            config = "../../data/tokenization/run/chronicles/phase_1/datamix.json"
+        elif kwargs["mode"]=="phase2":
+            config = "../../data/tokenization/run/chronicles/phase_2/datamix.json"
+        sub_xp = f"_{kwargs['mode']}"
+    
     args = {
         **kwargs,
         "job_name": job_name,
@@ -278,11 +287,6 @@ def submit_job(**kwargs):
     shutil.copy2(config, config_output_dir)
     logger.info(f"📄 Copied datamix file : {config} to {config_output_dir}")
     
-    sub_xp = ""
-    if kwargs["mode"] in ["phase1", "phase2", "annealing"]:
-        sub_xp = f"_{kwargs['mode']}"
-        if array is None:
-            array = 2
     job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="train", array=array)
 
     sub_xp_output_dir = os.path.join(xp_output_dir, f"job{sub_xp}_{job_id}")
