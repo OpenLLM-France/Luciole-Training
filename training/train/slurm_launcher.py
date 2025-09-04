@@ -172,13 +172,17 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train_model.py {args}
 
 
 
-def write_launch_slurm(slurm_path, slurm_content, task=""):
+def write_launch_slurm(slurm_path, slurm_content, task="", array=None):
     with open(slurm_path, "w") as fout:
         fout.write(slurm_content)
     logger.info(f"📝 Generated slurm script : {slurm_path}")
+    command = ["sbatch"]
+    if array:
+        command += [f"--array=1-{array}%1"]
+    command += [slurm_path]
     try:
         result = subprocess.run(
-            ["sbatch", slurm_path], check=True, capture_output=True, text=True
+            command, check=True, capture_output=True, text=True
         )
     except subprocess.CalledProcessError as e:
         logger.error(f"Job submission failed: {e}")
@@ -254,6 +258,7 @@ def submit_job(**kwargs):
 
     os.makedirs(xp_output_dir, exist_ok=True)
 
+    array = kwargs.pop("slurm_array", None)
     args = {
         **kwargs,
         "job_name": job_name,
@@ -272,11 +277,14 @@ def submit_job(**kwargs):
     os.makedirs(config_output_dir, exist_ok=True)
     shutil.copy2(config, config_output_dir)
     logger.info(f"📄 Copied datamix file : {config} to {config_output_dir}")
-
-    job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="train")
+    
     sub_xp = ""
     if kwargs["mode"] in ["phase1", "phase2", "annealing"]:
         sub_xp = f"_{kwargs['mode']}"
+        if array is None:
+            array = 2
+    job_id = write_launch_slurm(sbatch_script_path, slurm_script, task="train", array=array)
+
     sub_xp_output_dir = os.path.join(xp_output_dir, f"job{sub_xp}_{job_id}")
     os.makedirs(sub_xp_output_dir, exist_ok=True)
     command = " ".join([os.path.basename(sys.executable)] + sys.argv)
@@ -338,6 +346,7 @@ def create_parser():
     )
     parser.add_argument("--qos", default=None, help="If given, it will override the default qos.")
     parser.add_argument("--account", default=None, help="If given, it will override the default account (wuh@h100).")
+    parser.add_argument("--slurm_array", default=None, type=int, help="If given, it will submit the job as a slurm array job with the given number of tasks.")
     return parser
 
 
