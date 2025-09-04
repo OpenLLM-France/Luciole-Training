@@ -97,11 +97,11 @@ def read_datamix_file(file):
         raise FileNotFoundError(
             f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step."
         )
-    return data_paths, tokenizer_name
+    return data_paths, tokenizer_name, loaded_data.get("total_tokens", None)
 
 
 def get_check_data_and_tokenizer(config, base_checkpoint):
-    data_paths, tokenizer_name = read_datamix_file(config)
+    data_paths, tokenizer_name, total_tokens = read_datamix_file(config)
     if base_checkpoint:
         if os.path.exists(os.path.join(base_checkpoint, "context", "tokenizer_name.txt")):
             with open(
@@ -112,7 +112,7 @@ def get_check_data_and_tokenizer(config, base_checkpoint):
                 raise ValueError(
                     f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
                 )
-    return data_paths, tokenizer_name
+    return data_paths, tokenizer_name, total_tokens
 
 
 def serialize_fdl(config):

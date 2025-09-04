@@ -58,7 +58,7 @@ if __name__ == "__main__":
     arch = args.arch
     output_dir = args.output_dir
 
-    data_paths, tokenizer_name = get_check_data_and_tokenizer(
+    data_paths, tokenizer_name, total_tokens = get_check_data_and_tokenizer(
         args.config, args.base_checkpoint
     )
 
@@ -115,8 +115,6 @@ if __name__ == "__main__":
         data_args['seq_length'] = recipe.data.seq_length
         data_args['global_batch_size'] = recipe.data.global_batch_size
     if  args.mode in ["phase1", "phase2", "annealing"]:
-        # recipe.data.seq_length = 4096
-        # recipe.data.global_batch_size = 1024
         data_args['seq_length'] = 4096
         data_args['global_batch_size'] = 1024
         
@@ -124,34 +122,32 @@ if __name__ == "__main__":
     recipe.data = data
     recipe.model.tokenizer = data.tokenizer
     recipe.model.config.seq_length = recipe.data.seq_length
-    # recipe.trainer.max_time = "00:19:40:00"
     resume_ignore_no_checkpoint = True
     if args.mode in ["debug", "benchmark", "benchmark100"]:
         max_steps = 2 if args.mode == "debug" else 25
         max_steps = 100 if args.mode == "benchmark100" else max_steps
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
-        # recipe.trainer.max_time = "00:01:20:00" if args.mode == "benchmark100" else "00:00:50:00"
         recipe.optim.lr_scheduler.warmup_steps = 25
     elif args.mode in ["phase1", "phase2", "annealing"]:
+        assert total_tokens is not None, "total_tokens should be set for phase1/phase2/annealing"
         recipe.optim.config.lr = 3e-4
-        warmup = 0  # 2000
+        warmup = 0
         min_lr = recipe.optim.config.lr
         if args.mode == "phase1":
-            max_steps = 15 # 834465 # 3.5e12 // (data_args['seq_length'] * data_args['global_batch_size'])
-            warmup = 5
+            max_steps =  math.ceil(total_tokens / (data_args['seq_length'] * data_args['global_batch_size']))
+            warmup = 2000
         elif args.mode == "phase2":
             resume_ignore_no_checkpoint = False
-            max_steps = 15+10 # 238418 # 1e12 // (data_args['seq_length'] * data_args['global_batch_size'])
+            max_steps = math.ceil(total_tokens // (data_args['seq_length'] * data_args['global_batch_size']))
         elif args.mode == "annealing":
-            # resume_ignore_no_checkpoint = False
-            warmup = 2
-            max_steps = 5 # 119209 # 0.5e12 // (data_args['seq_length'] * data_args['global_batch_size'])
+            resume_ignore_no_checkpoint = False
+            warmup = 100
+            max_steps = math.ceil(total_tokens // (data_args['seq_length'] * data_args['global_batch_size']))
             min_lr = 3e-5
-        # every_n_train_steps = 10_000_000_000 // (data_args['seq_length'] * data_args['global_batch_size'])
-        every_n_train_steps = 5
+        every_n_train_steps = 10_000    # computed for each model
         resume_if_exists = True
-        # recipe.trainer.max_time = None # will not be reset after relaunching so need to increment it
+        logging.info(f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}")
         recipe.optim.lr_scheduler = run.Config(
                 WarmupAnnealingScheduler,
                 warmup_steps=warmup,
