@@ -1,306 +1,282 @@
 {
     "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
-    "total_tokens": 3507722663322,
+    "total_tokens": 3491128537677,
     "train": [
         {
             "name": "croissant-aligned_aligned_text_document",
-            "weight": 0.006783493802916883
+            "weight": 0.006815737287298172
         },
         {
             "name": "europarl_aligned_text_document",
-            "weight": 0.0002517669906558341
+            "weight": 0.0002529636962572227
         },
         {
             "name": "common-corpus_arabic-pd_ar_text_document",
-            "weight": 2.466854489517599e-05
+            "weight": 2.4785800083305554e-05
         },
         {
             "name": "culturax_ar_text_document",
-            "weight": 0.004581878214760635
-        },
-        {
-            "name": "fineweb2_ar_text_document",
-            "weight": 0.003912364258153966
+            "weight": 0.0092073138419541
         },
         {
             "name": "wikimedia-vikidia_ar_text_document",
-            "weight": 0.0003099707301175542
+            "weight": 0.0003114440912918365
         },
         {
             "name": "fineweb2_ca_text_document",
-            "weight": 7.779391321591014e-05
+            "weight": 7.816368532724574e-05
         },
         {
             "name": "wikimedia-vikidia_ca_text_document",
-            "weight": 0.00034173057138575603
+            "weight": 0.0003433548942879672
         },
         {
             "name": "starcoder-data_code_text_document",
-            "weight": 0.07347552626491564
+            "weight": 0.0738247721037651
         },
         {
             "name": "common-corpus_german-pd_de_text_document",
-            "weight": 0.005071401629668673
+            "weight": 0.005095507151688484
         },
         {
             "name": "common-corpus_german-science-pile_de_text_document",
-            "weight": 0.0005656291370882318
+            "weight": 0.0005683177006481284
         },
         {
             "name": "culturax_de_text_document",
-            "weight": 0.031571672907315815
-        },
-        {
-            "name": "fineweb2_de_text_document",
-            "weight": 0.03173124957093089
+            "weight": 0.06344348045670663
         },
         {
             "name": "wikimedia-vikidia_de_text_document",
-            "weight": 0.0012828400258239425
+            "weight": 0.0012889376553844739
         },
         {
             "name": "claire_open_en_text_document",
-            "weight": 3.38673174598907e-05
+            "weight": 3.40282965000845e-05
         },
         {
             "name": "common-pile_arxiv-abstracts_en_text_document",
-            "weight": 0.00032728193309119005
+            "weight": 0.0001644187891694888
         },
         {
             "name": "common-pile_arxiv-papers_en_text_document",
-            "weight": 0.0015168948912739743
+            "weight": 0.0015241050366880998
         },
         {
             "name": "common-pile_biodiversity-heritage-library_en_text_document",
-            "weight": 0.00012584655644692889
+            "weight": 0.00012644473366874498
         },
         {
             "name": "common-pile_caselaw-access-project_en_text_document",
-            "weight": 0.0010856163001760593
+            "weight": 0.0010907764806429078
         },
         {
             "name": "common-pile_doab_en_text_document",
-            "weight": 0.0008323270315887816
+            "weight": 0.0008362832707220168
         },
         {
             "name": "common-pile_foodista_en_text_document",
-            "weight": 6.542818290617307e-06
+            "weight": 6.57391778970912e-06
         },
         {
             "name": "common-pile_github-archive_en_text_document",
-            "weight": 0.0026205975823336007
+            "weight": 0.0026330538769320103
         },
         {
             "name": "common-pile_library-of-congress_en_text_document",
-            "weight": 0.00011856125973085559
+            "weight": 0.00011912480828524714
         },
         {
             "name": "common-pile_libretexts_en_text_document",
-            "weight": 2.4579203738511355e-05
+            "weight": 2.4696034267862828e-05
         },
         {
             "name": "common-pile_oercommons_en_text_document",
-            "weight": 3.2100237335566194e-06
+            "weight": 3.2252817043197083e-06
         },
         {
             "name": "common-pile_peS2o_en_text_document",
-            "weight": 0.016620163260563404
+            "weight": 0.011927973332572124
         },
         {
             "name": "common-pile_pre-1929-books_en_text_document",
-            "weight": 0.000930986976919862
+            "weight": 0.000935412169146999
         },
         {
             "name": "common-pile_pressbooks_en_text_document",
-            "weight": 3.724035351080606e-05
+            "weight": 3.74173653562747e-05
         },
         {
             "name": "common-pile_public-domain-review_en_text_document",
-            "weight": 4.4691075961948816e-07
+            "weight": 4.4903502780875443e-07
         },
         {
             "name": "common-pile_pubmed_en_text_document",
-            "weight": 0.004365600280694606
+            "weight": 0.004386350968843684
         },
         {
             "name": "common-pile_python-enhancement-proposals_en_text_document",
-            "weight": 7.62023186139835e-07
+            "weight": 7.656452551524012e-07
         },
         {
             "name": "common-pile_regulations_en_text_document",
-            "weight": 0.00046621944648010926
+            "weight": 0.0003122903288245185
         },
         {
             "name": "common-pile_stackexchange_en_text_document",
-            "weight": 0.008150030761759443
+            "weight": 0.005849121218717419
         },
         {
             "name": "common-pile_ubuntu-irc_en_text_document",
-            "weight": 0.0008457090299693312
+            "weight": 0.0005664859178503933
         },
         {
             "name": "common-pile_youtube_en_text_document",
-            "weight": 0.0004782139850278481
+            "weight": 0.00048048704454631177
         },
         {
             "name": "dclm-dolmino_en_text_document",
-            "weight": 0.06516045975263833
+            "weight": 0.06547018219469443
         },
         {
             "name": "fineweb-edu_en_text_document",
-            "weight": 0.2006164396176152
+            "weight": 0.20157001505018343
         },
         {
             "name": "wikimedia-vikidia_en_text_document",
-            "weight": 0.005049452187512071
+            "weight": 0.005073453378855697
         },
         {
             "name": "common-corpus_spanish-pd-books_es_text_document",
-            "weight": 0.0031353530632842156
+            "weight": 0.0031502561074179575
         },
         {
             "name": "common-corpus_spanish-science-pile_es_text_document",
-            "weight": 0.002776601386945012
+            "weight": 0.0027897992030047145
         },
         {
             "name": "culturax_es_text_document",
-            "weight": 0.032310002566493266
-        },
-        {
-            "name": "fineweb2_es_text_document",
-            "weight": 0.028484510258675124
+            "weight": 0.0649271586716731
         },
         {
             "name": "wikimedia-vikidia_es_text_document",
-            "weight": 0.000737809781845338
+            "weight": 0.0007413167590562648
         },
         {
             "name": "claire_open_fr_text_document",
-            "weight": 5.378999257064327e-05
+            "weight": 5.40456686036302e-05
         },
         {
             "name": "common-corpus_bnl-newspapers-1841-1879_fr_text_document",
-            "weight": 7.734667390808129e-05
+            "weight": 7.771432018956348e-05
         },
         {
             "name": "culturax_fr_text_document",
-            "weight": 0.07681568098980544
+            "weight": 0.07718080334153042
         },
         {
             "name": "fineweb2_fr_text_document",
-            "weight": 0.0674201457298193
+            "weight": 0.06774060897176831
         },
         {
             "name": "gallica_monographies_fr_text_document",
-            "weight": 0.006822675124016487
+            "weight": 0.006855104846102359
         },
         {
             "name": "gallica_press_fr_text_document",
-            "weight": 0.026682529407083874
+            "weight": 0.02680935752032261
         },
         {
             "name": "gutenberg_fr_text_document",
-            "weight": 0.00010741909670905644
+            "weight": 0.00010792968403582621
         },
         {
             "name": "hal-cea_fr_text_document",
-            "weight": 0.002869622894150182
+            "weight": 0.002883262862528709
         },
         {
             "name": "hplt2_fr_text_document",
-            "weight": 0.09485651812145524
+            "weight": 0.09530739266330232
         },
         {
             "name": "insee_fr_text_document",
-            "weight": 4.849825223607029e-05
+            "weight": 4.872877542720539e-05
         },
         {
             "name": "opendata_fr_text_document",
-            "weight": 0.0024078832847348177
+            "weight": 0.0024193285000381664
         },
         {
             "name": "opene-edition_fr_text_document",
-            "weight": 0.0009728485882540119
+            "weight": 0.0009774727582130438
         },
         {
             "name": "parlement_fr_text_document",
-            "weight": 0.00024769429253480645
+            "weight": 0.0002488716396784342
         },
         {
             "name": "theses_fr_text_document",
-            "weight": 0.0037830493974772843
+            "weight": 0.003801031089169662
         },
         {
             "name": "wikimedia-vikidia_fr_text_document",
-            "weight": 0.002235086981926241
+            "weight": 0.0022457108572162244
         },
         {
             "name": "youtube_fr_text_document",
-            "weight": 8.897358883680269e-05
+            "weight": 8.939650048165053e-05
         },
         {
             "name": "common-corpus_italian-pd_it_text_document",
-            "weight": 0.0035503769165728446
+            "weight": 0.0035672526631988655
         },
         {
             "name": "culturax_it_text_document",
-            "weight": 0.01537629129348289
-        },
-        {
-            "name": "fineweb2_it_text_document",
-            "weight": 0.01562154352422371
+            "weight": 0.030898756585960335
         },
         {
             "name": "wikimedia-vikidia_it_text_document",
-            "weight": 0.0007637720456104379
+            "weight": 0.0007674024273486679
         },
         {
             "name": "math-pile_math_text_document",
-            "weight": 0.005477017226841426
+            "weight": 0.005503050731778628
         },
         {
             "name": "megamath-web-filtered_math_text_document",
-            "weight": 0.09385364119527093
+            "weight": 0.09429974883565907
         },
         {
             "name": "common-corpus_dutch-pd_nl_text_document",
-            "weight": 0.0005174573455817893
+            "weight": 0.0005199169376924323
         },
         {
             "name": "culturax_nl_text_document",
-            "weight": 0.007564405334390508
-        },
-        {
-            "name": "fineweb2_nl_text_document",
-            "weight": 0.00868280988929451
+            "weight": 0.01520072133674633
         },
         {
             "name": "wikimedia_nl_text_document",
-            "weight": 0.00040323304028267034
+            "weight": 0.0004051496983668545
         },
         {
             "name": "common-corpus_portuguese-pd_pt_text_document",
-            "weight": 9.139751307941834e-06
+            "weight": 9.183194618588005e-06
         },
         {
             "name": "culturax_pt_text_document",
-            "weight": 0.011419232868187586
-        },
-        {
-            "name": "fineweb2_pt_text_document",
-            "weight": 0.011443597426535836
+            "weight": 0.022947022143244268
         },
         {
             "name": "wikimedia-vikidia_pt_text_document",
-            "weight": 0.0003554417425974627
+            "weight": 0.00035713123780581265
         },
         {
             "name": "fineweb2_regional_text_document",
-            "weight": 0.0024897335930565262
+            "weight": 0.002501567861437043
         },
         {
             "name": "wikimedia-vikidia_regional_text_document",
-            "weight": 0.0001392312676559752
+            "weight": 0.000139893065445504
         }
     ]
 }
