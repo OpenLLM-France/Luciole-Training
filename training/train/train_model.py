@@ -138,8 +138,12 @@ if __name__ == "__main__":
     recipe.model.config.seq_length = recipe.data.seq_length
     resume_ignore_no_checkpoint = True
     if args.mode in ["debug", "benchmark", "benchmark100"]:
-        max_steps = 2 if args.mode == "debug" else 25
-        max_steps = 100 if args.mode == "benchmark100" else max_steps
+        if args.mode == "debug":
+            max_steps = 2
+        elif args.mode == "benchmark100":
+            max_steps = 100
+        else:
+            max_steps = 25
         resume_if_exists = args.mode.startswith("benchmark")
         every_n_train_steps = max_steps
         recipe.optim.lr_scheduler.warmup_steps = 25
