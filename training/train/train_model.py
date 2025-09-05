@@ -13,7 +13,10 @@ from dataloader import create_data
 from recipes.recipe_utils import set_recipe_trainer
 from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
 from utils import (
-    get_check_data_and_tokenizer,
+    read_datamix_file,
+    get_data_paths,
+    get_tokenizer,
+    check_tokenizer,
     save_stats,
     save_config,
     write_completion,
@@ -58,10 +61,6 @@ if __name__ == "__main__":
     arch = args.arch
     output_dir = args.output_dir
 
-    data_paths, tokenizer_name, total_tokens = get_check_data_and_tokenizer(
-        args.config, args.base_checkpoint
-    )
-
     pl.seed_everything(args.seed, workers=True)
 
     recipe_args = dict(
@@ -93,6 +92,14 @@ if __name__ == "__main__":
     recipe = pretrain_recipe(**recipes_args)
     recipe = set_recipe_trainer(recipe, args)
 
+    # Read datamix config
+    loaded_data = read_datamix_file(args.config)
+    data_paths = get_data_paths(loaded_data)
+    tokenizer_name = get_tokenizer(loaded_data)
+    check_tokenizer(tokenizer_name, args.base_checkpoint)
+    data_dir = loaded_data.get("data_path", None)
+    total_tokens = loaded_data.get("total_tokens", None)
+
     data_args = dict(
         paths=data_paths,
         global_batch_size=args.batch_size
@@ -102,6 +109,7 @@ if __name__ == "__main__":
         seq_length=args.seq_length if args.seq_length else recipe.data.seq_length,
         tokenizer_name=tokenizer_name,
         seed=args.seed,
+        index_mapping_dir=os.path.join(data_dir, "index_mapping") if data_dir else None,
     )
 
     if arch == "llama24b":
@@ -160,7 +168,7 @@ if __name__ == "__main__":
                 total_tokens
                 // (data_args["seq_length"] * data_args["global_batch_size"])
             )
-            min_lr = 3e-5   # TODO: 0.0 ???
+            min_lr = 3e-5  # TODO: 0.0 ???
             warmup = 100
         every_n_train_steps = 10_000  # computed for each model
         resume_if_exists = True
