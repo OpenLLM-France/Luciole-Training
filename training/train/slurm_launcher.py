@@ -12,31 +12,32 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def get_time_limit_and_qos(mode, num_nodes, qos=None):
+def get_time_limit_and_qos(mode, num_nodes, qos=None, time=None):
     if mode == "debug" or mode.startswith("benchmark"):
         default_qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "01:30:00" if mode == "benchmark100" else "01:00:00"
+        default_time = "01:30:00" if mode == "benchmark100" else "01:00:00"
     elif qos and qos == "qos_gpu_h100-as":
-        time = "100:00:00"
+        default_time = "100:00:00"
     elif mode == "1b":
         default_qos = "qos_gpu_h100-dev"
-        time = "02:00:00"
+        default_time = "02:00:00"
     elif mode.endswith("b"):
         default_qos = "qos_gpu_h100-t3"
-        time = "20:00:00"
+        default_time = "20:00:00"
     elif mode.startswith("phase") or mode == "annealing":
         if num_nodes <= 8:
             default_qos = "qos_gpu_h100-dev"
-            time = "00:30:00"
+            default_time = "00:30:00"
         else:
             default_qos = "qos_gpu_h100-as"
-            time = "96:00:00"
+            default_time = "100:00:00"
     else:
         raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
 
     qos = qos if qos else default_qos
     if qos == "qos_gpu_h100-dev":
-        time = "02:00:00"
+        default_time = "02:00:00"
+    time = time if time else default_time
     return time, qos
 
 
@@ -72,9 +73,10 @@ def create_slurm_script(
     base_checkpoint,
     performance_mode,
     qos,
+    time,
     account,
 ):
-    time, qos = get_time_limit_and_qos(mode, num_nodes, qos)
+    time, qos = get_time_limit_and_qos(mode, num_nodes, qos, time)
     account = "wuh@h100" if not account else account
 
     train_path = Path(__file__).resolve().parent
@@ -423,6 +425,9 @@ def create_parser():
     )
     parser.add_argument(
         "--qos", default=None, help="If given, it will override the default qos."
+    )
+    parser.add_argument(
+        "--time", default=None, help="If given, it will override the default time."
     )
     parser.add_argument(
         "--account",
