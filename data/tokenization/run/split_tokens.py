@@ -66,8 +66,6 @@ if __name__ == "__main__":
         dataset = indexed_dataset.MMapIndexedDataset(input)
         for doc in dataset:
             num_tokens += len(doc)
-            if num_tokens > args.max_tokens:
-                break
             r = random.random()
             cumulative = 0.0
             for i in range(len(args.ratio)):
