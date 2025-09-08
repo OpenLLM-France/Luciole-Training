@@ -211,6 +211,7 @@ if __name__ == "__main__":
     # CKPT
     recipe.log.ckpt = run.Config(
         nl.ModelCheckpoint,
+        filename=args.name+"-{step:07.0f}",
         save_last=True,
         save_top_k=-1,
         every_n_train_steps=every_n_train_steps,
