@@ -153,8 +153,8 @@ export TOKENIZERS_PARALLELISM=false
 module purge
 module load arch/h100 nemo/2.3.1
 
-exec 1> >(tee -a {output_dir}/log.out >&1)
-exec 2> >(tee -a {output_dir}/failed.out >&2)
+# exec 1> >(tee -a {output_dir}/log.out >&1)
+# exec 2> >(tee -a {output_dir}/failed.out >&2)
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
