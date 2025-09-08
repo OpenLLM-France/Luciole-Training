@@ -48,6 +48,7 @@ DISTRIBUTED_ARGS=" \
         --node_rank $SLURM_PROCID \
         --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
         --rdzv_backend c10d \
+        --rdzv_id $SLURM_JOB_ID \
         --max_restarts 0 \
        "
 echo $1
@@ -69,14 +70,22 @@ def submit_conversion(job_id, xp_output_dir, email=None):
     return job_id
 
 
-def create_slurm_eval_script(job_id, xp_output_dir, task, email=None, command="accelerate", fineweb=False, skip_existing_evals=True):
+def create_slurm_eval_script(
+    job_id,
+    xp_output_dir,
+    task,
+    email=None,
+    command="accelerate",
+    fineweb=False,
+    skip_existing_evals=True,
+):
     job_name = f"evaluation_of_{job_id}_{os.path.basename(xp_output_dir)}"
     experiment_dir = xp_output_dir
     path_to_evaluation = Path(__file__).resolve().parent.parent
     path_to_evaluation = f"{path_to_evaluation}/evaluation"
     task_path = os.path.join(path_to_evaluation, "tasks", task)
     multilingual = True if task not in ["en.txt", "fineweb2.txt"] else False
-    fineweb = True if task=="fineweb2.txt" else False
+    fineweb = True if task == "fineweb2.txt" else False
     dependency = f"#SBATCH --dependency=afterok:{job_id}" if job_id else ""
 
     script = f"""#!/bin/bash
@@ -97,14 +106,28 @@ python {path_to_evaluation}/evaluate_experiment.py {experiment_dir} {task_path} 
     return script
 
 
-def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None, command="accelerate", skip_existing_evals=True):
+def submit_evaluation(
+    job_id,
+    xp_output_dir,
+    task="en.txt",
+    email=None,
+    command="accelerate",
+    skip_existing_evals=True,
+):
     os.makedirs(os.path.join(xp_output_dir, "evaluation"), exist_ok=True)
     if os.path.exists(os.path.join(xp_output_dir, "evaluation", "completed.txt")):
         logger.info(
             f"Evaluations already done for {xp_output_dir}, skipping job submission. If you want to force submission, remove 'conversion/completed.txt'"
         )
         return None
-    slurm_script = create_slurm_eval_script(job_id, xp_output_dir, task, email=email, command=command, skip_existing_evals=skip_existing_evals)
+    slurm_script = create_slurm_eval_script(
+        job_id,
+        xp_output_dir,
+        task,
+        email=email,
+        command=command,
+        skip_existing_evals=skip_existing_evals,
+    )
     sbatch_script_path = os.path.join(
         xp_output_dir, f"evaluation/evaluation_{os.path.splitext(task)[0]}.slurm"
     )
@@ -114,19 +137,22 @@ def submit_evaluation(job_id, xp_output_dir, task="en.txt", email=None, command=
 
 def update_email_args(step, source_args):
     args = argparse.Namespace(**vars(source_args))
-    if step=="train":
+    if step == "train":
         if args.email_when == "all" or args.email_when == "train":
             args.email = args.email
         else:
             args.email = None
         del args.email_when
         return args
-    if step=="eval" and (args.email_when == "all" or args.email_when == "eval"):
+    if step == "eval" and (args.email_when == "all" or args.email_when == "eval"):
         return args.email
-    if step=="conversion" and (args.email_when == "all" or args.email_when == "conversion"):
+    if step == "conversion" and (
+        args.email_when == "all" or args.email_when == "conversion"
+    ):
         return args.email
     else:
         return None
+
 
 if __name__ == "__main__":
     parser = create_parser()

@@ -2,11 +2,24 @@
 
 [Data Distribution CSV](all_stats_merged.csv)
 
-## Main datasets distribution
-![Main dataset distribution](figs/bar_datasets.png)
+## Natural distribution
 
-## Language distribution
-![Language distribution](figs/bar_language.png)
+### All datasets
+![All distributions](raw/figs/bar_all.png)
 
-## Detailed distribution
-![All distributions](figs/bar_all.png)
+### Language
+![Language distribution](raw/figs/bar_language.png)
+
+## Phase 1
+
+### All datasets
+![All distributions](phase_1/figs/bar_all.png)
+
+### Language
+![Language distribution](phase_1/figs/bar_language.png)
+
+## Phase 2
+
+### All datasets
+
+### Language

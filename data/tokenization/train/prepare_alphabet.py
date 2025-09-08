@@ -1,14 +1,16 @@
-
 import unicodedata
 import pandas as pd
 import random
 import tqdm
 
+
 def get_unicode_chars(start, end):
     return [
-        chr(code_point) for code_point in range(start, end + 1)
+        chr(code_point)
+        for code_point in range(start, end + 1)
         # if unicodedata.category(chr(code_point))[0] in 'L'  # Only letters
     ]
+
 
 # Basic Latin (U+0000–U+007F)
 latin_basic = get_unicode_chars(0x0041, 0x007A)
@@ -39,14 +41,14 @@ arabic_ext_a = get_unicode_chars(0x08A0, 0x08FF)
 arabic_all = arabic_chars + arabic_supplement + arabic_ext_a
 
 code_symbols = list(
-    'abcdefghijklmnopqrstuvwxyz'
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    '0123456789'
-    '(){}[];,.:+-*/%=<>&|^!~#@?_\\\'"` \t\n'
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789"
+    "(){}[];,.:+-*/%=<>&|^!~#@?_\\'\"` \t\n"
 )
 
-def count_characters(dataset, filename):
 
+def count_characters(dataset, filename):
     alphabet = {}
     for i, text in enumerate(dataset):
         text = text["text"]
@@ -64,7 +66,7 @@ def count_characters(dataset, filename):
 
 def dump_alphabet(alphabet, filename):
     alphabet = sorted(alphabet.items(), key=lambda item: item[1], reverse=True)
-    with open(filename, 'w', encoding='utf-8') as f:
+    with open(filename, "w", encoding="utf-8") as f:
         for char, count in alphabet:
             o = ord(char)
             cat = unicodedata.category(char)
@@ -78,14 +80,18 @@ def dump_alphabet(alphabet, filename):
                 family = "CODE"
             else:
                 family = "OTHER"
-            char = char.replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r").replace(" ", "▁")
+            char = (
+                char.replace("\n", "\\n")
+                .replace("\t", "\\t")
+                .replace("\r", "\\r")
+                .replace(" ", "▁")
+            )
             f.write(f"{char}\t{count}\t{o}\t{cat}\t{family}\n")
 
 
 def my_parquet_dataset(parquets):
-
     random.shuffle(parquets)
-    
+
     for parquet in tqdm.tqdm(parquets):
         df = pd.read_parquet(parquet)
         for _, row in df.iterrows():
@@ -93,26 +99,29 @@ def my_parquet_dataset(parquets):
 
 
 if __name__ == "__main__":
-
     import argparse
-    import csv
 
     parser = argparse.ArgumentParser(description="Prepare alphabet from dataset.")
-    parser.add_argument("parquet", type=str, help="Path to the dataset file.", nargs="+")
+    parser.add_argument(
+        "parquet", type=str, help="Path to the dataset file.", nargs="+"
+    )
     args = parser.parse_args()
 
     if len(args.parquet) == 1 and args.parquet[0].endswith(".tsv"):
         # Rewrite TSV file
-        with open(args.parquet[0], 'r', encoding='utf-8') as f:
+        with open(args.parquet[0], "r", encoding="utf-8") as f:
             alphabet = {}
             for iline, line in enumerate(f):
                 line = line.rstrip()
-                row = line.split('\t')
-                if not len(row): continue
+                row = line.split("\t")
+                if not len(row):
+                    continue
                 try:
                     alphabet[chr(int(row[2]))] = int(row[1])
                 except Exception as e:
-                    raise ValueError(f"Error processing line {iline}: '{line}' {len(row)=}") from e
+                    raise ValueError(
+                        f"Error processing line {iline}: '{line}' {len(row)=}"
+                    ) from e
         dump_alphabet(alphabet, "alphabet.tsv")
 
     else:

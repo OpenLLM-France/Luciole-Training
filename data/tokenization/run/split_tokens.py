@@ -2,6 +2,7 @@ import os
 from nemo_patch import indexed_dataset
 import random
 
+
 def get_filename_without_extension(filename):
     """
     Returns the filename without its extension.
@@ -10,6 +11,7 @@ def get_filename_without_extension(filename):
         filename = filename[:-4]
     return filename
 
+
 if __name__ == "__main__":
     import argparse
 
@@ -17,11 +19,22 @@ if __name__ == "__main__":
         description="Split MMap Indexed datasets",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("input", type=str, help="Input indexed dataset filename (without extension)")
-    parser.add_argument("output", type=str, help="Output filename prefix (without extension neither split number)")
-    parser.add_argument("ratio", type=float, help="Split ratios (ex: 0.6 0.4)", nargs="+")
     parser.add_argument(
-        "--vocab_size", type=int, default=128000, help="Vocabulary size (is it larger or not than 65500?)"
+        "input", type=str, help="Input indexed dataset filename (without extension)"
+    )
+    parser.add_argument(
+        "output",
+        type=str,
+        help="Output filename prefix (without extension neither split number)",
+    )
+    parser.add_argument(
+        "ratio", type=float, help="Split ratios (ex: 0.6 0.4)", nargs="+"
+    )
+    parser.add_argument(
+        "--vocab_size",
+        type=int,
+        default=128000,
+        help="Vocabulary size (is it larger or not than 65500?)",
     )
     args = parser.parse_args()
 
@@ -41,15 +54,18 @@ if __name__ == "__main__":
         os.makedirs(os.path.dirname(output_bin_files[0]))
 
     # Aggregate data and write output bin
-    builders = [indexed_dataset.make_builder(output_bin_file, impl="mmap", vocab_size=vocab_size) for output_bin_file in output_bin_files]
+    builders = [
+        indexed_dataset.make_builder(
+            output_bin_file, impl="mmap", vocab_size=vocab_size
+        )
+        for output_bin_file in output_bin_files
+    ]
 
     try:
         num_tokens = 0
         dataset = indexed_dataset.MMapIndexedDataset(input)
         for doc in dataset:
             num_tokens += len(doc)
-            if num_tokens > args.max_tokens:
-                break
             r = random.random()
             cumulative = 0.0
             for i in range(len(args.ratio)):
@@ -65,4 +81,3 @@ if __name__ == "__main__":
 
     for builder, output_idx_file in zip(builders, output_idx_files):
         builder.finalize(output_idx_file)
-

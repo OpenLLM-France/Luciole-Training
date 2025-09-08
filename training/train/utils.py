@@ -18,13 +18,14 @@ SUPPORTED_ARCHITECTURES = [
     "nemotron22b",
     "nemotron4b",
     "nemotron8b",
+    "nemotron1b",
     "qwen32b",
     "mistral12b",
     "ablation_llama90m",
     "ablation_llama210m",
     "ablation_llama400m",
     "ablation_llama530m",
-    "qwen30ba3b"
+    "qwen30ba3b",
 ]
 
 
@@ -65,7 +66,10 @@ def read_datamix_file(file):
         }
     else:
         raise RuntimeError(f"Config should be a json or a yaml, got {file}")
+    return loaded_data
 
+
+def get_data_paths(loaded_data):
     def make_data_flattened_list(split="train"):
         data_paths = []
         for dataset in loaded_data.get(split, []):
@@ -84,7 +88,10 @@ def read_datamix_file(file):
         data_paths = make_data_flattened_list("train")
     # logger.info(">>>>>>>>>>>")
     # logger.info(data_paths)
+    return data_paths
 
+
+def get_tokenizer(loaded_data):
     # Read tokenizer
     try:
         with open(
@@ -96,13 +103,16 @@ def read_datamix_file(file):
         raise FileNotFoundError(
             f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step."
         )
-    return data_paths, tokenizer_name
+    return tokenizer_name
 
 
-def get_check_data_and_tokenizer(config, base_checkpoint):
-    data_paths, tokenizer_name = read_datamix_file(config)
+def check_tokenizer(tokenizer_name, base_checkpoint):
+    # loaded_data = read_datamix_file(config)
+    # data_paths, tokenizer_name, total_tokens = get_data_paths_and_tokenizer(loaded_data)
     if base_checkpoint:
-        if os.path.exists(os.path.join(base_checkpoint, "context", "tokenizer_name.txt")):
+        if os.path.exists(
+            os.path.join(base_checkpoint, "context", "tokenizer_name.txt")
+        ):
             with open(
                 os.path.join(base_checkpoint, "context", "tokenizer_name.txt"), "r"
             ) as f:
@@ -111,7 +121,7 @@ def get_check_data_and_tokenizer(config, base_checkpoint):
                 raise ValueError(
                     f"Datamix tokenizer : {tokenizer_name} and base model tokenizer : {base_model_tokenizer} are different!"
                 )
-    return data_paths, tokenizer_name
+    return None
 
 
 def serialize_fdl(config):

@@ -4,116 +4,308 @@ import argparse
 import subprocess
 import sys
 import re
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
-training_path = os.path.abspath(os.path.join(current_dir,".."))
+training_path = os.path.abspath(os.path.join(current_dir, ".."))
 sys.path.append(training_path)
-from train.slurm_launcher import submit_job
+from train.slurm_launcher import submit_job  # noqa: E402
 
 CONFIGS_DICT = {
-        "debug": [
-            dict(arch="llama1b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
-            # dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=1, tensor_parallelism=1),   # should fail OOM
-        ],
-        "minimal":
-            [
-                dict(arch="llama3b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"),
-                dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-                dict(arch="llama8b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1),
-                dict(arch="nemotronh8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-                dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4, virtual_pipeline_parallelism=-1),
-                dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4),
-                dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=2),
-            ],
-        "full":[
-            # llama3b
-            dict(arch="llama3b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", fp8=True),
-
-            # nemotron4b
-            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
-
-            # llama8b
-            dict(arch="llama8b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096", context_parallelism=1, fp8=True),
-            
-            # nemotronh8b
-            dict(arch="nemotronh8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
-            
-            # nemotron8b
-            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-            dict(arch="nemotron8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", fp8=True),
-            
-            # nemotron22b
-            dict(arch="nemotron22b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4, virtual_pipeline_parallelism=-1, fp8=True),
-            
-            # llama24b
-            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1, pipeline_parallelism=2, tensor_parallelism=4, fp8=True),
-            dict(arch="llama24b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", context_parallelism=1),
-            
-            # qwen30bA3b
-            # dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=1, fp8=True),
-        ],
-        "seq_8192": [
-            # llama1b
-            dict(arch="llama1b"),
-            
-            # llama3b
-            dict(arch="llama3b"),
-            dict(arch="llama3b", fp8=True),
-            
-            # nemotron4b
-            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),
-            
-            # llama8b
-            dict(arch="llama8b"),
-            dict(arch="llama8b", fp8=True),
-            
-            # nemotronh8b
-            dict(arch="nemotronh8b"),
-            dict(arch="nemotronh8b", fp8=True),
-            
-            dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=2, fp8=True, virtual_pipeline_parallelism=-1),
-            
-            dict(arch="llama24b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=2, fp8=True),
-        ],
-        "extra": [
-            # qwen30bA3b
-            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=1),
-            
-            # qwen32b
-            dict(arch="qwen32b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-            
-            # nemotronh47b
-            dict(arch="nemotronh47b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4),
-            
-            # mistral12b
-            dict(arch="mistral12b"),
-            dict(arch="mistral12b", fp8=True),
-
-            # mixtral8x7
-            dict(arch="mixtral8x7", context_parallelism=2),
-            dict(arch="mixtral8x7", fp8=True, context_parallelism=2),  
-
-            # nemotron4b
-            dict(arch="nemotron4b", tensor_parallelism=1, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
-
-            # nemotron8b
-            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
-            dict(arch="nemotron8b", tensor_parallelism=2, batch_size=512, seq_length=8192, name_prefix="b512-s8192", fp8=True),      
-            dict(arch="nemotron8b", tensor_parallelism=1, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-
-            # qwen30bA3b
-            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=2, pipeline_parallelism=2),
-            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=2, pipeline_parallelism=2, fp8=True),
-            dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=2, fp8=True),
-
-            # qwen32b
-            dict(arch="qwen32b", tensor_parallelism=4, pipeline_parallelism=4, batch_size=1024, seq_length=4096, name_prefix="b1024-s4096"),
-            dict(arch="qwen32b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4, batch_size=512, seq_length=8192, name_prefix="b512-s8192"),
-        ]
-    }
+    "debug": [
+        dict(
+            arch="llama1b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"
+        ),
+        # dict(arch="nemotron22b", batch_size=512, seq_length=8192, name_prefix="b512-s8192", context_parallelism=1, tensor_parallelism=1),   # should fail OOM
+    ],
+    "minimal": [
+        dict(
+            arch="llama3b", seq_length=4096, batch_size=1024, name_prefix="b1024-s4096"
+        ),
+        dict(
+            arch="nemotron4b",
+            tensor_parallelism=1,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+        ),
+        dict(
+            arch="llama8b",
+            seq_length=4096,
+            batch_size=1024,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+        ),
+        dict(
+            arch="nemotronh8b",
+            tensor_parallelism=1,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+        ),
+        dict(
+            arch="nemotron22b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+            pipeline_parallelism=2,
+            tensor_parallelism=4,
+            virtual_pipeline_parallelism=-1,
+        ),
+        dict(
+            arch="llama24b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+            pipeline_parallelism=2,
+            tensor_parallelism=4,
+        ),
+        dict(
+            arch="qwen30ba3b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            tensor_parallelism=1,
+            pipeline_parallelism=2,
+        ),
+    ],
+    "full": [
+        # llama3b
+        dict(
+            arch="llama3b",
+            seq_length=4096,
+            batch_size=1024,
+            name_prefix="b1024-s4096",
+            fp8=True,
+        ),
+        # nemotron4b
+        dict(
+            arch="nemotron4b",
+            tensor_parallelism=1,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            fp8=True,
+        ),
+        # llama8b
+        dict(
+            arch="llama8b",
+            seq_length=4096,
+            batch_size=1024,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+            fp8=True,
+        ),
+        # nemotronh8b
+        dict(
+            arch="nemotronh8b",
+            tensor_parallelism=1,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            fp8=True,
+        ),
+        # nemotron8b
+        dict(
+            arch="nemotron8b",
+            tensor_parallelism=2,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+        ),
+        dict(
+            arch="nemotron8b",
+            tensor_parallelism=1,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            fp8=True,
+        ),
+        # nemotron22b
+        dict(
+            arch="nemotron22b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+            pipeline_parallelism=2,
+            tensor_parallelism=4,
+            virtual_pipeline_parallelism=-1,
+            fp8=True,
+        ),
+        # llama24b
+        dict(
+            arch="llama24b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+            pipeline_parallelism=2,
+            tensor_parallelism=4,
+            fp8=True,
+        ),
+        dict(
+            arch="llama24b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            context_parallelism=1,
+        ),
+        # qwen30bA3b
+        # dict(arch="qwen30ba3b", batch_size=1024, seq_length=4096, name_prefix="b1024-s4096", tensor_parallelism=1, pipeline_parallelism=1, fp8=True),
+    ],
+    "seq_8192": [
+        # llama1b
+        dict(arch="llama1b"),
+        # llama3b
+        dict(arch="llama3b"),
+        dict(arch="llama3b", fp8=True),
+        # nemotron4b
+        dict(
+            arch="nemotron4b",
+            tensor_parallelism=1,
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+            fp8=True,
+        ),
+        # llama8b
+        dict(arch="llama8b"),
+        dict(arch="llama8b", fp8=True),
+        # nemotronh8b
+        dict(arch="nemotronh8b"),
+        dict(arch="nemotronh8b", fp8=True),
+        dict(
+            arch="nemotron22b",
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+            context_parallelism=2,
+            fp8=True,
+            virtual_pipeline_parallelism=-1,
+        ),
+        dict(
+            arch="llama24b",
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+            context_parallelism=2,
+            fp8=True,
+        ),
+    ],
+    "extra": [
+        # qwen30bA3b
+        dict(
+            arch="qwen30ba3b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            tensor_parallelism=1,
+            pipeline_parallelism=1,
+        ),
+        # qwen32b
+        dict(
+            arch="qwen32b",
+            fp8=True,
+            tensor_parallelism=4,
+            pipeline_parallelism=4,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+        ),
+        # nemotronh47b
+        dict(
+            arch="nemotronh47b", fp8=True, tensor_parallelism=4, pipeline_parallelism=4
+        ),
+        # mistral12b
+        dict(arch="mistral12b"),
+        dict(arch="mistral12b", fp8=True),
+        # mixtral8x7
+        dict(arch="mixtral8x7", context_parallelism=2),
+        dict(arch="mixtral8x7", fp8=True, context_parallelism=2),
+        # nemotron4b
+        dict(
+            arch="nemotron4b",
+            tensor_parallelism=1,
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+        ),
+        # nemotron8b
+        dict(
+            arch="nemotron8b",
+            tensor_parallelism=2,
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+        ),
+        dict(
+            arch="nemotron8b",
+            tensor_parallelism=2,
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+            fp8=True,
+        ),
+        dict(
+            arch="nemotron8b",
+            tensor_parallelism=1,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+        ),
+        # qwen30bA3b
+        dict(
+            arch="qwen30ba3b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            tensor_parallelism=2,
+            pipeline_parallelism=2,
+        ),
+        dict(
+            arch="qwen30ba3b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            tensor_parallelism=2,
+            pipeline_parallelism=2,
+            fp8=True,
+        ),
+        dict(
+            arch="qwen30ba3b",
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+            tensor_parallelism=1,
+            pipeline_parallelism=2,
+            fp8=True,
+        ),
+        # qwen32b
+        dict(
+            arch="qwen32b",
+            tensor_parallelism=4,
+            pipeline_parallelism=4,
+            batch_size=1024,
+            seq_length=4096,
+            name_prefix="b1024-s4096",
+        ),
+        dict(
+            arch="qwen32b",
+            fp8=True,
+            tensor_parallelism=4,
+            pipeline_parallelism=4,
+            batch_size=512,
+            seq_length=8192,
+            name_prefix="b512-s8192",
+        ),
+    ],
+}
 
 
 def get_configs(mode):
-    configs = CONFIGS_DICT['debug']
+    configs = CONFIGS_DICT["debug"]
     if mode in ["minimal", "full", "extra", "seq_8192"]:
         configs = configs + CONFIGS_DICT["minimal"]
     if mode in ["seq_8192"]:
@@ -123,6 +315,7 @@ def get_configs(mode):
     if mode in ["extra"]:
         configs = configs + CONFIGS_DICT["extra"]
     return configs
+
 
 def launch_jobs(base_config, mode):
     configs = get_configs(mode)
@@ -138,6 +331,7 @@ def launch_jobs(base_config, mode):
         print()
     return job_list, job_folder_list
 
+
 def launch_checker(job_list, job_folder_list):
     checker_job_list = []
     for job, folder in zip(job_list, job_folder_list):
@@ -150,18 +344,23 @@ def launch_checker(job_list, job_folder_list):
                 "checker.py",
                 folder,
                 job,
-            ], 
-            check=True, capture_output=True, text=True
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
         )
         match = re.search(r"Submitted batch job (\d+)", result.stdout)
         if match:
             job_id = int(match.group(1))
         else:
             raise ValueError("Failed to parse job ID from sbatch output.")
-        logging.info(f"Checker for {job} ({os.path.basename(folder)}) submitted with: {job_id}")
+        logging.info(
+            f"Checker for {job} ({os.path.basename(folder)}) submitted with: {job_id}"
+        )
         checker_job_list.append(str(job_id))
     print()
     return checker_job_list
+
 
 def launch_plot(job_list, input_folder, output_folder):
     logging.info(f"Plotting results from {input_folder} to {output_folder}")
@@ -177,16 +376,25 @@ def launch_plot(job_list, input_folder, output_folder):
         ]
     )
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_nodes", type=int, default=2)
     parser.add_argument("--output_benchmark_folder", type=str, default="")
     parser.add_argument("--output_plot_folder", type=str, default=None)
-    parser.add_argument("--mode", default="debug", choices=["debug", "minimal", "full", "extra", "seq_8192"])
+    parser.add_argument(
+        "--mode",
+        default="debug",
+        choices=["debug", "minimal", "full", "extra", "seq_8192"],
+    )
     args = parser.parse_args()
 
     base_config = dict(
-        output_dir=os.path.join(os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"), args.output_benchmark_folder, f"{args.num_nodes}"),
+        output_dir=os.path.join(
+            os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
+            args.output_benchmark_folder,
+            f"{args.num_nodes}",
+        ),
         num_nodes=args.num_nodes,
         config="../datamix/mock.json",
         mode="benchmark",
@@ -211,4 +419,4 @@ if __name__ == "__main__":
     job_list, job_folder_list = launch_jobs(base_config, args.mode)
     checker_job_list = launch_checker(job_list, job_folder_list)
     output_plot_folder = args.output_plot_folder or f"plots_{str(args.num_nodes)}"
-    launch_plot(checker_job_list, base_config['output_dir'], output_plot_folder)
+    launch_plot(checker_job_list, base_config["output_dir"], output_plot_folder)

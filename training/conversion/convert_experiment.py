@@ -24,13 +24,26 @@ def convert_checkpoint_folder(input_path, ouput_path):
         total=len(checkpoints),
         desc=f"Converting {os.path.basename(input_path)}",
     ):
-        if checkpoint.endswith("-last"):
-            continue
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
-        checkpoint_output_path = os.path.join(ouput_path, checkpoint)
-        convert_dist_to_llama.convert_checkpoint(
-            checkpoint_path, checkpoint_output_path.replace("=", "_")
-        )
+        print("\nProcessing", checkpoint_path)
+        checkpoint_output_path = os.path.join(ouput_path, checkpoint).replace("=", "_")
+        print("Output to", checkpoint_output_path)
+        if os.path.isfile(checkpoint_path):
+            print("Skipping file", checkpoint)
+            continue
+        if checkpoint.endswith("-last"):
+            print("Skipping", checkpoint)
+            continue
+        if os.path.isfile(checkpoint_path + "-unfinished"):
+            print("Skipping unfinished", checkpoint)
+            continue
+        if os.path.exists(checkpoint_output_path):
+            print("Skipping existing", checkpoint_output_path)
+            continue
+        else:
+            convert_dist_to_llama.convert_checkpoint(
+                checkpoint_path, checkpoint_output_path
+            )
 
 
 if __name__ == "__main__":
@@ -42,6 +55,7 @@ if __name__ == "__main__":
         help="Path to an experiment",
     )
     parser.add_argument("--local-rank")
+    parser.add_argument("--no_completion", action="store_true")
     args = parser.parse_args()
     experiment_path = args.experiment_path
 
@@ -67,5 +81,9 @@ if __name__ == "__main__":
                 convert_checkpoint_folder(run_path, xp_output_path)
 
     logger.info(f"Finished converting {experiment_path}!")
-    with open(os.path.join(experiment_path, "conversion", "completed.txt"), "w") as f:
-        f.write("")
+
+    if not args.no_completion:
+        with open(
+            os.path.join(experiment_path, "conversion", "completed.txt"), "w"
+        ) as f:
+            f.write("")
