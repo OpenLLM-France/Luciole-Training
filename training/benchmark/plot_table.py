@@ -56,8 +56,8 @@ def summarize_training_times_by_arch_and_precision(df, show_fp8_only_if_better=F
         format_cell(t * 10, g * 10, t)
         for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
     ]
-    
-    summary['training_time'] = pd.to_numeric(summary['training_time'], errors='coerce')
+
+    summary["training_time"] = pd.to_numeric(summary["training_time"], errors="coerce")
     summary = summary.sort_values(by=["training_time"])
     summary = summary.drop(columns=["training_time"])
     return summary
@@ -104,7 +104,7 @@ def plot_training_time(summary_df, output_folder, plot_name=None):
             if j == 0:
                 continue  # skip arch name
             gpuh = extract_gpu_hours(cell)
-            if gpuh=="error":
+            if gpuh == "error":
                 table[(i + 1, j)].set_facecolor("#777777")
             else:
                 ratio = min(gpuh / max_gpuh, 1.0)
@@ -113,7 +113,9 @@ def plot_training_time(summary_df, output_folder, plot_name=None):
 
     plt.tight_layout()
     plt.savefig(
-        os.path.join(output_folder, plot_name+".png" if plot_name else "plot_table.png"),
+        os.path.join(
+            output_folder, plot_name + ".png" if plot_name else "plot_table.png"
+        ),
         dpi=300,
         bbox_inches="tight",
         pad_inches=0.1,

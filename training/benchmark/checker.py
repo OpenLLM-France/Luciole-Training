@@ -3,6 +3,7 @@ import re
 import json
 import argparse
 
+
 def search_cuda_out_of_memory(log_path):
     """
     Looks for exact matches of 'CUDA out of memory'.
@@ -12,6 +13,7 @@ def search_cuda_out_of_memory(log_path):
     with open(log_path, "r") as f:
         content = f.readlines()
         return bool(pattern.search("\n".join(content)))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

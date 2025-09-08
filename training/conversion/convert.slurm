@@ -11,8 +11,12 @@
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 
-source ../set_env.sh
+export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+
+module purge
+module load arch/h100 nemo/2.3.1
 
 echo $1
 
-python -m torch.distributed.launch --nproc_per_node 1 convert_experiment.py $1
+torchrun --nproc_per_node=1 convert_experiment.py $1

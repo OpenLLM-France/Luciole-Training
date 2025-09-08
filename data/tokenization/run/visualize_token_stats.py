@@ -12,11 +12,12 @@ import numpy as np
 import matplotlib.colors as mcolors
 from matplotlib.cm import ScalarMappable
 from matplotlib.gridspec import GridSpec
+import json
 
 
 def format_tokens(tokens):
     if tokens >= 1e12:
-        return f"{tokens / 1e12:.1f} T"
+        return f"{tokens / 1e12:.2f} T"
     elif tokens >= 1e9:
         return f"{tokens / 1e9:.1f} B"
     elif tokens >= 1e6:
@@ -239,28 +240,58 @@ def plot_box_plot_from_summary(df, column_name, output_file):
     plt.close()
 
 
+def create_datamix_file(df, token_dir, output_dir):
+    df = df[df["total_tokens"] > 0]
+    df["name"] = df["name"] + "_text_document"
+    df["weight"] = df["total_tokens"] / df["total_tokens"].sum()
+    out = {
+        "data_path": token_dir,
+        "total_tokens": int(df["total_tokens"].sum()),
+        "train": df[["name", "weight"]].to_dict(orient="records"),
+    }
+    with open(f"{output_dir}/datamix.json", "w") as f:
+        json.dump(out, f, indent=4)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Plot token treemaps by language and dataset."
     )
     parser.add_argument(
-        "--input_path",
+        "--dir",
         type=str,
-        default="chronicles/all_stats_merged.csv",
+        default="chronicles",
         help="Path to the all_stats.",
     )
     parser.add_argument(
-        "--output_dir",
+        "--phase_name",
         type=str,
-        default="chronicles/figs/",
-        help="Path to the all_stats.",
+        default="raw",
+        help="Name of the phase (default = raw, no repeats).",
+    )
+    parser.add_argument(
+        "--token_dir",
+        type=str,
+        default="",
+        help="Path to the token directory.",
     )
     args = parser.parse_args()
-    input_path = args.input_path
-    output_dir = args.output_dir
+    dir = args.dir
+    phase_name = args.phase_name
+    token_dir = args.token_dir
+
+    output_dir = os.path.join(dir, f"{phase_name}/figs")
     os.makedirs(output_dir, exist_ok=True)
 
-    df = pd.read_csv(input_path)
+    df = pd.read_csv(os.path.join(dir, "all_stats_merged.csv"))
+
+    if phase_name != "raw":
+        repeats = pd.read_csv(os.path.join(dir, phase_name, "repeats.csv"))
+        df = df.merge(repeats, on="name", how="left")
+        df["repeat"] = df["repeat"].fillna(0)
+        df["total_tokens"] = df["total_tokens"] * df["repeat"]
+        create_datamix_file(df, token_dir, os.path.join(dir, phase_name))
+
     df["group"] = df.apply(
         lambda row: f"{row['dataset']}_{row['subset']}"
         if pd.notnull(row["subset"])
@@ -328,13 +359,3 @@ if __name__ == "__main__":
 
     # Box plot
     plot_box_plot_from_summary(df, "name", os.path.join(output_dir, "boxplot_all.png"))
-
-    # Treemap
-    plot_treemap(
-        language_df, "language", os.path.join(output_dir, "treemap_language.png")
-    )
-    plot_treemap(
-        dataset_df, "dataset", os.path.join(output_dir, "treemap_datasets.png")
-    )
-    plot_treemap(group_df, "group", os.path.join(output_dir, "treemap_group.png"))
-    plot_treemap(df, "name", os.path.join(output_dir, "treemap_all.png"))

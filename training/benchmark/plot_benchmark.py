@@ -179,11 +179,15 @@ def load_data(input_folder):
                     job_folder = os.path.join(xp_folder, job_folder)
                     files = os.listdir(job_folder)
                     stat_file = [
-                        f for f in files if f.startswith("stats_") and f.endswith(".json")
+                        f
+                        for f in files
+                        if f.startswith("stats_") and f.endswith(".json")
                     ][0]
                     stat_file = os.path.join(job_folder, stat_file)
                     config_file = [
-                        f for f in files if f.startswith("config_") and f.endswith(".json")
+                        f
+                        for f in files
+                        if f.startswith("config_") and f.endswith(".json")
                     ][0]
                     config_file = os.path.join(job_folder, config_file)
                     if os.path.exists(stat_file) and os.path.exists(config_file):
@@ -224,16 +228,28 @@ def convert_data(data):
             number_of_steps_per_trillion_tokens = 1e12 / (
                 entry["data"][batch] * entry["data"]["seq_length"]
             )
-            
+
             if "error" in entry:
-                stats = dict(error=entry["error"],
-                             mean_step_timing=entry["error"],
-                             training_time=entry["error"],
-                             consumed_gpu_hours=entry["error"])
+                stats = dict(
+                    error=entry["error"],
+                    mean_step_timing=entry["error"],
+                    training_time=entry["error"],
+                    consumed_gpu_hours=entry["error"],
+                )
             else:
-                stats = dict(mean_step_timing=entry["mean_step_timings"],
-                             training_time=entry["mean_step_timings"]* number_of_steps_per_trillion_tokens/(3600 * 24),
-                             consumed_gpu_hours=(entry["mean_step_timings"]*number_of_steps_per_trillion_tokens*entry["trainer"]["num_nodes"]*entry["trainer"]["devices"])/3600)
+                stats = dict(
+                    mean_step_timing=entry["mean_step_timings"],
+                    training_time=entry["mean_step_timings"]
+                    * number_of_steps_per_trillion_tokens
+                    / (3600 * 24),
+                    consumed_gpu_hours=(
+                        entry["mean_step_timings"]
+                        * number_of_steps_per_trillion_tokens
+                        * entry["trainer"]["num_nodes"]
+                        * entry["trainer"]["devices"]
+                    )
+                    / 3600,
+                )
             records.append(
                 {
                     "num_nodes": entry["trainer"]["num_nodes"],
