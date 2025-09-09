@@ -21,5 +21,7 @@
 ## Phase 2
 
 ### All datasets
+![All distributions](phase_2/figs/bar_all.png)
 
 ### Language
+![Language distribution](phase_2/figs/bar_language.png)
