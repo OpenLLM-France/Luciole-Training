@@ -107,6 +107,8 @@ main_patterns=(
     stack-edu_code*
     infiwebmath-filtered*
     finemath-filtered*
+    open-code-reasoning_en*
+    stack-math-qa-1600k_en*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \

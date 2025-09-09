@@ -285,6 +285,11 @@ dataset_groups:
       # Algebraic-Stack
       - name: algebraic-stack_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/algebraic_stack/output
+      # Math
+      - name: stack-math-qa-1600k_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stackmathqa1600k/data
+      - name: open-code-reasoning_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_code_reasoning/data
       # Starcoder
       - name: starcoder_olmomix_code
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/olmo_mix/starcoder/data
