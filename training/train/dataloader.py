@@ -15,8 +15,7 @@ def create_data(data_args: dict):
     )
     data = run.Config(
         PreTrainingDataModule,
-        num_workers=2,
-        # num_workers=8,
+        num_workers=8,
         pin_memory=True,
         tokenizer=tokenizer,
         split="1,0,0",
