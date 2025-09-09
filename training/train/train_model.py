@@ -173,7 +173,7 @@ if __name__ == "__main__":
                 // (data_args["seq_length"] * data_args["global_batch_size"])
             )
             min_lr = 3e-5  # TODO: 0.0 ???
-            warmup = 100
+            warmup = 0
         every_n_train_steps = 10_000  # computed for each model
         resume_if_exists = True
         logging.info(
@@ -228,8 +228,7 @@ if __name__ == "__main__":
         resume_ignore_no_checkpoint=True,
         resume_past_end=True,  # set to True if you want to continue training even if max_steps was reached
         restore_config=nl.RestoreConfig(
-            path=args.base_checkpoint
-        )  # , load_optim_state=True)
+            path=args.base_checkpoint, load_optim_state=True)
         if args.base_checkpoint
         else None,
     )
