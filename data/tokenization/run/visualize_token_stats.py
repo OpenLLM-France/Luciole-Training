@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import os
 import pandas as pd
-import squarify
 import argparse
 from matplotlib.ticker import FuncFormatter
 from matplotlib.lines import Line2D
@@ -32,30 +31,6 @@ def format_tokens(tokens):
 
 def format_tokens_ticks(x, pos):
     return format_tokens(x)
-
-
-def plot_treemap(df, column_name, output_file):
-    labels = [
-        f"{name}\n{format_tokens(tokens)}"
-        for name, tokens in zip(df[column_name], df["total_tokens"])
-    ]
-
-    plt.figure(figsize=(10, 6))
-    squarify.plot(
-        sizes=df["total_tokens"],
-        label=labels,
-        pad=0.05,
-        alpha=0.7,
-        text_kwargs={"fontsize": 6, "color": "black"},
-        color=sb.color_palette("rocket", len(df)),
-    )
-
-    plt.axis("off")
-    plt.title(
-        f"Tokens per {column_name}\n Total tokens: {df['total_tokens'].sum() / 1e9:.1f} B"
-    )
-    plt.savefig(output_file, dpi=300, bbox_inches="tight")
-    plt.close()
 
 
 def plot_horizontal_bar(
@@ -241,9 +216,10 @@ def plot_box_plot_from_summary(df, column_name, output_file):
 
 
 def create_datamix_file(df, token_dir, output_dir):
+    df = df.copy()
     df = df[df["total_tokens"] > 0]
-    df["name"] = df["name"] + "_text_document"
-    df["weight"] = df["total_tokens"] / df["total_tokens"].sum()
+    df.loc[:, "name"] = df["name"] + "_text_document"
+    df.loc[:, "weight"] = df["total_tokens"] / df["total_tokens"].sum()
     out = {
         "data_path": token_dir,
         "total_tokens": int(df["total_tokens"].sum()),
@@ -291,6 +267,10 @@ if __name__ == "__main__":
         df["repeat"] = df["repeat"].fillna(0)
         df["total_tokens"] = df["total_tokens"] * df["repeat"]
         create_datamix_file(df, token_dir, os.path.join(dir, phase_name))
+
+    assert (
+        not df["name"].duplicated().any()
+    ), f"Duplicate names in all_stats_merged.csv. Duplicates: {df[df['name'].duplicated()]['name'].tolist()}"
 
     df["group"] = df.apply(
         lambda row: f"{row['dataset']}_{row['subset']}"
