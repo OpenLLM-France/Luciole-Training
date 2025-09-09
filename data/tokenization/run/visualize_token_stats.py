@@ -76,7 +76,7 @@ def plot_horizontal_bar(
 
     elif color_column in ["dataset", "group", "subset", "language"]:
         unique_categories = df[color_column].astype("category").cat.categories
-        palette = sb.color_palette("tab20", len(unique_categories))
+        palette = sb.color_palette("colorblind", len(unique_categories))
 
         color_map = dict(zip(unique_categories, palette))
         colors = df[color_column].map(color_map)
@@ -229,6 +229,18 @@ def create_datamix_file(df, token_dir, output_dir):
         json.dump(out, f, indent=4)
 
 
+def map_language(x):
+    european = ["ar", "nl", "de", "pt", "es", "it"]
+    if x in ["code", "math", "fr", "en", "aligned", "multi"]:
+        return x
+    elif x in european:
+        return "european"
+    elif x in ["ca", "regional"]:
+        return "regional"
+    else:
+        raise ValueError(f"Unknown language: {x}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Plot token treemaps by language and dataset."
@@ -278,25 +290,9 @@ if __name__ == "__main__":
         else row["dataset"],
         axis=1,
     )
-    df["language"] = df["language"].apply(
-        lambda x: x
-        if x
-        in [
-            "code",
-            "math",
-            "ar",
-            "fr",
-            "en",
-            "nl",
-            "de",
-            "pt",
-            "es",
-            "it",
-            "aligned",
-            "multi",
-        ]
-        else "other"
-    )
+
+    # Apply the mapping
+    df["language"] = df["language"].apply(map_language)
 
     # Groupby
     language_df = (
@@ -323,12 +319,15 @@ if __name__ == "__main__":
 
     # Horizontal bar
     plot_horizontal_bar(
-        language_df, "language", os.path.join(output_dir, "bar_language.png")
+        language_df,
+        "language",
+        os.path.join(output_dir, "bar_language.png"),
+        color_column="language",
     )
-    plot_horizontal_bar(
-        dataset_df, "dataset", os.path.join(output_dir, "bar_datasets.png")
-    )
-    plot_horizontal_bar(group_df, "group", os.path.join(output_dir, "bar_group.png"))
+    # plot_horizontal_bar(
+    #     dataset_df, "dataset", os.path.join(output_dir, "bar_datasets.png")
+    # )
+    # plot_horizontal_bar(group_df, "group", os.path.join(output_dir, "bar_group.png"))
     plot_horizontal_bar(
         df,
         "name",
