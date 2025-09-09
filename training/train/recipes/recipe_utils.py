@@ -1,11 +1,26 @@
 import nemo_run as run
 import torch
 import logging
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
+from lightning.pytorch.callbacks.timer import Timer
+from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
 from nemo.utils.exp_manager import TimingCallback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class StatelessTimer(Timer):
+    """Extension of PTL timers to be per run."""
+
+    # Override PTL Timer's state dict to not store elapsed time information so that we can
+    # restore and continue training.
+    def state_dict(self):
+        """state_dict"""
+        return {}
+
+    def load_state_dict(self, state_dict) -> None:
+        """load_state_dict"""
+        return
 
 
 def set_recipe_trainer(recipe, args):
@@ -13,7 +28,7 @@ def set_recipe_trainer(recipe, args):
     recipe.trainer.log_every_n_steps = (
         1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
-    recipe.trainer.callbacks = [run.Config(TimingCallback)]
+    recipe.trainer.callbacks = [run.Config(TimingCallback), run.Config(StatelessTimer, duration="04:03:00:00")]
     if args.fp8:
         if args.arch == "nemotronh47b":
             logger.info("FP8 is always activated on nemotronh47b")
