@@ -47,8 +47,12 @@ if __name__ == "__main__":
     assert os.path.exists(input + ".bin"), "Input .bin file must exist."
     assert os.path.exists(input + ".idx"), "Input .idx file must exist."
 
-    output_bin_files = [output + f"_{i}.bin" for i in range(len(args.ratio))]
-    output_idx_files = [output + f"_{i}.idx" for i in range(len(args.ratio))]
+    output_bin_files = [
+        output + f"_{ratio:.2f}_{i}.bin" for i, ratio in enumerate(args.ratio)
+    ]
+    output_idx_files = [
+        output + f"_{ratio:.2f}_{i}.idx" for i, ratio in enumerate(args.ratio)
+    ]
 
     if not os.path.isdir(os.path.dirname(output_bin_files[0])):
         os.makedirs(os.path.dirname(output_bin_files[0]))
