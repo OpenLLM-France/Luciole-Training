@@ -10,18 +10,26 @@ import random
 
 def split_thinking(output):
     think_pattern = r"<think>(.*?)</think>"
-    thoughts = re.findall(think_pattern, output, flags=re.DOTALL)[0]
-    remaining_text = re.sub(think_pattern, "", output, flags=re.DOTALL).strip()
-    
+    thinking = re.search(think_pattern, output, flags=re.DOTALL)
+    if thinking:
+        thoughts = thinking.group(1).strip() 
+        remaining_text = re.sub(think_pattern, "", output, flags=re.DOTALL).strip()
+    else:
+        thoughts = ""
+        remaining_text = output.strip()
+
     return thoughts, remaining_text
 
 def append_input_output(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
     for document in data:
-        if random.random() <= 0.5:
+        if random.random() < 0.5:
             thoughts, answer = split_thinking(document.text)
             thoughts_name = random.choice(["Problem discussion:", "Thinking:"])
             solution_name = random.choice(["Proposed solution:", "Solution:", "Final Answer:"])
-            document.text = (thoughts_name + "\n" + thoughts + "\n" + solution_name + "\n" + answer).strip()
+            if thoughts:
+                document.text = (thoughts_name + "\n" + thoughts + "\n" + solution_name + "\n" + answer).strip()
+            else:
+                document.text = answer
         else:
             document.text = document.text.strip()
 
