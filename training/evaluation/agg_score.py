@@ -29,7 +29,7 @@ def calculate_agg_score(df):
         )
         # Group by task type
         results_task = (
-            df_group.groupby(["language", "task_type"])
+            df_group.groupby(["language", "task_type", "random"])
             .agg({"norm_score": lambda x: x.mean(skipna=False)})
             .reset_index()
         )
@@ -65,11 +65,21 @@ def calculate_agg_score(df):
     if len(all_results) == 0:
         print("No results found for the given experiments.")
         return pd.DataFrame(
-            columns=["expe_name", "tokens", "task", "max_samples", "metric", "score"]
+            columns=[
+                "expe_name",
+                "tokens",
+                "task",
+                "max_samples",
+                "metric",
+                "random",
+                "score",
+            ]
         )
 
     df = pd.concat(all_results, ignore_index=True)
-    return df[["expe_name", "tokens", "task", "max_samples", "metric", "score"]]
+    return df[
+        ["expe_name", "tokens", "task", "max_samples", "metric", "random", "score"]
+    ]
 
 
 if __name__ == "__main__":

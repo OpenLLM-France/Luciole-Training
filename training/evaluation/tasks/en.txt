@@ -9,12 +9,12 @@ leaderboard|arc:challenge|0|0
 lighteval|arc:easy|0|0
 lighteval|triviaqa|0|0
 
+# Language Understanding
+# leaderboard|hellaswag|0|0
+# leaderboard|winogrande|0|0
+
 # Reading Comprehension
 helm|boolq|0|0
-
-# Language Understanding
-leaderboard|hellaswag|0|0
-leaderboard|winogrande|0|0
 
 # Common Sense
 helm|siqa|0|0

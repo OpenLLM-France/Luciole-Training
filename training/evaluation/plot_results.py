@@ -2,7 +2,7 @@ import os
 import math
 import argparse
 from utils import process_results, read_experiment_results
-from agg_score import calculate_agg_score
+from agg_score import calculate_agg_score, read_info
 import matplotlib.pyplot as plt
 import numpy as np
 from itertools import cycle
@@ -56,8 +56,16 @@ def assign_colors(df):
     return {name: next(colors) for name in unique_experiments}
 
 
+df_info = read_info()
+
+
 def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
     df = df[(df["task"] == task) & (df["metric"] == metric)]
+
+    # Access random
+    num_classes = df_info.loc[df_info["task"] == task, "num_classes"].iloc[0]
+    random = 1.0 / num_classes
+    ax.axhline(y=random, color="grey", linestyle="--", label="random")
 
     for _, row in df.iterrows():
         color = color_map[row["expe_name"]]
@@ -185,7 +193,7 @@ def plot_list_of_tasks(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--experiment_path",
+        "experiment_path",
         type=str,
         nargs="+",
         help="List of all the experiments you want to plot",
@@ -205,6 +213,11 @@ if __name__ == "__main__":
         help="Output path where your plot are storred",
     )
     parser.add_argument(
+        "--seq_length",
+        type=int,
+        default=2048,
+    )
+    parser.add_argument(
         "--max_samples",
         type=int,
         default=1000,
@@ -218,7 +231,12 @@ if __name__ == "__main__":
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
-    df = pd.concat([read_experiment_results(path) for path in args.experiment_path])
+    df = pd.concat(
+        [
+            read_experiment_results(path, seq_length=args.seq_length)
+            for path in args.experiment_path
+        ]
+    )
     df_agg = calculate_agg_score(df).dropna()
     df = pd.concat([df, df_agg])
     df = process_results(df)

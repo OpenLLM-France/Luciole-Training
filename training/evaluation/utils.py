@@ -5,7 +5,7 @@ import re
 import numpy as np
 
 
-def read_json_file(file_path):
+def read_json_file(file_path, seq_length=2048):
     file_path = Path(file_path)
     with open(file_path, "r") as f:
         data = json.load(f)
@@ -25,7 +25,7 @@ def read_json_file(file_path):
     df["max_samples"] = str(data["config_general"]["max_samples"])
     df["tokens"] = (
         (df["model_name"].str.extract(r"-consumed_samples_([0-9.]+)")[0].astype(float))
-        * 2048
+        * seq_length
         / 10**9
     )
     df["steps"] = df["model_name"].str.extract(r"-step_([0-9.]+)")[0].astype(float)
@@ -38,7 +38,7 @@ def read_json_file(file_path):
     return df
 
 
-def read_experiment_results(main_dir):
+def read_experiment_results(main_dir, seq_length=2048):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
 
@@ -60,7 +60,7 @@ def read_experiment_results(main_dir):
         except ValueError:
             expe_name = "unknown"
 
-        df = read_json_file(file)
+        df = read_json_file(file, seq_length=seq_length)
         df["expe_name"] = expe_name
         dataframes.append(df)
 

@@ -40,6 +40,29 @@ lighteval {command} \\
 """
 
 
+def init_extra_args(args):
+    extra_arg = ""
+    # Custom tasks
+    if args.custom_tasks is None:
+        pass
+    elif args.custom_tasks == "multilingual":
+        extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
+    elif args.custom_tasks == "fineweb":
+        current_dir = os.path.dirname(__file__)
+        custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
+        extra_arg += f"--custom-tasks {custom_path} \\"
+    elif args.custom_tasks == "lucie":
+        current_dir = os.path.dirname(__file__)
+        custom_path = os.path.join(current_dir, "custom_benchmarks", "lucie2_evals.py")
+        extra_arg += f"--custom-tasks {custom_path} \\"
+    else:
+        raise ValueError(f"Unknown custom_tasks: {args.custom_tasks}")
+    # Max samples
+    if args.max_samples > 0:
+        extra_arg += f"--max-samples {args.max_samples} \\"
+    return extra_arg
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Submit SLURM jobs for each model checkpoint."
@@ -54,19 +77,9 @@ def main():
         "--command", type=str, default="vllm", choices=["vllm", "accelerate"], help=""
     )
     parser.add_argument(
-        "--multilingual",
-        action="store_true",
-        help="Use multilingual task configuration.",
-    )
-    parser.add_argument(
-        "--fineweb",
-        action="store_true",
-        help="Use fineweb2 task configuration.",
-    )
-    parser.add_argument(
-        "--lucie",
-        action="store_true",
-        help="Use lucie task configuration.",
+        "--custom_tasks",
+        default=None,
+        choices=[None, "multilingual", "fineweb", "lucie"],
     )
     parser.add_argument(
         "--max_samples",
@@ -79,60 +92,31 @@ def main():
         default=None,
         help="A dependency after which it should launch the evals",
     )
-    parser.add_argument(
-        "--skip_existing",
-        action="store_true",
-        help="Skip evaluation if output already exists.",
-        default=False,
-    )
     args = parser.parse_args()
-
-    assert not (
-        args.multilingual and args.fineweb
-    ), "Both --multilingual and --fineweb cannot be activated simultaneously"
 
     experiment_path = Path(args.experiment_path)
     hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
-    output_dir = experiment_path / "evaluation"
     assert hf_ckpt_dir.is_dir(), f"Directory does not exist: {hf_ckpt_dir}"
-    output_dir.mkdir(parents=True, exist_ok=True)
     task_to_evaluate = Path(args.task_to_evaluate)
+    # create output dirs
+    output_dir = experiment_path / "evaluation" / task_to_evaluate.stem
+    output_dir.mkdir(parents=True, exist_ok=True)
+    log_dir = output_dir / "slurm_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    job_dir = output_dir / "slurm_scripts"
+    job_dir.mkdir(parents=True, exist_ok=True)
+
+    extra_arg = init_extra_args(args)
 
     checkpoints = [d for d in hf_ckpt_dir.iterdir() if d.is_dir()]
 
-    extra_arg = ""
-    if args.multilingual:
-        extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
-    if args.fineweb:
-        current_dir = os.path.dirname(__file__)
-        custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
-        extra_arg += f"--custom-tasks {custom_path} \\"
-    if args.lucie:
-        current_dir = os.path.dirname(__file__)
-        custom_path = os.path.join(current_dir, "custom_benchmarks", "lucie2_evals.py")
-        extra_arg += f"--custom-tasks {custom_path} \\"
-    if args.max_samples > 0:
-        extra_arg += f"--max-samples {args.max_samples} \\"
-
-    skipped_all = True
     for ckpt in checkpoints:
-        ckpt_name = ckpt.name.replace("=", "_")  # escape '=' just in case
-        log_dir = output_dir / "slurm_logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_name = ckpt.name  # ckpt_name = ckpt.name.replace("=", "_")  # escape '=' just in case - Deprecated
 
-        if args.skip_existing:
-            completed_path = output_dir / "results" / ckpt_name
-            if os.path.exists(completed_path):
-                completed_files = os.listdir(completed_path)
-                if any(
-                    f.startswith("results_") and f.endswith(".json")
-                    for f in completed_files
-                ):
-                    print(
-                        f"Skipping evaluation for {ckpt_name} of {os.path.basename(experiment_path)} as results already exist ({completed_files})."
-                    )
-                    continue
-        skipped_all = False
+        if (output_dir / "results" / ckpt_name).is_dir():
+            print(f"Skipping existing results for checkpoint: {ckpt_name}")
+            continue
+
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             hf_ckpt_dir=hf_ckpt_dir.resolve(),
             command=args.command,
@@ -148,16 +132,12 @@ def main():
             else "",
         )
 
-        job_filename = output_dir / f"job_{ckpt_name}_{task_to_evaluate.stem}.slurm"
+        job_filename = job_dir / f"job_{ckpt_name}.slurm"
         with open(job_filename, "w") as f:
             f.write(job_script)
 
         print(f"Submitting job for checkpoint: {ckpt_name}")
         subprocess.run(["sbatch", str(job_filename)], check=True)
-    if args.skip_existing and skipped_all:
-        completed_file = output_dir / "completed.txt"
-        with open(completed_file, "w") as f:
-            f.write("")
 
 
 if __name__ == "__main__":

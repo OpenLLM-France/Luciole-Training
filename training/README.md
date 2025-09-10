@@ -97,8 +97,10 @@ module purge
 module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
-pip install -U lighteval[multilingual,vllm]
-pip install seaborn 
+
+pip install -U "datasets<4.0.0" 
+pip install -U lighteval[multilingual]
+pip install seaborn
 ```
 
 Warning: in more recent versions of `lighteval`,
@@ -126,10 +128,11 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/the_pile.txt" --max-samples 1000
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fineweb2.txt" --custom-tasks custom_benchmarks/fineweb_evals.py --max-samples 1000
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/the_pile.txt"
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/en.txt"
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
 ```
+
 
 Don't forget to load gpt2 model in the cache: `huggingface-cli download gpt2`
 

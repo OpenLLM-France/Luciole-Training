@@ -17,6 +17,6 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 module purge
 module load arch/h100 nemo/2.3.1
 
-echo $1
+echo "$@"
 
-torchrun --nproc_per_node=1 convert_experiment.py $1
+torchrun --nproc_per_node=1 convert_experiment.py "$@"
