@@ -23,18 +23,27 @@ def read_json_file(file_path, seq_length=2048):
     # Add model name and timestamp
     df["model_name"] = data["config_general"]["model_name"]
     df["max_samples"] = str(data["config_general"]["max_samples"])
-    df["tokens"] = (
-        (df["model_name"].str.extract(r"-consumed_samples_([0-9.]+)")[0].astype(float))
-        * seq_length
-        / 10**9
-    )
-    df["steps"] = df["model_name"].str.extract(r"-step_([0-9.]+)")[0].astype(float)
+
+    if "OLMo-2" in str(file_path):
+        match = re.search(r"-tokens([0-9.]+)B", str(file_path))
+        tokens = float(match.group(1)) if match else None
+        df["tokens"] = tokens
+    else:
+        df["tokens"] = (
+            (
+                df["model_name"]
+                .str.extract(r"-consumed_samples_([0-9.]+)")[0]
+                .astype(float)
+            )
+            * seq_length
+            / 10**9
+        )
     match = re.match(r"results_(.*)\.json", file_path.name)
     timestamp = match.group(1) if match else None
     df["timestamp"] = timestamp
 
     # Reorder columns
-    df = df[["steps", "tokens", "timestamp", "task", "max_samples", "metric", "score"]]
+    df = df[["tokens", "timestamp", "task", "max_samples", "metric", "score"]]
     return df
 
 
@@ -74,14 +83,12 @@ def read_experiment_results(main_dir, seq_length=2048):
     df_latest = (
         df.sort_values("timestamp")
         .drop_duplicates(
-            subset=["expe_name", "steps", "tokens", "task", "max_samples", "metric"],
+            subset=["expe_name", "tokens", "task", "max_samples", "metric"],
             keep="last",
         )
         .drop("timestamp", axis=1)
     )
-    return df_latest[
-        ["expe_name", "steps", "tokens", "task", "max_samples", "metric", "score"]
-    ]
+    return df_latest[["expe_name", "tokens", "task", "max_samples", "metric", "score"]]
 
 
 def read_datamix(main_dir):

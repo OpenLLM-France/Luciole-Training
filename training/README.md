@@ -101,6 +101,7 @@ conda activate eval-env
 pip install -U "datasets<4.0.0" 
 pip install -U lighteval[multilingual]
 pip install seaborn
+pip install python-slugify
 ```
 
 Warning: in more recent versions of `lighteval`,

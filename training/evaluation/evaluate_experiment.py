@@ -2,6 +2,8 @@ import subprocess
 from pathlib import Path
 import argparse
 import os
+from slugify import slugify
+import math
 
 SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=eval
@@ -33,7 +35,7 @@ cd {hf_ckpt_dir}
 mkdir -p {output_dir}
 
 lighteval {command} \\
-    "model_name={model_name},dtype=bfloat16" \\
+    "{model_arg}" \\
     "{task_to_evaluate}" \\
     --output-dir {output_dir} \\
     {extra_arg}
@@ -73,6 +75,7 @@ def main():
     parser.add_argument(
         "task_to_evaluate", type=str, help="Path to the task txt file or task name."
     )
+    parser.add_argument("--olmo2", action="store_true", help="Use olmo2 models.")
     parser.add_argument(
         "--command", type=str, default="vllm", choices=["vllm", "accelerate"], help=""
     )
@@ -95,9 +98,20 @@ def main():
     args = parser.parse_args()
 
     experiment_path = Path(args.experiment_path)
-    hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
-    assert hf_ckpt_dir.is_dir(), f"Directory does not exist: {hf_ckpt_dir}"
     task_to_evaluate = Path(args.task_to_evaluate)
+
+    if args.olmo2:
+        checkpoints = ["allenai/OLMo-2-0425-1B" for i in range(1, 20)]
+        revisions = [
+            f"stage1-step{i*100000}-tokens{math.ceil(i*209.73)}B" for i in range(1, 20)
+        ]
+        hf_ckpt_dir = Path(".")
+    else:
+        hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
+        assert hf_ckpt_dir.is_dir(), f"Directory does not exist: {hf_ckpt_dir}"
+        checkpoints = [d for d in hf_ckpt_dir.iterdir() if d.is_dir()]
+        revisions = ["" for _ in checkpoints]
+
     # create output dirs
     output_dir = experiment_path / "evaluation" / task_to_evaluate.stem
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -108,22 +122,23 @@ def main():
 
     extra_arg = init_extra_args(args)
 
-    checkpoints = [d for d in hf_ckpt_dir.iterdir() if d.is_dir()]
+    for ckpt, revision in zip(checkpoints, revisions):
+        if isinstance(ckpt, Path):
+            ckpt = ckpt.name
 
-    for ckpt in checkpoints:
-        ckpt_name = ckpt.name  # ckpt_name = ckpt.name.replace("=", "_")  # escape '=' just in case - Deprecated
-
-        if (output_dir / "results" / ckpt_name).is_dir():
-            print(f"Skipping existing results for checkpoint: {ckpt_name}")
+        if (output_dir / "results" / ckpt).is_dir():
+            print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
 
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             hf_ckpt_dir=hf_ckpt_dir.resolve(),
             command=args.command,
-            model_name=ckpt_name,
-            output_dir=output_dir,
+            model_arg=f"model_name={ckpt},dtype=bfloat16"
+            if not revision
+            else f"model_name={ckpt},revision={revision},dtype=bfloat16",
+            output_dir=output_dir if not revision else output_dir / revision,
             log_dir=log_dir,
-            log_name=f"{task_to_evaluate.stem}_{ckpt_name}",
+            log_name=f"{task_to_evaluate.stem}_{slugify(ckpt)}",
             task_to_evaluate=task_to_evaluate.resolve(),
             max_samples=args.max_samples,
             extra_arg=extra_arg,
@@ -132,11 +147,11 @@ def main():
             else "",
         )
 
-        job_filename = job_dir / f"job_{ckpt_name}.slurm"
+        job_filename = job_dir / f"job_{slugify(ckpt)}.slurm"
         with open(job_filename, "w") as f:
             f.write(job_script)
 
-        print(f"Submitting job for checkpoint: {ckpt_name}")
+        print(f"Submitting job for checkpoint: {ckpt}")
         subprocess.run(["sbatch", str(job_filename)], check=True)
 
 

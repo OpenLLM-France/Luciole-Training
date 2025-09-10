@@ -1,5 +1,19 @@
 # 1B model
 
+## OLMO 2 Baseline
+
+Evaluate
+```bash
+cd evaluation/
+
+module load anaconda-py3/2024.06
+conda activate eval-env
+path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/OLMo-2-0425-1B
+
+python evaluate_experiment.py $path --olmo2 tasks/en.txt --command accelerate
+python evaluate_experiment.py $path --olmo2 tasks/fr.txt --custom_tasks multilingual --command accelerate
+```
+
 ## Phase 1
 
 [Repeeat](../../../data/tokenization/run/chronicles/phase_1/repeats.csv)
@@ -23,7 +37,6 @@ python rope_scaling_correction.py
 
 Evaluate
 ```bash
-
 cd evaluation/
 
 module load anaconda-py3/2024.06
@@ -32,13 +45,20 @@ path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_l
 
 python evaluate_experiment.py $path tasks/en.txt --command accelerate
 python evaluate_experiment.py $path tasks/fr.txt --custom_tasks multilingual --command accelerate
-python plot_results.py $path --group agg --output_path $path/figs --seq_length 4096
-python plot_results.py $path --group fr --output_path $path/figs --seq_length 4096
-python plot_results.py $path --group en --output_path $path/figs --seq_length 4096
-
 ```
 
+Plot results
+```bash
+cd evaluation/
 
+module load anaconda-py3/2024.06
+conda activate eval-env
+path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_llama1b
+olmo=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/OLMo-2-0425-1B
+python plot_results.py $path $olmo --group agg --output_path $path/figs --seq_length 4096
+python plot_results.py $path $olmo --group fr --output_path $path/figs --seq_length 4096
+python plot_results.py $path $olmo --group en --output_path $path/figs --seq_length 4096
+```
 
 ## Phase 2
 
