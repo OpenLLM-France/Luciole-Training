@@ -1,6 +1,7 @@
 import nemo_run as run
 import torch
 import logging
+import datetime
 from lightning.pytorch.callbacks.timer import Timer
 from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
 from nemo.utils.exp_manager import TimingCallback
@@ -9,6 +10,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
+    logging.info(time_limit)
+    h, m, s = map(int, time_limit.split(":"))
+    slurm_time_limit = datetime.timedelta(hours=h, minutes=m, seconds=s)
+    td = slurm_time_limit - datetime.timedelta(minutes=buffer_minutes)
+    hours = td.seconds // 3600
+    minutes = (td.seconds % 3600) // 60
+    return f"{td.days:02}:{hours:02}:{minutes:02}:00"
+    
 class StatelessTimer(Timer):
     """Extension of PTL timers to be per run."""
 
@@ -28,7 +38,8 @@ def set_recipe_trainer(recipe, args):
     recipe.trainer.log_every_n_steps = (
         1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
-    recipe.trainer.callbacks = [run.Config(TimingCallback), run.Config(StatelessTimer, duration="04:03:00:00")]
+    time_limit = get_time_limit(args.max_time_per_run, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30)
+    recipe.trainer.callbacks = [run.Config(TimingCallback), run.Config(StatelessTimer, duration=time_limit)]
     if args.fp8:
         if args.arch == "nemotronh47b":
             logger.info("FP8 is always activated on nemotronh47b")

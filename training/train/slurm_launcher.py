@@ -107,6 +107,7 @@ def create_slurm_script(
     job_log_file = "job_%j"
     if mode in ["phase1", "phase2", "annealing"]:
         job_log_file = f"job_{mode}_%j"
+    args += f" --max_time_per_run {time}"
 
     # Contenu du script SLURM
     script = f"""#!/bin/bash
