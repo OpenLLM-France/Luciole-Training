@@ -161,6 +161,8 @@ def compute_regression(group):
 
 def process_group(group):
     group = group.loc[group["tokens"] > 0].sort_values("tokens")
+    # print()
+    # print(group)
     return pd.DataFrame(
         [
             {

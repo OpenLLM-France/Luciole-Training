@@ -20,8 +20,8 @@ def calculate_agg_score(df):
     df_info = read_info()
 
     all_results = []  # List to collect DataFrames
-    for (expe_name, tokens, max_samples), df_group in df.groupby(
-        ["expe_name", "tokens", "max_samples"]
+    for (expe_name, tokens, FLOPs, max_samples), df_group in df.groupby(
+        ["expe_name", "tokens", "FLOPs", "max_samples"]
     ):
         df_group = df_info.merge(df_group, on=["task", "metric"], how="left")
         df_group["norm_score"] = df_group.apply(
@@ -29,7 +29,7 @@ def calculate_agg_score(df):
         )
         # Group by task type
         results_task = (
-            df_group.groupby(["language", "task_type", "random"])
+            df_group.groupby(["language", "task_type"])
             .agg({"norm_score": lambda x: x.mean(skipna=False)})
             .reset_index()
         )
@@ -43,6 +43,7 @@ def calculate_agg_score(df):
         # Reformat
         results_task["expe_name"] = expe_name
         results_task["tokens"] = tokens
+        results_task["FLOPs"] = FLOPs
         results_task["max_samples"] = max_samples
         results_task["metric"] = "agg"
         results_task["task"] = (
@@ -56,6 +57,7 @@ def calculate_agg_score(df):
 
         results_final["expe_name"] = expe_name
         results_final["tokens"] = tokens
+        results_final["FLOPs"] = FLOPs
         results_final["max_samples"] = max_samples
         results_final["metric"] = "agg"
         results_final["task"] = "AGG_" + results_final["language"].str.upper()
@@ -68,17 +70,17 @@ def calculate_agg_score(df):
             columns=[
                 "expe_name",
                 "tokens",
+                "FLOPs",
                 "task",
                 "max_samples",
                 "metric",
-                "random",
                 "score",
             ]
         )
 
     df = pd.concat(all_results, ignore_index=True)
     return df[
-        ["expe_name", "tokens", "task", "max_samples", "metric", "random", "score"]
+        ["expe_name", "tokens", "FLOPs", "task", "max_samples", "metric", "score"]
     ]
 
 

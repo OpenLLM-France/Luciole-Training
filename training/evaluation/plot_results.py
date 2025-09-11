@@ -62,6 +62,7 @@ df_info = read_info()
 def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=False):
     xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
+    # print(f"Plotting {task} - {metric} with {len(df)} lines")
 
     # Access random
     if task in df_info["task"].values:
@@ -103,14 +104,25 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=Fals
                 va="center",
             )
         else:
-            ax.plot(
-                row[xaxis_column],
-                row["score"],
-                marker="+",
-                alpha=0.8,
-                color=color,
-                label=row["expe_name"],
-            )
+            if len(row["score"]) == 1:
+                ax.plot(
+                    row[xaxis_column],
+                    row["score"],
+                    marker="+",
+                    markersize=10,
+                    alpha=0.8,
+                    color=color,
+                    label=row["expe_name"],
+                )
+            else:
+                ax.plot(
+                    row[xaxis_column],
+                    row["score"],
+                    marker=".",
+                    alpha=0.8,
+                    color=color,
+                    label=row["expe_name"],
+                )
 
     ax.set_xlabel("FLOPs" if flops else "B tokens")
     ax.set_ylabel(metric)
