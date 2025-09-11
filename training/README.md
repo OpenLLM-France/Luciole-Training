@@ -99,7 +99,7 @@ conda create -n eval-env python=3.10
 conda activate eval-env
 
 pip install -U "datasets<4.0.0" 
-pip install -U lighteval[multilingual]
+pip install -U lighteval[multilingual,vllm]
 pip install seaborn
 pip install python-slugify
 ```

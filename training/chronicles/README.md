@@ -1,6 +1,8 @@
 # 1B model
 
-## OLMO 2 Baseline
+## Baselines
+
+### OLMO 2
 
 Evaluate
 ```bash
@@ -8,10 +10,33 @@ cd evaluation/
 
 module load anaconda-py3/2024.06
 conda activate eval-env
-path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/OLMo-2-0425-1B
+pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 
-python evaluate_experiment.py $path --olmo2 tasks/en.txt --command accelerate
-python evaluate_experiment.py $path --olmo2 tasks/fr.txt --custom_tasks multilingual --command accelerate
+python evaluate_experiment.py $path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/en.txt 
+python evaluate_experiment.py $path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/fr.txt --custom_tasks multilingual
+```
+
+### Other
+
+Evaluate
+```bash
+cd evaluation/
+
+module load anaconda-py3/2024.06
+conda activate eval-env
+pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/
+
+# EuroLLM
+python evaluate_experiment.py $pretrain_path/EuroLLM-1.7B --hf_model utter-project/EuroLLM-1.7B tasks/en.txt 
+python evaluate_experiment.py $pretrain_path/EuroLLM-1.7B --hf_model utter-project/EuroLLM-1.7B tasks/fr.txt --custom_tasks multilingual
+
+# SmolLM2
+python evaluate_experiment.py $pretrain_path/SmolLM2-1.7B --hf_model HuggingFaceTB/SmolLM2-1.7B tasks/en.txt 
+python evaluate_experiment.py $pretrain_path/SmolLM2-1.7B --hf_model HuggingFaceTB/SmolLM2-1.7B tasks/fr.txt --custom_tasks multilingual
+
+# SmolLM2
+python evaluate_experiment.py $pretrain_path/SmolLM3-3B --hf_model HuggingFaceTB/SmolLM3-3B tasks/en.txt 
+python evaluate_experiment.py $pretrain_path/SmolLM3-3B --hf_model HuggingFaceTB/SmolLM3-3B tasks/fr.txt --custom_tasks multilingual
 ```
 
 ## Phase 1
@@ -30,8 +55,8 @@ python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix lu
 Convert
 ```bash
 cd conversion/
-path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_llama1b
-sbatch convert.slurm $path --no_completion
+pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
+sbatch convert.slurm $pretrain_path/luciole_llama1b --no_completion
 python rope_scaling_correction.py 
 ```
 
@@ -41,10 +66,10 @@ cd evaluation/
 
 module load anaconda-py3/2024.06
 conda activate eval-env
-path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_llama1b
+pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 
-python evaluate_experiment.py $path tasks/en.txt --command accelerate
-python evaluate_experiment.py $path tasks/fr.txt --custom_tasks multilingual --command accelerate
+python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/en.txt --command accelerate
+python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/fr.txt --custom_tasks multilingual --command accelerate
 ```
 
 Plot results
@@ -53,11 +78,17 @@ cd evaluation/
 
 module load anaconda-py3/2024.06
 conda activate eval-env
-path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_llama1b
-olmo=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/OLMo-2-0425-1B
-python plot_results.py $path $olmo --group agg --output_path $path/figs --seq_length 4096
-python plot_results.py $path $olmo --group fr --output_path $path/figs --seq_length 4096
-python plot_results.py $path $olmo --group en --output_path $path/figs --seq_length 4096
+pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
+models="$pretrain_path/luciole_llama1b $pretrain_path/OLMo-2-0425-1B $pretrain_path/EuroLLM-1.7B $pretrain_path/SmolLM2-1.7B $pretrain_path/SmolLM3-3B"
+
+# python plot_results.py $models --group agg --output_path $path/figs --seq_length 4096 --flops
+python plot_results.py $models --group fr --output_path $pretrain_path/figs --seq_length 4096 --flops --xlog
+python plot_results.py $models --group en --output_path $pretrain_path/figs --seq_length 4096 --flops --xlog
+
+python plot_results.py $models --group agg --output_path $pretrain_path/figs --seq_length 4096 --xlog
+python plot_results.py $models --group fr --output_path $pretrain_path/figs --seq_length 4096 --xlog
+python plot_results.py $models --group en --output_path $pretrain_path/figs --seq_length 4096 --xlog
+
 ```
 
 ## Phase 2

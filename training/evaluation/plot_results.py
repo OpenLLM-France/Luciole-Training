@@ -59,20 +59,22 @@ def assign_colors(df):
 df_info = read_info()
 
 
-def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
+def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=False):
+    xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
 
     # Access random
-    num_classes = df_info.loc[df_info["task"] == task, "num_classes"].iloc[0]
-    random = 1.0 / num_classes
-    ax.axhline(y=random, color="grey", linestyle="--", label="random")
+    if task in df_info["task"].values:
+        num_classes = df_info.loc[df_info["task"] == task, "num_classes"].iloc[0]
+        random = 1.0 / num_classes
+        ax.axhline(y=random, color="grey", linestyle="--", label="random")
 
     for _, row in df.iterrows():
         color = color_map[row["expe_name"]]
 
         if fit:
             ax.plot(
-                row["tokens"],
+                row[xaxis_column],
                 row["score"],
                 alpha=np.clip(1 - row["r2"], 0.2, 0.8),
                 linestyle=":",
@@ -102,7 +104,7 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
             )
         else:
             ax.plot(
-                row["tokens"],
+                row[xaxis_column],
                 row["score"],
                 marker="+",
                 alpha=0.8,
@@ -110,7 +112,7 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False):
                 label=row["expe_name"],
             )
 
-    ax.set_xlabel("B tokens")
+    ax.set_xlabel("FLOPs" if flops else "B tokens")
     ax.set_ylabel(metric)
     ax.set_title(task)
 
@@ -125,6 +127,7 @@ def plot_list_of_tasks(
     title=None,
     xlog=False,
     fit=False,
+    flops=False,
     max_subplot=15,
 ):
     list_of_tasks_to_plot = [
@@ -144,7 +147,9 @@ def plot_list_of_tasks(
                 chunk_output_file = f"{base}_part{i}{ext}"
             else:
                 chunk_output_file = None
-            plot_list_of_tasks(df, chunk_list, chunk_output_file, title, xlog, fit)
+            plot_list_of_tasks(
+                df, chunk_list, chunk_output_file, title, xlog, fit, flops
+            )
         return
 
     num_tasks = len(list_of_tasks_to_plot)
@@ -162,7 +167,16 @@ def plot_list_of_tasks(
     legend_dict = {}
 
     for i, (task, metric) in enumerate(list_of_tasks_to_plot):
-        plot_task(axes[i], df, task, metric, color_map=color_map, xlog=xlog, fit=fit)
+        plot_task(
+            axes[i],
+            df,
+            task,
+            metric,
+            color_map=color_map,
+            xlog=xlog,
+            fit=fit,
+            flops=flops,
+        )
 
         handles, labels = axes[i].get_legend_handles_labels()
         for handle, label in zip(handles, labels):
@@ -225,6 +239,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
     parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
+    parser.add_argument(
+        "--flops", action="store_true", help="Use FLOPs instead of tokens"
+    )
+
     args = parser.parse_args()
     max_samples = str(args.max_samples) if args.max_samples > 0 else "None"
 
@@ -268,7 +286,12 @@ if __name__ == "__main__":
             os.path.join(args.output_path, filename) if args.output_path else None
         )
         plot_list_of_tasks(
-            df, list_of_tasks_to_plot, output_file, xlog=args.xlog, fit=args.fit
+            df,
+            list_of_tasks_to_plot,
+            output_file,
+            xlog=args.xlog,
+            fit=args.fit,
+            flops=args.flops,
         )
 
     if not args.output_path:

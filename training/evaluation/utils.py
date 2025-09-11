@@ -24,11 +24,21 @@ def read_json_file(file_path, seq_length=2048):
     df["model_name"] = data["config_general"]["model_name"]
     df["max_samples"] = str(data["config_general"]["max_samples"])
 
-    if "OLMo-2" in str(file_path):
+    if "OLMo-2-0425-1B" in str(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else None
         df["tokens"] = tokens
-    else:
+        df["num_parameters"] = 1.279_395_840
+    elif "EuroLLM-1.7B" in str(file_path):
+        df["tokens"] = 4000
+        df["num_parameters"] = 1.394_706_432
+    elif "SmolLM2-1.7B" in str(file_path):
+        df["tokens"] = 11000
+        df["num_parameters"] = 1.711_376_384
+    elif "SmolLM3-3B" in str(file_path):
+        df["tokens"] = 11200
+        df["num_parameters"] = 3.075_098_624
+    elif "luciole_llama1b" in str(file_path):
         df["tokens"] = (
             (
                 df["model_name"]
@@ -38,12 +48,17 @@ def read_json_file(file_path, seq_length=2048):
             * seq_length
             / 10**9
         )
+        df["num_parameters"] = 1.2
+    else:
+        raise ValueError(f"Unknown model in file path: {file_path}")
+
+    df["FLOPs"] = df["num_parameters"] * df["tokens"] * 6 * 1e18
     match = re.match(r"results_(.*)\.json", file_path.name)
     timestamp = match.group(1) if match else None
     df["timestamp"] = timestamp
 
     # Reorder columns
-    df = df[["tokens", "timestamp", "task", "max_samples", "metric", "score"]]
+    df = df[["tokens", "FLOPs", "timestamp", "task", "max_samples", "metric", "score"]]
     return df
 
 
@@ -83,12 +98,15 @@ def read_experiment_results(main_dir, seq_length=2048):
     df_latest = (
         df.sort_values("timestamp")
         .drop_duplicates(
-            subset=["expe_name", "tokens", "task", "max_samples", "metric"],
+            subset=["expe_name", "tokens", "FLOPs", "task", "max_samples", "metric"],
             keep="last",
         )
         .drop("timestamp", axis=1)
     )
-    return df_latest[["expe_name", "tokens", "task", "max_samples", "metric", "score"]]
+    # print(df_latest)
+    return df_latest[
+        ["expe_name", "tokens", "FLOPs", "task", "max_samples", "metric", "score"]
+    ]
 
 
 def read_datamix(main_dir):
@@ -106,7 +124,6 @@ def read_datamix(main_dir):
     return datamix
 
 
-# Function to fit regression for each group
 def compute_regression(group):
     from sklearn.linear_model import LinearRegression
     from sklearn.metrics import r2_score
@@ -142,11 +159,23 @@ def compute_regression(group):
     )
 
 
+def process_group(group):
+    group = group.loc[group["tokens"] > 0].sort_values("tokens")
+    return pd.DataFrame(
+        [
+            {
+                "tokens": group["tokens"].tolist(),
+                "FLOPs": group["FLOPs"].tolist(),
+                "score": group["score"].tolist(),
+            }
+        ]
+    )
+
+
 def process_results(df):
-    # Groupby expe, task and metric and fit regression
     group_df = (
         df.groupby(["task", "max_samples", "metric", "expe_name"])
-        .apply(compute_regression)
+        .apply(process_group)
         .reset_index()
     )
     return group_df

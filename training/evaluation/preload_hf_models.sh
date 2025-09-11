@@ -10,6 +10,7 @@ conda activate eval-env
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
+# OLMO2
 for i in {1..20}; do
     step=$((i*100000))
     tokens=$(python3 -c "import math; print(math.ceil($i * 209.73))")
@@ -17,3 +18,11 @@ for i in {1..20}; do
     echo -e "\n******\nLoading $revision\n"
     hf download allenai/OLMo-2-0425-1B --revision "$revision"
 done
+
+# EUROLLM
+hf download utter-project/EuroLLM-1.7B
+hf download HuggingFaceTB/SmolLM2-1.7B
+hf download HuggingFaceTB/SmolLM3-3B
+
+# Count parameters
+python count_parameters.py allenai/OLMo-2-0425-1B utter-project/EuroLLM-1.7B HuggingFaceTB/SmolLM2-1.7B HuggingFaceTB/SmolLM3-3B
