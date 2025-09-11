@@ -1,5 +1,16 @@
 # 1B model
 
+## Results
+
+### Aggregated benchmarks
+![Aggregated benchmarks](figs/agg_xlog_flops.png)
+
+### English benchmarks
+![English benchmarks](figs/en_xlog_flops.png)
+
+### French benchmarks
+![French benchmarks](figs/fr_xlog_flops.png)
+
 ## Baselines
 
 ### OLMO 2
