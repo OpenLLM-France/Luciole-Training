@@ -13,17 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 def get_time_limit_and_qos(mode, num_nodes, qos=None, time=None):
-    if mode == "debug" or mode.startswith("benchmark"):
+    if mode in ["debug", "benchmark"]:
         default_qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        default_time = "01:30:00" if mode == "benchmark100" else "01:00:00"
+        default_time = "01:00:00"
     elif qos and qos == "qos_gpu_h100-as":
         default_time = "100:00:00"
-    elif mode == "1b":
-        default_qos = "qos_gpu_h100-dev"
-        default_time = "02:00:00"
-    elif mode.endswith("b"):
-        default_qos = "qos_gpu_h100-t3"
-        default_time = "20:00:00"
     elif mode.startswith("phase") or mode == "annealing":
         if num_nodes <= 8:
             default_qos = "qos_gpu_h100-dev"
@@ -32,7 +26,7 @@ def get_time_limit_and_qos(mode, num_nodes, qos=None, time=None):
             default_qos = "qos_gpu_h100-as"
             default_time = "100:00:00"
     else:
-        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, Xb.")
+        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, phase1, phase2 or annealing.")
 
     qos = qos if qos else default_qos
     if qos == "qos_gpu_h100-dev":
@@ -143,19 +137,20 @@ export HF_HUB_OFFLINE=1
 
 # export NCCL_DEBUG=INFO
 # export NCCL_DEBUG_SUBSYS=ALL
+# export CEEMS_ENABLE_PERF_EVENTS=1
+# export CEEMS_ENABLE_PROFILING=1
+
 export TORCH_NCCL_AVOID_RECORD_STREAMS=1
 export NCCL_NVLS_ENABLE=0
 export NVTE_DP_AMAX_REDUCE_INTERVAL=0
 export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
-# export CEEMS_ENABLE_PERF_EVENTS=1
-# export CEEMS_ENABLE_PROFILING=1
 
 module purge
 module load arch/h100 nemo/2.3.1
 
-exec 1> >(tee -a {output_dir}/log.out >&1)
-exec 2> >(tee -a {output_dir}/failed.out >&2)
+# exec 1> >(tee -a {output_dir}/log.out >&1)
+# exec 2> >(tee -a {output_dir}/failed.out >&2)
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -184,6 +179,7 @@ def write_launch_slurm(slurm_path, slurm_content, task="", array=None):
     command = ["sbatch"]
     if array:
         command += [f"--array=1-{array}%1"]
+    command += ["--contiguous"]
     command += [slurm_path]
     try:
         result = subprocess.run(command, check=True, capture_output=True, text=True)
@@ -212,21 +208,17 @@ def get_job_name(kwargs):
     else:
         model_part = kwargs["arch"]
     job_name_parts = [model_part]
-    if kwargs["mode"] in [
-        "benchmark",
-        "debug",
-        "benchmark100",
-    ] or model_part.startswith("ablation"):
+    if kwargs["mode"] in ["benchmark","debug"]:
         job_name_parts.append(config_name)
         job_name_parts.append(kwargs["mode"])
+        if kwargs["mode"]=="benchmark":
+            job_name_parts.append(f"{kwargs['num_nodes']}n")
+            if kwargs.get("performance_mode"):
+                job_name_parts.append("perf")
     elif kwargs["mode"] in ["annealing"]:
         job_name_parts.append(kwargs["mode"])
     if kwargs.get("seed"):
         job_name_parts.append(f"s{kwargs['seed']}")
-    if kwargs["mode"].startswith("benchmark"):
-        job_name_parts.append(f"{kwargs['num_nodes']}n")
-        if kwargs.get("performance_mode"):
-            job_name_parts.append("perf")
     if kwargs.get("fp8"):
         job_name_parts.append("fp8")
     if kwargs.get("name_prefix"):
@@ -380,7 +372,7 @@ def create_parser():
         "--mode",
         default="debug",
         type=str,
-        help="Training mode, can be : debug, benchmark, benchmark100, phase1, phase2, annealing, Xb (e.g. 5b, 35b).",
+        help="Training mode, can be : debug, benchmark, phase1, phase2, annealing.",
     )
     parser.add_argument(
         "--fp8",
