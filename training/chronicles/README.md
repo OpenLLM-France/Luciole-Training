@@ -23,8 +23,9 @@ module load anaconda-py3/2024.06
 conda activate eval-env
 pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 
-python evaluate_experiment.py $path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/en.txt 
-python evaluate_experiment.py $path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/fr.txt --custom_tasks multilingual
+python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/en.txt 
+python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/recommended_set.txt 
+python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/fr.txt --custom_tasks multilingual
 ```
 
 ### Other
@@ -79,8 +80,9 @@ module load anaconda-py3/2024.06
 conda activate eval-env
 pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 
-python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/en.txt --command accelerate
-python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/fr.txt --custom_tasks multilingual --command accelerate
+python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/en.txt
+python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/recommended_set.txt 
+python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/fr.txt --custom_tasks multilingual
 ```
 
 Plot results
