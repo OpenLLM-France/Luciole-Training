@@ -19,6 +19,13 @@ for i in {1..20}; do
     hf download allenai/OLMo-2-0425-1B --revision "$revision"
 done
 
+# Lucie
+for i in {1..15}; do
+    step=$(python3 -c "print(f'{$i*50000:07d}')")
+    echo -e "\n******\nLoading $step\n"
+    hf download OpenLLM-France/Lucie-7B --revision "step$step"
+done
+
 # EUROLLM
 hf download utter-project/EuroLLM-1.7B
 hf download HuggingFaceTB/SmolLM2-1.7B

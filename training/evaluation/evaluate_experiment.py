@@ -12,7 +12,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=01:00:00
+#SBATCH --time=05:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-t3
 #SBATCH --account=wuh@h100
@@ -82,6 +82,7 @@ def main():
             "utter-project/EuroLLM-1.7B",
             "HuggingFaceTB/SmolLM2-1.7B",
             "HuggingFaceTB/SmolLM3-3B",
+            "OpenLLM-France/Lucie-7B",
         ],
         help="Use Hugging Face models.",
     )
@@ -114,6 +115,10 @@ def main():
         revisions = [
             f"stage1-step{i*100000}-tokens{math.ceil(i*209.73)}B" for i in range(1, 20)
         ]
+        hf_ckpt_dir = Path(".")
+    if args.hf_model == "OpenLLM-France/Lucie-7B":
+        checkpoints = [args.hf_model for i in range(1, 16)]
+        revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
         hf_ckpt_dir = Path(".")
     elif args.hf_model in [
         "utter-project/EuroLLM-1.7B",

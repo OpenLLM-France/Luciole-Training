@@ -38,6 +38,11 @@ def read_json_file(file_path, seq_length=2048):
     elif "SmolLM3-3B" in str(file_path):
         df["tokens"] = 11200
         df["num_parameters"] = 3.075_098_624
+    elif "Lucie-7B" in str(file_path):
+        match = re.search(r"-step([0-9.]+)", str(file_path))
+        steps = float(match.group(1)) if match else None
+        df["tokens"] = steps * 4096 * 1024 / 10**9
+        df["num_parameters"] = 7.0
     elif "luciole_llama1b" in str(file_path):
         df["tokens"] = (
             (

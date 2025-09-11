@@ -13,6 +13,22 @@
 
 ## Baselines
 
+### LUCIE
+
+Evaluate
+```bash
+cd evaluation/
+
+module load anaconda-py3/2024.06
+conda activate eval-env
+pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
+
+python evaluate_experiment.py $pretrain_path/Lucie-7B --hf_model OpenLLM-France/Lucie-7B tasks/en.txt 
+python evaluate_experiment.py $pretrain_path/Lucie-7B --hf_model OpenLLM-France/Lucie-7B tasks/recommended_set.txt 
+python evaluate_experiment.py $pretrain_path/Lucie-7B --hf_model OpenLLM-France/Lucie-7B tasks/multilingual.txt --custom_tasks multilingual
+python evaluate_experiment.py $pretrain_path/Lucie-7B --hf_model OpenLLM-France/Lucie-7B tasks/fr.txt --custom_tasks multilingual
+```
+
 ### OLMO 2
 
 Evaluate
@@ -25,6 +41,7 @@ pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 
 python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/en.txt 
 python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/recommended_set.txt 
+python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/multilingual.txt --custom_tasks multilingual
 python evaluate_experiment.py $pretrain_path/OLMo-2-0425-1B --hf_model allenai/OLMo-2-0425-1B tasks/fr.txt --custom_tasks multilingual
 ```
 
@@ -41,14 +58,17 @@ pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/
 # EuroLLM
 python evaluate_experiment.py $pretrain_path/EuroLLM-1.7B --hf_model utter-project/EuroLLM-1.7B tasks/en.txt 
 python evaluate_experiment.py $pretrain_path/EuroLLM-1.7B --hf_model utter-project/EuroLLM-1.7B tasks/fr.txt --custom_tasks multilingual
+python evaluate_experiment.py $pretrain_path/EuroLLM-1.7B --hf_model utter-project/EuroLLM-1.7B tasks/multilingual.txt --custom_tasks multilingual
 
 # SmolLM2
 python evaluate_experiment.py $pretrain_path/SmolLM2-1.7B --hf_model HuggingFaceTB/SmolLM2-1.7B tasks/en.txt 
 python evaluate_experiment.py $pretrain_path/SmolLM2-1.7B --hf_model HuggingFaceTB/SmolLM2-1.7B tasks/fr.txt --custom_tasks multilingual
+python evaluate_experiment.py $pretrain_path/SmolLM2-1.7B --hf_model HuggingFaceTB/SmolLM2-1.7B tasks/multilingual.txt --custom_tasks multilingual
 
 # SmolLM2
 python evaluate_experiment.py $pretrain_path/SmolLM3-3B --hf_model HuggingFaceTB/SmolLM3-3B tasks/en.txt 
 python evaluate_experiment.py $pretrain_path/SmolLM3-3B --hf_model HuggingFaceTB/SmolLM3-3B tasks/fr.txt --custom_tasks multilingual
+python evaluate_experiment.py $pretrain_path/SmolLM3-3B --hf_model HuggingFaceTB/SmolLM3-3B tasks/multilingual.txt --custom_tasks multilingual
 ```
 
 ## Phase 1
@@ -82,6 +102,7 @@ pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 
 python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/en.txt
 python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/recommended_set.txt 
+python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/multilingual.txt --custom-tasks lighteval.tasks.multilingual.tasks
 python evaluate_experiment.py $pretrain_path/luciole_llama1b tasks/fr.txt --custom_tasks multilingual
 ```
 
