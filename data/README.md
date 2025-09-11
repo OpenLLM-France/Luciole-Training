@@ -73,7 +73,7 @@ dataset_groups:
 
 2. Run tokenzation by using the script `run/run_tokenization.py`
 ```bash
-run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional
+run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
 ```
 It will create one sbatch per dataset, using prepost partition.
 
@@ -83,6 +83,18 @@ sbatch run_statistics.slurm OUTPUT_DIR
 ```
 where `OUTPUT_DIR` is the absolute path of your tokenized datasets.
 It will create a folder `stats` in the tokenized data folder, with the statistics of each tokens file.
+
+Then add your datasets in `link_datasets.sh`
+and run it to create symbolic links in a common folder.
+Then
+```bash
+python merge_stats.py OUTPUT_DIR
+```
+and to visualize
+```bash
+python visualize_token_stats.py
+
+```
 
 4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../training/README.md).
 
