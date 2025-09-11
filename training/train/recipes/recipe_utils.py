@@ -1,11 +1,38 @@
 import nemo_run as run
 import torch
+import os
 import logging
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
+import datetime
+from lightning.pytorch.callbacks.timer import Timer
+from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
 from nemo.utils.exp_manager import TimingCallback
+from .callbacks import PytorchProfilerCallback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
+    logging.info(time_limit)
+    h, m, s = map(int, time_limit.split(":"))
+    slurm_time_limit = datetime.timedelta(hours=h, minutes=m, seconds=s)
+    td = slurm_time_limit - datetime.timedelta(minutes=buffer_minutes)
+    hours = td.seconds // 3600
+    minutes = (td.seconds % 3600) // 60
+    return f"{td.days:02}:{hours:02}:{minutes:02}:00"
+    
+class StatelessTimer(Timer):
+    """Extension of PTL timers to be per run."""
+
+    # Override PTL Timer's state dict to not store elapsed time information so that we can
+    # restore and continue training.
+    def state_dict(self):
+        """state_dict"""
+        return {}
+
+    def load_state_dict(self, state_dict) -> None:
+        """load_state_dict"""
+        return
 
 
 def set_recipe_trainer(recipe, args):
@@ -13,7 +40,13 @@ def set_recipe_trainer(recipe, args):
     recipe.trainer.log_every_n_steps = (
         1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
-    recipe.trainer.callbacks = [run.Config(TimingCallback)]
+    time_limit = get_time_limit(args.max_time_per_run, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30)
+    # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
+    recipe.trainer.callbacks = [
+        run.Config(TimingCallback), 
+        run.Config(StatelessTimer, duration=time_limit), 
+        # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
+    ]
     if args.fp8:
         if args.arch == "nemotronh47b":
             logger.info("FP8 is always activated on nemotronh47b")

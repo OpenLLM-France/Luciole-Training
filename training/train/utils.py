@@ -21,10 +21,10 @@ SUPPORTED_ARCHITECTURES = [
     "nemotron1b",
     "qwen32b",
     "mistral12b",
-    "ablation_llama90m",
-    "ablation_llama210m",
-    "ablation_llama400m",
-    "ablation_llama530m",
+    # "ablation_llama90m",
+    # "ablation_llama210m",
+    # "ablation_llama400m",
+    # "ablation_llama530m",
     "qwen30ba3b",
 ]
 
@@ -171,8 +171,11 @@ def save_config(output_dir, args, data_args, recipe):
         "config": args.config,
         "performance_mode": args.performance_mode,
     }
-    repo = Repo(".", search_parent_directories=True)
-    commit_hash = repo.head.commit.hexsha
+    try:
+        repo = Repo(".", search_parent_directories=True)
+        commit_hash = repo.head.commit.hexsha
+    except Exception:
+        commit_hash = "unknown"
     toolkit_version = dict(
         nemo_version=version("nemo_toolkit"), open_llm_training_version=commit_hash
     )

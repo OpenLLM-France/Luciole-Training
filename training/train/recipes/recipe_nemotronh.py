@@ -39,8 +39,8 @@ def set_nemotron1b_recipe(recipe, args):
     recipe.model.config.ffn_hidden_size = 12288
     recipe.model.config.kv_channels = None
     recipe.model.config.share_embeddings_and_output_weights = True
-    recipe.data.seq_length = 4096
-    recipe.data.global_batch_size = 1024
+    # recipe.data.seq_length = 4096
+    # recipe.data.global_batch_size = 1024
     recipe.trainer.strategy.context_parallel_size = 1
     recipe.trainer.strategy.tensor_model_parallel_size = 1
     return recipe
