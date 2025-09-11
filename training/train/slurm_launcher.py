@@ -279,12 +279,10 @@ def submit_job(**kwargs):
             "zwy@h100" if not kwargs.get("account") else kwargs["account"]
         )
         kwargs["qos"] = "qos_gpu_h100-as" if not kwargs.get("qos") else kwargs["qos"]
-        if kwargs["mode"] == "phase1":
-            config = "../../data/tokenization/run/chronicles/phase_1/datamix.json"
-        elif kwargs["mode"] == "phase2":
-            config = "../../data/tokenization/run/chronicles/phase_2/datamix.json"
         sub_xp = f"_{kwargs['mode']}"
-
+        config = kwargs["config"]
+        if config=="../datamix/mock.json":
+            logger.info(f"⚠️ Using default datamix for {kwargs['mode']} : {config}, is it wanted ?")
     args = {
         **kwargs,
         "job_name": job_name,
