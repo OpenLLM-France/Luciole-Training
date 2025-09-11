@@ -37,6 +37,7 @@ def plot_horizontal_bar(
     df, column_name, output_file, num_columns=2, color_column="total_tokens"
 ):
     df = df.reset_index(drop=True)
+    total_tokens_all = df["total_tokens"].sum()
 
     total = len(df)
     rows_per_col = math.ceil(total / num_columns)
@@ -99,6 +100,7 @@ def plot_horizontal_bar(
             alpha=0.7,
         )
         ax.set_xscale("log")
+        # ax.set_xlim(1e7, 1e13)
         ax.xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
         ax.set_ylabel(column_name.capitalize() if i == 0 else "")
         ax.invert_yaxis()
@@ -106,12 +108,21 @@ def plot_horizontal_bar(
         for j, (tokens, label) in enumerate(
             zip(sub_df["total_tokens"], sub_df[column_name])
         ):
-            ax.text(tokens * 1.1, j, format_tokens(tokens), va="center", fontsize=8)
+            ax.text(
+                max(tokens * 0.95, 1e8),
+                j,
+                f"{format_tokens(tokens)} ({tokens/total_tokens_all:.1%})"
+                if tokens > 0
+                else "",
+                va="center",
+                ha="right",
+                fontsize=8,
+            )
 
         ax.set_title(f"{column_name.capitalize()}s {start + 1}-{end}")
 
     fig.suptitle(
-        f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B",
+        f"Tokens per {column_name}\nTotal tokens: {total_tokens_all / 1e9:.1f} B",
         fontsize=14,
     )
 
