@@ -128,15 +128,15 @@ original|arc:c:letters|0|0
 original|arc:c:options|0|0
 original|arc:c:simple|0|0
 # HellaSwag
-helm|hellaswag|0|0
-leaderboard|hellaswag|0|0
+# helm|hellaswag|0|0
+# leaderboard|hellaswag|0|0
 # PIQA
 helm|piqa|0|0
 lighteval|piqa|0|0
 # SIQA
 helm|siqa|0|0
 # WinoGrande
-leaderboard|winogrande|0|0
+# leaderboard|winogrande|0|0
 # OpenBookQA
 lighteval|openbookqa|0|0
 helm|openbookqa|0|0

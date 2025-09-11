@@ -37,6 +37,7 @@ def plot_horizontal_bar(
     df, column_name, output_file, num_columns=2, color_column="total_tokens"
 ):
     df = df.reset_index(drop=True)
+    min_tokens = min(df[df["total_tokens"] > 0]["total_tokens"])
     total_tokens_all = df["total_tokens"].sum()
 
     total = len(df)
@@ -104,12 +105,11 @@ def plot_horizontal_bar(
         ax.xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
         ax.set_ylabel(column_name.capitalize() if i == 0 else "")
         ax.invert_yaxis()
-
         for j, (tokens, label) in enumerate(
             zip(sub_df["total_tokens"], sub_df[column_name])
         ):
             ax.text(
-                max(tokens * 0.95, 1e8),
+                max(tokens * 0.95, 2 * min_tokens),
                 j,
                 f"{format_tokens(tokens)} ({tokens/total_tokens_all:.1%})"
                 if tokens > 0
