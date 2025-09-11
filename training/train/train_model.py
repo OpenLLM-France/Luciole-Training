@@ -158,7 +158,7 @@ if __name__ == "__main__":
             )
             min_lr = 3e-5  # TODO: 0.0 ???
             warmup = 0
-        every_n_train_steps = 10_000  # computed for each model
+        every_n_train_steps = min(max_steps, 10_000)  # computed for each model
         resume_if_exists = True
         logging.info(
             f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}"
