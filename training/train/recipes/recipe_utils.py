@@ -1,10 +1,12 @@
 import nemo_run as run
 import torch
+import os
 import logging
 import datetime
 from lightning.pytorch.callbacks.timer import Timer
 from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
 from nemo.utils.exp_manager import TimingCallback
+from .callbacks import PytorchProfilerCallback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,7 +41,12 @@ def set_recipe_trainer(recipe, args):
         1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
     time_limit = get_time_limit(args.max_time_per_run, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30)
-    recipe.trainer.callbacks = [run.Config(TimingCallback), run.Config(StatelessTimer, duration=time_limit)]
+    # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
+    recipe.trainer.callbacks = [
+        run.Config(TimingCallback), 
+        run.Config(StatelessTimer, duration=time_limit), 
+        # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
+    ]
     if args.fp8:
         if args.arch == "nemotronh47b":
             logger.info("FP8 is always activated on nemotronh47b")
