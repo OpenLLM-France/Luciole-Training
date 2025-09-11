@@ -109,9 +109,9 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=Fals
                     row[xaxis_column],
                     row["score"],
                     marker="+",
-                    markersize=10,
-                    alpha=0.8,
                     color=color,
+                    markersize=10,  # larger than usual
+                    markeredgewidth=2,
                     label=row["expe_name"],
                 )
             else:
@@ -214,6 +214,7 @@ def plot_list_of_tasks(
     plt.tight_layout()
     if output_file:
         plt.savefig(output_file, dpi=300)
+        print(f"Saved figure to {output_file}")
 
 
 if __name__ == "__main__":
@@ -292,7 +293,7 @@ if __name__ == "__main__":
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
 
-        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}.png'
+        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
 
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None

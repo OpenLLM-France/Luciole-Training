@@ -177,7 +177,7 @@ def process_group(group):
 def process_results(df):
     group_df = (
         df.groupby(["task", "max_samples", "metric", "expe_name"])
-        .apply(process_group)
+        .apply(process_group, include_groups=False)
         .reset_index()
     )
     return group_df

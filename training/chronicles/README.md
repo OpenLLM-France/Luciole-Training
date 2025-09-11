@@ -81,14 +81,12 @@ conda activate eval-env
 pretrain_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain
 models="$pretrain_path/luciole_llama1b $pretrain_path/OLMo-2-0425-1B $pretrain_path/EuroLLM-1.7B $pretrain_path/SmolLM2-1.7B $pretrain_path/SmolLM3-3B"
 
-# python plot_results.py $models --group agg --output_path $path/figs --seq_length 4096 --flops
-python plot_results.py $models --group fr --output_path $pretrain_path/figs --seq_length 4096 --flops --xlog
-python plot_results.py $models --group en --output_path $pretrain_path/figs --seq_length 4096 --flops --xlog
-
-python plot_results.py $models --group agg --output_path $pretrain_path/figs --seq_length 4096 --xlog
-python plot_results.py $models --group fr --output_path $pretrain_path/figs --seq_length 4096 --xlog
-python plot_results.py $models --group en --output_path $pretrain_path/figs --seq_length 4096 --xlog
-
+python plot_results.py $models --group fr --output_path $pretrain_path/figs --seq_length 4096 --xlog 
+python plot_results.py $models --group en --output_path $pretrain_path/figs --seq_length 4096 --xlog 
+python plot_results.py $models --group agg --output_path $pretrain_path/figs --seq_length 4096 --xlog 
+python plot_results.py $models --group fr --output_path $pretrain_path/figs --seq_length 4096 --xlog --flops
+python plot_results.py $models --group en --output_path $pretrain_path/figs --seq_length 4096 --xlog --flops
+python plot_results.py $models --group agg --output_path $pretrain_path/figs --seq_length 4096 --xlog --flops
 ```
 
 ## Phase 2
