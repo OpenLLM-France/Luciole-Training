@@ -562,3 +562,28 @@ dataset_groups:
       - name: culturax_edu4_pt
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/pt/data
         regex: .*/.*_edu_4_.*\.jsonl\.gz$
+      # Nemotron post-training
+      - name: nemotron-posttraining-math_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/math/data
+      - name: nemotron-posttraining-code_code
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/code/data
+      - name: nemotron-posttraining-chat_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/chat/data
+      - name: nemotron-posttraining-stem_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/stem/data
+      - name: nemotron-posttraining-fr_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_fr/data
+      - name: nemotron-posttraining-es_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_es/data
+      - name: nemotron-posttraining-it_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_it/data
+      - name: nemotron-posttraining-de_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_de/data
+      - name: nemotron-posttraining-fr-think_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_fr_with_thinking/data
+      - name: nemotron-posttraining-es-think_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_es_with_thinking/data
+      - name: nemotron-posttraining-it-think_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_it_with_thinking/data
+      - name: nemotron-posttraining-de-think_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_de_with_thinking/data

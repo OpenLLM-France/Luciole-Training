@@ -109,6 +109,7 @@ main_patterns=(
     finemath-filtered*
     open-code-reasoning_en*
     stack-math-qa-1600k_en*
+    nemotron-posttraining*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \
