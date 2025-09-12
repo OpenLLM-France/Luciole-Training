@@ -1,25 +1,19 @@
-Tâche : Lire le texte, poser des questions et y répondre.
-
-Suivez ces instructions :
+Tâche :
+Après avoir lu le texte ci-dessous, posez jusqu'à 8 questions (ou moins) et fournissez les bonnes réponses, en suivant les instructions suivantes pour avoir des questions variées sur le fond et la forme.
 1. Posez des questions variées qui nécessitent différentes compétences cognitives ou couvrent différents aspects du texte.
 2. Formulez des questions sous diverses formes, telles que :
 - Des questions fermées (Oui/Non) qui demandent de déterminer si une affirmation est vraie ou fausse.
-- Des questions ouvertes qui commencent par des mots comme qu'est-ce, quel(s)/quelle(s), comment, quand, où, pourquoi et qui.
+- Des questions ouvertes qui commencent par des mots comme "Qu'est-ce", "Quel(s)/Quelle(s)", "Comment", "Quand", "Où", "Pourquoi" et "Qui".
 - Des questions à choix multiples offrant deux options ou plus. Incluez les options dans la question.
 - Des questions de comparaison qui comparent deux quantités ou objets et déterminent la relation entre eux.
 - Des questions de compréhension de lecture qui testent la capacité à comprendre et analyser le texte.
 - Des questions de résolution de problèmes qui testent la capacité à résoudre des problèmes mathématiques, physiques ou logiques.
+  Evitez de ne poser que des questions commençant par "Quel(s)/Quelle(s)".
 3. Concentrez-vous sur des questions portant sur des informations factuelles, des connaissances importantes ou des détails concrets du texte.
 4. Rédigez les questions et les réponses dans un langage clair et concis.
 5. Utilisez du texte simple. N'utilisez pas de Markdown.
-6. Chaque question et chaque réponse doivent être sur une ligne distincte. Étiquetez la question avec "Question :" et la réponse avec "Réponse :".
-
-Texte :
-<text>
-
-Tâche :
-Après avoir lu le texte ci-dessus, posez jusqu'à 8 questions (ou moins) et fournissez les bonnes réponses, en suivant les instructions pour avoir des questions variées sur le fond et la forme.
-Donnez votre réponse dans ce format, sans rien avant :
+6. Essayez de ne pas ré-employer les mêmes mots ou phrases que dans le texte original, mais conservez le sens et les informations essentielles.
+7. Chaque question et chaque réponse doivent être sur une ligne distincte. Étiquetez la question avec "Question :" et la réponse avec "Réponse :". Donnez votre réponse dans ce format, sans rien avant :
 
 Question : [première question]
 Réponse : [première réponse]
@@ -27,3 +21,7 @@ Réponse : [première réponse]
 Question : [deuxième question]
 Réponse : [deuxième réponse]
 ...
+
+---
+Texte :
+<text>
