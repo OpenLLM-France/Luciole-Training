@@ -13,15 +13,115 @@
 # limitations under the License.
 
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
 from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.callbacks.timer import Timer
 
 from nemo.lightning.io.mixin import IOMixin
 from nemo.utils import logging
 from nemo.utils.get_rank import get_rank
+from nemo import lightning as nl
+from typing import Any, Dict, Literal, Optional, Union
+from datetime import timedelta
+
+def checkpoint_along_step_curve(global_step, intervals={10: 2, 30: 5, 100: 10}, else_interval=10_000):
+    for s, interval in intervals.items():
+        if global_step <= s:
+            return global_step % interval == 0
+    return global_step % else_interval == 0
+
+class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
+    
+    def __init__(
+        self,
+        monitor: Optional[str] = "val_loss",
+        verbose: bool = True,
+        save_last: Optional[Union[bool, Literal["link"]]] = True,
+        save_top_k: int = 3,
+        save_weights_only: bool = False,  # TODO: check support
+        mode: str = "min",
+        every_n_epochs: int = None,
+        every_n_train_steps: Optional[int] = None,
+        train_time_interval: Optional[timedelta] = None,
+        # Save after training, not after validation
+        save_on_train_epoch_end: Optional[bool] = False,
+        save_optim_on_train_end: Optional[bool] = False,
+        always_save_context: bool = True,
+        save_context_on_train_end: bool = True,
+        every_function_train_steps: Optional[Any] = None,
+        **kwargs,
+    ):
+        
+        self.every_function_train_steps = every_function_train_steps
+        super().__init__(
+            monitor=monitor,
+            verbose=verbose,
+            save_last=save_last,
+            save_top_k=save_top_k,
+            save_weights_only=save_weights_only,
+            mode=mode,
+            every_n_epochs=every_n_epochs,
+            every_n_train_steps=every_n_train_steps,
+            train_time_interval=train_time_interval,
+            save_on_train_epoch_end=save_on_train_epoch_end,
+            save_optim_on_train_end=save_optim_on_train_end,
+            always_save_context=always_save_context,
+            save_context_on_train_end=save_context_on_train_end,
+            **kwargs,
+        )
+    
+    def on_train_batch_end(
+        self,
+        trainer,
+        pl_module,
+        outputs,
+        batch: Any,
+        batch_idx: int,
+    ) -> None:
+        """Save checkpoint on train batch end if we meet the criteria for `every_n_train_steps`"""
+        if self._should_skip_saving_checkpoint(trainer):
+            return
+        # skip_batch = self._every_n_train_steps < 1 or (trainer.global_step % self._every_n_train_steps != 0)
+        if self.every_function_train_steps is not None:
+            skip_batch = not self.every_function_train_steps(global_step=trainer.global_step)
+        else:
+            skip_batch = self._every_n_train_steps < 1 or (trainer.global_step % self._every_n_train_steps != 0)
+
+        train_time_interval = self._train_time_interval
+        skip_time = True
+        now = time.monotonic()
+        if train_time_interval:
+            prev_time_check = self._last_time_checked
+            skip_time = prev_time_check is None or (now - prev_time_check) < train_time_interval.total_seconds()
+            # in case we have time differences across ranks
+            # broadcast the decision on whether to checkpoint from rank 0 to avoid possible hangs
+            skip_time = trainer.strategy.broadcast(skip_time)
+
+        if skip_batch and skip_time:
+            return
+        if not skip_time:
+            self._last_time_checked = now
+
+        monitor_candidates = self._monitor_candidates(trainer)
+        self._save_topk_checkpoint(trainer, monitor_candidates)
+        self._save_last_checkpoint(trainer, monitor_candidates)
+
+class StatelessTimer(Timer):
+    """Extension of PTL timers to be per run."""
+
+    # Override PTL Timer's state dict to not store elapsed time information so that we can
+    # restore and continue training.
+    def state_dict(self):
+        """state_dict"""
+        return {}
+
+    def load_state_dict(self, state_dict) -> None:
+        """load_state_dict"""
+        return
 
 
 def trace_handler(prof, chakra_device_trace_path):

@@ -7,10 +7,12 @@ import logging
 import fiddle
 import pytorch_lightning as pl
 from nemo import lightning as nl
+from functools import partial
 import nemo_run as run
 
 from dataloader import create_data
 from recipes.recipe_utils import set_recipe_trainer
+from recipes.callbacks import ProgressiveIntervalCheckpoint, checkpoint_along_step_curve
 from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
 from utils import (
     read_datamix_file,
@@ -20,10 +22,8 @@ from utils import (
     save_stats,
     save_config,
     write_completion,
-    to_nb_tokens,
     SUPPORTED_ARCHITECTURES,
 )
-
 
 torch.set_float32_matmul_precision("high")
 
@@ -129,7 +129,8 @@ if __name__ == "__main__":
         recipe.model.config.old_context_len = recipe.data.seq_length
         max_steps = 2 if args.mode == "debug" else 25
         resume_if_exists = True if args.mode == "benchmark" else False
-        every_n_train_steps = max_steps
+        every_n_train_steps = 30
+        every_function_train_steps=partial(checkpoint_along_step_curve, intervals={1: 1, 10: 5, 50: 10})
         warmup = 5
     elif args.mode in ["phase1", "phase2", "annealing"]:
         assert (
@@ -147,18 +148,19 @@ if __name__ == "__main__":
             resume_ignore_no_checkpoint = False
             max_steps = math.ceil(
                 total_tokens
-                // (data_args["seq_length"] * data_args["global_batch_size"])
+                / (data_args["seq_length"] * data_args["global_batch_size"])
             )
             warmup = 0
         elif args.mode == "annealing":
             resume_ignore_no_checkpoint = False
             max_steps = math.ceil(
                 total_tokens
-                // (data_args["seq_length"] * data_args["global_batch_size"])
+                / (data_args["seq_length"] * data_args["global_batch_size"])
             )
             min_lr = 3e-5  # TODO: 0.0 ???
             warmup = 0
         every_n_train_steps = min(max_steps, 10_000)  # computed for each model
+        every_function_train_steps=partial(checkpoint_along_step_curve, intervals={1: 1, 50_000: 500, 100_000: 5_000}, else_interval=10_000)
         resume_if_exists = True
         logging.info(
             f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}"
@@ -172,11 +174,12 @@ if __name__ == "__main__":
 
     # CKPT
     recipe.log.ckpt = run.Config(
-        nl.ModelCheckpoint,
+        ProgressiveIntervalCheckpoint,
         filename=args.name+"-{step:07.0f}",
         save_last=True,
         save_top_k=-1,
-        every_n_train_steps=every_n_train_steps,
+        every_function_train_steps=every_function_train_steps,
+        every_n_train_steps=None,
         monitor="step",
         mode="max",
         every_n_epochs=None,

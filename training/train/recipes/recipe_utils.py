@@ -3,10 +3,9 @@ import torch
 import os
 import logging
 import datetime
-from lightning.pytorch.callbacks.timer import Timer
 from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
 from nemo.utils.exp_manager import TimingCallback
-from .callbacks import PytorchProfilerCallback
+from .callbacks import PytorchProfilerCallback, StatelessTimer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,20 +19,6 @@ def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
     hours = td.seconds // 3600
     minutes = (td.seconds % 3600) // 60
     return f"{td.days:02}:{hours:02}:{minutes:02}:00"
-    
-class StatelessTimer(Timer):
-    """Extension of PTL timers to be per run."""
-
-    # Override PTL Timer's state dict to not store elapsed time information so that we can
-    # restore and continue training.
-    def state_dict(self):
-        """state_dict"""
-        return {}
-
-    def load_state_dict(self, state_dict) -> None:
-        """load_state_dict"""
-        return
-
 
 def set_recipe_trainer(recipe, args):
     recipe.trainer.limit_val_batches = 0.0
