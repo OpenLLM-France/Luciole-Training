@@ -29,7 +29,7 @@ def read_json_file(file_path, seq_length=2048):
         tokens = float(match.group(1)) if match else None
         df["tokens"] = tokens
         df["num_parameters"] = 1.279_395_840
-    if "allenai/OLMo-2-1124-7B" in str(file_path):
+    elif "OLMo-2-1124-7B" in str(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else None
         df["tokens"] = tokens
@@ -53,6 +53,9 @@ def read_json_file(file_path, seq_length=2048):
         steps = float(match.group(1)) if match else None
         df["tokens"] = steps * 4096 * 1024 / 10**9
         df["num_parameters"] = 1.2
+    elif "CroissantLLMBase" in str(file_path):
+        df["tokens"] = 3000
+        df["num_parameters"] = 1.3
     else:
         raise ValueError(f"Unknown model in file path: {file_path}")
 

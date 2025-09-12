@@ -38,6 +38,7 @@ done
 hf download utter-project/EuroLLM-1.7B
 hf download HuggingFaceTB/SmolLM2-1.7B
 hf download HuggingFaceTB/SmolLM3-3B
+hf download croissantllm/CroissantLLMBase
 
 # Count parameters
 python count_parameters.py allenai/OLMo-2-0425-1B utter-project/EuroLLM-1.7B HuggingFaceTB/SmolLM2-1.7B HuggingFaceTB/SmolLM3-3B

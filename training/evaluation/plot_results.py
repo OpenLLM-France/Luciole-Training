@@ -11,13 +11,10 @@ import pandas as pd
 task_group_mapping = {
     "en": [
         ("helm|boolq|0", "pem"),
+        ("helm|boolq:contrastset|0", "pem"),
         ("lighteval|triviaqa|0", "qem"),
-        ("lighteval|arc:easy|0", "acc"),
         ("lighteval|arc:easy|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc"),
         ("leaderboard|arc:challenge|0", "acc_norm"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
         ("lighteval|openbookqa|0", "acc_norm"),
         ("lighteval|piqa|0", "acc_norm"),
         ("helm|siqa|0|0", "pem"),
@@ -41,6 +38,44 @@ task_group_mapping = {
         ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
+    ],
+    "math": [
+        ("leaderboard|gsm8k|0", "qem"),
+        ("lighteval|math:_average|0", "maj@4"),
+        ("lighteval|math:_average|0", "qem"),
+        ("lighteval|math:algebra|0", "maj@4"),
+        ("lighteval|math:algebra|0", "qem"),
+        ("lighteval|math:counting_and_probability|0", "maj@4"),
+        ("lighteval|math:counting_and_probability|0", "qem"),
+        ("lighteval|math:geometry|0", "maj@4"),
+        ("lighteval|math:geometry|0", "qem"),
+        ("lighteval|math:intermediate_algebra|0", "maj@4"),
+        ("lighteval|math:intermediate_algebra|0", "qem"),
+        ("lighteval|math:number_theory|0", "maj@4"),
+        ("lighteval|math:number_theory|0", "qem"),
+        ("lighteval|math:prealgebra|0", "maj@4"),
+        ("lighteval|math:prealgebra|0", "qem"),
+        ("lighteval|math:precalculus|0", "maj@4"),
+        ("lighteval|math:precalculus|0", "qem"),
+    ],
+    "math_5fewshot": [
+        ("leaderboard|gsm8k|5", "qem"),
+        ("lighteval|math:_average|5", "maj@4"),
+        ("lighteval|math:_average|5", "qem"),
+        ("lighteval|math:algebra|5", "maj@4"),
+        ("lighteval|math:algebra|5", "qem"),
+        ("lighteval|math:counting_and_probability|5", "maj@4"),
+        ("lighteval|math:counting_and_probability|5", "qem"),
+        ("lighteval|math:geometry|5", "maj@4"),
+        ("lighteval|math:geometry|5", "qem"),
+        ("lighteval|math:intermediate_algebra|5", "maj@4"),
+        ("lighteval|math:intermediate_algebra|5", "qem"),
+        ("lighteval|math:number_theory|5", "maj@4"),
+        ("lighteval|math:number_theory|5", "qem"),
+        ("lighteval|math:prealgebra|5", "maj@4"),
+        ("lighteval|math:prealgebra|5", "qem"),
+        ("lighteval|math:precalculus|5", "maj@4"),
+        ("lighteval|math:precalculus|5", "qem"),
     ],
     "agg": [
         ("AGG_EN", "agg"),
@@ -285,6 +320,7 @@ if __name__ == "__main__":
         exit(0)
 
     for g in args.group:
+        print(f"Processing group: {g}...")
         if g == "all":
             list_of_tasks_to_plot = list(
                 df[["task", "metric"]]
