@@ -49,6 +49,10 @@ def init_extra_args(args):
         pass
     elif args.custom_tasks == "multilingual":
         extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
+    elif args.custom_tasks == "smollm3":
+        current_dir = os.path.dirname(__file__)
+        custom_path = os.path.join(current_dir, "custom_benchmarks", "smollm3_evals.py")
+        extra_arg += f"--custom-tasks {custom_path} \\"
     elif args.custom_tasks == "fineweb":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
@@ -128,12 +132,12 @@ def main():
     parser.add_argument(
         "--custom_tasks",
         default=None,
-        choices=[None, "multilingual", "fineweb", "lucie"],
+        choices=[None, "multilingual", "fineweb", "lucie", "smollm3"],
     )
     parser.add_argument(
         "--max_samples",
         type=int,
-        default=-1,
+        default=1000,
         help="Maximum number of samples to evaluate.",
     )
     parser.add_argument(
@@ -151,7 +155,14 @@ def main():
     )
 
     # create output dirs
-    output_dir = experiment_path / "evaluation" / task_to_evaluate.stem
+    if args.max_samples > 0:
+        output_dir = (
+            experiment_path
+            / f"evaluation_max{args.max_samples}"
+            / task_to_evaluate.stem
+        )
+    else:
+        output_dir = experiment_path / "evaluation" / task_to_evaluate.stem
     output_dir.mkdir(parents=True, exist_ok=True)
     log_dir = output_dir / "slurm_logs"
     log_dir.mkdir(parents=True, exist_ok=True)

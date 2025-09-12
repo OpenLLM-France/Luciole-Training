@@ -5,7 +5,7 @@ import re
 import numpy as np
 
 
-def read_json_file(file_path, seq_length=2048):
+def read_json_file(file_path):
     file_path = Path(file_path)
     with open(file_path, "r") as f:
         data = json.load(f)
@@ -69,33 +69,34 @@ def read_json_file(file_path, seq_length=2048):
     return df
 
 
-def read_experiment_results(main_dir, seq_length=2048):
+def read_experiment_results(main_dir, max_samples):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
 
-    json_files = list(main_dir.rglob("results_*.json"))
-    if not json_files:
-        print(f"No JSON result files found in {main_dir}")
-        return
+    if max_samples == -1:
+        evaluation_dir = "evaluation"
+    else:
+        evaluation_dir = f"evaluation_max{max_samples}"
+    json_files = [
+        f for f in main_dir.rglob("results_*.json") if evaluation_dir in f.parts
+    ]
 
     # Read files and store relative path + DataFrame
     dataframes = []
     for file in json_files:
         file_path = Path(file)
         parts = file_path.parts
-        try:
-            eval_index = parts.index("evaluation")
-            expe_name = parts[
-                eval_index - 1
-            ]  # Name of the folder just before 'evaluation'
-        except ValueError:
-            expe_name = "unknown"
+        eval_index = parts.index(evaluation_dir)
+        expe_name = parts[eval_index - 1]
 
-        df = read_json_file(file, seq_length=seq_length)
+        df = read_json_file(file)
         df["expe_name"] = expe_name
         dataframes.append(df)
 
     # Concatenate all DataFrames
+    if not dataframes:
+        print(f"No valid JSON result files found in {main_dir}")
+        return
     df = pd.concat(dataframes, ignore_index=True)
 
     # Remove duplicates

@@ -40,25 +40,6 @@ task_group_mapping = {
         ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
     ],
     "math": [
-        ("leaderboard|gsm8k|0", "qem"),
-        ("lighteval|math:_average|0", "maj@4"),
-        ("lighteval|math:_average|0", "qem"),
-        ("lighteval|math:algebra|0", "maj@4"),
-        ("lighteval|math:algebra|0", "qem"),
-        ("lighteval|math:counting_and_probability|0", "maj@4"),
-        ("lighteval|math:counting_and_probability|0", "qem"),
-        ("lighteval|math:geometry|0", "maj@4"),
-        ("lighteval|math:geometry|0", "qem"),
-        ("lighteval|math:intermediate_algebra|0", "maj@4"),
-        ("lighteval|math:intermediate_algebra|0", "qem"),
-        ("lighteval|math:number_theory|0", "maj@4"),
-        ("lighteval|math:number_theory|0", "qem"),
-        ("lighteval|math:prealgebra|0", "maj@4"),
-        ("lighteval|math:prealgebra|0", "qem"),
-        ("lighteval|math:precalculus|0", "maj@4"),
-        ("lighteval|math:precalculus|0", "qem"),
-    ],
-    "math_5fewshot": [
         ("leaderboard|gsm8k|5", "qem"),
         ("lighteval|math:_average|5", "maj@4"),
         ("lighteval|math:_average|5", "qem"),
@@ -213,8 +194,10 @@ def plot_list_of_tasks(
     rows = math.ceil(num_plots / cols)
 
     fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
-    axes = axes.flatten()
-
+    if rows * cols == 1:
+        axes = [axes]  # wrap single Axes in a list
+    else:
+        axes = axes.flatten()
     color_map = assign_colors(df)  # Global color map
 
     # Keep track of labels added to the legend
@@ -281,17 +264,7 @@ if __name__ == "__main__":
         default="out/",
         help="Output path where your plot are storred",
     )
-    parser.add_argument(
-        "--seq_length",
-        type=int,
-        default=2048,
-    )
-    parser.add_argument(
-        "--max_samples",
-        type=int,
-        default=1000,
-        help="Max samples",
-    )
+    parser.add_argument("--max_samples", type=int, default=1000, help="Max samples")
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
     parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
     parser.add_argument(
@@ -299,21 +272,20 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    max_samples = str(args.max_samples) if args.max_samples > 0 else "None"
 
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
     df = pd.concat(
         [
-            read_experiment_results(path, seq_length=args.seq_length)
+            read_experiment_results(path, max_samples=args.max_samples)
             for path in args.experiment_path
         ]
     )
-    df_agg = calculate_agg_score(df).dropna()
-    df = pd.concat([df, df_agg])
+    if "agg" in args.group:
+        df_agg = calculate_agg_score(df).dropna()
+        df = pd.concat([df, df_agg])
     df = process_results(df)
-    df = df[df["max_samples"] == max_samples]
 
     if df.empty:
         print("No results found for the given experiments.")

@@ -1,9 +1,7 @@
+# lighteval|global_mmlu_all_eng_cf|0|1
 lighteval|global_mmlu_all_fra_cf|0|1
 lighteval|global_mmlu_all_ita_cf|0|1
 lighteval|global_mmlu_all_spa_cf|0|1
 lighteval|global_mmlu_all_deu_cf|0|1
 lighteval|global_mmlu_all_nld_cf|0|1
 lighteval|global_mmlu_all_por_cf|0|1
-# lighteval|global_mmlu_all_arb_cf|0|1
-# lighteval|global_mmlu_all_eus_cf|0|1
-# lighteval|global_mmlu_all_cat_cf|0|1

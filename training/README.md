@@ -126,8 +126,8 @@ conda activate eval-env
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/recommend_set.txt"
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/the_pile.txt"
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/math.txt"
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/smollm3.txt" --custom-tasks custom_benchmarks/smollm3_evals.py
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/en.txt"
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/multilingual.txt" --custom-tasks lighteval.tasks.multilingual.tasks
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
