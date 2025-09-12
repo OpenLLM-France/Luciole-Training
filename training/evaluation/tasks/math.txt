@@ -1,0 +1,11 @@
+
+# GSM8K
+leaderboard|gsm8k|0|0
+# MATH
+lighteval|math:algebra|0|0
+lighteval|math:counting_and_probability|0|0
+lighteval|math:geometry|0|0
+lighteval|math:intermediate_algebra|0|0
+lighteval|math:number_theory|0|0
+lighteval|math:prealgebra|0|0
+lighteval|math:precalculus|0|0

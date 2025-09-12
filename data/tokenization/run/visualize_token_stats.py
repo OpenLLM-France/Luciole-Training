@@ -257,16 +257,22 @@ if __name__ == "__main__":
         description="Plot token treemaps by language and dataset."
     )
     parser.add_argument(
-        "--dir",
+        "--stats_file",
         type=str,
-        default="chronicles",
+        default="chronicles/all_stats_merged.csv",
         help="Path to the all_stats.",
     )
     parser.add_argument(
-        "--phase_name",
+        "--output_dir",
         type=str,
-        default="raw",
-        help="Name of the phase (default = raw, no repeats).",
+        default="chronicles/raw",
+        help="Path to the directory containing repeats file.",
+    )
+    parser.add_argument(
+        "--repeats_file",
+        type=str,
+        default=None,
+        help="Path to the repeats file.",
     )
     parser.add_argument(
         "--token_dir",
@@ -275,21 +281,22 @@ if __name__ == "__main__":
         help="Path to the token directory.",
     )
     args = parser.parse_args()
-    dir = args.dir
-    phase_name = args.phase_name
+    stats_file = args.stats_file
+    output_dir = args.output_dir
+    repeats_file = args.repeats_file
     token_dir = args.token_dir
 
-    output_dir = os.path.join(dir, f"{phase_name}/figs")
     os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "figs"), exist_ok=True)
 
-    df = pd.read_csv(os.path.join(dir, "all_stats_merged.csv"))
+    df = pd.read_csv(stats_file)
 
-    if phase_name != "raw":
-        repeats = pd.read_csv(os.path.join(dir, phase_name, "repeats.csv"))
+    if repeats_file is not None:
+        repeats = pd.read_csv(repeats_file)
         df = df.merge(repeats, on="name", how="left")
         df["repeat"] = df["repeat"].fillna(0)
         df["total_tokens"] = df["total_tokens"] * df["repeat"]
-        create_datamix_file(df, token_dir, os.path.join(dir, phase_name))
+        create_datamix_file(df, token_dir, output_dir)
 
     assert (
         not df["name"].duplicated().any()
@@ -332,7 +339,7 @@ if __name__ == "__main__":
     plot_horizontal_bar(
         language_df,
         "language",
-        os.path.join(output_dir, "bar_language.png"),
+        os.path.join(output_dir, "figs", "bar_language.png"),
         color_column="language",
     )
     # plot_horizontal_bar(
@@ -342,10 +349,12 @@ if __name__ == "__main__":
     plot_horizontal_bar(
         df,
         "name",
-        os.path.join(output_dir, "bar_all.png"),
+        os.path.join(output_dir, "figs", "bar_all.png"),
         color_column="language",
         num_columns=2,
     )
 
     # Box plot
-    plot_box_plot_from_summary(df, "name", os.path.join(output_dir, "boxplot_all.png"))
+    plot_box_plot_from_summary(
+        df, "name", os.path.join(output_dir, "figs", "boxplot_all.png")
+    )
