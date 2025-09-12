@@ -19,6 +19,14 @@ for i in {1..20}; do
     hf download allenai/OLMo-2-0425-1B --revision "$revision"
 done
 
+for i in {1..20}; do
+    step=$((i*50000))
+    tokens=$(python3 -c "import math; print(math.ceil($i * 209.767))")
+    revision="stage1-step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download allenai/OLMo-2-1124-7B --revision "$revision"
+done
+
 # Lucie
 for i in {1..15}; do
     step=$(python3 -c "print(f'{$i*50000:07d}')")

@@ -79,6 +79,7 @@ def main():
         "--hf_model",
         choices=[
             "allenai/OLMo-2-0425-1B",
+            "allenai/OLMo-2-1124-7B",
             "utter-project/EuroLLM-1.7B",
             "HuggingFaceTB/SmolLM2-1.7B",
             "HuggingFaceTB/SmolLM3-3B",
@@ -116,7 +117,13 @@ def main():
             f"stage1-step{i*100000}-tokens{math.ceil(i*209.73)}B" for i in range(1, 20)
         ]
         hf_ckpt_dir = Path(".")
-    if args.hf_model == "OpenLLM-France/Lucie-7B":
+    elif args.hf_model == "allenai/OLMo-2-1124-7B":
+        checkpoints = [args.hf_model for i in range(1, 20)]
+        revisions = [
+            f"stage1-step{i*50000}-tokens{math.ceil(i*209.767)}B" for i in range(1, 20)
+        ]
+        hf_ckpt_dir = Path(".")
+    elif args.hf_model == "OpenLLM-France/Lucie-7B":
         checkpoints = [args.hf_model for i in range(1, 16)]
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
         hf_ckpt_dir = Path(".")

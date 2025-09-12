@@ -33,7 +33,14 @@ task_group_mapping = {
         ("lighteval|xnli2.0_fra_cf|0", "acc_"),
         ("lighteval|fquadv2_fra|0", "f1_fra"),
         ("lighteval|mintaka_fra|0", "f1_fra"),
-        ("fr", "agg"),
+    ],
+    "multilingual": [
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
     ],
     "agg": [
         ("AGG_EN", "agg"),
