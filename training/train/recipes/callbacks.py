@@ -90,7 +90,7 @@ class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
             skip_batch = not self.every_function_train_steps(global_step=trainer.global_step)
         else:
             skip_batch = self._every_n_train_steps < 1 or (trainer.global_step % self._every_n_train_steps != 0)
-
+        skip_batch = False if trainer.max_steps == trainer.global_step else skip_batch
         train_time_interval = self._train_time_interval
         skip_time = True
         now = time.monotonic()

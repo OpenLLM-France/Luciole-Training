@@ -179,7 +179,7 @@ if __name__ == "__main__":
         save_last=True,
         save_top_k=-1,
         every_function_train_steps=every_function_train_steps,
-        every_n_train_steps=None,
+        every_n_train_steps=every_n_train_steps,
         monitor="step",
         mode="max",
         every_n_epochs=None,
