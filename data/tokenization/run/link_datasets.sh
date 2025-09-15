@@ -60,13 +60,19 @@ main_patterns=(
     common-corpus_catalan-pd_ca*
     common-corpus_dutch-pd_nl*
     common-corpus_english-pd_en*
+    common-corpus_eurlex_multi*
+    common-corpus_gatt-library_multi*
     common-corpus_german-pd_de*
     common-corpus_german-science-pile_de*
     common-corpus_italian-pd_it*
+    common-corpus_marianne-europe_multi*
+    common-corpus_oecd_multi*
     common-corpus_open-science-pile_de*
     common-corpus_portuguese-pd_pt*
     common-corpus_spanish-pd-books_es*
     common-corpus_spanish-science-pile_es*
+    common-corpus_tedeutenders_multi*
+    common-corpus_wto_multi*
     common-pile_arxiv-abstracts_en*
     common-pile_arxiv-papers_en*
     common-pile_biodiversity-heritage-library_en*
@@ -81,7 +87,6 @@ main_patterns=(
     common-pile_peS2o_en*
     common-pile_pre-1929-books_en*
     common-pile_pressbooks_en*
-    common-pile_project-gutenberg_en*
     common-pile_public-domain-review_en*
     common-pile_pubmed_en*
     common-pile_python-enhancement-proposals_en*
