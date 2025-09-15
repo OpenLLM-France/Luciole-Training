@@ -149,6 +149,8 @@ def main():
 
     experiment_path = Path(args.experiment_path)
     task_to_evaluate = Path(args.task_to_evaluate)
+    print(f"\nExperiment path: {experiment_path}")
+    print(f"Task to evaluate: {task_to_evaluate}")
 
     checkpoints, revisions, hf_ckpt_dir = get_checkpoints_and_revisions(
         experiment_path, args.hf_model

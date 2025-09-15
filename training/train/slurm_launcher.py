@@ -26,7 +26,9 @@ def get_time_limit_and_qos(mode, num_nodes, qos=None, time=None):
             default_qos = "qos_gpu_h100-as"
             default_time = "100:00:00"
     else:
-        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, phase1, phase2 or annealing.")
+        raise ValueError(
+            f"Unkown mode {mode}, should be debug, benchmark, phase1, phase2 or annealing."
+        )
 
     qos = qos if qos else default_qos
     if qos == "qos_gpu_h100-dev":
@@ -179,7 +181,7 @@ def write_launch_slurm(slurm_path, slurm_content, task="", array=None):
     command = ["sbatch"]
     if array:
         command += [f"--array=1-{array}%1"]
-    command += ["--contiguous"]
+    # command += ["--contiguous"]
     command += [slurm_path]
     try:
         result = subprocess.run(command, check=True, capture_output=True, text=True)
@@ -208,10 +210,10 @@ def get_job_name(kwargs):
     else:
         model_part = kwargs["arch"]
     job_name_parts = [model_part]
-    if kwargs["mode"] in ["benchmark","debug"]:
+    if kwargs["mode"] in ["benchmark", "debug"]:
         job_name_parts.append(config_name)
         job_name_parts.append(kwargs["mode"])
-        if kwargs["mode"]=="benchmark":
+        if kwargs["mode"] == "benchmark":
             job_name_parts.append(f"{kwargs['num_nodes']}n")
             if kwargs.get("performance_mode"):
                 job_name_parts.append("perf")
@@ -281,8 +283,10 @@ def submit_job(**kwargs):
         kwargs["qos"] = "qos_gpu_h100-as" if not kwargs.get("qos") else kwargs["qos"]
         sub_xp = f"_{kwargs['mode']}"
         config = kwargs["config"]
-        if config=="../datamix/mock.json":
-            logger.info(f"⚠️ Using default datamix for {kwargs['mode']} : {config}, is it wanted ?")
+        if config == "../datamix/mock.json":
+            logger.info(
+                f"⚠️ Using default datamix for {kwargs['mode']} : {config}, is it wanted ?"
+            )
     args = {
         **kwargs,
         "job_name": job_name,

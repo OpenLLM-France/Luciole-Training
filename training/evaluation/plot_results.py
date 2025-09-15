@@ -31,6 +31,17 @@ task_group_mapping = {
         ("lighteval|fquadv2_fra|0", "f1_fra"),
         ("lighteval|mintaka_fra|0", "f1_fra"),
     ],
+    "fr_5shots": [
+        ("lighteval|meta_mmlu_fra_cf:_average|5", "acc_norm_pmi"),
+        ("lighteval|belebele_fra_Latn_cf|5", "acc_norm_token"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|5", "acc_norm_pmi"),
+        ("lighteval|mlmm_hellaswag_fra_cf|5", "acc_norm_token"),
+        ("lighteval|xcodah_fra_cf|5", "acc_norm_token"),
+        ("lighteval|xcsqa_fra_cf|5", "acc_norm_pmi"),
+        ("lighteval|xnli2.0_fra_cf|5", "acc_"),
+        ("lighteval|fquadv2_fra|5", "f1_fra"),
+        ("lighteval|mintaka_fra|5", "f1_fra"),
+    ],
     "multilingual": [
         ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
@@ -57,6 +68,19 @@ task_group_mapping = {
         ("lighteval|math:prealgebra|5", "qem"),
         ("lighteval|math:precalculus|5", "maj@4"),
         ("lighteval|math:precalculus|5", "qem"),
+    ],
+    "smollm3": [
+        ("custom|hellaswag_cf|0|1", "acc_norm"),
+        ("custom|arc_cf|0|1", "acc_norm"),
+        ("custom|mmlu_cf|0|1", "acc_norm"),
+        ("custom|mmlu_pro_cf|0|1", "acc_norm"),
+        ("custom|boolq_cf|0|1", "acc_norm"),
+        ("custom|commonsenseqa_cf|0|1", "acc_norm"),
+        ("custom|winogrande_cf|0|1", "acc_norm"),
+        ("custom|openbookqa_cf|0|1", "acc_norm"),
+        ("custom|piqa_cf|0|1", "acc_norm"),
+        ("custom|gsm8k|5|1", "qem"),
+        ("custom|math_cot|40|1", "qem"),
     ],
     "agg": [
         ("AGG_EN", "agg"),
@@ -106,7 +130,7 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=Fals
             )
 
             # Plot regression line
-            xaxis = np.linspace(1, 35, 100)
+            xaxis = np.linspace(min(row[xaxis_column]), max(row[xaxis_column]), 100)
             y_pred = row["intercept"] + row["slope"] * np.log(xaxis)
             ax.plot(
                 xaxis,
@@ -270,6 +294,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--flops", action="store_true", help="Use FLOPs instead of tokens"
     )
+    parser.add_argument(
+        "--window",
+        type=int,
+        default=1,
+        help="Use a sliding window to smooth the curves. 1 means no smoothing.",
+    )
 
     args = parser.parse_args()
 
@@ -285,7 +315,7 @@ if __name__ == "__main__":
     if "agg" in args.group:
         df_agg = calculate_agg_score(df).dropna()
         df = pd.concat([df, df_agg])
-    df = process_results(df)
+    df = process_results(df, fit=args.fit, window=args.window)
 
     if df.empty:
         print("No results found for the given experiments.")

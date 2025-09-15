@@ -167,25 +167,51 @@ def compute_regression(group):
     )
 
 
-def process_group(group):
+def moving_average(values, window=5):
+    values = np.array(values, dtype=float)
+    kernel = np.ones(window) / window
+    smoothed = np.convolve(values, kernel, mode="valid")  # only valid positions
+    return smoothed
+
+
+def process_group(group, window=1):
     group = group.loc[group["tokens"] > 0].sort_values("tokens")
-    # print()
-    # print(group)
+
+    tokens = group["tokens"].to_numpy()
+    flops = group["FLOPs"].to_numpy()
+    scores = group["score"].to_numpy()
+
+    if window < 2:
+        score = scores
+    else:
+        score = moving_average(scores, window=window)
+        pad = window // 2
+        tokens = tokens[pad : -pad or None]
+        flops = flops[pad : -pad or None]
+
     return pd.DataFrame(
         [
             {
-                "tokens": group["tokens"].tolist(),
-                "FLOPs": group["FLOPs"].tolist(),
-                "score": group["score"].tolist(),
+                "tokens": tokens.tolist(),
+                "FLOPs": flops.tolist(),
+                "score": score.tolist(),
             }
         ]
     )
 
 
-def process_results(df):
-    group_df = (
-        df.groupby(["task", "max_samples", "metric", "expe_name"])
-        .apply(process_group, include_groups=False)
-        .reset_index()
-    )
-    return group_df
+def process_results(df, window=1, fit=False):
+    if fit:
+        group_df = (
+            df.groupby(["task", "max_samples", "metric", "expe_name"])
+            .apply(compute_regression)
+            .reset_index()
+        )
+        return group_df
+    else:
+        group_df = (
+            df.groupby(["task", "max_samples", "metric", "expe_name"])
+            .apply(lambda x: process_group(x, window=window), include_groups=False)
+            .reset_index()
+        )
+        return group_df
