@@ -33,11 +33,11 @@ common-pile_foodista_en,22950392,64362,27,10674,356.58295267393805,194.0,289.0,4
 common-pile_github-archive_en,9192329531,21453611,17,562862,428.47469971372186,115.0,221.0,442.0,common-pile,github-archive,en
 common-pile_library-of-congress_en,8317600355,128517,25,4665175,64719.84527338795,10068.0,32133.0,82110.0,common-pile,library-of-congress,en
 common-pile_libretexts_en,86217030,39197,40,324702,2199.5823659973976,571.0,1187.0,2629.0,common-pile,libretexts,en
+common-pile_news_en,58794146,124462,20,19260,472.3863187157526,63.0,119.0,668.0,common-pile,news,en
 common-pile_oercommons_en,11259873,5209,51,299858,2161.6189287771167,263.0,678.0,1995.0,common-pile,oercommons,en
 common-pile_peS2o_en,41642088098,6108597,134,126052,6816.964369723522,4127.0,6103.0,8703.0,common-pile,peS2o,en
 common-pile_pre-1929-books_en,10885480394,124257,33,6149885,87604.56468448458,15283.0,53634.0,111034.0,common-pile,pre-1929-books,en
 common-pile_pressbooks_en,130628832,53819,42,507840,2427.188019101061,519.0,1196.0,2806.0,common-pile,pressbooks,en
-common-pile_project-gutenberg_en,5080396963,55279,20,8824593,91904.64666509886,27704.0,69740.0,121958.5,common-pile,project-gutenberg,en
 common-pile_public-domain-review_en,1567639,1406,40,11212,1114.9637268847796,226.25,586.0,1291.75,common-pile,public-domain-review,en
 common-pile_pubmed_en,38283287609,3775036,21,1259699,10141.171530284744,6416.0,9428.0,12910.0,common-pile,pubmed,en
 common-pile_python-enhancement-proposals_en,2672966,646,103,20943,4137.71826625387,1755.25,3064.0,5310.25,common-pile,python-enhancement-proposals,en
@@ -92,6 +92,12 @@ infiwebmath-filtered_3plus_math,16212270174,10466556,26,647178,1548.959387787157
 math-pile_math,9605928727,729213,5,5925909,13173.00806074494,781.0,5394.0,18547.0,math-pile,,math
 megamath-web-filtered_math,164606272128,71568739,5,1240838,2299.9744641022667,365.0,774.0,1775.0,megamath-web-filtered,,math
 nemotron-posttraining-math_math,192663791,239467,92,16159,804.5525730058839,526.0,736.0,1010.0,nemotron-posttraining-math,,math
+common-corpus_eurlex_multi,14752419752,1803972,75,104809,8177.743197787992,1020.0,7468.0,11338.0,common-corpus,eurlex,multi
+common-corpus_gatt-library_multi,169255697,55289,101,28318,3061.290618387021,439.0,1139.0,4174.0,common-corpus,gatt-library,multi
+common-corpus_marianne-europe_multi,3949306974,699666,59,56298,5644.56036737529,1093.0,4387.0,10379.0,common-corpus,marianne-europe,multi
+common-corpus_oecd_multi,499588798,68581,70,32096,7284.653154663828,2902.0,9266.0,10759.0,common-corpus,oecd,multi
+common-corpus_tedeutenders_multi,128106946,51785,72,23834,2473.8234237713623,363.0,646.0,1481.0,common-corpus,tedeutenders,multi
+common-corpus_wto_multi,2364538150,644356,67,52437,3669.6145453755375,680.0,1158.0,5889.0,common-corpus,wto,multi
 europarl_multi,408584438,62440,4,174827,6543.632895579756,14.0,24.0,2305.5,europarl,,multi
 eurovoc_filtered_multi,8806776197,1748652,69,21701229,5036.322948762819,633.0,1083.0,2875.0,eurovoc,filtered,multi
 common-corpus_dutch-pd_nl,2268871073,204758,88,24266,11080.74445442913,10259.0,11809.0,12971.0,common-corpus,dutch-pd,nl
