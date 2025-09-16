@@ -48,14 +48,14 @@ def read_json_file(file_path):
         steps = float(match.group(1)) if match else None
         df["tokens"] = steps * 4096 * 1024 / 10**9
         df["num_parameters"] = 7.0
-    elif "luciole_llama1b" in str(file_path):
+    elif "CroissantLLMBase" in str(file_path):
+        df["tokens"] = 3000
+        df["num_parameters"] = 1.3
+    elif ("luciole" in str(file_path)) or ("llama1b_35b" in str(file_path)):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
         df["tokens"] = steps * 4096 * 1024 / 10**9
         df["num_parameters"] = 1.2
-    elif "CroissantLLMBase" in str(file_path):
-        df["tokens"] = 3000
-        df["num_parameters"] = 1.3
     else:
         raise ValueError(f"Unknown model in file path: {file_path}")
 
@@ -181,10 +181,10 @@ def process_group(group, window=1):
     flops = group["FLOPs"].to_numpy()
     scores = group["score"].to_numpy()
 
-    if window < 2:
-        score = scores
+    if window < 2 or len(scores) < window:
+        scores = scores
     else:
-        score = moving_average(scores, window=window)
+        scores = moving_average(scores, window=window)
         pad = window // 2
         tokens = tokens[pad : -pad or None]
         flops = flops[pad : -pad or None]
@@ -194,7 +194,7 @@ def process_group(group, window=1):
             {
                 "tokens": tokens.tolist(),
                 "FLOPs": flops.tolist(),
-                "score": score.tolist(),
+                "score": scores.tolist(),
             }
         ]
     )

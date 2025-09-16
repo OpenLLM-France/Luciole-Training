@@ -5,7 +5,6 @@ from utils import process_results, read_experiment_results
 from agg_score import calculate_agg_score, read_info
 import matplotlib.pyplot as plt
 import numpy as np
-from itertools import cycle
 import pandas as pd
 
 task_group_mapping = {
@@ -99,14 +98,17 @@ task_group_mapping = {
 
 def assign_colors(df):
     unique_experiments = df["expe_name"].unique()
-    colors = cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
-    return {name: next(colors) for name in unique_experiments}
+    cmap = plt.get_cmap("tab20")  # 20 discrete colors
+    colors = [cmap(i) for i in range(cmap.N)]
+    return {name: colors[i % len(colors)] for i, name in enumerate(unique_experiments)}
 
 
 df_info = read_info()
 
 
-def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=False):
+def plot_task(
+    ax, df, task, metric, color_map, xlog=False, fit=False, flops=False, max_tokens=None
+):
     xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
     # print(f"Plotting {task} - {metric} with {len(df)} lines")
@@ -165,8 +167,7 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=Fals
                 ax.plot(
                     row[xaxis_column],
                     row["score"],
-                    marker=".",
-                    alpha=0.8,
+                    alpha=1.0,
                     color=color,
                     label=row["expe_name"],
                 )
@@ -174,6 +175,7 @@ def plot_task(ax, df, task, metric, color_map, xlog=False, fit=False, flops=Fals
     ax.set_xlabel("FLOPs" if flops else "B tokens")
     ax.set_ylabel(metric)
     ax.set_title(task)
+    ax.set_xlim(left=0, right=max_tokens if max_tokens else None)
 
     if xlog:
         ax.set_xscale("log")
@@ -188,6 +190,7 @@ def plot_list_of_tasks(
     fit=False,
     flops=False,
     max_subplot=15,
+    max_tokens=None,
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
@@ -237,6 +240,7 @@ def plot_list_of_tasks(
             xlog=xlog,
             fit=fit,
             flops=flops,
+            max_tokens=max_tokens,
         )
 
         handles, labels = axes[i].get_legend_handles_labels()
@@ -300,6 +304,9 @@ if __name__ == "__main__":
         default=1,
         help="Use a sliding window to smooth the curves. 1 means no smoothing.",
     )
+    parser.add_argument(
+        "--max_tokens", type=int, default=None, help="Max tokens to plot (in B)"
+    )
 
     args = parser.parse_args()
 
@@ -350,6 +357,7 @@ if __name__ == "__main__":
             xlog=args.xlog,
             fit=args.fit,
             flops=args.flops,
+            max_tokens=args.max_tokens,
         )
 
     if not args.output_path:
