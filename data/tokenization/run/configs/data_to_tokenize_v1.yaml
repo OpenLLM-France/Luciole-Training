@@ -587,3 +587,11 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_it_with_thinking/data
       - name: nemotron-posttraining-de-think_de
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/multilingual_de_with_thinking/data
+      # Synthetic data
+      - name: synthetic-fineweb_extract-knowledge-easy_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_filtered/data
+      - name: synthetic-fineweb_extract-knowledge-medium_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_filtered/data
+      - name: synthetic-fineweb_extract-knowledge-hard_fr
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_filtered/data
+
