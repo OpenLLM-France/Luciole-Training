@@ -42,9 +42,9 @@ from transformers.utils.import_utils import (
     is_causal_conv1d_available,
     is_flash_attn_2_available,
     is_flash_attn_greater_or_equal_2_10,
-    is_mamba_2_ssm_available,    
+    is_mamba_2_ssm_available,
 )
-from .configuration_nemotron_h import NemotronHConfig
+from .hf_nemotronh_config import NemotronHConfig
 
 
 logger = logging.get_logger(__name__)
@@ -54,12 +54,19 @@ logger = logging.get_logger(__name__)
 # For Mamba2 components Mamba2->NemotronHMamba2
 if is_mamba_2_ssm_available():
     from mamba_ssm.ops.triton.selective_state_update import selective_state_update
-    from mamba_ssm.ops.triton.ssd_combined import mamba_chunk_scan_combined, mamba_split_conv1d_scan_combined
+    from mamba_ssm.ops.triton.ssd_combined import (
+        mamba_chunk_scan_combined,
+        mamba_split_conv1d_scan_combined,
+    )
 else:
-    mamba_chunk_scan_combined, mamba_split_conv1d_scan_combined, selective_state_update = None, None, None
+    (
+        mamba_chunk_scan_combined,
+        mamba_split_conv1d_scan_combined,
+        selective_state_update,
+    ) = None, None, None
 
 try:
-    #from mamba_ssm.ops.triton.layernorm_gated import RMSNorm as RMSNormGated
+    # from mamba_ssm.ops.triton.layernorm_gated import RMSNorm as RMSNormGated
     from mamba_ssm.ops.triton.layernorm_gated import rmsnorm_fn
 except ImportError:
     raise ImportError("mamba-ssm is required by the Mamba model but cannot be imported")
@@ -96,7 +103,11 @@ def pad_tensor_by_size(input_tensor: torch.Tensor, pad_size: int):
 
     Assumes that we only have tensors of either size 4 or 3
     """
-    pad_shape = (0, 0, 0, 0, 0, pad_size, 0, 0) if len(input_tensor.shape) == 4 else (0, 0, 0, pad_size, 0, 0)
+    pad_shape = (
+        (0, 0, 0, 0, 0, pad_size, 0, 0)
+        if len(input_tensor.shape) == 4
+        else (0, 0, 0, pad_size, 0, 0)
+    )
 
     return torch.nn.functional.pad(input_tensor, pad_shape, mode="constant", value=0)
 
@@ -113,11 +124,17 @@ def reshape_into_chunks(input_tensor, pad_size, chunk_size):
 
     if len(input_tensor.shape) == 3:
         # [bsz, seq_len multiple of chunk_size, num_heads] -> [bsz, -1, chunk_size, num_heads]
-        return input_tensor.reshape(input_tensor.shape[0], -1, chunk_size, input_tensor.shape[2])
+        return input_tensor.reshape(
+            input_tensor.shape[0], -1, chunk_size, input_tensor.shape[2]
+        )
     else:
         # [bsz, seq_len multiple of chunk_size, num_heads, head_dim or state_size] -> [bsz, -1, chunk_size, num_heads, head_dim or state_size]
         return input_tensor.reshape(
-            input_tensor.shape[0], -1, chunk_size, input_tensor.shape[2], input_tensor.shape[3]
+            input_tensor.shape[0],
+            -1,
+            chunk_size,
+            input_tensor.shape[2],
+            input_tensor.shape[3],
         )
 
 
@@ -130,13 +147,23 @@ def segment_sum(input_tensor):
     # [..., chunk_size] -> [..., chunk_size, chunk_size]
     input_tensor = input_tensor[..., None].expand(*input_tensor.size(), chunk_size)
     # 2. create a lower triangular mask with the diagonal set to 0 to 0 out elements above diag
-    mask = torch.tril(torch.ones(chunk_size, chunk_size, device=input_tensor.device, dtype=torch.bool), diagonal=-1)
+    mask = torch.tril(
+        torch.ones(
+            chunk_size, chunk_size, device=input_tensor.device, dtype=torch.bool
+        ),
+        diagonal=-1,
+    )
     input_tensor = input_tensor.masked_fill(~mask, 0)
     # 3. compute actual cumsum
     tensor_segsum = torch.cumsum(input_tensor, dim=-2)
 
     # 4. apply mask to keep only the lower triangular part of the cumulative sum result (incl diagonal this time)
-    mask = torch.tril(torch.ones(chunk_size, chunk_size, device=input_tensor.device, dtype=torch.bool), diagonal=0)
+    mask = torch.tril(
+        torch.ones(
+            chunk_size, chunk_size, device=input_tensor.device, dtype=torch.bool
+        ),
+        diagonal=0,
+    )
     tensor_segsum = tensor_segsum.masked_fill(~mask, -torch.inf)
     return tensor_segsum
 
@@ -145,11 +172,16 @@ def apply_mask_to_padding_states(hidden_states, attention_mask):
     """
     Tunes out the hidden states for padding tokens, see https://github.com/state-spaces/mamba/issues/66
     """
-    if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
+    if (
+        attention_mask is not None
+        and attention_mask.shape[1] > 1
+        and attention_mask.shape[0] > 1
+    ):
         dtype = hidden_states.dtype
         hidden_states = (hidden_states * attention_mask[:, :, None]).to(dtype)
 
     return hidden_states
+
 
 # Copied from https://github.com/huggingface/transformers/blob/main/src/transformers/models/jamba/modeling_jamba.py
 class HybridMambaAttentionDynamicCache(DynamicCache):
@@ -181,10 +213,22 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
             if self.hybrid_override_pattern[i] == "M":
                 # Mamba layer
                 self.conv_states += [
-                    torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
+                    torch.zeros(
+                        batch_size,
+                        intermediate_size,
+                        conv_kernel_size,
+                        device=device,
+                        dtype=dtype,
+                    )
                 ]
                 self.ssm_states += [
-                    torch.zeros(batch_size, intermediate_size, ssm_state_size, device=device, dtype=dtype)
+                    torch.zeros(
+                        batch_size,
+                        intermediate_size,
+                        ssm_state_size,
+                        device=device,
+                        dtype=dtype,
+                    )
                 ]
             else:
                 # Attention or MLP layer
@@ -192,8 +236,14 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
                 self.ssm_states += [torch.tensor([[]] * batch_size, device=device)]
                 self.transformer_layers.append(i)
 
-        self.key_cache = [torch.tensor([[]] * batch_size, device=device) for _ in range(config.num_hidden_layers)]
-        self.value_cache = [torch.tensor([[]] * batch_size, device=device) for _ in range(config.num_hidden_layers)]
+        self.key_cache = [
+            torch.tensor([[]] * batch_size, device=device)
+            for _ in range(config.num_hidden_layers)
+        ]
+        self.value_cache = [
+            torch.tensor([[]] * batch_size, device=device)
+            for _ in range(config.num_hidden_layers)
+        ]
 
     def update(
         self,
@@ -207,8 +257,12 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
             self.key_cache[layer_idx] = key_states
             self.value_cache[layer_idx] = value_states
         else:
-            self.key_cache[layer_idx] = torch.cat([self.key_cache[layer_idx], key_states], dim=2)
-            self.value_cache[layer_idx] = torch.cat([self.value_cache[layer_idx], value_states], dim=2)
+            self.key_cache[layer_idx] = torch.cat(
+                [self.key_cache[layer_idx], key_states], dim=2
+            )
+            self.value_cache[layer_idx] = torch.cat(
+                [self.value_cache[layer_idx], value_states], dim=2
+            )
 
         return self.key_cache[layer_idx], self.value_cache[layer_idx]
 
@@ -216,29 +270,47 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
         """Reorders the cache for beam search, given the selected beam indices."""
         for layer_idx in range(len(self.key_cache)):
             device = self.key_cache[layer_idx].device
-            self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx.to(device))
+            self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(
+                0, beam_idx.to(device)
+            )
             device = self.value_cache[layer_idx].device
-            self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx.to(device))
+            self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(
+                0, beam_idx.to(device)
+            )
 
             device = self.conv_states[layer_idx].device
-            self.conv_states[layer_idx] = self.conv_states[layer_idx].index_select(0, beam_idx.to(device))
+            self.conv_states[layer_idx] = self.conv_states[layer_idx].index_select(
+                0, beam_idx.to(device)
+            )
             device = self.ssm_states[layer_idx].device
-            self.ssm_states[layer_idx] = self.ssm_states[layer_idx].index_select(0, beam_idx.to(device))
+            self.ssm_states[layer_idx] = self.ssm_states[layer_idx].index_select(
+                0, beam_idx.to(device)
+            )
 
     def get_seq_length(self, layer_idx: Optional[int] = 0) -> int:
         """Returns the sequence length of the cached states. A layer index can be optionally passed."""
         # take any layer that contains cache and not empty tensor
-        layer_idx = self.transformer_layers[0] if layer_idx not in self.transformer_layers else layer_idx
+        layer_idx = (
+            self.transformer_layers[0]
+            if layer_idx not in self.transformer_layers
+            else layer_idx
+        )
         if len(self.key_cache) <= layer_idx:
             return 0
         return self.key_cache[layer_idx].shape[-2]
 
     def to_legacy_cache(self) -> Tuple[Tuple[torch.Tensor], Tuple[torch.Tensor]]:
-        raise NotImplementedError("HybridMambaAttentionDynamicCache does not have a legacy cache equivalent.")
+        raise NotImplementedError(
+            "HybridMambaAttentionDynamicCache does not have a legacy cache equivalent."
+        )
 
     @classmethod
-    def from_legacy_cache(cls, past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None) -> "DynamicCache":
-        raise NotImplementedError("HybridMambaAttentionDynamicCache does not have a legacy cache equivalent.")
+    def from_legacy_cache(
+        cls, past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
+    ) -> "DynamicCache":
+        raise NotImplementedError(
+            "HybridMambaAttentionDynamicCache does not have a legacy cache equivalent."
+        )
 
     # Copied from modeling_mamba2.py
     def update_conv_state(
@@ -247,8 +319,12 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
         if cache_init:
             self.conv_states[layer_idx] = new_conv_state.to(self.conv_states.device)
         else:
-            self.conv_states[layer_idx] = self.conv_states[layer_idx].roll(shifts=-1, dims=-1)
-            self.conv_states[layer_idx][:, :, -1] = new_conv_state[:, 0, :].to(self.conv_states.device)
+            self.conv_states[layer_idx] = self.conv_states[layer_idx].roll(
+                shifts=-1, dims=-1
+            )
+            self.conv_states[layer_idx][:, :, -1] = new_conv_state[:, 0, :].to(
+                self.conv_states.device
+            )
         return self.conv_states[layer_idx]
 
     def update_ssm_state(self, layer_idx: int, new_ssm_state: torch.Tensor):
@@ -259,6 +335,7 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
         self.conv_states.zero_()
         self.ssm_states.zero_()
 
+
 class MambaRMSNormGated(torch.nn.Module):
     def __init__(self, hidden_size, group_size, eps=1e-5):
         super().__init__()
@@ -268,14 +345,16 @@ class MambaRMSNormGated(torch.nn.Module):
 
     # jan28b version
     def forward(self, hidden_states, gate=None):
-        return rmsnorm_fn(x=hidden_states,
-                          weight=self.weight,
-                          bias=None, # No bias
-                          z=gate,
-                          eps=self.variance_epsilon,
-                          group_size=self.group_size,
-                          norm_before_gate=False
+        return rmsnorm_fn(
+            x=hidden_states,
+            weight=self.weight,
+            bias=None,  # No bias
+            z=gate,
+            eps=self.variance_epsilon,
+            group_size=self.group_size,
+            norm_before_gate=False,
         )
+
 
 class NemotronHMamba2Mixer(nn.Module):
     """
@@ -335,11 +414,17 @@ class NemotronHMamba2Mixer(nn.Module):
         A = torch.arange(1, self.num_heads + 1)
         self.A_log = nn.Parameter(torch.log(A))
         self.A_log._no_weight_decay = True
-        self.norm = MambaRMSNormGated(self.intermediate_size, eps=self.layer_norm_epsilon, group_size=self.intermediate_size // self.n_groups)
+        self.norm = MambaRMSNormGated(
+            self.intermediate_size,
+            eps=self.layer_norm_epsilon,
+            group_size=self.intermediate_size // self.n_groups,
+        )
         self.D = nn.Parameter(torch.ones(self.num_heads))
         self.D._no_weight_decay = True
 
-        self.out_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=config.use_bias)
+        self.out_proj = nn.Linear(
+            self.intermediate_size, self.hidden_size, bias=config.use_bias
+        )
         self.use_bias = config.use_bias
 
         if not is_fast_path_available:
@@ -371,9 +456,14 @@ class NemotronHMamba2Mixer(nn.Module):
         ) // 2
 
         # Single step calculations via cache
-        if cache_params is not None and cache_position is not None and cache_position[0] > 0:
+        if (
+            cache_params is not None
+            and cache_position is not None
+            and cache_position[0] > 0
+        ):
             _, _, gate, hidden_states_B_C, dt = projected_states.squeeze(1).split(
-                [d_mlp, d_mlp, self.intermediate_size, self.conv_dim, self.num_heads], dim=-1
+                [d_mlp, d_mlp, self.intermediate_size, self.conv_dim, self.num_heads],
+                dim=-1,
             )
 
             # 2. Convolution sequence transformation
@@ -387,19 +477,29 @@ class NemotronHMamba2Mixer(nn.Module):
 
             hidden_states, B, C = torch.split(
                 hidden_states_B_C,
-                [self.intermediate_size, groups_time_state_size, groups_time_state_size],
+                [
+                    self.intermediate_size,
+                    groups_time_state_size,
+                    groups_time_state_size,
+                ],
                 dim=-1,
             )
 
             # 3. SSM transformation
             A = -torch.exp(self.A_log.float())  # (nheads,)
-            A = A[:, None, ...][:, :, None].expand(-1, self.head_dim, self.ssm_state_size).to(dtype=torch.float32)
+            A = (
+                A[:, None, ...][:, :, None]
+                .expand(-1, self.head_dim, self.ssm_state_size)
+                .to(dtype=torch.float32)
+            )
             dt = dt[:, :, None].expand(-1, -1, self.head_dim)
             dt_bias = self.dt_bias[:, None, ...].expand(-1, self.head_dim)
             D = self.D[:, None, ...].expand(-1, self.head_dim)
             B = B.view(batch_size, self.n_groups, B.shape[1] // self.n_groups)
             C = C.view(batch_size, self.n_groups, C.shape[1] // self.n_groups)
-            hidden_states_reshaped = hidden_states.view(batch_size, self.num_heads, self.head_dim)
+            hidden_states_reshaped = hidden_states.view(
+                batch_size, self.num_heads, self.head_dim
+            )
             hidden_states = selective_state_update(
                 cache_params.ssm_states[self.layer_idx],
                 hidden_states_reshaped,
@@ -412,7 +512,9 @@ class NemotronHMamba2Mixer(nn.Module):
                 dt_bias=dt_bias,
                 dt_softplus=True,
             )
-            hidden_states = hidden_states.view(batch_size, self.num_heads * self.head_dim)
+            hidden_states = hidden_states.view(
+                batch_size, self.num_heads * self.head_dim
+            )
             hidden_states = self.norm(hidden_states, gate)
 
             # 4. Final linear projection
@@ -420,8 +522,14 @@ class NemotronHMamba2Mixer(nn.Module):
 
         # Fused calculations or step by step if no initialized cache is found
         else:
-            A = -torch.exp(self.A_log.float())  # (num_heads) or (intermediate_size, state_size)
-            dt_limit_kwargs = {} if self.time_step_limit == (0.0, float("inf")) else {"dt_limit": self.time_step_limit}
+            A = -torch.exp(
+                self.A_log.float()
+            )  # (num_heads) or (intermediate_size, state_size)
+            dt_limit_kwargs = (
+                {}
+                if self.time_step_limit == (0.0, float("inf"))
+                else {"dt_limit": self.time_step_limit}
+            )
 
             # 2-4. Fused kernel for conv1d, SSM, and the final projection
             if self.training and cache_params is None:
@@ -448,7 +556,14 @@ class NemotronHMamba2Mixer(nn.Module):
 
             else:
                 _, _, gate, hidden_states_B_C, dt = projected_states.split(
-                    [d_mlp, d_mlp, self.intermediate_size, self.conv_dim, self.num_heads], dim=-1
+                    [
+                        d_mlp,
+                        d_mlp,
+                        self.intermediate_size,
+                        self.conv_dim,
+                        self.num_heads,
+                    ],
+                    dim=-1,
                 )
 
                 # 2. Convolution sequence transformation
@@ -457,15 +572,23 @@ class NemotronHMamba2Mixer(nn.Module):
                     hidden_states_B_C_transposed = hidden_states_B_C.transpose(1, 2)
                     conv_states = nn.functional.pad(
                         hidden_states_B_C_transposed,
-                        (cache_params.conv_kernel_size - hidden_states_B_C_transposed.shape[-1], 0),
+                        (
+                            cache_params.conv_kernel_size
+                            - hidden_states_B_C_transposed.shape[-1],
+                            0,
+                        ),
                     )
                     cache_params.update_conv_state(
-                        layer_idx=self.layer_idx, new_conv_state=conv_states, cache_init=True
+                        layer_idx=self.layer_idx,
+                        new_conv_state=conv_states,
+                        cache_init=True,
                     )
 
                 if self.activation not in ["silu", "swish"]:
                     hidden_states_B_C = self.act(
-                        self.conv1d(hidden_states_B_C.transpose(1, 2))[..., :seq_len].transpose(1, 2)
+                        self.conv1d(hidden_states_B_C.transpose(1, 2))[
+                            ..., :seq_len
+                        ].transpose(1, 2)
                     )
                 else:
                     hidden_states_B_C = causal_conv1d_fn(
@@ -474,10 +597,16 @@ class NemotronHMamba2Mixer(nn.Module):
                         bias=self.conv1d.bias,
                         activation=self.activation,
                     ).transpose(1, 2)
-                hidden_states_B_C = apply_mask_to_padding_states(hidden_states_B_C, attention_mask)
+                hidden_states_B_C = apply_mask_to_padding_states(
+                    hidden_states_B_C, attention_mask
+                )
                 hidden_states, B, C = torch.split(
                     hidden_states_B_C,
-                    [self.intermediate_size, groups_time_state_size, groups_time_state_size],
+                    [
+                        self.intermediate_size,
+                        groups_time_state_size,
+                        groups_time_state_size,
+                    ],
                     dim=-1,
                 )
 
@@ -500,7 +629,9 @@ class NemotronHMamba2Mixer(nn.Module):
 
                 # Init cache
                 if ssm_state is not None and cache_params is not None:
-                    cache_params.update_ssm_state(layer_idx=self.layer_idx, new_ssm_state=ssm_state)
+                    cache_params.update_ssm_state(
+                        layer_idx=self.layer_idx, new_ssm_state=ssm_state
+                    )
 
                 scan_output = scan_output.view(batch_size, seq_len, -1)
 
@@ -711,13 +842,21 @@ class NemotronHMamba2Mixer(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
     ):
         if is_fast_path_available and "cuda" in self.in_proj.weight.device.type:
-            return self.cuda_kernels_forward(hidden_states, cache_params, cache_position, attention_mask)
+            return self.cuda_kernels_forward(
+                hidden_states, cache_params, cache_position, attention_mask
+            )
         dtype = hidden_states.dtype
-        if attention_mask is not None and attention_mask.shape[1] > 1 and attention_mask.shape[0] > 1:
+        if (
+            attention_mask is not None
+            and attention_mask.shape[1] > 1
+            and attention_mask.shape[0] > 1
+        ):
             # tune out hidden states for pad tokens, see https://github.com/state-spaces/mamba/issues/66
             hidden_states = (hidden_states * attention_mask[:, :, None]).to(dtype)
 
-        return self.torch_forward(hidden_states, cache_params, cache_position, attention_mask)
+        return self.torch_forward(
+            hidden_states, cache_params, cache_position, attention_mask
+        )
 
 
 class NemotronHRMSNorm(nn.Module):
@@ -737,6 +876,7 @@ class NemotronHRMSNorm(nn.Module):
         # Weights are in float32
         return (self.weight.to(torch.float32) * hidden_states).to(input_dtype)
 
+
 class NemotronHBlock(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()
@@ -750,11 +890,15 @@ class NemotronHBlock(nn.Module):
         if self.block_type == "mamba":
             self.mixer = NemotronHMamba2Mixer(config, layer_idx=layer_idx)
         elif self.block_type == "attention":
-            self.mixer = NEMOTRONH_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx=layer_idx)
+            self.mixer = NEMOTRONH_ATTENTION_CLASSES[config._attn_implementation](
+                config, layer_idx=layer_idx
+            )
         elif self.block_type == "mlp":
             self.mixer = NemotronHMLP(config, layer_idx=layer_idx)
         else:
-            raise ValueError(f"Invalid layer pattern {config.hybrid_override_pattern[layer_idx]}")
+            raise ValueError(
+                f"Invalid layer pattern {config.hybrid_override_pattern[layer_idx]}"
+            )
 
     def forward(
         self,
@@ -772,17 +916,15 @@ class NemotronHBlock(nn.Module):
 
             if self.block_type == "mamba":
                 hidden_states = self.mixer(
-                    hidden_states, cache_params=cache_params, cache_position=cache_position
+                    hidden_states,
+                    cache_params=cache_params,
+                    cache_position=cache_position,
                 )
             elif self.block_type == "attention":
-                hidden_states = self.mixer(
-                    hidden_states, cache_position=cache_position
-                )
+                hidden_states = self.mixer(hidden_states, cache_position=cache_position)
                 hidden_states = hidden_states[0]
             elif self.block_type == "mlp":
-                hidden_states = self.mixer(
-                    hidden_states
-                )
+                hidden_states = self.mixer(hidden_states)
             else:
                 raise ValueError(f"Invalid block_type: {self.block_type}")
 
@@ -804,8 +946,12 @@ class NemotronHMLP(nn.Module):
             )
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
-        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=config.mlp_bias)
-        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=config.mlp_bias)
+        self.up_proj = nn.Linear(
+            self.hidden_size, self.intermediate_size, bias=config.mlp_bias
+        )
+        self.down_proj = nn.Linear(
+            self.intermediate_size, self.hidden_size, bias=config.mlp_bias
+        )
         self.act_fn = ACT2FN[config.mlp_hidden_act]
 
     def forward(self, x):
@@ -821,7 +967,9 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].expand(
+        batch, num_key_value_heads, n_rep, slen, head_dim
+    )
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -851,10 +999,22 @@ class NemotronHAttention(nn.Module):
         self.max_position_embeddings = config.max_position_embeddings
         self.is_causal = True
 
-        self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=config.attention_bias)
-        self.k_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
-        self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
-        self.o_proj = nn.Linear(self.head_dim * self.num_heads, self.hidden_size, bias=config.attention_bias)
+        self.q_proj = nn.Linear(
+            self.hidden_size, self.num_heads * self.head_dim, bias=config.attention_bias
+        )
+        self.k_proj = nn.Linear(
+            self.hidden_size,
+            self.num_key_value_heads * self.head_dim,
+            bias=config.attention_bias,
+        )
+        self.v_proj = nn.Linear(
+            self.hidden_size,
+            self.num_key_value_heads * self.head_dim,
+            bias=config.attention_bias,
+        )
+        self.o_proj = nn.Linear(
+            self.head_dim * self.num_heads, self.hidden_size, bias=config.attention_bias
+        )
 
     def forward(
         self,
@@ -873,12 +1033,20 @@ class NemotronHAttention(nn.Module):
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        query_states = query_states.view(
+            bsz, q_len, self.num_heads, self.head_dim
+        ).transpose(1, 2)
+        key_states = key_states.view(
+            bsz, q_len, self.num_key_value_heads, self.head_dim
+        ).transpose(1, 2)
+        value_states = value_states.view(
+            bsz, q_len, self.num_key_value_heads, self.head_dim
+        ).transpose(1, 2)
 
         if past_key_value is not None:
-            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx)
+            key_states, value_states = past_key_value.update(
+                key_states, value_states, self.layer_idx
+            )
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -903,7 +1071,7 @@ class NemotronHAttention(nn.Module):
             is_causal=is_causal,
         )
         attn_output = attn_output.transpose(1, 2).contiguous()
-        #attn_output = attn_output.view(bsz, q_len, self.hidden_size)
+        # attn_output = attn_output.view(bsz, q_len, self.hidden_size)
         attn_output = attn_output.view(bsz, q_len, self.num_heads * self.head_dim)
 
         attn_output = self.o_proj(attn_output)
@@ -912,13 +1080,14 @@ class NemotronHAttention(nn.Module):
 
 
 # Adapted from transformers.models.mistral.modeling_mistral.MistralFlashAttention2 with Mistral->Jamba
-#class JambaFlashAttention2(JambaAttention):
+# class JambaFlashAttention2(JambaAttention):
 class NemotronHFlashAttention2(NemotronHAttention):
     """
     Jamba flash attention module. This module inherits from `JambaAttention` as the weights of the module stays
     untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
     flash attention and deal with padding tokens in case the input contains any of them.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -948,11 +1117,17 @@ class NemotronHFlashAttention2(NemotronHAttention):
         # batch_size x seq_length x head_dim x hidden_dim
         # therefore we just need to keep the original shape
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        key_states = key_states.view(
+            bsz, q_len, self.num_key_value_heads, self.head_dim
+        ).transpose(1, 2)
+        value_states = value_states.view(
+            bsz, q_len, self.num_key_value_heads, self.head_dim
+        ).transpose(1, 2)
 
         if past_key_value is not None:
-            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx)
+            key_states, value_states = past_key_value.update(
+                key_states, value_states, self.layer_idx
+            )
 
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -998,8 +1173,10 @@ class NemotronHFlashAttention2(NemotronHAttention):
             use_top_left_mask=self._flash_attn_uses_top_left_mask,
         )
 
-        #attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
-        attn_output = attn_output.reshape(bsz, q_len, self.num_heads * self.head_dim).contiguous()
+        # attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
+        attn_output = attn_output.reshape(
+            bsz, q_len, self.num_heads * self.head_dim
+        ).contiguous()
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
@@ -1009,7 +1186,7 @@ class NemotronHFlashAttention2(NemotronHAttention):
 
 
 # Adapted from transformers.models.mistral.modeling_mistral.MistralSdpaAttention with Mistral->Jamba
-#class JambaSdpaAttention(JambaAttention):
+# class JambaSdpaAttention(JambaAttention):
 class NemotronHSdpaAttention(NemotronHAttention):
     """
     Jamba attention module using torch.nn.functional.scaled_dot_product_attention. This module inherits from
@@ -1049,12 +1226,20 @@ class NemotronHSdpaAttention(NemotronHAttention):
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        query_states = query_states.view(
+            bsz, q_len, self.num_heads, self.head_dim
+        ).transpose(1, 2)
+        key_states = key_states.view(
+            bsz, q_len, self.num_key_value_heads, self.head_dim
+        ).transpose(1, 2)
+        value_states = value_states.view(
+            bsz, q_len, self.num_key_value_heads, self.head_dim
+        ).transpose(1, 2)
 
         if past_key_value is not None:
-            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx)
+            key_states, value_states = past_key_value.update(
+                key_states, value_states, self.layer_idx
+            )
 
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
@@ -1073,7 +1258,9 @@ class NemotronHSdpaAttention(NemotronHAttention):
         # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
         # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
         # The q_len > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not create a causal mask in case q_len == 1.
-        is_causal = True if self.is_causal and causal_mask is None and q_len > 1 else False
+        is_causal = (
+            True if self.is_causal and causal_mask is None and q_len > 1 else False
+        )
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
@@ -1098,6 +1285,7 @@ NEMOTRONH_ATTENTION_CLASSES = {
     "sdpa": NemotronHSdpaAttention,
 }
 
+
 # Copied from transformers.models.mamba.modeling_mamba2.Mamba2PreTrainedModel
 class NemotronHPreTrainedModel(PreTrainedModel):
     """
@@ -1119,7 +1307,10 @@ class NemotronHPreTrainedModel(PreTrainedModel):
 
             dt = torch.exp(
                 torch.rand(self.config.mamba_num_heads)
-                * (math.log(self.config.time_step_max) - math.log(self.config.time_step_min))
+                * (
+                    math.log(self.config.time_step_max)
+                    - math.log(self.config.time_step_min)
+                )
                 + math.log(self.config.time_step_min)
             ).clamp(min=self.config.time_step_floor)
 
@@ -1280,10 +1471,17 @@ class NemotronHModel(NemotronHPreTrainedModel):
         super().__init__(config)
 
         self.embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.layers = nn.ModuleList([NemotronHBlock(config, layer_idx=idx) for idx in range(config.num_hidden_layers)])
+        self.layers = nn.ModuleList(
+            [
+                NemotronHBlock(config, layer_idx=idx)
+                for idx in range(config.num_hidden_layers)
+            ]
+        )
 
         self.gradient_checkpointing = False
-        self.norm_f = NemotronHRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+        self.norm_f = NemotronHRMSNorm(
+            config.hidden_size, eps=config.layer_norm_epsilon
+        )
         # Initialize weights and apply final processing
         self._register_load_state_dict_pre_hook(self.load_hook)
         self.post_init()
@@ -1320,17 +1518,31 @@ class NemotronHModel(NemotronHPreTrainedModel):
         attention_mask: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> Union[Tuple, NemotronHOutput]:
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
         # use_cache = use_cache if use_cache is not None else self.config.use_cache
-        use_cache = use_cache if use_cache is not None else (self.config.use_cache if not self.training else False)
+        use_cache = (
+            use_cache
+            if use_cache is not None
+            else (self.config.use_cache if not self.training else False)
+        )
 
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if (input_ids is None) ^ (inputs_embeds is not None):  # ^ is python for xor
-            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
+            raise ValueError(
+                "You must specify exactly one of input_ids or inputs_embeds"
+            )
 
         if inputs_embeds is None:
             inputs_embeds = self.embeddings(input_ids)
@@ -1351,11 +1563,15 @@ class NemotronHModel(NemotronHPreTrainedModel):
         hidden_states = inputs_embeds
 
         if cache_position is None:
-            cache_position = torch.arange(hidden_states.shape[1], device=hidden_states.device)
+            cache_position = torch.arange(
+                hidden_states.shape[1], device=hidden_states.device
+            )
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
-        causal_mask = self._update_causal_mask(attention_mask, inputs_embeds, cache_position)
+        causal_mask = self._update_causal_mask(
+            attention_mask, inputs_embeds, cache_position
+        )
         mamba_mask = self._update_mamba_mask(attention_mask, cache_position)
 
         all_hidden_states = () if output_hidden_states else None
@@ -1378,7 +1594,11 @@ class NemotronHModel(NemotronHPreTrainedModel):
 
             if self.gradient_checkpointing and self.training:
                 hidden_states = self._gradient_checkpointing_func(
-                    mixer_block.__call__, hidden_states, cache_params, cache_position, layer_mask
+                    mixer_block.__call__,
+                    hidden_states,
+                    cache_params,
+                    cache_position,
+                    layer_mask,
                 )
             else:
                 hidden_states = mixer_block(
@@ -1404,7 +1624,11 @@ class NemotronHModel(NemotronHPreTrainedModel):
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states, cache_params, all_hidden_states] if v is not None)
+            return tuple(
+                v
+                for v in [hidden_states, cache_params, all_hidden_states]
+                if v is not None
+            )
 
         return NemotronHOutput(
             last_hidden_state=hidden_states,
@@ -1425,17 +1649,32 @@ class NemotronHModel(NemotronHPreTrainedModel):
         sequence_length = input_tensor.shape[1]
         target_length = cache_position[-1] + 1
 
-        causal_mask = torch.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype, device=device)
+        causal_mask = torch.full(
+            (sequence_length, target_length),
+            fill_value=min_dtype,
+            dtype=dtype,
+            device=device,
+        )
         if sequence_length != 1:
             causal_mask = torch.triu(causal_mask, diagonal=1)
-        causal_mask *= torch.arange(target_length, device=device) > cache_position.reshape(-1, 1)
-        causal_mask = causal_mask[None, None, :, :].expand(input_tensor.shape[0], 1, -1, -1)
+        causal_mask *= torch.arange(
+            target_length, device=device
+        ) > cache_position.reshape(-1, 1)
+        causal_mask = causal_mask[None, None, :, :].expand(
+            input_tensor.shape[0], 1, -1, -1
+        )
         if attention_mask is not None:
-            causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
+            causal_mask = (
+                causal_mask.clone()
+            )  # copy to contiguous memory for in-place edit
             if attention_mask.dim() == 2:
                 mask_length = attention_mask.shape[-1]
-                padding_mask = causal_mask[..., :mask_length].eq(0.0) * attention_mask[:, None, None, :].eq(0.0)
-                causal_mask[..., :mask_length] = causal_mask[..., :mask_length].masked_fill(padding_mask, min_dtype)
+                padding_mask = causal_mask[..., :mask_length].eq(0.0) * attention_mask[
+                    :, None, None, :
+                ].eq(0.0)
+                causal_mask[..., :mask_length] = causal_mask[
+                    ..., :mask_length
+                ].masked_fill(padding_mask, min_dtype)
 
         if (
             self.config._attn_implementation == "sdpa"
@@ -1445,7 +1684,9 @@ class NemotronHModel(NemotronHPreTrainedModel):
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
-            causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
+            causal_mask = AttentionMaskConverter._unmask_unattended(
+                causal_mask, min_dtype
+            )
 
         return causal_mask
 
@@ -1456,7 +1697,9 @@ class NemotronHModel(NemotronHPreTrainedModel):
             2. Attending to all inputs
         """
         mamba_mask = attention_mask
-        if cache_position[0] > 0 or (attention_mask is not None and torch.all(attention_mask == 1)):
+        if cache_position[0] > 0 or (
+            attention_mask is not None and torch.all(attention_mask == 1)
+        ):
             mamba_mask = None
         return mamba_mask
 
@@ -1524,7 +1767,9 @@ class NemotronHForCausalLM(NemotronHPreTrainedModel, GenerationMixin):
                 or cache_position[-1] >= input_ids.shape[1]  # Exception 3
             ):
                 input_ids = input_ids[:, -cache_position.shape[0] :]
-            elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
+            elif (
+                input_ids.shape[1] != cache_position.shape[0]
+            ):  # Default case (the "else", a no op, is Exception 2)
                 input_ids = input_ids[:, cache_position]
         else:
             past_key_values = HybridMambaAttentionDynamicCache(
@@ -1542,7 +1787,9 @@ class NemotronHForCausalLM(NemotronHPreTrainedModel, GenerationMixin):
         if inputs_embeds is not None and empty_past_kv:
             model_inputs = {"inputs_embeds": inputs_embeds}
         else:
-            model_inputs = {"input_ids": input_ids.contiguous()}  # `contiguous()` needed for compilation use cases
+            model_inputs = {
+                "input_ids": input_ids.contiguous()
+            }  # `contiguous()` needed for compilation use cases
 
         model_inputs.update(
             {
@@ -1583,12 +1830,20 @@ class NemotronHForCausalLM(NemotronHPreTrainedModel, GenerationMixin):
             `labels = input_ids` Indices are selected in `[-100, 0, ..., config.vocab_size]` All labels set to `-100`
             are ignored (masked), the loss is only computed for labels in `[0, ..., config.vocab_size]`
         """
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
 
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         nemotron_h_outputs = self.backbone(
             input_ids,
@@ -1604,7 +1859,7 @@ class NemotronHForCausalLM(NemotronHPreTrainedModel, GenerationMixin):
         hidden_states = nemotron_h_outputs[0]
 
         # TODO: Check zamba_modeling.py: https://github.com/huggingface/transformers/blob/d7188ba600e36d3fd191b12e19f1b3bb81a8404f/src/transformers/models/zamba/modeling_zamba.py#L1284C1-L1286C2
-        #logits = self.lm_head(hidden_states.to(self.lm_head.weight.dtype)).float()
+        # logits = self.lm_head(hidden_states.to(self.lm_head.weight.dtype)).float()
         logits = self.lm_head(hidden_states.to(self.lm_head.weight.dtype)).float()
 
         loss = None
@@ -1616,7 +1871,9 @@ class NemotronHForCausalLM(NemotronHPreTrainedModel, GenerationMixin):
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            loss = loss_fct(
+                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
+            )
 
         if not return_dict:
             output = (logits,) + nemotron_h_outputs[1:]
