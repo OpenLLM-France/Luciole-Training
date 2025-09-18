@@ -78,7 +78,7 @@ if __name__ == "__main__":
     if arch.startswith("llama"):
         from recipes.recipe_llama import get_recipe
     elif arch.startswith("nemotron"):
-        from recipes.recipe_nemotronh import get_recipe
+        from recipes.recipe_nemotron import get_recipe
 
         if arch == "nemotronh47b":
             args.fp8 = True
@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
         recipe = set_llama24b_recipe(recipe, args)
     elif arch == "nemotron1b":
-        from recipes.recipe_nemotronh import set_nemotron1b_recipe
+        from recipes.recipe_nemotron import set_nemotron1b_recipe
 
         recipe = set_nemotron1b_recipe(recipe, args)
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         max_steps = 2 if args.mode == "debug" else 25
         resume_if_exists = True if args.mode == "benchmark" else False
         every_n_train_steps = 30
-        every_function_train_steps=partial(checkpoint_along_step_curve, intervals={})
+        every_function_train_steps = partial(checkpoint_along_step_curve, intervals={})
         warmup = 5
     elif args.mode in ["phase1", "phase2", "annealing"]:
         assert (
