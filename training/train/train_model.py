@@ -13,6 +13,7 @@ import nemo_run as run
 from dataloader import create_data
 from recipes.recipe_utils import set_recipe_trainer
 from recipes.callbacks import ProgressiveIntervalCheckpoint, checkpoint_along_step_curve
+from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
 from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
 from utils import (
     read_datamix_file,
@@ -37,7 +38,12 @@ if __name__ == "__main__":
         choices=SUPPORTED_ARCHITECTURES,
     )
     parser.add_argument("--name", default="", type=str)
-    parser.add_argument("--mode", default="debug", choices=["debug", "benchmark", "phase1", "phase2", "annealing"], type=str)
+    parser.add_argument(
+        "--mode",
+        default="debug",
+        choices=["debug", "benchmark", "phase1", "phase2", "annealing"],
+        type=str,
+    )
     parser.add_argument(
         "--output_dir",
         default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
@@ -125,9 +131,9 @@ if __name__ == "__main__":
     recipe.model.config.seq_length = recipe.data.seq_length
     resume_ignore_no_checkpoint = True
     min_lr = recipe.optim.config.lr
+    if arch.startswith("llama"):
+        recipe.model.config.old_context_len = recipe.data.seq_length
     if args.mode in ["debug", "benchmark"]:
-        if arch.startswith("llama"):
-            recipe.model.config.old_context_len = recipe.data.seq_length
         max_steps = 2 if args.mode == "debug" else 25
         resume_if_exists = True if args.mode == "benchmark" else False
         every_n_train_steps = 30
@@ -162,7 +168,11 @@ if __name__ == "__main__":
             min_lr = 3e-5  # TODO: 0.0 ???
             warmup = 0
         every_n_train_steps = min(max_steps, 10_000)  # computed for each model
-        every_function_train_steps=partial(checkpoint_along_step_curve, intervals={1: 1, 50_000: 500, 100_000: 5_000}, else_interval=10_000)
+        every_function_train_steps = partial(
+            checkpoint_along_step_curve,
+            intervals={1: 1, 50_000: 500, 100_000: 5_000},
+            else_interval=10_000,
+        )
         resume_if_exists = True
         logging.info(
             f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}"
@@ -177,7 +187,7 @@ if __name__ == "__main__":
     # CKPT
     recipe.log.ckpt = run.Config(
         ProgressiveIntervalCheckpoint,
-        filename=args.name+"-{step:07.0f}",
+        filename=args.name + "-{step:07.0f}",
         save_last=True,
         save_top_k=-1,
         every_function_train_steps=every_function_train_steps,
@@ -188,6 +198,14 @@ if __name__ == "__main__":
         save_optim_on_train_end=True,  # set to True if you want to continue training even if max_steps was reached
     )
 
+    # add garbage collection callback
+    garbage_collection_callback = run.Config(
+        GarbageCollectionCallback,
+        gc_interval_train=100,
+        gc_interval_val=100,
+    )
+    recipe.trainer.callbacks.append(garbage_collection_callback)
+
     # RESUME
     recipe.resume = run.Config(
         nl.AutoResume,
@@ -195,7 +213,8 @@ if __name__ == "__main__":
         resume_ignore_no_checkpoint=True,
         resume_past_end=True,  # set to True if you want to continue training even if max_steps was reached
         restore_config=nl.RestoreConfig(
-            path=args.base_checkpoint, load_optim_state=True)
+            path=args.base_checkpoint, load_optim_state=True
+        )
         if args.base_checkpoint
         else None,
     )

@@ -83,6 +83,7 @@ main_patterns=(
     common-pile_github-archive_en*
     common-pile_library-of-congress_en*
     common-pile_libretexts_en*
+    common-pile_news_en*
     common-pile_oercommons_en*
     common-pile_peS2o_en*
     common-pile_pre-1929-books_en*

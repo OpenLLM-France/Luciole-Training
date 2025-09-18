@@ -76,7 +76,7 @@ def plot_horizontal_bar(
         cbar = fig.colorbar(sm, cax=legend_ax, orientation="vertical")
         cbar.set_label("log₁₀(Total Tokens)")
 
-    elif color_column in ["dataset", "group", "subset", "language"]:
+    elif color_column in ["dataset", "group", "subset", "language", "web_data"]:
         unique_categories = df[color_column].astype("category").cat.categories
         palette = sb.color_palette("colorblind", len(unique_categories))
 
@@ -252,6 +252,18 @@ def map_language(x):
         raise ValueError(f"Unknown language: {x}")
 
 
+def is_web_dataset(name):
+    if "fineweb" in name:
+        return "web"
+    if "dclm" in name:
+        return "web"
+    if "culturax" in name:
+        return "web"
+    if "hplt2" in name:
+        return "web"
+    return "no_web"
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Plot token treemaps by language and dataset."
@@ -311,13 +323,19 @@ if __name__ == "__main__":
 
     # Apply the mapping
     df["language"] = df["language"].apply(map_language)
-
+    df["web_data"] = df["language"] + "_" + df["name"].apply(is_web_dataset)
     # Groupby
     language_df = (
         df.groupby("language")["total_tokens"]
         .sum()
         .reset_index()
         .sort_values("total_tokens", ascending=False)
+    )
+    web_df = (
+        df.groupby("web_data")
+        .agg(total_tokens=("total_tokens", "sum"), language=("language", "first"))
+        .reset_index()
+        .sort_values("web_data", ascending=False)
     )
     dataset_df = (
         df.groupby("dataset")["total_tokens"]
@@ -340,6 +358,12 @@ if __name__ == "__main__":
         language_df,
         "language",
         os.path.join(output_dir, "figs", "bar_language.png"),
+        color_column="language",
+    )
+    plot_horizontal_bar(
+        web_df,
+        "web_data",
+        os.path.join(output_dir, "figs", "bar_web.png"),
         color_column="language",
     )
     # plot_horizontal_bar(
