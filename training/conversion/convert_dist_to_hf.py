@@ -3,7 +3,8 @@ import logging
 import os
 from argparse import ArgumentParser
 
-import nemotron_exporter    # noqa: F401
+import custom_exporter.nemotron_exporter    # noqa: F401
+import custom_exporter.nemotronh_exporter    # noqa: F401
 from nemo.collections import llm
 
 torch.set_float32_matmul_precision("high")
