@@ -126,11 +126,12 @@ if __name__ == "__main__":
     resume_ignore_no_checkpoint = True
     min_lr = recipe.optim.config.lr
     if args.mode in ["debug", "benchmark"]:
-        recipe.model.config.old_context_len = recipe.data.seq_length
+        if arch.startswith("llama"):
+            recipe.model.config.old_context_len = recipe.data.seq_length
         max_steps = 2 if args.mode == "debug" else 25
         resume_if_exists = True if args.mode == "benchmark" else False
         every_n_train_steps = 30
-        every_function_train_steps=partial(checkpoint_along_step_curve, intervals={1: 1, 10: 5, 50: 10})
+        every_function_train_steps=partial(checkpoint_along_step_curve, intervals={})
         warmup = 5
     elif args.mode in ["phase1", "phase2", "annealing"]:
         assert (
@@ -143,7 +144,8 @@ if __name__ == "__main__":
                 / (data_args["seq_length"] * data_args["global_batch_size"])
             )
             warmup = 2000
-            recipe.model.config.old_context_len = recipe.data.seq_length
+            if arch.startswith("llama"):
+                recipe.model.config.old_context_len = recipe.data.seq_length
         elif args.mode == "phase2":
             resume_ignore_no_checkpoint = False
             max_steps = math.ceil(

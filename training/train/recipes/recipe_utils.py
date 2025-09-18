@@ -3,7 +3,7 @@ import torch
 import os
 import logging
 import datetime
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed
+from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed
 from nemo.utils.exp_manager import TimingCallback
 from .callbacks import PytorchProfilerCallback, StatelessTimer
 
@@ -36,13 +36,13 @@ def set_recipe_trainer(recipe, args):
         if args.arch == "nemotronh47b":
             logger.info("FP8 is always activated on nemotronh47b")
         else:
-            fp8_plugin = bf16_with_fp8_mixed()
-            # fp8_plugin.first_last_layers_bf16 = True
-            # fp8_plugin.num_layers_at_start_in_bf16 = 1
-            # fp8_plugin.num_layers_at_end_in_bf16 = 1
+            fp8_plugin = bf16_with_fp8_current_scaling_mixed()
+            fp8_plugin.first_last_layers_bf16 = True
+            fp8_plugin.num_layers_at_start_in_bf16 = 4
+            fp8_plugin.num_layers_at_end_in_bf16 = 4
             recipe.trainer.plugins = fp8_plugin
-            recipe.trainer.plugins.grad_reduce_in_fp32 = False
-            recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = False
+            recipe.trainer.plugins.grad_reduce_in_fp32 = True
+            recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = True
 
     # STRATEGY
     if args.tensor_parallelism:
