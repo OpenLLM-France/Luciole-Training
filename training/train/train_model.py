@@ -131,7 +131,7 @@ if __name__ == "__main__":
     recipe.model.config.seq_length = recipe.data.seq_length
     resume_ignore_no_checkpoint = True
     min_lr = recipe.optim.config.lr
-    if arch.startswith("llama"):
+    if arch.startswith("llama") and args.base_checkpoint is None:
         recipe.model.config.old_context_len = recipe.data.seq_length
     if args.mode in ["debug", "benchmark"]:
         max_steps = 2 if args.mode == "debug" else 25
@@ -150,8 +150,6 @@ if __name__ == "__main__":
                 / (data_args["seq_length"] * data_args["global_batch_size"])
             )
             warmup = 2000
-            if arch.startswith("llama"):
-                recipe.model.config.old_context_len = recipe.data.seq_length
         elif args.mode == "phase2":
             resume_ignore_no_checkpoint = False
             max_steps = math.ceil(
