@@ -141,6 +141,11 @@ def main():
         help="Maximum number of samples to evaluate.",
     )
     parser.add_argument(
+        "--evaluation_dir",
+        type=str,
+        default="evaluation_max1000",
+    )
+    parser.add_argument(
         "--dependency",
         default=None,
         help="A dependency after which it should launch the evals",
@@ -157,14 +162,7 @@ def main():
     )
 
     # create output dirs
-    if args.max_samples > 0:
-        output_dir = (
-            experiment_path
-            / f"evaluation_max{args.max_samples}"
-            / task_to_evaluate.stem
-        )
-    else:
-        output_dir = experiment_path / "evaluation" / task_to_evaluate.stem
+    output_dir = experiment_path / args.evaluation_dir / task_to_evaluate.stem
     output_dir.mkdir(parents=True, exist_ok=True)
     log_dir = output_dir / "slurm_logs"
     log_dir.mkdir(parents=True, exist_ok=True)

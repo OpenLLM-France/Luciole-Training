@@ -117,7 +117,9 @@ main_patterns=(
     stack-math-qa-1600k_en*
     nemotron-posttraining*
     wikipedia*
-    synthetic-fineweb_extract-knowledge*
+    synthetic-fineweb_extract-knowledge-easy*
+    synthetic-fineweb_extract-knowledge-medium*
+    synthetic-fineweb_extract-knowledge-hard*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \

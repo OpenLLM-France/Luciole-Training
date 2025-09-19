@@ -293,6 +293,11 @@ if __name__ == "__main__":
         help="Output path where your plot are storred",
     )
     parser.add_argument("--max_samples", type=int, default=1000, help="Max samples")
+    parser.add_argument(
+        "--evaluation_dir",
+        type=str,
+        default="evaluation_max1000",
+    )
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
     parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
     parser.add_argument(
@@ -315,7 +320,7 @@ if __name__ == "__main__":
 
     df = pd.concat(
         [
-            read_experiment_results(path, max_samples=args.max_samples)
+            read_experiment_results(path, evaluation_dir=args.evaluation_dir)
             for path in args.experiment_path
         ]
     )

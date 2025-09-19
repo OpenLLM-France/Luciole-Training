@@ -51,7 +51,7 @@ def read_json_file(file_path):
     elif "CroissantLLMBase" in str(file_path):
         df["tokens"] = 3000
         df["num_parameters"] = 1.3
-    elif ("luciole" in str(file_path)) or ("llama1b_35b" in str(file_path)):
+    elif ("luciole" in str(file_path)) or ("llama1b" in str(file_path)):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
         df["tokens"] = steps * 4096 * 1024 / 10**9
@@ -69,14 +69,10 @@ def read_json_file(file_path):
     return df
 
 
-def read_experiment_results(main_dir, max_samples):
+def read_experiment_results(main_dir, evaluation_dir):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
 
-    if max_samples == -1:
-        evaluation_dir = "evaluation"
-    else:
-        evaluation_dir = f"evaluation_max{max_samples}"
     json_files = [
         f for f in main_dir.rglob("results_*.json") if evaluation_dir in f.parts
     ]
