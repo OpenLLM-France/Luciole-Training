@@ -278,13 +278,7 @@ if __name__ == "__main__":
         "--output_dir",
         type=str,
         default="chronicles/raw",
-        help="Path to the directory containing repeats file.",
-    )
-    parser.add_argument(
-        "--repeats_file",
-        type=str,
-        default=None,
-        help="Path to the repeats file.",
+        help="Path to the output directory. It must contains the repeats.csv file if you want to create a datamix.",
     )
     parser.add_argument(
         "--token_dir",
@@ -295,7 +289,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     stats_file = args.stats_file
     output_dir = args.output_dir
-    repeats_file = args.repeats_file
+    repeats_file = os.path.join(output_dir, "repeats.csv")
     token_dir = args.token_dir
 
     os.makedirs(output_dir, exist_ok=True)
@@ -303,12 +297,14 @@ if __name__ == "__main__":
 
     df = pd.read_csv(stats_file)
 
-    if repeats_file is not None:
+    if os.path.isfile(repeats_file):
         repeats = pd.read_csv(repeats_file)
         df = df.merge(repeats, on="name", how="left")
         df["repeat"] = df["repeat"].fillna(0)
         df["total_tokens"] = df["total_tokens"] * df["repeat"]
         create_datamix_file(df, token_dir, output_dir)
+    else:
+        print(f"No repeats.csv file found in {output_dir}.")
 
     assert (
         not df["name"].duplicated().any()
@@ -366,10 +362,6 @@ if __name__ == "__main__":
         os.path.join(output_dir, "figs", "bar_web.png"),
         color_column="language",
     )
-    # plot_horizontal_bar(
-    #     dataset_df, "dataset", os.path.join(output_dir, "bar_datasets.png")
-    # )
-    # plot_horizontal_bar(group_df, "group", os.path.join(output_dir, "bar_group.png"))
     plot_horizontal_bar(
         df,
         "name",
