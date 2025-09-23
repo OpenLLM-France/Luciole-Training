@@ -113,7 +113,7 @@ if __name__ == "__main__":
         seq_length=args.seq_length if args.seq_length else recipe.data.seq_length,
         tokenizer_name=tokenizer_name,
         seed=args.seed,
-        index_mapping_dir=os.path.join(data_dir, "index_mapping") if data_dir else None,
+        index_mapping_dir=os.path.join(output_dir, "index_mapping"),
     )
 
     if arch == "llama24b":
