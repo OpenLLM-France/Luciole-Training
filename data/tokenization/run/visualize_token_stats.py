@@ -241,11 +241,11 @@ def create_datamix_file(df, token_dir, output_dir):
 
 
 def map_language(x):
-    european = ["ar", "nl", "de", "pt", "es", "it"]
+    european_arab = ["ar", "nl", "de", "pt", "es", "it"]
     if x in ["code", "math", "fr", "en", "aligned", "multi"]:
         return x
-    elif x in european:
-        return "european"
+    elif x in european_arab:
+        return "euro/arab"
     elif x in ["ca", "regional"]:
         return "regional"
     else:

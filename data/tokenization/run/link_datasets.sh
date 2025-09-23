@@ -99,7 +99,7 @@ main_patterns=(
     croissant-aligned*
     math-pile*
     insee_fr*
-    hal-cea_fr*
+    hal-cea_full-filtered_fr*
     gallica*
     gutenberg*
     opendata_fr*
