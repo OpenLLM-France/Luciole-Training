@@ -54,7 +54,7 @@ if __name__ == "__main__":
         subprocess.run(
             [
                 "sbatch",
-                "--job-name=split",
+                f"--job-name=split_{name}",
                 "template.slurm",
                 "split_tokens.py",
                 os.path.join(token_dir, name + "_text_document"),
