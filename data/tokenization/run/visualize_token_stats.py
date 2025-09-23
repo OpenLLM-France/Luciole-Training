@@ -299,8 +299,11 @@ if __name__ == "__main__":
 
     if os.path.isfile(repeats_file):
         repeats = pd.read_csv(repeats_file)
-        df = df.merge(repeats, on="name", how="left")
-        df["repeat"] = df["repeat"].fillna(0)
+        df = repeats.merge(df, on="name", how="left")
+        nan_rows = df[df["total_tokens"].isna()]
+        assert (
+            len(nan_rows) == 0
+        ), f"{nan_rows['name'].tolist()} not in all_stats_merged.csv file"
         df["total_tokens"] = df["total_tokens"] * df["repeat"]
         create_datamix_file(df, token_dir, output_dir)
     else:
