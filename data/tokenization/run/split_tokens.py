@@ -42,16 +42,18 @@ if __name__ == "__main__":
     output = args.output
     vocab_size = args.vocab_size
 
-    assert input
-    assert output and output != input
+    # assert input
+    # assert output and output != input
     assert os.path.exists(input + ".bin"), "Input .bin file must exist."
     assert os.path.exists(input + ".idx"), "Input .idx file must exist."
 
     output_bin_files = [
-        output + f"_{ratio:.2f}_{i}.bin" for i, ratio in enumerate(args.ratio)
+        output + f"_ratio{ratio:.2f}_phase{i+1}.bin"
+        for i, ratio in enumerate(args.ratio)
     ]
     output_idx_files = [
-        output + f"_{ratio:.2f}_{i}.idx" for i, ratio in enumerate(args.ratio)
+        output + f"_ratio{ratio:.2f}_phase{i+1}.idx"
+        for i, ratio in enumerate(args.ratio)
     ]
 
     if not os.path.isdir(os.path.dirname(output_bin_files[0])):
