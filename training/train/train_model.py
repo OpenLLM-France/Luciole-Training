@@ -145,21 +145,21 @@ if __name__ == "__main__":
         ), "total_tokens should be set for phase1/phase2/annealing"
         recipe.optim.config.lr = 3e-4
         if args.mode == "phase1":
-            max_steps = math.ceil(
+            max_steps = math.floor(
                 total_tokens
                 / (data_args["seq_length"] * data_args["global_batch_size"])
             )
             warmup = 2000
         elif args.mode == "phase2":
             resume_ignore_no_checkpoint = False
-            max_steps = math.ceil(
+            max_steps = math.floor(
                 total_tokens
                 / (data_args["seq_length"] * data_args["global_batch_size"])
             )
             warmup = 0
         elif args.mode == "annealing":
             resume_ignore_no_checkpoint = False
-            max_steps = math.ceil(
+            max_steps = math.floor(
                 total_tokens
                 / (data_args["seq_length"] * data_args["global_batch_size"])
             )
