@@ -228,12 +228,16 @@ def plot_box_plot_from_summary(df, column_name, output_file):
 
 def create_datamix_file(df, token_dir, output_dir):
     df = df.copy()
-    df = df[df["total_tokens"] > 0]
     df.loc[:, "name"] = df["name"] + "_text_document"
-    df.loc[:, "weight"] = df["total_tokens"] / df["total_tokens"].sum()
+    num_samples_per_dataset = (df["total_tokens"] * df["repeat"]) // args.seq_length
+    df.loc[:, "weight"] = num_samples_per_dataset
+    df = df[df["weight"] > 0]
+    num_samples_global = num_samples_per_dataset.sum()
+    max_steps = num_samples_global // args.batch_size
+    total_tokens_global = args.seq_length * args.batch_size * max_steps
     out = {
         "data_path": token_dir,
-        "total_tokens": int(df["total_tokens"].sum()),
+        "total_tokens": int(total_tokens_global),
         "train": df[["name", "weight"]].to_dict(orient="records"),
     }
     with open(f"{output_dir}/datamix.json", "w") as f:
@@ -286,6 +290,16 @@ if __name__ == "__main__":
         default="",
         help="Path to the token directory.",
     )
+    parser.add_argument(
+        "--seq_length",
+        type=int,
+        default=4096,
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=1024,
+    )
     args = parser.parse_args()
     stats_file = args.stats_file
     output_dir = args.output_dir
@@ -304,7 +318,6 @@ if __name__ == "__main__":
         assert (
             len(nan_rows) == 0
         ), f"{nan_rows['name'].tolist()} not in all_stats_merged.csv file"
-        df["total_tokens"] = df["total_tokens"] * df["repeat"]
         create_datamix_file(df, token_dir, output_dir)
     else:
         print(f"No repeats.csv file found in {output_dir}.")
