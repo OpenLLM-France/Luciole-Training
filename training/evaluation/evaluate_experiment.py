@@ -34,7 +34,7 @@ cd {hf_ckpt_dir}
 
 mkdir -p {output_dir}
 
-lighteval {command} \\
+VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
     "{model_arg}" \\
     "{task_to_evaluate}" \\
     --output-dir {output_dir} \\
@@ -42,30 +42,30 @@ lighteval {command} \\
 """
 
 
-def init_extra_args(args):
+def init_extra_args(custom_tasks, max_samples=-1):
     extra_arg = ""
     # Custom tasks
-    if args.custom_tasks is None:
+    if custom_tasks is None:
         pass
-    elif args.custom_tasks == "multilingual":
+    elif custom_tasks == "multilingual":
         extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
-    elif args.custom_tasks == "smollm3":
+    elif custom_tasks == "smollm3":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "smollm3_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\"
-    elif args.custom_tasks == "fineweb":
+    elif custom_tasks == "fineweb":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\"
-    elif args.custom_tasks == "lucie":
+    elif custom_tasks == "lucie":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "lucie2_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\"
     else:
-        raise ValueError(f"Unknown custom_tasks: {args.custom_tasks}")
+        raise ValueError(f"Unknown custom_tasks: {custom_tasks}")
     # Max samples
-    if args.max_samples > 0:
-        extra_arg += f"--max-samples {args.max_samples} \\"
+    if max_samples > 0:
+        extra_arg += f"--max-samples {max_samples} \\"
     return extra_arg
 
 
@@ -103,73 +103,34 @@ def get_checkpoints_and_revisions(experiment_path, hf_model):
     return checkpoints, revisions, hf_ckpt_dir
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Submit SLURM jobs for each model checkpoint."
-    )
-    parser.add_argument(
-        "experiment_path", type=str, help="Path to the experiment directory."
-    )
-    parser.add_argument(
-        "task_to_evaluate", type=str, help="Path to the task txt file or task name."
-    )
-    parser.add_argument(
-        "--hf_model",
-        choices=[
-            "allenai/OLMo-2-0425-1B",
-            "allenai/OLMo-2-1124-7B",
-            "utter-project/EuroLLM-1.7B",
-            "HuggingFaceTB/SmolLM2-1.7B",
-            "HuggingFaceTB/SmolLM3-3B",
-            "OpenLLM-France/Lucie-7B",
-            "croissantllm/CroissantLLMBase",
-        ],
-        help="Use Hugging Face models.",
-    )
-    parser.add_argument(
-        "--command", type=str, default="vllm", choices=["vllm", "accelerate"], help=""
-    )
-    parser.add_argument(
-        "--custom_tasks",
-        default=None,
-        choices=[None, "multilingual", "fineweb", "lucie", "smollm3"],
-    )
-    parser.add_argument(
-        "--max_samples",
-        type=int,
-        default=1000,
-        help="Maximum number of samples to evaluate.",
-    )
-    parser.add_argument(
-        "--evaluation_dir",
-        type=str,
-        default="evaluation_max1000",
-    )
-    parser.add_argument(
-        "--dependency",
-        default=None,
-        help="A dependency after which it should launch the evals",
-    )
-    args = parser.parse_args()
-
-    experiment_path = Path(args.experiment_path)
-    task_to_evaluate = Path(args.task_to_evaluate)
+def launch_evaluation(
+    experiment_path,
+    task_to_evaluate,
+    hf_model,
+    custom_tasks,
+    evaluation_dir,
+    command,
+    max_samples=-1,
+    dependency=None,
+):
+    experiment_path = Path(experiment_path)
+    task_to_evaluate = Path(task_to_evaluate)
     print(f"\nExperiment path: {experiment_path}")
     print(f"Task to evaluate: {task_to_evaluate}")
 
     checkpoints, revisions, hf_ckpt_dir = get_checkpoints_and_revisions(
-        experiment_path, args.hf_model
+        experiment_path, hf_model
     )
 
     # create output dirs
-    output_dir = experiment_path / args.evaluation_dir / task_to_evaluate.stem
+    output_dir = experiment_path / evaluation_dir / task_to_evaluate.stem
     output_dir.mkdir(parents=True, exist_ok=True)
     log_dir = output_dir / "slurm_logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     job_dir = output_dir / "slurm_scripts"
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    extra_arg = init_extra_args(args)
+    extra_arg = init_extra_args(custom_tasks, max_samples)
 
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
@@ -181,7 +142,7 @@ def main():
 
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             hf_ckpt_dir=hf_ckpt_dir.resolve(),
-            command=args.command,
+            command=command,
             model_arg=f"model_name={ckpt},dtype=bfloat16"
             if not revision
             else f"model_name={ckpt},revision={revision},dtype=bfloat16",
@@ -189,10 +150,9 @@ def main():
             log_dir=log_dir,
             log_name=f"{task_to_evaluate.stem}_{slugify(ckpt)}",
             task_to_evaluate=task_to_evaluate.resolve(),
-            max_samples=args.max_samples,
             extra_arg=extra_arg,
-            dependency=f"#SBATCH --dependency=afterok:{args.dependency}"
-            if args.dependency
+            dependency=f"#SBATCH --dependency=afterok:{dependency}"
+            if dependency
             else "",
         )
 
@@ -208,4 +168,65 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Submit SLURM jobs for each model checkpoint."
+    )
+    parser.add_argument(
+        "experiment_path", type=str, help="Path to the experiment directory."
+    )
+    parser.add_argument(
+        "--hf_model",
+        choices=[
+            "allenai/OLMo-2-0425-1B",
+            "allenai/OLMo-2-1124-7B",
+            "utter-project/EuroLLM-1.7B",
+            "HuggingFaceTB/SmolLM2-1.7B",
+            "HuggingFaceTB/SmolLM3-3B",
+            "OpenLLM-France/Lucie-7B",
+            "croissantllm/CroissantLLMBase",
+        ],
+        help="Use Hugging Face models.",
+    )
+    parser.add_argument(
+        "task_to_evaluate", type=str, help="Path to the task txt file or task name."
+    )
+    parser.add_argument(
+        "--command",
+        type=str,
+        default="accelerate",
+        choices=["vllm", "accelerate"],
+        help="",
+    )
+    parser.add_argument(
+        "--custom_tasks",
+        default=None,
+        choices=[None, "multilingual", "fineweb", "lucie", "smollm3"],
+    )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=-1,
+        help="Maximum number of samples to evaluate.",
+    )
+    parser.add_argument(
+        "--evaluation_dir",
+        type=str,
+        default="evaluation",
+    )
+    parser.add_argument(
+        "--dependency",
+        default=None,
+        help="A dependency after which it should launch the evals",
+    )
+    args = parser.parse_args()
+
+    launch_evaluation(
+        experiment_path=args.experiment_path,
+        task_to_evaluate=args.task_to_evaluate,
+        hf_model=args.hf_model,
+        evaluation_dir=args.evaluation_dir,
+        custom_tasks=args.custom_tasks,
+        command=args.command,
+        max_samples=args.max_samples,
+        dependency=args.dependency,
+    )

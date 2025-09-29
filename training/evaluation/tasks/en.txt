@@ -1,23 +1,23 @@
 # Based on: https://github.com/huggingface/lighteval/blob/main/examples/tasks/recommended_set.txt
 
 # Commonsense Reasoning
-lighteval|openbookqa|0|0
-lighteval|piqa|0|0
+lighteval|openbookqa|0
+lighteval|piqa|0
 
 # World Knowledge
-leaderboard|arc:challenge|0|0
-lighteval|arc:easy|0|0
-lighteval|triviaqa|0|0
+leaderboard|arc:challenge|0
+lighteval|arc:easy|0
+lighteval|triviaqa|0
 
 # Reading Comprehension
-helm|boolq|0|0
+helm|boolq|0
 
 # Common Sense
-helm|siqa|0|0
-helm|commonsenseqa|0|0
+helm|siqa|0
+helm|commonsenseqa|0
 
 # Language Understanding
-# leaderboard|hellaswag|0|0
-# leaderboard|winogrande|0|0
+leaderboard|hellaswag|0
+leaderboard|winogrande|0
 
 

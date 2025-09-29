@@ -175,7 +175,7 @@ def plot_task(
     ax.set_xlabel("FLOPs" if flops else "B tokens")
     ax.set_ylabel(metric)
     ax.set_title(task)
-    ax.set_xlim(left=0, right=max_tokens if max_tokens else None)
+    # ax.set_xlim(left=0, right=max_tokens if max_tokens else None)
 
     if xlog:
         ax.set_xscale("log")
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--evaluation_dir",
         type=str,
-        default="evaluation_max1000",
+        default="evaluation",
     )
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
     parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
