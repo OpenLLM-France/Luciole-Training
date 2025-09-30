@@ -98,7 +98,10 @@ task_group_mapping = {
 
 def assign_colors(df):
     unique_experiments = df["expe_name"].unique()
-    cmap = plt.get_cmap("tab20")  # 20 discrete colors
+    if len(unique_experiments) <= 10:
+        cmap = plt.get_cmap("tab10")
+    else:
+        cmap = plt.get_cmap("tab20")
     colors = [cmap(i) for i in range(cmap.N)]
     return {name: colors[i % len(colors)] for i, name in enumerate(unique_experiments)}
 
@@ -167,7 +170,7 @@ def plot_task(
                 ax.plot(
                     row[xaxis_column],
                     row["score"],
-                    alpha=1.0,
+                    alpha=1,
                     color=color,
                     label=row["expe_name"],
                 )
@@ -175,7 +178,6 @@ def plot_task(
     ax.set_xlabel("FLOPs" if flops else "B tokens")
     ax.set_ylabel(metric)
     ax.set_title(task)
-    # ax.set_xlim(left=0, right=max_tokens if max_tokens else None)
 
     if xlog:
         ax.set_xscale("log")

@@ -35,7 +35,12 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
         tokens = steps * 4096 * 1024 / 10**9
-        model_size = 1.2
+        if "llama1b" in str(file_path):
+            model_size = 1.235290112
+        elif "nemotron1b" in str(file_path):
+            model_size = 1.319309312
+        else:
+            raise ValueError(f"Unknown model size for model in: {file_path}")
     else:
         raise ValueError(f"Unknown model in file path: {file_path}")
     return tokens, model_size
