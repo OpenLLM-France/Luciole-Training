@@ -270,6 +270,73 @@ def plot_list_of_tasks(
         print(f"Saved figure to {output_file}")
 
 
+def plot_experiments(df, args):
+    if args.output_path:
+        os.makedirs(args.output_path, exist_ok=True)
+
+    for g in args.group:
+        print(f"Processing group: {g}...")
+        if g == "all":
+            list_of_tasks_to_plot = list(
+                df[["task", "metric"]]
+                .drop_duplicates()
+                .itertuples(index=False, name=None)
+            )
+            list_of_tasks_to_plot = [
+                task
+                for task in list_of_tasks_to_plot
+                if (task[0] != "all")
+                and not ("mmlu" in task[0] and "average" not in task[0])
+            ]
+        else:
+            list_of_tasks_to_plot = task_group_mapping[g]
+
+        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
+
+        output_file = (
+            os.path.join(args.output_path, filename) if args.output_path else None
+        )
+        plot_list_of_tasks(
+            df,
+            list_of_tasks_to_plot,
+            output_file,
+            xlog=args.xlog,
+            fit=args.fit,
+            flops=args.flops,
+            max_tokens=args.max_tokens,
+        )
+
+    if not args.output_path:
+        plt.show()
+
+
+def process_experiments(args):
+    # Read and aggregate all results
+    all_results = []
+
+    for path in args.experiment_path:
+        # Step 1: read experiment results
+        df = read_experiment_results(path, evaluation_dir=args.evaluation_dir)
+
+        # Step 2: calculate aggregated scores if needed
+        if "agg" in args.group:
+            df_agg = calculate_agg_score(df).dropna()
+            df = pd.concat([df, df_agg])
+
+        # Step 3: process the results
+        df = process_results(df, fit=args.fit, window=args.window)
+
+        # Step 4: collect results
+        all_results.append(df)
+
+    # Combine all results into a single DataFrame
+    final_df = pd.concat(all_results, ignore_index=True)
+    if final_df.empty:
+        print("No results found for the given experiments.")
+        exit(0)
+    return final_df
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -315,55 +382,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.output_path:
-        os.makedirs(args.output_path, exist_ok=True)
-
-    df = pd.concat(
-        [
-            read_experiment_results(path, evaluation_dir=args.evaluation_dir)
-            for path in args.experiment_path
-        ]
-    )
-    if "agg" in args.group:
-        df_agg = calculate_agg_score(df).dropna()
-        df = pd.concat([df, df_agg])
-    df = process_results(df, fit=args.fit, window=args.window)
-
-    if df.empty:
-        print("No results found for the given experiments.")
-        exit(0)
-
-    for g in args.group:
-        print(f"Processing group: {g}...")
-        if g == "all":
-            list_of_tasks_to_plot = list(
-                df[["task", "metric"]]
-                .drop_duplicates()
-                .itertuples(index=False, name=None)
-            )
-            list_of_tasks_to_plot = [
-                task
-                for task in list_of_tasks_to_plot
-                if (task[0] != "all")
-                and not ("mmlu" in task[0] and "average" not in task[0])
-            ]
-        else:
-            list_of_tasks_to_plot = task_group_mapping[g]
-
-        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
-
-        output_file = (
-            os.path.join(args.output_path, filename) if args.output_path else None
-        )
-        plot_list_of_tasks(
-            df,
-            list_of_tasks_to_plot,
-            output_file,
-            xlog=args.xlog,
-            fit=args.fit,
-            flops=args.flops,
-            max_tokens=args.max_tokens,
-        )
-
-    if not args.output_path:
-        plt.show()
+    df = process_experiments(args)
+    plot_experiments(df, args)

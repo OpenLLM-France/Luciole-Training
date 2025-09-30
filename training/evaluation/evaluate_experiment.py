@@ -12,7 +12,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=05:00:00
+#SBATCH --time=20:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-t3
 #SBATCH --account=wuh@h100
@@ -30,7 +30,7 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
-cd {hf_ckpt_dir}
+cd {ckpt_dir}
 
 mkdir -p {output_dir}
 
@@ -69,38 +69,37 @@ def init_extra_args(custom_tasks, max_samples=-1):
     return extra_arg
 
 
-def get_checkpoints_and_revisions(experiment_path, hf_model):
+def get_hf_model(hf_model):
     if hf_model == "allenai/OLMo-2-0425-1B":
         checkpoints = [hf_model for i in range(1, 20)]
         revisions = [
             f"stage1-step{i*100000}-tokens{math.ceil(i*209.73)}B" for i in range(1, 20)
         ]
-        hf_ckpt_dir = Path(".")
     elif hf_model == "allenai/OLMo-2-1124-7B":
         checkpoints = [hf_model for i in range(1, 20)]
         revisions = [
             f"stage1-step{i*50000}-tokens{math.ceil(i*209.767)}B" for i in range(1, 20)
         ]
-        hf_ckpt_dir = Path(".")
     elif hf_model == "OpenLLM-France/Lucie-7B":
         checkpoints = [hf_model for i in range(1, 16)]
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
-        hf_ckpt_dir = Path(".")
-    elif hf_model in [
-        "utter-project/EuroLLM-1.7B",
-        "HuggingFaceTB/SmolLM2-1.7B",
-        "HuggingFaceTB/SmolLM3-3B",
-        "croissantllm/CroissantLLMBase",
-    ]:
-        checkpoints = [hf_model]
-        revisions = [""]
-        hf_ckpt_dir = Path(".")
     else:
-        hf_ckpt_dir = experiment_path / "huggingface_checkpoints"
-        assert hf_ckpt_dir.is_dir(), f"Directory does not exist: {hf_ckpt_dir}"
-        checkpoints = [d for d in hf_ckpt_dir.iterdir() if d.is_dir()]
+        print(f"Selection the main revision of {hf_model} model.")
+        checkpoints = [hf_model]
+        revisions = ["main"]
+    return checkpoints, revisions
+
+
+def get_checkpoints_and_revisions(experiment_path, hf_model=None):
+    if hf_model is not None:
+        checkpoints, revisions = get_hf_model(hf_model)
+        ckpt_dir = Path(".")
+    else:
+        ckpt_dir = experiment_path / "huggingface_checkpoints"
+        assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
+        checkpoints = [d for d in ckpt_dir.iterdir() if d.is_dir()]
         revisions = ["" for _ in checkpoints]
-    return checkpoints, revisions, hf_ckpt_dir
+    return checkpoints, revisions, ckpt_dir
 
 
 def launch_evaluation(
@@ -112,13 +111,14 @@ def launch_evaluation(
     command,
     max_samples=-1,
     dependency=None,
+    force=False,
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
     print(f"\nExperiment path: {experiment_path}")
     print(f"Task to evaluate: {task_to_evaluate}")
 
-    checkpoints, revisions, hf_ckpt_dir = get_checkpoints_and_revisions(
+    checkpoints, revisions, ckpt_dir = get_checkpoints_and_revisions(
         experiment_path, hf_model
     )
 
@@ -136,12 +136,12 @@ def launch_evaluation(
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
 
-        if (output_dir / "results" / ckpt).is_dir():
+        if (output_dir / "results" / ckpt).is_dir() and not force:
             print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
 
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
-            hf_ckpt_dir=hf_ckpt_dir.resolve(),
+            ckpt_dir=ckpt_dir.resolve(),
             command=command,
             model_arg=f"model_name={ckpt},dtype=bfloat16"
             if not revision
@@ -176,15 +176,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--hf_model",
-        choices=[
-            "allenai/OLMo-2-0425-1B",
-            "allenai/OLMo-2-1124-7B",
-            "utter-project/EuroLLM-1.7B",
-            "HuggingFaceTB/SmolLM2-1.7B",
-            "HuggingFaceTB/SmolLM3-3B",
-            "OpenLLM-France/Lucie-7B",
-            "croissantllm/CroissantLLMBase",
-        ],
+        default=None,
         help="Use Hugging Face models.",
     )
     parser.add_argument(
@@ -218,6 +210,7 @@ if __name__ == "__main__":
         default=None,
         help="A dependency after which it should launch the evals",
     )
+    parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
     launch_evaluation(
@@ -229,4 +222,5 @@ if __name__ == "__main__":
         command=args.command,
         max_samples=args.max_samples,
         dependency=args.dependency,
+        force=args.force,
     )

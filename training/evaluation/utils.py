@@ -5,6 +5,49 @@ import re
 import numpy as np
 
 
+def get_training_tokens_and_model_size(file_path):
+    if "OLMo-2-0425-1B" in str(file_path):
+        match = re.search(r"-tokens([0-9.]+)B", str(file_path))
+        tokens = float(match.group(1)) if match else None
+        model_size = 1.279_395_840
+    elif "OLMo-2-1124-7B" in str(file_path):
+        match = re.search(r"-tokens([0-9.]+)B", str(file_path))
+        tokens = float(match.group(1)) if match else None
+        model_size = 7.0
+    elif "EuroLLM-1.7B" in str(file_path):
+        tokens = 4000
+        model_size = 1.394_706_432
+    elif "SmolLM2-1.7B" in str(file_path):
+        tokens = 11000
+        model_size = 1.711_376_384
+    elif "SmolLM3-3B" in str(file_path):
+        tokens = 11200
+        model_size = 3.075_098_624
+    elif "Lucie-7B" in str(file_path):
+        match = re.search(r"step([0-9.]+)", str(file_path))
+        steps = float(match.group(1)) if match else None
+        tokens = steps * 4096 * 1024 / 10**9
+        model_size = 7.0
+    elif "CroissantLLMBase" in str(file_path):
+        tokens = 3000
+        model_size = 1.3
+    elif ("luciole" in str(file_path)) or ("llama1b" in str(file_path)):
+        match = re.search(r"step_([0-9.]+)", str(file_path))
+        steps = float(match.group(1)) if match else None
+        tokens = steps * 4096 * 1024 / 10**9
+        model_size = 1.2
+    else:
+        raise ValueError(f"Unknown model in file path: {file_path}")
+    return tokens, model_size
+
+
+def get_expe_name(file_path, evaluation_dir="evaluation"):
+    parts = file_path.parts
+    eval_index = parts.index(evaluation_dir)
+    expe_name = parts[eval_index - 1]
+    return expe_name
+
+
 def read_json_file(file_path):
     file_path = Path(file_path)
     with open(file_path, "r") as f:
@@ -16,101 +59,55 @@ def read_json_file(file_path):
         .reset_index(name="score")
         .rename(columns={"level_0": "metric", "level_1": "task"})
     )
+    df["max_samples"] = str(data["config_general"]["max_samples"])
 
     # Filter out metrics ending in "_stderr"
     df = df[~df["metric"].str.endswith("_stderr")]
 
-    # Add model name and timestamp
-    df["model_name"] = data["config_general"]["model_name"]
-    df["max_samples"] = str(data["config_general"]["max_samples"])
+    # Get expe name
+    df["expe_name"] = get_expe_name(file_path)
+    # df["model_name"] = data["config_general"]["model_name"]
 
-    if "OLMo-2-0425-1B" in str(file_path):
-        match = re.search(r"-tokens([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else None
-        df["tokens"] = tokens
-        df["num_parameters"] = 1.279_395_840
-    elif "OLMo-2-1124-7B" in str(file_path):
-        match = re.search(r"-tokens([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else None
-        df["tokens"] = tokens
-        df["num_parameters"] = 7.0
-    elif "EuroLLM-1.7B" in str(file_path):
-        df["tokens"] = 4000
-        df["num_parameters"] = 1.394_706_432
-    elif "SmolLM2-1.7B" in str(file_path):
-        df["tokens"] = 11000
-        df["num_parameters"] = 1.711_376_384
-    elif "SmolLM3-3B" in str(file_path):
-        df["tokens"] = 11200
-        df["num_parameters"] = 3.075_098_624
-    elif "Lucie-7B" in str(file_path):
-        match = re.search(r"step([0-9.]+)", str(file_path))
-        steps = float(match.group(1)) if match else None
-        df["tokens"] = steps * 4096 * 1024 / 10**9
-        df["num_parameters"] = 7.0
-    elif "CroissantLLMBase" in str(file_path):
-        df["tokens"] = 3000
-        df["num_parameters"] = 1.3
-    elif ("luciole" in str(file_path)) or ("llama1b" in str(file_path)):
-        match = re.search(r"step_([0-9.]+)", str(file_path))
-        steps = float(match.group(1)) if match else None
-        df["tokens"] = steps * 4096 * 1024 / 10**9
-        df["num_parameters"] = 1.2
-    else:
-        raise ValueError(f"Unknown model in file path: {file_path}")
+    # Get training flops
+    tokens, num_parameters = get_training_tokens_and_model_size(file_path)
+    df["tokens"] = tokens
+    df["model_size"] = num_parameters
+    df["FLOPs"] = df["model_size"] * df["tokens"] * 6 * 1e18
 
-    df["FLOPs"] = df["num_parameters"] * df["tokens"] * 6 * 1e18
-    match = re.match(r"results_(.*)\.json", file_path.name)
-    timestamp = match.group(1) if match else None
-    df["timestamp"] = timestamp
-
-    # Reorder columns
-    df = df[["tokens", "FLOPs", "timestamp", "task", "max_samples", "metric", "score"]]
+    # Get evaluation timestamp
+    df["timestamp"] = pd.to_datetime(
+        file_path.stem.replace("results_", ""), format="%Y-%m-%dT%H-%M-%S.%f"
+    )
     return df
 
 
-def read_experiment_results(main_dir, evaluation_dir):
+def read_experiment_results(main_dir, evaluation_dir="evaluation"):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
 
-    json_files = [
-        f for f in main_dir.rglob("results_*.json") if evaluation_dir in f.parts
+    dataframes = [
+        read_json_file(f)
+        for f in main_dir.rglob("results_*.json")
+        if evaluation_dir in f.parts
     ]
-
-    # Read files and store relative path + DataFrame
-    dataframes = []
-    for file in json_files:
-        file_path = Path(file)
-        parts = file_path.parts
-        eval_index = parts.index(evaluation_dir)
-        expe_name = parts[eval_index - 1]
-
-        df = read_json_file(file)
-        df["expe_name"] = expe_name
-        dataframes.append(df)
-
-    # Concatenate all DataFrames
     if not dataframes:
         print(f"No valid JSON result files found in {main_dir}")
         return
     df = pd.concat(dataframes, ignore_index=True)
 
     # Remove duplicates
-    df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%dT%H-%M-%S.%f")
-
-    # Keep the most recent row for each (model_name, tokens, task, metric) tuple
-    df_latest = (
-        df.sort_values("timestamp")
-        .drop_duplicates(
-            subset=["expe_name", "tokens", "FLOPs", "task", "max_samples", "metric"],
-            keep="last",
-        )
-        .drop("timestamp", axis=1)
+    len_before_dup = len(df)
+    df = df.sort_values("timestamp", ascending=False).drop_duplicates(
+        subset=df.columns.difference(["timestamp"]), keep="first"
     )
-    # print(df_latest)
-    return df_latest[
-        ["expe_name", "tokens", "FLOPs", "task", "max_samples", "metric", "score"]
-    ]
+    len_after_dup = len(df)
+    if len_before_dup > len_after_dup:
+        print(f"Removed {len_before_dup - len_after_dup} duplicate rows")
+
+    print("Example:")
+    print(df.iloc[0])
+    print("\n")
+    return df
 
 
 def read_datamix(main_dir):
