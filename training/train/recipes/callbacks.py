@@ -15,7 +15,7 @@
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional, Union
 
 import torch
 from lightning.pytorch.callbacks import Callback
@@ -25,17 +25,19 @@ from nemo.lightning.io.mixin import IOMixin
 from nemo.utils import logging
 from nemo.utils.get_rank import get_rank
 from nemo import lightning as nl
-from typing import Any, Dict, Literal, Optional, Union
 from datetime import timedelta
 
-def checkpoint_along_step_curve(global_step, intervals={10: 2, 30: 5, 100: 10}, else_interval=10_000):
+
+def checkpoint_along_step_curve(
+    global_step, intervals={1: 1, 50_000: 500, 100_000: 5_000}, else_interval=10_000
+):
     for s, interval in intervals.items():
         if global_step <= s:
             return global_step % interval == 0
     return global_step % else_interval == 0
 
+
 class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
-    
     def __init__(
         self,
         monitor: Optional[str] = "val_loss",
@@ -55,7 +57,6 @@ class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
         every_function_train_steps: Optional[Any] = None,
         **kwargs,
     ):
-        
         self.every_function_train_steps = every_function_train_steps
         super().__init__(
             monitor=monitor,
@@ -73,7 +74,7 @@ class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
             save_context_on_train_end=save_context_on_train_end,
             **kwargs,
         )
-    
+
     def on_train_batch_end(
         self,
         trainer,
@@ -87,16 +88,23 @@ class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
             return
         # skip_batch = self._every_n_train_steps < 1 or (trainer.global_step % self._every_n_train_steps != 0)
         if self.every_function_train_steps is not None:
-            skip_batch = not self.every_function_train_steps(global_step=trainer.global_step)
+            skip_batch = not self.every_function_train_steps(
+                global_step=trainer.global_step
+            )
         else:
-            skip_batch = self._every_n_train_steps < 1 or (trainer.global_step % self._every_n_train_steps != 0)
+            skip_batch = self._every_n_train_steps < 1 or (
+                trainer.global_step % self._every_n_train_steps != 0
+            )
         skip_batch = False if trainer.max_steps == trainer.global_step else skip_batch
         train_time_interval = self._train_time_interval
         skip_time = True
         now = time.monotonic()
         if train_time_interval:
             prev_time_check = self._last_time_checked
-            skip_time = prev_time_check is None or (now - prev_time_check) < train_time_interval.total_seconds()
+            skip_time = (
+                prev_time_check is None
+                or (now - prev_time_check) < train_time_interval.total_seconds()
+            )
             # in case we have time differences across ranks
             # broadcast the decision on whether to checkpoint from rank 0 to avoid possible hangs
             skip_time = trainer.strategy.broadcast(skip_time)
@@ -109,6 +117,7 @@ class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
         monitor_candidates = self._monitor_candidates(trainer)
         self._save_topk_checkpoint(trainer, monitor_candidates)
         self._save_last_checkpoint(trainer, monitor_candidates)
+
 
 class StatelessTimer(Timer):
     """Extension of PTL timers to be per run."""
@@ -165,11 +174,13 @@ class PytorchProfilerCallback(Callback, IOMixin):
         profiler_kwargs: Optional[Dict[str, Any]] = None,
     ):
         if trace_dir is None:
-            trace_dir = os.path.join(os.getcwd(), 'traces')
+            trace_dir = os.path.join(os.getcwd(), "traces")
             os.makedirs(trace_dir, exist_ok=True)
 
         if not isinstance(start_step, int) or not isinstance(end_step, int):
-            raise TypeError(f"start_step and end_step must be integers. Got {type(start_step)}, {type(end_step)}")
+            raise TypeError(
+                f"start_step and end_step must be integers. Got {type(start_step)}, {type(end_step)}"
+            )
         if end_step < start_step:
             raise ValueError("end_step must be greater than or equal to start_step.")
 
@@ -195,13 +206,19 @@ class PytorchProfilerCallback(Callback, IOMixin):
                 torch.profiler.ProfilerActivity.CPU,
                 torch.profiler.ProfilerActivity.CUDA,
             ],
-            "schedule": torch.profiler.schedule(wait=0, warmup=self.warmup_steps, active=self.active_steps),
-            "on_trace_ready": lambda prof: trace_handler(prof, self.chakra_device_trace_path),
+            "schedule": torch.profiler.schedule(
+                wait=0, warmup=self.warmup_steps, active=self.active_steps
+            ),
+            "on_trace_ready": lambda prof: trace_handler(
+                prof, self.chakra_device_trace_path
+            ),
             "execution_trace_observer": self.trace_observer,
         }
         if profiler_kwargs is not None:
             if not isinstance(profiler_kwargs, dict):
-                raise TypeError(f"profiler_kwargs must be a dict if provided. Got {type(profiler_kwargs)}")
+                raise TypeError(
+                    f"profiler_kwargs must be a dict if provided. Got {type(profiler_kwargs)}"
+                )
             base_kwargs.update(profiler_kwargs)
 
         self.profiler = torch.profiler.profile(**base_kwargs)
@@ -226,7 +243,9 @@ class PytorchProfilerCallback(Callback, IOMixin):
                 )
                 return
 
-            logging.info(f"====== Start Chakra profiling at global_step {trainer.global_step} ======")
+            logging.info(
+                f"====== Start Chakra profiling at global_step {trainer.global_step} ======"
+            )
 
             trace_file = self.chakra_host_trace_path / f"rank-{get_rank()}.json"
             self.trace_observer.register_callback(str(trace_file))
@@ -236,14 +255,20 @@ class PytorchProfilerCallback(Callback, IOMixin):
 
             logging.info("Chakra Profiler Started.\n")
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx: int) -> None:
+    def on_train_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx: int
+    ) -> None:
         """Chakra trace collection ends."""
         if self.is_profiling:
             if trainer.global_step < self.end_step:
                 self.profiler.step()
-                logging.info(f"Profiler step executed at global_step {trainer.global_step}")
+                logging.info(
+                    f"Profiler step executed at global_step {trainer.global_step}"
+                )
             else:
-                logging.info(f"====== End Chakra profiling at global_step {trainer.global_step} ======")
+                logging.info(
+                    f"====== End Chakra profiling at global_step {trainer.global_step} ======"
+                )
                 self._stop_profiler()
 
     def _stop_profiler(self):

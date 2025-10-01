@@ -7,7 +7,6 @@ import logging
 import shutil
 from pathlib import Path
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -71,6 +70,7 @@ def create_slurm_script(
     qos,
     time,
     account,
+    ckpt_intervals,
 ):
     time, qos = get_time_limit_and_qos(mode, num_nodes, qos, time)
     account = "wuh@h100" if not account else account
@@ -103,6 +103,8 @@ def create_slurm_script(
     job_log_file = "job_%j"
     if mode in ["phase1", "phase2", "annealing"]:
         job_log_file = f"job_{mode}_%j"
+    if ckpt_intervals:
+        args += f' --ckpt_intervals "{ckpt_intervals}"'
     args += f" --max_time_per_run {time}"
 
     # Contenu du script SLURM
@@ -199,40 +201,33 @@ def write_launch_slurm(slurm_path, slurm_content, task="", array=None):
 
 
 def get_job_name(kwargs):
-    config_name = os.path.splitext(os.path.basename(kwargs["config"]))[0]
-    if kwargs.get("base_checkpoint") and kwargs["mode"] not in ["annealing"]:
-        base_model_name = os.path.splitext(os.path.basename(kwargs["base_checkpoint"]))[
-            0
-        ]
-        if len(base_model_name) > 20:
-            base_model_name = base_model_name.split("--", 1)[0]
-        model_part = f'{kwargs["arch"]}_from_{base_model_name}'
-    else:
-        model_part = kwargs["arch"]
-    job_name_parts = [model_part]
+    job_name_parts = []
+    if kwargs.get("name_prefix"):
+        job_name_parts.append(kwargs["name_prefix"])
+    job_name_parts.extend([kwargs["arch"], kwargs["mode"]])
+    # Debug / benchmark mode
     if kwargs["mode"] in ["benchmark", "debug"]:
+        config_name = os.path.splitext(os.path.basename(kwargs["config"]))[0]
         job_name_parts.append(config_name)
         job_name_parts.append(kwargs["mode"])
         if kwargs["mode"] == "benchmark":
             job_name_parts.append(f"{kwargs['num_nodes']}n")
             if kwargs.get("performance_mode"):
                 job_name_parts.append("perf")
+        if kwargs.get("seed"):
+            job_name_parts.append(f"s{kwargs['seed']}")
+        if kwargs.get("fp8"):
+            job_name_parts.append("fp8")
+        if kwargs.get("tensor_parallelism"):
+            job_name_parts.append(f"tp{kwargs['tensor_parallelism']}")
+        if kwargs.get("pipeline_parallelism"):
+            job_name_parts.append(f"pp{kwargs['pipeline_parallelism']}")
+        if kwargs.get("context_parallelism"):
+            job_name_parts.append(f"cp{kwargs['context_parallelism']}")
+        if kwargs.get("virtual_pipeline_parallelism"):
+            job_name_parts.append(f"vpp{kwargs['virtual_pipeline_parallelism']}")
     elif kwargs["mode"] in ["annealing"]:
         job_name_parts.append(kwargs["mode"])
-    if kwargs.get("seed"):
-        job_name_parts.append(f"s{kwargs['seed']}")
-    if kwargs.get("fp8"):
-        job_name_parts.append("fp8")
-    if kwargs.get("name_prefix"):
-        job_name_parts.insert(0, kwargs["name_prefix"])
-    if kwargs.get("tensor_parallelism"):
-        job_name_parts.append(f"tp{kwargs['tensor_parallelism']}")
-    if kwargs.get("pipeline_parallelism"):
-        job_name_parts.append(f"pp{kwargs['pipeline_parallelism']}")
-    if kwargs.get("context_parallelism"):
-        job_name_parts.append(f"cp{kwargs['context_parallelism']}")
-    if kwargs.get("virtual_pipeline_parallelism"):
-        job_name_parts.append(f"vpp{kwargs['virtual_pipeline_parallelism']}")
     return "_".join(job_name_parts).replace(".", "_")
 
 
@@ -241,26 +236,16 @@ def submit_job(**kwargs):
     if not os.path.exists(config):
         raise RuntimeError(f"Config : {config} does not exist")
 
+    if kwargs["mode"] in ["phase2", "annealing"] and kwargs["base_checkpoint"] is None:
+        raise ValueError(
+            f"You must specify --base_checkpoints when using mode {kwargs['mode']}"
+        )
+    if kwargs["base_checkpoint"] is not None and kwargs["name_prefix"] is None:
+        raise ValueError("You must specify --name_prefix when using --base_checkpoint")
+
     job_name = get_job_name(kwargs)
 
     xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
-    if (
-        not os.path.exists(xp_output_dir)
-        and kwargs["mode"] == "annealing"
-        and kwargs["base_checkpoint"] is None
-    ):
-        phase1_xp = job_name.replace("_annealing", "")
-        if os.path.exists(os.path.join(kwargs["output_dir"], phase1_xp)):
-            last = os.listdir(
-                os.path.join(kwargs["output_dir"], phase1_xp, phase1_xp, "checkpoints")
-            )
-            last = [f for f in last if f.endswith("-last")][0]
-            kwargs["base_checkpoint"] = os.path.join(
-                kwargs["output_dir"], phase1_xp, phase1_xp, "checkpoints", last
-            )
-            logger.info(
-                f"🔍 Found phase 1 and 2 experiments in {phase1_xp}, setting base_checkpoint to {kwargs['base_checkpoint']} for annealing phase"
-            )
 
     if kwargs["mode"] not in [
         "debug",
@@ -435,6 +420,7 @@ def create_parser():
         type=int,
         help="If given, it will submit the job as a slurm array job with the given number of tasks.",
     )
+    parser.add_argument("--ckpt_intervals", default=None, type=str)
     return parser
 
 

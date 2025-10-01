@@ -9,6 +9,7 @@ import pytorch_lightning as pl
 from nemo import lightning as nl
 from functools import partial
 import nemo_run as run
+import ast
 
 from dataloader import create_data
 from recipes.recipe_utils import set_recipe_trainer
@@ -59,6 +60,11 @@ if __name__ == "__main__":
     parser.add_argument("--base_checkpoint", default=None, type=str)
     parser.add_argument("--performance_mode", default=False, action="store_true")
     parser.add_argument("--max_time_per_run", default="04:00:00:00", type=str)
+    parser.add_argument(
+        "--ckpt_intervals",
+        default="{1: 1, 50_000: 500, 100_000: 5_000}",
+        type=ast.literal_eval,
+    )
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -168,7 +174,7 @@ if __name__ == "__main__":
         every_n_train_steps = min(max_steps, 10_000)  # computed for each model
         every_function_train_steps = partial(
             checkpoint_along_step_curve,
-            intervals={1: 1, 50_000: 500, 100_000: 5_000},
+            intervals=args.ckpt_intervals,
             else_interval=10_000,
         )
         resume_if_exists = True
