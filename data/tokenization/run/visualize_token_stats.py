@@ -131,6 +131,7 @@ def plot_horizontal_bar(
 
 
 def plot_box_plot_from_summary(df, column_name, output_file):
+    df = df[df["total_tokens"] > 0]
     df = df.sort_values("Q2_tokens", ascending=False).reset_index(drop=True)
 
     num_items = len(df)
@@ -229,7 +230,7 @@ def plot_box_plot_from_summary(df, column_name, output_file):
 def create_datamix_file(df, token_dir, output_dir):
     df = df.copy()
     df.loc[:, "name"] = df["name"] + "_text_document"
-    num_samples_per_dataset = (df["total_tokens"] * df["repeat"]) // args.seq_length
+    num_samples_per_dataset = df["total_tokens"] // args.seq_length
     df.loc[:, "weight"] = num_samples_per_dataset
     df = df[df["weight"] > 0]
     num_samples_global = num_samples_per_dataset.sum()
@@ -318,6 +319,7 @@ if __name__ == "__main__":
         assert (
             len(nan_rows) == 0
         ), f"{nan_rows['name'].tolist()} not in all_stats_merged.csv file"
+        df["total_tokens"] = df["total_tokens"] * df["repeat"]
         create_datamix_file(df, token_dir, output_dir)
     else:
         print(f"No repeats.csv file found in {output_dir}.")

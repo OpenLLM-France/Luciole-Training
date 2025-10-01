@@ -15,7 +15,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --time=20:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-t3
-#SBATCH --account=wuh@h100
+#SBATCH --account=zwy@h100
 #SBATCH --constraint=h100
 {dependency}
 
@@ -112,6 +112,7 @@ def launch_evaluation(
     max_samples=-1,
     dependency=None,
     force=False,
+    debug=False,
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
@@ -166,6 +167,9 @@ def launch_evaluation(
         print(f"Submitting job for checkpoint: {ckpt} {revision}")
         subprocess.run(["sbatch", str(job_filename)], check=True)
 
+        if debug:
+            break
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -211,6 +215,7 @@ if __name__ == "__main__":
         help="A dependency after which it should launch the evals",
     )
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
     launch_evaluation(
@@ -223,4 +228,5 @@ if __name__ == "__main__":
         max_samples=args.max_samples,
         dependency=args.dependency,
         force=args.force,
+        debug=args.debug,
     )
