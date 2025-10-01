@@ -120,6 +120,7 @@ main_patterns=(
     synthetic-fineweb_extract-knowledge-easy*
     synthetic-fineweb_extract-knowledge-medium*
     synthetic-fineweb_extract-knowledge-hard*
+    fineweb2_hq*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \
