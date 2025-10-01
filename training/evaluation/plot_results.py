@@ -7,93 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-task_group_mapping = {
-    "en": [
-        ("helm|boolq|0", "pem"),
-        ("helm|boolq:contrastset|0", "pem"),
-        ("lighteval|triviaqa|0", "qem"),
-        ("lighteval|arc:easy|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc_norm"),
-        ("lighteval|openbookqa|0", "acc_norm"),
-        ("lighteval|piqa|0", "acc_norm"),
-        ("helm|siqa|0|0", "pem"),
-        ("helm|commonsenseqa|0|0", "pem"),
-    ],
-    "fr": [
-        ("lighteval|meta_mmlu_fra_cf:_average|0", "acc_norm_pmi"),
-        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_pmi"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("lighteval|xcodah_fra_cf|0", "acc_norm_token"),
-        ("lighteval|xcsqa_fra_cf|0", "acc_norm_pmi"),
-        ("lighteval|xnli2.0_fra_cf|0", "acc_"),
-        ("lighteval|fquadv2_fra|0", "f1_fra"),
-        ("lighteval|mintaka_fra|0", "f1_fra"),
-    ],
-    "fr_5shots": [
-        ("lighteval|meta_mmlu_fra_cf:_average|5", "acc_norm_pmi"),
-        ("lighteval|belebele_fra_Latn_cf|5", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|5", "acc_norm_pmi"),
-        ("lighteval|mlmm_hellaswag_fra_cf|5", "acc_norm_token"),
-        ("lighteval|xcodah_fra_cf|5", "acc_norm_token"),
-        ("lighteval|xcsqa_fra_cf|5", "acc_norm_pmi"),
-        ("lighteval|xnli2.0_fra_cf|5", "acc_"),
-        ("lighteval|fquadv2_fra|5", "f1_fra"),
-        ("lighteval|mintaka_fra|5", "f1_fra"),
-    ],
-    "multilingual": [
-        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
-    ],
-    "math": [
-        ("leaderboard|gsm8k|5", "qem"),
-        ("lighteval|math:_average|5", "maj@4"),
-        ("lighteval|math:_average|5", "qem"),
-        ("lighteval|math:algebra|5", "maj@4"),
-        ("lighteval|math:algebra|5", "qem"),
-        ("lighteval|math:counting_and_probability|5", "maj@4"),
-        ("lighteval|math:counting_and_probability|5", "qem"),
-        ("lighteval|math:geometry|5", "maj@4"),
-        ("lighteval|math:geometry|5", "qem"),
-        ("lighteval|math:intermediate_algebra|5", "maj@4"),
-        ("lighteval|math:intermediate_algebra|5", "qem"),
-        ("lighteval|math:number_theory|5", "maj@4"),
-        ("lighteval|math:number_theory|5", "qem"),
-        ("lighteval|math:prealgebra|5", "maj@4"),
-        ("lighteval|math:prealgebra|5", "qem"),
-        ("lighteval|math:precalculus|5", "maj@4"),
-        ("lighteval|math:precalculus|5", "qem"),
-    ],
-    "smollm3": [
-        ("custom|hellaswag_cf|0|1", "acc_norm"),
-        ("custom|arc_cf|0|1", "acc_norm"),
-        ("custom|mmlu_cf|0|1", "acc_norm"),
-        ("custom|mmlu_pro_cf|0|1", "acc_norm"),
-        ("custom|boolq_cf|0|1", "acc_norm"),
-        ("custom|commonsenseqa_cf|0|1", "acc_norm"),
-        ("custom|winogrande_cf|0|1", "acc_norm"),
-        ("custom|openbookqa_cf|0|1", "acc_norm"),
-        ("custom|piqa_cf|0|1", "acc_norm"),
-        ("custom|gsm8k|5|1", "qem"),
-        ("custom|math_cot|40|1", "qem"),
-    ],
-    "agg": [
-        ("AGG_EN", "agg"),
-        ("AGG_EN_GK", "agg"),
-        ("AGG_EN_NLU", "agg"),
-        ("AGG_EN_RES", "agg"),
-        ("AGG_FR", "agg"),
-        ("AGG_FR_GEN", "agg"),
-        ("AGG_FR_GK", "agg"),
-        ("AGG_FR_NLU", "agg"),
-        ("AGG_FR_RC", "agg"),
-        ("AGG_FR_RES", "agg"),
-    ],
-}
+task_group_mapping = {}
 
 
 def assign_colors(df):
@@ -293,7 +207,7 @@ def plot_experiments(df, args):
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
 
-        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
+        filename = f'{g}{"_max" + args.max_samples if args.max_samples != "None" else ""}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
 
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None
@@ -361,7 +275,7 @@ if __name__ == "__main__":
         default="out/",
         help="Output path where your plot are storred",
     )
-    parser.add_argument("--max_samples", type=int, default=1000, help="Max samples")
+    parser.add_argument("--max_samples", type=str, default="None")
     parser.add_argument(
         "--evaluation_dir",
         type=str,
@@ -385,4 +299,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     df = process_experiments(args)
+    df = df[df["max_samples"] == args.max_samples]
+
+    print(df)
     plot_experiments(df, args)

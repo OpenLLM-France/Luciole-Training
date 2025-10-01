@@ -18,7 +18,12 @@ def get_training_tokens_and_model_size(file_path):
         tokens = 4000
         model_size = 1.394_706_432
     elif "SmolLM2-1.7B" in str(file_path):
-        tokens = 11000
+        match = re.search(r"step-([0-9.]+)", str(file_path))
+        steps = float(match.group(1)) if match else None
+        if steps is None:
+            tokens = 12000
+        else:
+            tokens = steps * 2.36 * 1e-3
         model_size = 1.711_376_384
     elif "SmolLM3-3B" in str(file_path):
         tokens = 11200

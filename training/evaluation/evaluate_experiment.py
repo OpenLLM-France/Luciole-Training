@@ -15,7 +15,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --time=20:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-t3
-#SBATCH --account=zwy@h100
+#SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
 {dependency}
 
@@ -83,6 +83,11 @@ def get_hf_model(hf_model):
     elif hf_model == "OpenLLM-France/Lucie-7B":
         checkpoints = [hf_model for i in range(1, 16)]
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
+    elif hf_model == "HuggingFaceTB/SmolLM2-1.7B":
+        checkpoints = [
+            "HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints" for i in range(1, 20)
+        ] + ["HuggingFaceTB/SmolLM2-1.7B"]
+        revisions = [f"step-{i*250000}" for i in range(1, 20)] + ["main"]
     else:
         print(f"Selection the main revision of {hf_model} model.")
         checkpoints = [hf_model]
