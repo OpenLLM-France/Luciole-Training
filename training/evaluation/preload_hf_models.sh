@@ -34,6 +34,13 @@ for i in {1..15}; do
     hf download OpenLLM-France/Lucie-7B --revision "step$step"
 done
 
+# SmolLM2
+for i in {1..15}; do
+    step=$((i*250000))
+    echo -e "\n******\nLoading $step\n"
+    hf download HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints --revision "step-$step"
+done
+
 # EUROLLM
 hf download utter-project/EuroLLM-1.7B
 hf download HuggingFaceTB/SmolLM2-1.7B

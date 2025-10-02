@@ -1,0 +1,1 @@
+lighteval|global_mmlu_all_fra_cf:abstract_algebra|0

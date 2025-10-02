@@ -151,7 +151,7 @@ export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
 
 module purge
-module load arch/h100 nemo/2.3.1
+module load arch/h100 nemo/2.4.0
 
 # exec 1> >(tee -a {output_dir}/log.out >&1)
 # exec 2> >(tee -a {output_dir}/failed.out >&2)

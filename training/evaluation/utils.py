@@ -21,9 +21,9 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"step-([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
         if steps is None:
-            tokens = 12000
+            tokens = 11000
         else:
-            tokens = steps * 2.36 * 1e-3
+            tokens = steps * 2 * 1e-3
         model_size = 1.711_376_384
     elif "SmolLM3-3B" in str(file_path):
         tokens = 11200
@@ -51,13 +51,6 @@ def get_training_tokens_and_model_size(file_path):
     return tokens, model_size
 
 
-def get_expe_name(file_path, evaluation_dir="evaluation"):
-    parts = file_path.parts
-    eval_index = parts.index(evaluation_dir)
-    expe_name = parts[eval_index - 1]
-    return expe_name
-
-
 def read_json_file(file_path):
     file_path = Path(file_path)
     with open(file_path, "r") as f:
@@ -73,10 +66,6 @@ def read_json_file(file_path):
 
     # Filter out metrics ending in "_stderr"
     df = df[~df["metric"].str.endswith("_stderr")]
-
-    # Get expe name
-    df["expe_name"] = get_expe_name(file_path)
-    # df["model_name"] = data["config_general"]["model_name"]
 
     # Get training flops
     tokens, num_parameters = get_training_tokens_and_model_size(file_path)
@@ -94,6 +83,7 @@ def read_json_file(file_path):
 def read_experiment_results(main_dir, evaluation_dir="evaluation"):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
+    expe_name = main_dir.name
 
     dataframes = [
         read_json_file(f)
@@ -104,6 +94,7 @@ def read_experiment_results(main_dir, evaluation_dir="evaluation"):
         print(f"No valid JSON result files found in {main_dir}")
         return
     df = pd.concat(dataframes, ignore_index=True)
+    df["expe_name"] = expe_name
 
     # Remove duplicates
     len_before_dup = len(df)

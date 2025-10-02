@@ -116,6 +116,7 @@ def launch_evaluation(
     command,
     max_samples=-1,
     dependency=None,
+    lighteval_kwargs="",
     force=False,
     debug=False,
 ):
@@ -137,6 +138,7 @@ def launch_evaluation(
     job_dir.mkdir(parents=True, exist_ok=True)
 
     extra_arg = init_extra_args(custom_tasks, max_samples)
+    extra_arg += lighteval_kwargs
 
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
@@ -201,7 +203,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--custom_tasks",
         default=None,
-        choices=[None, "multilingual", "fineweb", "lucie", "smollm3"],
+        choices=[None, "multilingual"],
     )
     parser.add_argument(
         "--max_samples",
@@ -221,6 +223,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--lighteval_kwargs", type=str, default="")
     args = parser.parse_args()
 
     launch_evaluation(
@@ -232,6 +235,7 @@ if __name__ == "__main__":
         command=args.command,
         max_samples=args.max_samples,
         dependency=args.dependency,
+        lighteval_kwargs=args.lighteval_kwargs,
         force=args.force,
         debug=args.debug,
     )
