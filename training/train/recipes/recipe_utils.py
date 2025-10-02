@@ -3,9 +3,11 @@ import torch
 import os
 import logging
 import datetime
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed
+from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed, bf16_with_fp8_subchannel_scaling_mixed
 from nemo.utils.exp_manager import TimingCallback
 from .callbacks import PytorchProfilerCallback, StatelessTimer
+from nemo.lightning.pytorch.callbacks.garbage_collection import GarbageCollectionCallback
+from nemo.lightning.pytorch.callbacks.megatron_comm_overlap import MegatronCommOverlapCallback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,6 +32,8 @@ def set_recipe_trainer(recipe, args):
     recipe.trainer.callbacks = [
         run.Config(TimingCallback), 
         run.Config(StatelessTimer, duration=time_limit), 
+        # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
+        # run.Config(GarbageCollectionCallback, gc_interval_train=50, gc_interval_val=100),
         # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
     ]
     if args.fp8:
@@ -50,13 +54,7 @@ def set_recipe_trainer(recipe, args):
     if args.pipeline_parallelism:
         recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
     recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
-    if args.virtual_pipeline_parallelism:
-        if args.virtual_pipeline_parallelism == -1:
-            recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
-        else:
-            recipe.trainer.strategy.virtual_pipeline_model_parallel_size = (
-                args.virtual_pipeline_parallelism
-            )
+    recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
     if args.context_parallelism:
         recipe.trainer.strategy.context_parallel_size = args.context_parallelism
     if recipe.trainer.strategy.tensor_model_parallel_size == 1:
