@@ -176,13 +176,15 @@ srun torchrun $DISTRIBUTED_ARGS {train_path}/train_model.py {args}
     return script
 
 
-def write_launch_slurm(slurm_path, slurm_content, task="", array=None):
+def write_launch_slurm(slurm_path, slurm_content, task="", array=None, depends=None):
     with open(slurm_path, "w") as fout:
         fout.write(slurm_content)
     logger.info(f"📝 Generated slurm script : {slurm_path}")
     command = ["sbatch"]
     if array:
         command += [f"--array=1-{array}%1"]
+    if depends:
+        command += [f"--dependency={depends}"]
     # command += ["--contiguous"]
     command += [slurm_path]
     try:
@@ -261,6 +263,8 @@ def submit_job(**kwargs):
     os.makedirs(xp_output_dir, exist_ok=True)
     sub_xp = ""
     array = kwargs.pop("slurm_array", None)
+    depends = kwargs.pop("depends", None)
+
     if kwargs["mode"] in ["phase1", "phase2", "annealing"]:
         kwargs["account"] = (
             "zwy@h100" if not kwargs.get("account") else kwargs["account"]
@@ -292,7 +296,7 @@ def submit_job(**kwargs):
     logger.info(f"📄 Copied datamix file : {config} to {config_output_dir}")
 
     job_id = write_launch_slurm(
-        sbatch_script_path, slurm_script, task="train", array=array
+        sbatch_script_path, slurm_script, task="train", array=array, depends=depends
     )
 
     sub_xp_output_dir = os.path.join(xp_output_dir, f"job{sub_xp}_{job_id}")
@@ -419,6 +423,11 @@ def create_parser():
         default=None,
         type=int,
         help="If given, it will submit the job as a slurm array job with the given number of tasks.",
+    )
+    parser.add_argument(
+        "--depends",
+        default=None,
+        type=str,
     )
     parser.add_argument("--ckpt_intervals", default=None, type=str)
     return parser
