@@ -1,37 +1,16 @@
 import argparse
-import torch
+from utils import SUPPORTED_ARCHITECTURES
 import os
-import math
-import sys
-import logging
-import fiddle
-import pytorch_lightning as pl
-from nemo import lightning as nl
-from functools import partial
-import nemo_run as run
-import ast
 
-from dataloader import create_data
-from recipes.recipe_utils import set_recipe_trainer
-from recipes.callbacks import ProgressiveIntervalCheckpoint, checkpoint_along_step_curve
-from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
-from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
-from utils import (
-    read_datamix_file,
-    get_data_paths,
-    get_tokenizer,
-    check_tokenizer,
-    save_stats,
-    save_config,
-    write_completion,
-    SUPPORTED_ARCHITECTURES,
-)
 
-torch.set_float32_matmul_precision("high")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config")
+def get_parser():
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument(
+        "--datamix",
+        default="mock.json",
+        help="Path to the datamix, should be a json or yaml file.",
+        type=str,
+    )
     parser.add_argument(
         "--arch",
         default="llama1b",
@@ -47,24 +26,61 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_dir",
-        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "test_run"),
     )
     parser.add_argument("--batch_size", default=1024, type=int)
     parser.add_argument("--seq_length", default=4096, type=int)
-    parser.add_argument("--tensor_parallelism", default=None, type=int)
-    parser.add_argument("--pipeline_parallelism", default=None, type=int)
-    parser.add_argument("--context_parallelism", default=None, type=int)
-    parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
+    parser.add_argument("--tensor_parallelism", "--tp", default=None, type=int)
+    parser.add_argument("--pipeline_parallelism", "--pp", default=None, type=int)
+    parser.add_argument("--context_parallelism", "--cp", default=None, type=int)
+    parser.add_argument(
+        "--virtual_pipeline_parallelism", "--vpp", default=None, type=int
+    )
     parser.add_argument("--fp8", default=False, action="store_true")
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--base_checkpoint", default=None, type=str)
     parser.add_argument("--performance_mode", default=False, action="store_true")
-    parser.add_argument("--max_time_per_run", default="04:00:00:00", type=str)
+    parser.add_argument("--time", default="100:00:00", type=str)
     parser.add_argument(
         "--ckpt_intervals",
         default="{1: 1, 50_000: 500, 100_000: 5_000}",
-        type=ast.literal_eval,
+        type=str,
     )
+    return parser
+
+
+if __name__ == "__main__":
+    import torch
+    import math
+    import sys
+    import logging
+    from functools import partial
+    import ast
+    from utils import (
+        read_datamix_file,
+        get_data_paths,
+        get_tokenizer,
+        check_tokenizer,
+        save_stats,
+        save_config,
+        write_completion,
+    )
+    import nemo_run as run
+    import pytorch_lightning as pl
+    from nemo import lightning as nl
+    from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
+    from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
+    import fiddle
+    from dataloader import create_data
+    from recipes.recipe_utils import set_recipe_trainer
+    from recipes.callbacks import (
+        ProgressiveIntervalCheckpoint,
+        checkpoint_along_step_curve,
+    )
+
+    torch.set_float32_matmul_precision("high")
+
+    parser = get_parser()
     args = parser.parse_args()
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -130,6 +146,10 @@ if __name__ == "__main__":
         from recipes.recipe_nemotron import set_nemotron1b_recipe
 
         recipe = set_nemotron1b_recipe(recipe, args)
+    elif arch == "nemotron22b":
+        from recipes.recipe_nemotron import set_nemotron22b_recipe
+
+        recipe = set_nemotron22b_recipe(recipe, args)
 
     data = create_data(data_args)
     recipe.data = data
@@ -174,7 +194,7 @@ if __name__ == "__main__":
         every_n_train_steps = min(max_steps, 10_000)  # computed for each model
         every_function_train_steps = partial(
             checkpoint_along_step_curve,
-            intervals=args.ckpt_intervals,
+            intervals=ast.literal_eval(args.ckpt_intervals),
             else_interval=10_000,
         )
         resume_if_exists = True

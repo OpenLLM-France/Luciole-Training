@@ -1,13 +1,18 @@
 import nemo_run as run
 import torch
-import os
 import logging
 import datetime
-from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed, bf16_with_fp8_current_scaling_mixed, bf16_with_mxfp8_mixed, bf16_with_fp8_subchannel_scaling_mixed
+
+# from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
+from nemo.collections.llm.recipes.precision.mixed_precision import (
+    bf16_with_fp8_current_scaling_mixed,
+)
 from nemo.utils.exp_manager import TimingCallback
-from .callbacks import PytorchProfilerCallback, StatelessTimer
-from nemo.lightning.pytorch.callbacks.garbage_collection import GarbageCollectionCallback
-from nemo.lightning.pytorch.callbacks.megatron_comm_overlap import MegatronCommOverlapCallback
+
+# from .callbacks import PytorchProfilerCallback
+from .callbacks import StatelessTimer
+# from nemo.lightning.pytorch.callbacks.garbage_collection import GarbageCollectionCallback
+# from nemo.lightning.pytorch.callbacks.megatron_comm_overlap import MegatronCommOverlapCallback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,16 +27,19 @@ def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
     minutes = (td.seconds % 3600) // 60
     return f"{td.days:02}:{hours:02}:{minutes:02}:00"
 
+
 def set_recipe_trainer(recipe, args):
     recipe.trainer.limit_val_batches = 0.0
     recipe.trainer.log_every_n_steps = (
         1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
-    time_limit = get_time_limit(args.max_time_per_run, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30)
+    time_limit = get_time_limit(
+        args.time, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30
+    )
     # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
     recipe.trainer.callbacks = [
-        run.Config(TimingCallback), 
-        run.Config(StatelessTimer, duration=time_limit), 
+        run.Config(TimingCallback),
+        run.Config(StatelessTimer, duration=time_limit),
         # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
         # run.Config(GarbageCollectionCallback, gc_interval_train=50, gc_interval_val=100),
         # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
