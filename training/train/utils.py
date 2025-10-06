@@ -164,7 +164,7 @@ def save_config(output_dir, args, data_args, recipe):
         "output_dir": args.output_dir,
         "arch": args.arch,
         "fp8": args.fp8,
-        "config": args.config,
+        "datamix": args.datamix,
         "performance_mode": args.performance_mode,
     }
     try:

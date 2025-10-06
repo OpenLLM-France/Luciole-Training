@@ -119,7 +119,7 @@ if __name__ == "__main__":
     recipe = set_recipe_trainer(recipe, args)
 
     # Read datamix config
-    loaded_data = read_datamix_file(args.config)
+    loaded_data = read_datamix_file(args.datamix)
     data_paths = get_data_paths(loaded_data)
     tokenizer_name = get_tokenizer(loaded_data)
     check_tokenizer(tokenizer_name, args.base_checkpoint)
