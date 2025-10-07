@@ -202,6 +202,8 @@ if __name__ == "__main__":
     time_limit = get_time_limit(
         args.time, 5 if args.mode in ["debug", "benchmark"] else 30
     )
+    if not recipe.trainer.callbacks:
+        recipe.trainer.callbacks = []
     recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
     # Add callbacks if not already present
     existing_callbacks = [
