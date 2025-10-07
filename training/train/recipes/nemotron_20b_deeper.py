@@ -7,4 +7,7 @@ def pretrain_recipe(**kwargs):
     recipe = pretrain_base_recipe(**kwargs)
     recipe.model.config.num_layers = 48
     recipe.model.config.num_query_groups = 8
+    # Parallelism
+    recipe.trainer.strategy.tensor_model_parallel_size = 4
+    recipe.trainer.strategy.pipeline_model_parallel_size = 2
     return recipe
