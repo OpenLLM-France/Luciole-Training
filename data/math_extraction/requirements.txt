@@ -1,6 +1,0 @@
-resiliparse
-lxml
-prettytable
-# git+https://github.com/keirp/OpenWebMath.git@main#subdirectory=text_extraction
-tabulate
-py-asciimath
