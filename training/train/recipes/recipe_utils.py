@@ -20,6 +20,8 @@ SUPPORTED_ARCHITECTURES = [
     "nemotron4b",
     "nemotron8b",
     "nemotron22b",
+    "nemotron20b_wider",
+    "nemotron20b_deeper",
     "qwen32b",
 ]
 
@@ -56,7 +58,11 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     elif arch == "nemotron8b":
         from nemo.collections.llm.recipes.nemotron3_8b import pretrain_recipe
     elif arch == "nemotron22b":
-        from .nemotron_22b import pretrain_recipe
+        from nemo.collections.llm.recipes.nemotron3_22b import pretrain_recipe
+    elif arch == "nemotron20b_wider":
+        from .nemotron_20b_wider import pretrain_recipe
+    elif arch == "nemotron20b_deeper":
+        from .nemotron_20b_deeper import pretrain_recipe
     elif arch == "nemotronh8b":
         from nemo.collections.llm.recipes.nemotronh_8b import pretrain_recipe
     elif arch == "nemotron_nano9b":
