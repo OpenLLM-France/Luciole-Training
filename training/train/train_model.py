@@ -153,14 +153,10 @@ if __name__ == "__main__":
         max_steps = 2
     elif args.mode == "benchmark":
         max_steps = 25
-    elif args.mode == "benchmark100":
-        max_steps = 100
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
     recipe.trainer.limit_val_batches = 0.0
-    recipe.trainer.log_every_n_steps = (
-        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
-    )
+    recipe.trainer.log_every_n_steps = 1 if args.mode in ["debug", "benchmark"] else 5
 
     # FP8 setup
     if args.fp8:
@@ -183,7 +179,7 @@ if __name__ == "__main__":
 
     ### OPTIM SETUP
     lr = recipe.optim.config.lr  # 3e-4??
-    if args.mode in ["debug", "benchmark", "benchmark100"]:
+    if args.mode in ["debug", "benchmark"]:
         warmup = 5
     elif args.mode == "phase1":
         warmup = 2000
@@ -196,7 +192,7 @@ if __name__ == "__main__":
 
     # Callbacks setup
     time_limit = get_time_limit(
-        args.time, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30
+        args.time, 5 if args.mode in ["debug", "benchmark"] else 30
     )
     # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
     recipe.trainer.callbacks = [
@@ -213,13 +209,11 @@ if __name__ == "__main__":
 
     # Custom checkpointing method
     every_n_train_steps = (
-        30
-        if args.mode in ["debug", "benchmark", "benchmark100"]
-        else min(max_steps, 10_000)
+        30 if args.mode in ["debug", "benchmark"] else min(max_steps, 10_000)
     )
     intervals = (
         {}
-        if args.mode in ["debug", "benchmark", "benchmark100"]
+        if args.mode in ["debug", "benchmark"]
         else ast.literal_eval(args.ckpt_intervals)
     )
     every_function_train_steps = partial(
