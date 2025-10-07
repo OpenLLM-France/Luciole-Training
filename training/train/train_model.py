@@ -1,5 +1,5 @@
 import argparse
-from utils import SUPPORTED_ARCHITECTURES
+from recipes.recipe_utils import SUPPORTED_ARCHITECTURES
 import os
 
 
@@ -50,165 +50,184 @@ def get_parser():
 
 
 if __name__ == "__main__":
-    import torch
+    import ast
+    import logging
     import math
     import sys
-    import logging
     from functools import partial
-    import ast
-    from utils import (
-        read_datamix_file,
-        get_data_paths,
-        get_tokenizer,
-        check_tokenizer,
-        save_stats,
-        save_config,
-        write_completion,
-    )
-    import nemo_run as run
+
+    import fiddle
     import pytorch_lightning as pl
+    import torch
+
     from nemo import lightning as nl
+    from nemo.collections.llm.gpt.data import PreTrainingDataModule
+    from nemo.collections.llm.recipes.precision.mixed_precision import (
+        bf16_with_fp8_current_scaling_mixed,
+    )
+    from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
     from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
     from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
-    import fiddle
-    from dataloader import create_data
-    from recipes.recipe_utils import set_recipe_trainer
+    from nemo.utils.exp_manager import TimingCallback
+
     from recipes.callbacks import (
         ProgressiveIntervalCheckpoint,
         checkpoint_along_step_curve,
     )
+    from recipes.recipe_utils import get_recipe, get_time_limit, setup_parallelism
 
-    torch.set_float32_matmul_precision("high")
+    from utils import (
+        check_tokenizer,
+        process_datamix_file,
+        save_config,
+        save_stats,
+        write_completion,
+    )
+
+    import nemo_run as run
+    from .callbacks import StatelessTimer
+
+    # from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
+    # from .callbacks import PytorchProfilerCallback
+    # from nemo.lightning.pytorch.callbacks.megatron_comm_overlap import MegatronCommOverlapCallback
 
     parser = get_parser()
     args = parser.parse_args()
 
+    torch.set_float32_matmul_precision("high")
+
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    arch = args.arch
-    output_dir = args.output_dir
-
     pl.seed_everything(args.seed, workers=True)
 
-    recipe_args = dict(
-        dir=output_dir,
+    # Set up base recipe
+    recipe = get_recipe(
+        arch=args.arch,
+        dir=args.output_dir,
         name=args.name,
         num_nodes=int(os.environ.get("SLURM_NNODES", 1)),
         num_gpus_per_node=int(os.environ.get("SLURM_GPUS", 4)),
-    )
-    if arch.startswith("llama"):
-        from recipes.recipe_llama import get_recipe
-    elif arch.startswith("nemotron"):
-        from recipes.recipe_nemotron import get_recipe
-
-        if arch == "nemotronh47b":
-            args.fp8 = True
-    elif arch.startswith("mixtral") or arch.startswith("mistral"):
-        from recipes.recipe_mistral import get_recipe
-    elif arch.startswith("qwen"):
-        from recipes.recipe_qwen import get_recipe
-    else:
-        raise NotImplementedError(f"Architecture {arch} not implemented")
-    pretrain_recipe, recipes_args = get_recipe(
-        arch=arch,
-        recipe_args=recipe_args,
         performance_mode_if_possible=args.performance_mode,
     )
-    recipe = pretrain_recipe(**recipes_args)
-    recipe = set_recipe_trainer(recipe, args)
 
+    ### DATA SETUP
     # Read datamix config
-    loaded_data = read_datamix_file(args.datamix)
-    data_paths = get_data_paths(loaded_data)
-    tokenizer_name = get_tokenizer(loaded_data)
+    tokenizer_name, data_paths, total_tokens = process_datamix_file(args.datamix)
     check_tokenizer(tokenizer_name, args.base_checkpoint)
-    data_dir = loaded_data.get("data_path", None)
-    total_tokens = loaded_data.get("total_tokens", None)
 
+    tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
+
+    # Set up batch size and seq length
+    global_batch_size = (
+        args.batch_size if args.batch_size else recipe.data.global_batch_size
+    )
+    seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
+    tokens_per_batch = seq_length * global_batch_size
+    max_steps = math.floor(total_tokens / tokens_per_batch)
+
+    # Set up recipe data
     data_args = dict(
+        num_workers=8,
+        pin_memory=True,
+        tokenizer=tokenizer,
+        split="1,0,0",
         paths=data_paths,
-        global_batch_size=args.batch_size
-        if args.batch_size
-        else recipe.data.global_batch_size,
+        global_batch_size=global_batch_size,
         micro_batch_size=recipe.data.micro_batch_size,
-        seq_length=args.seq_length if args.seq_length else recipe.data.seq_length,
+        seq_length=seq_length,
         tokenizer_name=tokenizer_name,
         seed=args.seed,
-        index_mapping_dir=os.path.join(output_dir, "index_mapping"),
+        index_mapping_dir=os.path.join(args.output_dir, "index_mapping"),
+    )
+    recipe.data = run.Config(PreTrainingDataModule, **data_args)
+
+    ### MODEL SETUP
+    recipe.model.tokenizer = recipe.data.tokenizer
+    recipe.model.config.seq_length = recipe.data.seq_length
+    if args.arch.startswith("llama") and args.base_checkpoint is None:
+        recipe.model.config.old_context_len = recipe.data.seq_length
+
+    ### TRAINER SETUP
+    if args.mode == "debug":
+        max_steps = 2
+    elif args.mode == "benchmark":
+        max_steps = 25
+    elif args.mode == "benchmark100":
+        max_steps = 100
+    recipe.trainer.max_steps = max_steps
+    recipe.trainer.val_check_interval = max_steps
+    recipe.trainer.limit_val_batches = 0.0
+    recipe.trainer.log_every_n_steps = (
+        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
     )
 
-    if arch == "llama24b":
-        from recipes.recipe_llama import set_llama24b_recipe
+    # FP8 setup
+    if args.fp8:
+        fp8_plugin = bf16_with_fp8_current_scaling_mixed()
+        fp8_plugin.first_last_layers_bf16 = True
+        fp8_plugin.num_layers_at_start_in_bf16 = 4
+        fp8_plugin.num_layers_at_end_in_bf16 = 4
+        recipe.trainer.plugins = fp8_plugin
+        recipe.trainer.plugins.grad_reduce_in_fp32 = True
+        recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = True
 
-        recipe = set_llama24b_recipe(recipe, args)
-    elif arch == "nemotron1b":
-        from recipes.recipe_nemotron import set_nemotron1b_recipe
+    # Parallelism setup
+    recipe = setup_parallelism(
+        recipe,
+        tensor_parallelism=args.tensor_parallelism,
+        pipeline_parallelism=args.pipeline_parallelism,
+        context_parallelism=args.context_parallelism,
+        # sequence_parallelism=args.sequence_parallelism,
+    )
 
-        recipe = set_nemotron1b_recipe(recipe, args)
-    elif arch == "nemotron22b":
-        from recipes.recipe_nemotron import set_nemotron22b_recipe
-
-        recipe = set_nemotron22b_recipe(recipe, args)
-
-    data = create_data(data_args)
-    recipe.data = data
-    recipe.model.tokenizer = data.tokenizer
-    recipe.model.config.seq_length = recipe.data.seq_length
-    resume_ignore_no_checkpoint = True
-    min_lr = recipe.optim.config.lr
-    if arch.startswith("llama") and args.base_checkpoint is None:
-        recipe.model.config.old_context_len = recipe.data.seq_length
-    if args.mode in ["debug", "benchmark"]:
-        max_steps = 2 if args.mode == "debug" else 25
-        resume_if_exists = True if args.mode == "benchmark" else False
-        every_n_train_steps = 30
-        every_function_train_steps = partial(checkpoint_along_step_curve, intervals={})
+    ### OPTIM SETUP
+    lr = recipe.optim.config.lr  # 3e-4??
+    if args.mode in ["debug", "benchmark", "benchmark100"]:
         warmup = 5
-    elif args.mode in ["phase1", "phase2", "annealing"]:
-        assert (
-            total_tokens is not None
-        ), "total_tokens should be set for phase1/phase2/annealing"
-        recipe.optim.config.lr = 3e-4
-        if args.mode == "phase1":
-            max_steps = math.floor(
-                total_tokens
-                / (data_args["seq_length"] * data_args["global_batch_size"])
-            )
-            warmup = 2000
-        elif args.mode == "phase2":
-            resume_ignore_no_checkpoint = False
-            max_steps = math.floor(
-                total_tokens
-                / (data_args["seq_length"] * data_args["global_batch_size"])
-            )
-            warmup = 0
-        elif args.mode == "annealing":
-            resume_ignore_no_checkpoint = False
-            max_steps = math.floor(
-                total_tokens
-                / (data_args["seq_length"] * data_args["global_batch_size"])
-            )
-            min_lr = 3e-5  # TODO: 0.0 ???
-            warmup = 0
-        every_n_train_steps = min(max_steps, 10_000)  # computed for each model
-        every_function_train_steps = partial(
-            checkpoint_along_step_curve,
-            intervals=ast.literal_eval(args.ckpt_intervals),
-            else_interval=10_000,
-        )
-        resume_if_exists = True
-        logging.info(
-            f"Total tokens: {total_tokens}, max_steps: {max_steps}, warmup: {warmup}"
-        )
+    elif args.mode == "phase1":
+        warmup = 2000
+    elif args.mode in ["phase2", "annealing"]:
+        warmup = 0
+    min_lr = lr if args.mode != "annealing" else lr * 0.1
     recipe.optim.lr_scheduler = run.Config(
         WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
     )
 
-    recipe.trainer.max_steps = max_steps
-    recipe.trainer.val_check_interval = max_steps
+    # Callbacks setup
+    time_limit = get_time_limit(
+        args.time, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30
+    )
+    # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
+    recipe.trainer.callbacks = [
+        run.Config(TimingCallback),
+        run.Config(StatelessTimer, duration=time_limit),
+        run.Config(
+            GarbageCollectionCallback,
+            gc_interval_train=100,
+            gc_interval_val=100,
+        ),
+        # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
+        # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
+    ]
 
-    # CKPT
+    # Custom checkpointing method
+    every_n_train_steps = (
+        30
+        if args.mode in ["debug", "benchmark", "benchmark100"]
+        else min(max_steps, 10_000)
+    )
+    intervals = (
+        {}
+        if args.mode in ["debug", "benchmark", "benchmark100"]
+        else ast.literal_eval(args.ckpt_intervals)
+    )
+    every_function_train_steps = partial(
+        checkpoint_along_step_curve,
+        intervals=intervals,
+        else_interval=10_000,
+    )
+
     recipe.log.ckpt = run.Config(
         ProgressiveIntervalCheckpoint,
         filename=args.name + "-{step:07.0f}",
@@ -222,32 +241,27 @@ if __name__ == "__main__":
         save_optim_on_train_end=True,  # set to True if you want to continue training even if max_steps was reached
     )
 
-    # add garbage collection callback
-    garbage_collection_callback = run.Config(
-        GarbageCollectionCallback,
-        gc_interval_train=100,
-        gc_interval_val=100,
+    # Resume from base_checkpoint
+    restore_config = (
+        nl.RestoreConfig(path=args.base_checkpoint, load_optim_state=True)
+        if args.base_checkpoint
+        else None
     )
-    recipe.trainer.callbacks.append(garbage_collection_callback)
 
-    # RESUME
+    resume_if_exists = False if args.mode == "debug" else True
+    resume_ignore_no_checkpoint = True
+    # resume_ignore_no_checkpoint = False if args.mode in ["phase2", "annealing"] else True
     recipe.resume = run.Config(
         nl.AutoResume,
         resume_if_exists=resume_if_exists,
-        resume_ignore_no_checkpoint=True,
+        resume_ignore_no_checkpoint=resume_ignore_no_checkpoint,
         resume_past_end=True,  # set to True if you want to continue training even if max_steps was reached
-        restore_config=nl.RestoreConfig(
-            path=args.base_checkpoint, load_optim_state=True
-        )
-        if args.base_checkpoint
-        else None,
+        restore_config=restore_config,
     )
 
+    # Save config
     job_id = os.environ.get("SLURM_JOB_ID", "0")
-    sub_xp = ""
-    if args.mode in ["phase1", "phase2", "annealing"]:
-        sub_xp = f"_{args.mode}"
-    job_output = os.path.join(output_dir, f"job{sub_xp}_{job_id}")
+    job_output = os.path.join(args.output_dir, f"job_{job_id}")
     os.makedirs(job_output, exist_ok=True)
     save_config(
         job_output,
@@ -262,4 +276,4 @@ if __name__ == "__main__":
     if str(args.mode).startswith("benchmark"):
         save_stats(job_output, args.name)
     if str(args.mode) not in ["debug", "phase1", "phase2", "annealing"]:
-        write_completion(output_dir)
+        write_completion(args.output_dir)

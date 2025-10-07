@@ -4,26 +4,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SUPPORTED_ARCHITECTURES = [
-    "llama1b",
-    "llama3b",
-    "llama8b",
-    "llama24b",
-    "llama70b",
-    "mamba1b",
-    "mixtral8x7",
-    "mambahybrid8b",
-    "nemotronh8b",
-    "nemotronh47b",
-    "nemotron22b",
-    "nemotron4b",
-    "nemotron8b",
-    "nemotron1b",
-    "qwen32b",
-    "mistral12b",
-    "qwen30ba3b",
-]
-
 
 def to_nb_tokens(x):
     if x in ["debug", "benchmark", "benchmark100", "phase1", "phase2", "annealing"]:
@@ -100,6 +80,14 @@ def get_tokenizer(loaded_data):
             f"tokenizer_name.txt not found in {loaded_data['data_path']}. Please rerun the tokenization step."
         )
     return tokenizer_name
+
+
+def process_datamix_file(datamix):
+    loaded_data = read_datamix_file(datamix)
+    data_paths = get_data_paths(loaded_data)
+    tokenizer_name = get_tokenizer(loaded_data)
+    total_tokens = loaded_data.get("total_tokens", None)
+    return tokenizer_name, data_paths, total_tokens
 
 
 def check_tokenizer(tokenizer_name, base_checkpoint):

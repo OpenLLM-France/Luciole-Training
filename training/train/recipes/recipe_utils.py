@@ -1,70 +1,145 @@
-import nemo_run as run
 import torch
 import logging
 import datetime
 
-# from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
-from nemo.collections.llm.recipes.precision.mixed_precision import (
-    bf16_with_fp8_current_scaling_mixed,
-)
-from nemo.utils.exp_manager import TimingCallback
-
-# from .callbacks import PytorchProfilerCallback
-from .callbacks import StatelessTimer
-# from nemo.lightning.pytorch.callbacks.garbage_collection import GarbageCollectionCallback
-# from nemo.lightning.pytorch.callbacks.megatron_comm_overlap import MegatronCommOverlapCallback
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+SUPPORTED_ARCHITECTURES = [
+    "llama1b",
+    "llama3b",
+    "llama8b",
+    "llama24b",
+    "llama70b",
+    # "mamba1b",
+    # "mambahybrid8b",
+    "mistral12b",
+    "mixtral8x7",
+    "nemotronh8b",
+    "nemotron1b",
+    "nemotron4b",
+    "nemotron8b",
+    "nemotron22b",
+    "nemotronh47b",
+    "qwen32b",
+    # "qwen30ba3b",
+]
 
-def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
-    logging.info(time_limit)
-    h, m, s = map(int, time_limit.split(":"))
-    slurm_time_limit = datetime.timedelta(hours=h, minutes=m, seconds=s)
-    td = slurm_time_limit - datetime.timedelta(minutes=buffer_minutes)
-    hours = td.seconds // 3600
-    minutes = (td.seconds % 3600) // 60
-    return f"{td.days:02}:{hours:02}:{minutes:02}:00"
+
+def set_llama24b_recipe(recipe):
+    recipe.model.config.num_layers = 40
+    recipe.model.config.num_attention_heads = 48
+    recipe.model.config.num_query_groups = 8
+    recipe.model.config.hidden_size = 6144
+    recipe.model.config.ffn_hidden_size = 24576
+    return recipe
 
 
-def set_recipe_trainer(recipe, args):
-    recipe.trainer.limit_val_batches = 0.0
-    recipe.trainer.log_every_n_steps = (
-        1 if args.mode in ["debug", "benchmark", "benchmark100"] else 5
-    )
-    time_limit = get_time_limit(
-        args.time, 5 if args.mode in ["debug", "benchmark", "benchmark100"] else 30
-    )
-    # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
-    recipe.trainer.callbacks = [
-        run.Config(TimingCallback),
-        run.Config(StatelessTimer, duration=time_limit),
-        # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
-        # run.Config(GarbageCollectionCallback, gc_interval_train=50, gc_interval_val=100),
-        # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
-    ]
-    if args.fp8:
-        if args.arch == "nemotronh47b":
-            logger.info("FP8 is always activated on nemotronh47b")
+def set_nemotron1b_recipe(recipe):
+    recipe.model.config.num_layers = 24
+    recipe.model.config.num_attention_heads = 32
+    recipe.model.config.num_query_groups = 8
+    recipe.model.config.hidden_size = 2048
+    recipe.model.config.ffn_hidden_size = 8192
+    recipe.model.config.kv_channels = None
+    recipe.model.config.share_embeddings_and_output_weights = True
+    recipe.trainer.strategy.context_parallel_size = 1
+    recipe.trainer.strategy.tensor_model_parallel_size = 1
+    return recipe
+
+
+def set_nemotron22b_recipe(recipe):
+    recipe.model.config.num_layers = 48
+    recipe.model.config.num_attention_heads = 8
+    return recipe
+
+
+def set_performance_mode_if_possible(arch):
+    if arch in [
+        "llama8b",
+        "llama24b",
+        "llama70b",
+        "mixtral8x7",
+        "nemotronh47b",
+        "nemotron22b",
+        "nemotron8b",
+    ]:
+        return True
+    return False
+
+
+def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
+    # Setup base recipe
+    if arch == "mixtral8x7":
+        from nemo.collections.llm.recipes.mixtral_8x7b import pretrain_recipe
+    elif arch == "mistral12b":
+        if performance_mode_if_possible:
+            from nemo.collections.llm.recipes.mistral_nemo_12b import (
+                pretrain_recipe_performance as pretrain_recipe,
+            )
         else:
-            fp8_plugin = bf16_with_fp8_current_scaling_mixed()
-            fp8_plugin.first_last_layers_bf16 = True
-            fp8_plugin.num_layers_at_start_in_bf16 = 4
-            fp8_plugin.num_layers_at_end_in_bf16 = 4
-            recipe.trainer.plugins = fp8_plugin
-            recipe.trainer.plugins.grad_reduce_in_fp32 = True
-            recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = True
+            from nemo.collections.llm.recipes.mistral_nemo_12b import pretrain_recipe
+    elif arch == "nemotron1b":
+        from nemo.collections.llm.recipes.nemotron3_4b import pretrain_recipe
+    elif arch == "nemotron4b":
+        from nemo.collections.llm.recipes.nemotron3_4b import pretrain_recipe
+    elif arch == "nemotron8b":
+        from nemo.collections.llm.recipes.nemotron3_8b import pretrain_recipe
+    elif arch == "nemotron22b":
+        from nemo.collections.llm.recipes.nemotron3_22b import pretrain_recipe
+    elif arch == "nemotronh47b":
+        from nemo.collections.llm.recipes.nemotronh_47b import pretrain_recipe
+    elif arch == "qwen32b":
+        from nemo.collections.llm.recipes.qwen25_32b import pretrain_recipe
+    # elif arch == "qwen30ba3b":
+    #     from .qwen3 import pretrain_recipe
+    elif arch == "llama1b":
+        from nemo.collections.llm.recipes.llama32_1b import pretrain_recipe
+    elif arch == "llama3b":
+        from nemo.collections.llm.recipes.llama32_3b import pretrain_recipe
+    elif arch == "llama8b":
+        from nemo.collections.llm.recipes.llama31_8b import pretrain_recipe
+    elif arch == "llama24b":
+        from nemo.collections.llm.recipes.llama31_8b import pretrain_recipe
+    elif arch == "llama70b":
+        from nemo.collections.llm.recipes.llama31_70b import pretrain_recipe
 
-    # STRATEGY
-    if args.tensor_parallelism:
-        recipe.trainer.strategy.tensor_model_parallel_size = args.tensor_parallelism
-    if args.pipeline_parallelism:
-        recipe.trainer.strategy.pipeline_model_parallel_size = args.pipeline_parallelism
+    # Unkown architecture
+    else:
+        raise ValueError(f"Unknown architecture: {arch}")
+
+    # Set up performance mode if possible
+    if performance_mode_if_possible:
+        recipe_args["performance_mode"] = set_performance_mode_if_possible(arch)
+
+    recipe = pretrain_recipe(**recipe_args)
+
+    # Custom recipes
+    if arch == "llama24b":
+        recipe = set_llama24b_recipe(recipe)
+    elif arch == "nemotron1b":
+        recipe = set_nemotron1b_recipe(recipe)
+    elif arch == "nemotron22b":
+        recipe = set_nemotron22b_recipe(recipe)
+
+    return recipe
+
+
+def setup_parallelism(
+    recipe,
+    tensor_parallelism=None,
+    pipeline_parallelism=None,
+    context_parallelism=None,
+    # sequence_parallelism=None,
+):
+    if tensor_parallelism:
+        recipe.trainer.strategy.tensor_model_parallel_size = tensor_parallelism
+    if pipeline_parallelism:
+        recipe.trainer.strategy.pipeline_model_parallel_size = pipeline_parallelism
     recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
     recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
-    if args.context_parallelism:
-        recipe.trainer.strategy.context_parallel_size = args.context_parallelism
+    if context_parallelism:
+        recipe.trainer.strategy.context_parallel_size = context_parallelism
     if recipe.trainer.strategy.tensor_model_parallel_size == 1:
         recipe.trainer.strategy.sequence_parallel = False
     # if args.sequence_parallelism is not None:
@@ -78,10 +153,20 @@ def set_recipe_trainer(recipe, args):
 
     if (
         recipe.trainer.strategy.tensor_model_parallel_size > 4
-        and args.tensor_parallelism is None
+        and tensor_parallelism is None
     ):
         logger.warning(
             f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
         )
     recipe.trainer.strategy.ckpt_async_save = True
     return recipe
+
+
+def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
+    logging.info(time_limit)
+    h, m, s = map(int, time_limit.split(":"))
+    slurm_time_limit = datetime.timedelta(hours=h, minutes=m, seconds=s)
+    td = slurm_time_limit - datetime.timedelta(minutes=buffer_minutes)
+    hours = td.seconds // 3600
+    minutes = (td.seconds % 3600) // 60
+    return f"{td.days:02}:{hours:02}:{minutes:02}:00"

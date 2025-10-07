@@ -9,21 +9,6 @@ import nemo_run as run
 from tqdm import tqdm
 
 
-def create_data(data_args: dict):
-    tokenizer = get_tokenizer(
-        tokenizer_name=data_args.pop("tokenizer_name"), use_fast=True
-    )
-    data = run.Config(
-        PreTrainingDataModule,
-        num_workers=8,
-        pin_memory=True,
-        tokenizer=tokenizer,
-        split="1,0,0",
-        **data_args,
-    )
-    return data
-
-
 def split_before_item(lst, item):
     result = []
     current = []
@@ -116,16 +101,18 @@ def run_dataloader(
 
     # Build and load the data
     recipe = configure_recipe(nodes=1, gpus_per_node=1)
-    recipe.data = fdl.build(
-        create_data(
-            {
-                "paths": os.path.join(folder_path, dataset_name),
-                "tokenizer_name": tokenizer_name,
-                "global_batch_size": 1,
-                "seq_length": seq_length,
-            }
-        )
+    tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
+    data = run.Config(
+        PreTrainingDataModule,
+        num_workers=8,
+        pin_memory=True,
+        tokenizer=tokenizer,
+        split="1,0,0",
+        paths=os.path.join(folder_path, dataset_name),
+        global_batch_size=1,
+        seq_length=seq_length,
     )
+    recipe.data = fdl.build(data)
 
     recipe.data.build(5, 1, 1, 1)
     recipe.data.trainer = fdl.build(recipe.trainer)
