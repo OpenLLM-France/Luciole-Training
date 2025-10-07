@@ -11,18 +11,16 @@ SUPPORTED_ARCHITECTURES = [
     "llama8b",
     "llama24b",
     "llama70b",
-    # "mamba1b",
-    # "mambahybrid8b",
     "mistral12b",
     "mixtral8x7",
     "nemotronh8b",
+    "nemotronh47b",
+    "nemotron_nano9b",
     "nemotron1b",
     "nemotron4b",
     "nemotron8b",
     "nemotron22b",
-    "nemotronh47b",
     "qwen32b",
-    # "qwen30ba3b",
 ]
 
 
@@ -59,6 +57,10 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         from nemo.collections.llm.recipes.nemotron3_8b import pretrain_recipe
     elif arch == "nemotron22b":
         from .nemotron_22b import pretrain_recipe
+    elif arch == "nemotronh8b":
+        from nemo.collections.llm.recipes.nemotronh_8b import pretrain_recipe
+    elif arch == "nemotron_nano9b":
+        from .nemotron_nano_9b import pretrain_recipe
     elif arch == "nemotronh47b":
         from nemo.collections.llm.recipes.nemotronh_47b import pretrain_recipe
     elif arch == "qwen32b":
@@ -75,8 +77,6 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         from .llama_24b import pretrain_recipe
     elif arch == "llama70b":
         from nemo.collections.llm.recipes.llama31_70b import pretrain_recipe
-
-    # Unkown architecture
     else:
         raise ValueError(f"Unknown architecture: {arch}")
 
