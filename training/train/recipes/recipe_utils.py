@@ -26,34 +26,6 @@ SUPPORTED_ARCHITECTURES = [
 ]
 
 
-def set_llama24b_recipe(recipe):
-    recipe.model.config.num_layers = 40
-    recipe.model.config.num_attention_heads = 48
-    recipe.model.config.num_query_groups = 8
-    recipe.model.config.hidden_size = 6144
-    recipe.model.config.ffn_hidden_size = 24576
-    return recipe
-
-
-def set_nemotron1b_recipe(recipe):
-    recipe.model.config.num_layers = 24
-    recipe.model.config.num_attention_heads = 32
-    recipe.model.config.num_query_groups = 8
-    recipe.model.config.hidden_size = 2048
-    recipe.model.config.ffn_hidden_size = 8192
-    recipe.model.config.kv_channels = None
-    recipe.model.config.share_embeddings_and_output_weights = True
-    recipe.trainer.strategy.context_parallel_size = 1
-    recipe.trainer.strategy.tensor_model_parallel_size = 1
-    return recipe
-
-
-def set_nemotron22b_recipe(recipe):
-    recipe.model.config.num_layers = 48
-    recipe.model.config.num_attention_heads = 8
-    return recipe
-
-
 def set_performance_mode_if_possible(arch):
     if arch in [
         "llama8b",
@@ -80,13 +52,13 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         else:
             from nemo.collections.llm.recipes.mistral_nemo_12b import pretrain_recipe
     elif arch == "nemotron1b":
-        from nemo.collections.llm.recipes.nemotron3_4b import pretrain_recipe
+        from .nemotron1b import pretrain_recipe
     elif arch == "nemotron4b":
         from nemo.collections.llm.recipes.nemotron3_4b import pretrain_recipe
     elif arch == "nemotron8b":
         from nemo.collections.llm.recipes.nemotron3_8b import pretrain_recipe
     elif arch == "nemotron22b":
-        from nemo.collections.llm.recipes.nemotron3_22b import pretrain_recipe
+        from .nemotron22b import pretrain_recipe
     elif arch == "nemotronh47b":
         from nemo.collections.llm.recipes.nemotronh_47b import pretrain_recipe
     elif arch == "qwen32b":
@@ -100,7 +72,7 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     elif arch == "llama8b":
         from nemo.collections.llm.recipes.llama31_8b import pretrain_recipe
     elif arch == "llama24b":
-        from nemo.collections.llm.recipes.llama31_8b import pretrain_recipe
+        from .llama24b import pretrain_recipe
     elif arch == "llama70b":
         from nemo.collections.llm.recipes.llama31_70b import pretrain_recipe
 
@@ -113,15 +85,6 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         recipe_args["performance_mode"] = set_performance_mode_if_possible(arch)
 
     recipe = pretrain_recipe(**recipe_args)
-
-    # Custom recipes
-    if arch == "llama24b":
-        recipe = set_llama24b_recipe(recipe)
-    elif arch == "nemotron1b":
-        recipe = set_nemotron1b_recipe(recipe)
-    elif arch == "nemotron22b":
-        recipe = set_nemotron22b_recipe(recipe)
-
     return recipe
 
 

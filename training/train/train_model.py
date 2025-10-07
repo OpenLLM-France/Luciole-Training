@@ -1,5 +1,5 @@
 import argparse
-from .recipe_utils import SUPPORTED_ARCHITECTURES
+from .recipes.recipe_utils import SUPPORTED_ARCHITECTURES
 import os
 
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         ProgressiveIntervalCheckpoint,
         checkpoint_along_step_curve,
     )
-    from .recipe_utils import get_recipe, get_time_limit, setup_parallelism
+    from .recipes.recipe_utils import get_recipe, get_time_limit, setup_parallelism
 
     from utils import (
         check_tokenizer,
