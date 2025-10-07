@@ -52,13 +52,13 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         else:
             from nemo.collections.llm.recipes.mistral_nemo_12b import pretrain_recipe
     elif arch == "nemotron1b":
-        from .nemotron1b import pretrain_recipe
+        from .nemotron_1b import pretrain_recipe
     elif arch == "nemotron4b":
         from nemo.collections.llm.recipes.nemotron3_4b import pretrain_recipe
     elif arch == "nemotron8b":
         from nemo.collections.llm.recipes.nemotron3_8b import pretrain_recipe
     elif arch == "nemotron22b":
-        from .nemotron22b import pretrain_recipe
+        from .nemotron_22b import pretrain_recipe
     elif arch == "nemotronh47b":
         from nemo.collections.llm.recipes.nemotronh_47b import pretrain_recipe
     elif arch == "qwen32b":
@@ -72,7 +72,7 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     elif arch == "llama8b":
         from nemo.collections.llm.recipes.llama31_8b import pretrain_recipe
     elif arch == "llama24b":
-        from .llama24b import pretrain_recipe
+        from .llama_24b import pretrain_recipe
     elif arch == "llama70b":
         from nemo.collections.llm.recipes.llama31_70b import pretrain_recipe
 

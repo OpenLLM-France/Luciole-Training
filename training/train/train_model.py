@@ -125,6 +125,10 @@ if __name__ == "__main__":
     seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
     tokens_per_batch = seq_length * global_batch_size
     max_steps = math.floor(total_tokens / tokens_per_batch)
+    logger.info(f"Global batch size: {global_batch_size}")
+    logger.info(f"Sequence length: {seq_length}")
+    logger.info(f"Tokens per batch: {tokens_per_batch}")
+    logger.info(f"Total tokens in your datamix: {total_tokens}")
 
     # Set up recipe data
     data_args = dict(
@@ -167,6 +171,7 @@ if __name__ == "__main__":
         recipe.trainer.plugins = fp8_plugin
         recipe.trainer.plugins.grad_reduce_in_fp32 = True
         recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = True
+        logger.info(f"Using FP8 with config: {fp8_plugin}")
 
     # Parallelism setup
     recipe = setup_parallelism(
@@ -178,34 +183,47 @@ if __name__ == "__main__":
     )
 
     ### OPTIM SETUP
-    lr = recipe.optim.config.lr  # 3e-4??
+    max_lr = recipe.optim.config.lr
     if args.mode in ["debug", "benchmark"]:
         warmup = 5
     elif args.mode == "phase1":
         warmup = 2000
     elif args.mode in ["phase2", "annealing"]:
         warmup = 0
-    min_lr = lr if args.mode != "annealing" else lr * 0.1
+    min_lr = max_lr if args.mode != "annealing" else max_lr * 0.1
     recipe.optim.lr_scheduler = run.Config(
         WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
+    )
+    logger.info(
+        f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
     )
 
     # Callbacks setup
     time_limit = get_time_limit(
         args.time, 5 if args.mode in ["debug", "benchmark"] else 30
     )
-    # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
-    recipe.trainer.callbacks = [
-        run.Config(TimingCallback),
-        run.Config(StatelessTimer, duration=time_limit),
-        run.Config(
-            GarbageCollectionCallback,
-            gc_interval_train=100,
-            gc_interval_val=100,
-        ),
-        # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
-        # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
+    recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
+    # Add callbacks if not already present
+    existing_callbacks = [
+        getattr(cb, "fn_or_cls", getattr(cb, "__fn_or_cls__", cb)).__name__
+        for cb in recipe.trainer.callbacks
     ]
+    logger.info(f"Pre-existing callbacks in your recipe: {existing_callbacks}")
+    if "TimingCallback" not in existing_callbacks:
+        recipe.trainer.callbacks.append(run.Config(TimingCallback))
+        logger.info("Added TimingCallback")
+    if "GarbageCollectionCallback" not in existing_callbacks:
+        recipe.trainer.callbacks.append(
+            run.Config(
+                GarbageCollectionCallback,
+                gc_interval_train=100,
+                gc_interval_val=100,
+            )
+        )
+        logger.info("Added GarbageCollectionCallback")
+    # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
+    # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
+    # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
 
     # Custom checkpointing method
     every_n_train_steps = (
