@@ -11,7 +11,7 @@ def pretrain_recipe(**kwargs):
     recipe.ffn_hidden_size = 32768
     recipe.num_attention_heads = 32
     recipe.kv_channels = 128
-    recipe.seq_length = 32768
+    # recipe.seq_length = 32768
     recipe.window_size = None
     recipe.cp_comm_type = None
     recipe.rotary_percent = 1.0
