@@ -1,5 +1,5 @@
 import argparse
-from recipes.recipe_utils import SUPPORTED_ARCHITECTURES
+from .recipe_utils import SUPPORTED_ARCHITECTURES
 import os
 
 
@@ -7,7 +7,7 @@ def get_parser():
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument(
         "--datamix",
-        default="mock.json",
+        default="datamixes/mock.json",
         help="Path to the datamix, should be a json or yaml file.",
         type=str,
     )
@@ -70,11 +70,11 @@ if __name__ == "__main__":
     from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
     from nemo.utils.exp_manager import TimingCallback
 
-    from recipes.callbacks import (
+    from .callbacks import (
         ProgressiveIntervalCheckpoint,
         checkpoint_along_step_curve,
     )
-    from recipes.recipe_utils import get_recipe, get_time_limit, setup_parallelism
+    from .recipe_utils import get_recipe, get_time_limit, setup_parallelism
 
     from utils import (
         check_tokenizer,
