@@ -12,6 +12,7 @@ SUPPORTED_ARCHITECTURES = [
     "llama24b",
     "llama70b",
     "mistral12b",
+    "mistral_small3_24b",
     "mixtral8x7",
     "nemotronh8b",
     "nemotronh47b",
@@ -51,6 +52,8 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
             )
         else:
             from nemo.collections.llm.recipes.mistral_nemo_12b import pretrain_recipe
+    elif arch == "mistral_small3_24b":
+        from .mistral_small3_24b import pretrain_recipe
     elif arch == "nemotron1b":
         from .nemotron_1b import pretrain_recipe
     elif arch == "nemotron4b":

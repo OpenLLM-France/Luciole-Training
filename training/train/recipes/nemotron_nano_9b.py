@@ -2,9 +2,12 @@ from nemo.collections.llm.recipes.nemotronh_8b import (
     pretrain_recipe as pretrain_base_recipe,
 )
 
+
 def pretrain_recipe(**kwargs):
     recipe = pretrain_base_recipe(**kwargs)
-    recipe.hybrid_override_pattern = "M-M-M-MM-M-M-M*-M-M-M*-M-M-M-M*-M-M-M-M*-M-MM-M-M-M-M-M-"
+    recipe.hybrid_override_pattern = (
+        "M-M-M-MM-M-M-M*-M-M-M*-M-M-M-M*-M-M-M-M*-M-MM-M-M-M-M-M-"
+    )
     recipe.num_layers = 56
     recipe.hidden_size = 4480
     recipe.mamba_num_heads = 128
