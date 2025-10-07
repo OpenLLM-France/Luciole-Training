@@ -81,7 +81,6 @@ if __name__ == "__main__":
         process_datamix_file,
         save_config,
         save_stats,
-        write_completion,
     )
 
     import nemo_run as run
@@ -287,7 +286,8 @@ if __name__ == "__main__":
     recipe_obj = fiddle.build(recipe)
     recipe_obj()
 
-    if str(args.mode).startswith("benchmark"):
+    if args.mode == "benchmark":
         save_stats(job_output, args.name)
-    if str(args.mode) not in ["debug", "phase1", "phase2", "annealing"]:
-        write_completion(args.output_dir)
+    # write completion ?
+
+    logger.info("Finished training.")

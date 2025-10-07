@@ -5,19 +5,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def to_nb_tokens(x):
-    if x in ["debug", "benchmark", "benchmark100", "phase1", "phase2", "annealing"]:
-        return x
-    x = x.replace("b", " * 1_000_000_000")
-    x = x.replace("m", " * 1_000_000")
-    try:
-        return int(eval(x))
-    except Exception as e:
-        raise ValueError(
-            f"Invalid value for --mode: {x} (expect 'debug' or a number of tokens)"
-        ) from e
-
-
 def read_datamix_file(file):
     loaded_data = None
     if file.endswith(".json"):
@@ -91,8 +78,6 @@ def process_datamix_file(datamix):
 
 
 def check_tokenizer(tokenizer_name, base_checkpoint):
-    # loaded_data = read_datamix_file(config)
-    # data_paths, tokenizer_name, total_tokens = get_data_paths_and_tokenizer(loaded_data)
     if base_checkpoint:
         if os.path.exists(
             os.path.join(base_checkpoint, "context", "tokenizer_name.txt")
