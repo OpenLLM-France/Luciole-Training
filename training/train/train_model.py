@@ -101,12 +101,15 @@ if __name__ == "__main__":
     pl.seed_everything(args.seed, workers=True)
 
     # Set up base recipe
-    recipe = get_recipe(
-        arch=args.arch,
+    recipe_args = dict(
         dir=args.output_dir,
         name=args.name,
         num_nodes=int(os.environ.get("SLURM_NNODES", 1)),
         num_gpus_per_node=int(os.environ.get("SLURM_GPUS", 4)),
+    )
+    recipe = get_recipe(
+        arch=args.arch,
+        recipe_args=recipe_args,
         performance_mode_if_possible=args.performance_mode,
     )
 
@@ -114,8 +117,6 @@ if __name__ == "__main__":
     # Read datamix config
     tokenizer_name, data_paths, total_tokens = process_datamix_file(args.datamix)
     check_tokenizer(tokenizer_name, args.base_checkpoint)
-
-    tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
 
     # Set up batch size and seq length
     global_batch_size = (
@@ -133,17 +134,16 @@ if __name__ == "__main__":
     data_args = dict(
         num_workers=8,
         pin_memory=True,
-        tokenizer=tokenizer,
         split="1,0,0",
         paths=data_paths,
         global_batch_size=global_batch_size,
         micro_batch_size=recipe.data.micro_batch_size,
         seq_length=seq_length,
-        tokenizer_name=tokenizer_name,
         seed=args.seed,
         index_mapping_dir=os.path.join(args.output_dir, "index_mapping"),
     )
-    recipe.data = run.Config(PreTrainingDataModule, **data_args)
+    tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
+    recipe.data = run.Config(PreTrainingDataModule, tokenizer=tokenizer, **data_args)
 
     ### MODEL SETUP
     recipe.model.tokenizer = recipe.data.tokenizer
@@ -276,6 +276,7 @@ if __name__ == "__main__":
     job_id = os.environ.get("SLURM_JOB_ID", "0")
     job_output = os.path.join(args.output_dir, f"job_{job_id}")
     os.makedirs(job_output, exist_ok=True)
+    data_args.update({"tokenizer_name": tokenizer_name})
     save_config(
         job_output,
         args,
