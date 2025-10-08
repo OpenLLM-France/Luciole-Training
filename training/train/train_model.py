@@ -70,11 +70,12 @@ if __name__ == "__main__":
     from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
     from nemo.utils.exp_manager import TimingCallback
 
-    from .callbacks import (
+    from callbacks import (
         ProgressiveIntervalCheckpoint,
         checkpoint_along_step_curve,
+        StatelessTimer,
     )
-    from .recipes.recipe_utils import get_recipe, get_time_limit, setup_parallelism
+    from recipes.recipe_utils import get_recipe, get_time_limit, setup_parallelism
 
     from utils import (
         check_tokenizer,
@@ -84,7 +85,6 @@ if __name__ == "__main__":
     )
 
     import nemo_run as run
-    from callbacks import StatelessTimer
 
     # from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
     # from .callbacks import PytorchProfilerCallback
