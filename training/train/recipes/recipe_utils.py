@@ -66,7 +66,7 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     elif arch == "nemotron20b_deeper":
         from .nemotron_20b_deeper import pretrain_recipe
     elif arch == "nemotronh8b":
-        from nemo.collections.llm.recipes.nemotronh_8b import pretrain_recipe
+        from .nemotronh_8b import pretrain_recipe
     elif arch == "nemotron_nano9b":
         from .nemotron_nano_9b import pretrain_recipe
     elif arch == "nemotronh47b":

@@ -203,12 +203,21 @@ if __name__ == "__main__":
     )
     if not recipe.trainer.callbacks:
         recipe.trainer.callbacks = []
-    recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
+    # Remove checkpoint callback if any
+    for cb in recipe.trainer.callbacks:
+        if (
+            getattr(cb, "fn_or_cls", getattr(cb, "__fn_or_cls__", cb)).__name__
+            == "ModelCheckpoint"
+        ):
+            recipe.trainer.callbacks.remove(cb)
+            logger.info("Removed existing ModelCheckpoint callback")
     # Add callbacks if not already present
     existing_callbacks = [
         getattr(cb, "fn_or_cls", getattr(cb, "__fn_or_cls__", cb)).__name__
         for cb in recipe.trainer.callbacks
     ]
+    recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
+    logger.info("Added StatelessTimer")
     logger.info(f"Pre-existing callbacks in your recipe: {existing_callbacks}")
     if "TimingCallback" not in existing_callbacks:
         recipe.trainer.callbacks.append(run.Config(TimingCallback))
