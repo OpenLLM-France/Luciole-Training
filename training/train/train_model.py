@@ -1,5 +1,5 @@
 import argparse
-from .recipes.recipe_utils import SUPPORTED_ARCHITECTURES
+from recipes.recipe_utils import SUPPORTED_ARCHITECTURES
 import os
 
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     )
 
     import nemo_run as run
-    from .callbacks import StatelessTimer
+    from callbacks import StatelessTimer
 
     # from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
     # from .callbacks import PytorchProfilerCallback

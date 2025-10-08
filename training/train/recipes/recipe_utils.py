@@ -1,4 +1,3 @@
-import torch
 import logging
 import datetime
 
@@ -104,6 +103,8 @@ def setup_parallelism(
     context_parallelism=None,
     # sequence_parallelism=None,
 ):
+    import torch
+
     if tensor_parallelism:
         recipe.trainer.strategy.tensor_model_parallel_size = tensor_parallelism
     if pipeline_parallelism:

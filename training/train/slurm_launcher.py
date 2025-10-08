@@ -18,8 +18,8 @@ SLURM_TEMPLATE = """#!/bin/bash
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/{name}/job_%j/log.out 
-#SBATCH --error={output_dir}/{name}/job_%j/failed.out 
+#SBATCH --output={output_dir}/job_%j/log.out 
+#SBATCH --error={output_dir}/job_%j/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
 #SBATCH --account={account}
@@ -147,8 +147,9 @@ def write_launch_slurm(
 
 def get_expe_name(slurm_args, train_args):
     job_name_parts = []
-    if slurm_args.get("name_prefix"):
-        job_name_parts.append(slurm_args["name_prefix"])
+    name_prefix = slurm_args.pop("name_prefix")
+    if name_prefix:
+        job_name_parts.append(name_prefix)
     job_name_parts.extend([train_args["arch"], train_args["mode"]])
     # Debug / benchmark mode
     if train_args["mode"] in ["benchmark", "debug"]:
@@ -179,11 +180,8 @@ def get_expe_name(slurm_args, train_args):
 
 
 def submit_job(slurm_args, train_args):
-    expe_name = get_expe_name(slurm_args, train_args)
+    xp_output_dir = train_args["output_dir"]
     datamix = train_args["datamix"]
-
-    xp_output_dir = os.path.join(train_args["output_dir"], expe_name)
-    os.makedirs(xp_output_dir, exist_ok=True)
 
     # Check compatibility
     if not os.path.exists(datamix):
@@ -198,22 +196,6 @@ def submit_job(slurm_args, train_args):
         )
     if train_args["base_checkpoint"] is not None and train_args["name_prefix"] is None:
         raise ValueError("You must specify --name_prefix when using --base_checkpoint")
-
-    # Skip if completed
-    if train_args["mode"] not in [
-        "debug",
-        "phase1",
-        "phase2",
-        "annealing",
-    ] and os.path.exists(os.path.join(xp_output_dir, "completed.txt")):
-        logger.info(
-            f"⏭️ Experiment {xp_output_dir} already exists, skipping job submission. If you want to force submission, remove 'completed.txt'"
-        )
-        return None, xp_output_dir
-
-    # Get job name
-    train_args["name"] = expe_name
-    print("Warning: Overriding train_args name to", expe_name)
 
     # SLURM args
     slurm_array = slurm_args.pop("slurm_array")
@@ -253,6 +235,10 @@ def get_slurm_parser():
         default="",
         type=str,
         help="Prefix to add to the experiment name.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "test_run"),
     )
     parser.add_argument(
         "--email", default=None, type=str, help="Email to send notifications to."
@@ -311,10 +297,31 @@ if __name__ == "__main__":
     slurm_args = vars(slurm_args)
     train_args = vars(train_args)
 
-    # Mode debug
+    # Generate expe name
+    expe_name = get_expe_name(slurm_args, train_args)
+    train_args["name"] = expe_name
+    print("Warning: Overriding train_args: name to", expe_name)
+
+    # Set experiment output_dir
+    output_dir = slurm_args.pop("output_dir")
+    train_args["output_dir"] = os.path.join(output_dir, expe_name)
+    os.makedirs(train_args["output_dir"], exist_ok=True)
+    print("Warning: Overriding train_args: output_dir to", train_args["output_dir"])
+
+    # Setup debug mode
     if train_args["mode"] in ["benchmark", "debug"]:
         if slurm_args["num_nodes"] <= 8:
             slurm_args["qos"] = "qos_gpu_h100-dev"
         train_args["time"] = "01:00:00"
+
+    # Print args
+    print("\n>> Launching with SLURM args:")
+    print(slurm_args)
+    print("\n>> Launching with train args:")
+    print(train_args)
+    print("\n")
+
+    args_overlap = set(slurm_args) & set(train_args)
+    assert not args_overlap, f"Overlapping keys found: {args_overlap}"
 
     job_id, xp_output_dir = submit_job(slurm_args, train_args)
