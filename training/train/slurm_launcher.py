@@ -160,8 +160,6 @@ def get_expe_name(slurm_args, train_args):
             job_name_parts.append(f"{slurm_args['num_nodes']}n")
             if train_args.get("performance_mode"):
                 job_name_parts.append("perf")
-        if train_args.get("seed"):
-            job_name_parts.append(f"s{train_args['seed']}")
         if train_args.get("fp8"):
             job_name_parts.append("fp8")
         if train_args.get("tensor_parallelism"):
@@ -280,6 +278,7 @@ def get_slurm_parser():
     parser.add_argument(
         "--nemo_version",
         default="nemo/2.3.1",
+        choices=["nemo/2.3.1", "nemo/2.4.0"],
         type=str,
     )
     return parser
