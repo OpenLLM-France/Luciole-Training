@@ -8,6 +8,7 @@ SUPPORTED_ARCHITECTURES = [
     "llama1b",
     "llama3b",
     "llama8b",
+    "llama21b",
     "llama24b",
     "llama70b",
     "mistral12b",
@@ -81,6 +82,8 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         from nemo.collections.llm.recipes.llama32_3b import pretrain_recipe
     elif arch == "llama8b":
         from nemo.collections.llm.recipes.llama31_8b import pretrain_recipe
+    elif arch == "llama21b":
+        from .llama_21b import pretrain_recipe
     elif arch == "llama24b":
         from .llama_24b import pretrain_recipe
     elif arch == "llama70b":
