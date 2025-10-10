@@ -22,6 +22,7 @@ SUPPORTED_ARCHITECTURES = [
     "nemotron8b",
     "nemotron22b",
     "nemotron20b_wider",
+    "nemotron20b_wider_v2",
     "nemotron20b_deeper",
     "qwen32b",
 ]
@@ -64,6 +65,8 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         from nemo.collections.llm.recipes.nemotron3_22b import pretrain_recipe
     elif arch == "nemotron20b_wider":
         from .nemotron_20b_wider import pretrain_recipe
+    elif arch == "nemotron20b_wider_v2":
+        from .nemotron_20b_wider_v2 import pretrain_recipe
     elif arch == "nemotron20b_deeper":
         from .nemotron_20b_deeper import pretrain_recipe
     elif arch == "nemotronh8b":
@@ -117,10 +120,10 @@ def setup_parallelism(
     if context_parallelism:
         recipe.trainer.strategy.context_parallel_size = context_parallelism
     if recipe.trainer.strategy.tensor_model_parallel_size == 1:
-        logger.warning(f"TP=1, setting sequence_parallel to False")
+        logger.warning("TP=1, setting sequence_parallel to False")
         recipe.trainer.strategy.sequence_parallel = False
     if recipe.data.seq_length <= 4096:
-        logger.warning(f"seq_length<=4096, setting context_parallel_size to 1")
+        logger.warning("seq_length<=4096, setting context_parallel_size to 1")
         recipe.trainer.strategy.context_parallel_size = 1
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
