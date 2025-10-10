@@ -162,6 +162,8 @@ def get_expe_name(slurm_args, train_args):
                 job_name_parts.append("perf")
         if train_args.get("fp8"):
             job_name_parts.append("fp8")
+            if train_args.get("fp8_recipe"):
+                job_name_parts.append(train_args['fp8_recipe'])
         if train_args.get("tensor_parallelism"):
             job_name_parts.append(f"tp{train_args['tensor_parallelism']}")
         if train_args.get("pipeline_parallelism"):

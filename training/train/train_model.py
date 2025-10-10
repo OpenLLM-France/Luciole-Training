@@ -46,6 +46,8 @@ def get_parser():
         default="{1: 1, 50_000: 500, 100_000: 5_000}",
         type=str,
     )
+    parser.add_argument("--fp8_recipe", default="tensorwise", choices=["delayed", "tensorwise"])
+    parser.add_argument("--fp8_layers_bf16", default=4, type=int)
     return parser
 
 
@@ -64,6 +66,7 @@ if __name__ == "__main__":
     from nemo.collections.llm.gpt.data import PreTrainingDataModule
     from nemo.collections.llm.recipes.precision.mixed_precision import (
         bf16_with_fp8_current_scaling_mixed,
+        bf16_with_fp8_mixed,
     )
     from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
     from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
@@ -163,10 +166,13 @@ if __name__ == "__main__":
 
     # FP8 setup
     if args.fp8:
-        fp8_plugin = bf16_with_fp8_current_scaling_mixed()
-        fp8_plugin.first_last_layers_bf16 = True
-        fp8_plugin.num_layers_at_start_in_bf16 = 4
-        fp8_plugin.num_layers_at_end_in_bf16 = 4
+        if args.fp8_recipe=="delayed":
+            fp8_plugin = bf16_with_fp8_mixed()
+        else:
+            fp8_plugin = bf16_with_fp8_current_scaling_mixed()
+            fp8_plugin.first_last_layers_bf16 = True
+            fp8_plugin.num_layers_at_start_in_bf16 = args.fp8_layers_bf16
+            fp8_plugin.num_layers_at_end_in_bf16 = args.fp8_layers_bf16
         recipe.trainer.plugins = fp8_plugin
         recipe.trainer.plugins.grad_reduce_in_fp32 = True
         recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = True

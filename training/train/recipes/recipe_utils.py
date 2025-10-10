@@ -117,7 +117,11 @@ def setup_parallelism(
     if context_parallelism:
         recipe.trainer.strategy.context_parallel_size = context_parallelism
     if recipe.trainer.strategy.tensor_model_parallel_size == 1:
+        logger.warning(f"TP=1, setting sequence_parallel to False")
         recipe.trainer.strategy.sequence_parallel = False
+    if recipe.data.seq_length <= 4096:
+        logger.warning(f"seq_length<=4096, setting context_parallel_size to 1")
+        recipe.trainer.strategy.context_parallel_size = 1
     # if args.sequence_parallelism is not None:
     #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
     num_gpus = recipe.trainer.devices * recipe.trainer.num_nodes
