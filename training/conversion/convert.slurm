@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=00:30:00
+#SBATCH --time=02:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-dev
 #SBATCH --account=wuh@h100
@@ -13,9 +13,10 @@
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export HF_HUB_OFFLINE=1
 
 module purge
-module load arch/h100 nemo/2.3.1
+module load arch/h100 nemo/2.4.0
 
 echo "$@"
 

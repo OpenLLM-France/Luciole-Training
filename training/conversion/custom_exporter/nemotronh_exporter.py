@@ -45,7 +45,7 @@ class CustomHFNemotronHExporter(HFNemotronHExporter):
         print("Load the model")
         # source = io.load_context(str(self), subpath="model.config")
 
-        from .hf_nemotronh_config import NemotronHConfig as HFNemotronConfig
+        from .configuration_nemotron_h import NemotronHConfig as HFNemotronConfig
 
         return HFNemotronConfig(
             architectures=["NemotronHForCausalLM"],

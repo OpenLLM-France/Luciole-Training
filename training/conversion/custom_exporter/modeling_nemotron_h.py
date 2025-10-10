@@ -44,8 +44,7 @@ from transformers.utils.import_utils import (
     is_flash_attn_greater_or_equal_2_10,
     is_mamba_2_ssm_available,
 )
-from .hf_nemotronh_config import NemotronHConfig
-
+from .configuration_nemotron_h import NemotronHConfig
 
 logger = logging.get_logger(__name__)
 

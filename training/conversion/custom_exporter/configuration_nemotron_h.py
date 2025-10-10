@@ -146,8 +146,8 @@ class NemotronHConfig(PretrainedConfig):
         attention_bias=False,
         mlp_bias=False,
         use_bias=False,
-        initializer_range=0.02, # nemo: init_method_std
-        layer_norm_epsilon=1e-5, # nemo: layernorm_epsilon
+        initializer_range=0.02,  # nemo: init_method_std
+        layer_norm_epsilon=1e-5,  # nemo: layernorm_epsilon
         residual_in_fp32=False,  #  Megatron Core default value
         use_cache=True,
         num_logits_to_keep=1,
@@ -157,9 +157,9 @@ class NemotronHConfig(PretrainedConfig):
         sliding_window=None,
         max_position_embeddings=4096,
         attention_dropout=0.0,
-        hidden_dropout=0.0, # * ADDED
+        hidden_dropout=0.0,  # * ADDED
         use_mamba_kernels=True,
-        ssm_state_size=128, # mamba_state_size
+        ssm_state_size=128,  # mamba_state_size
         mamba_num_heads=128,
         mamba_n_groups=8,  # nemo: mamba_ssm_ngroups = num_heads
         mamba_head_dim=64,
@@ -191,8 +191,12 @@ class NemotronHConfig(PretrainedConfig):
 
         # Validate hybrid_override_pattern
         # M: Mamba2, *: Attention, -: MLP
-        assert len(self.hybrid_override_pattern) == self.num_hidden_layers, "hybrid_override_pattern must have the same length as num_hidden_layers"
-        assert re.match(r"^[*-M]+$", self.hybrid_override_pattern), "hybrid_override_pattern must only contain characters 'M', '*', or '-'"
+        assert (
+            len(self.hybrid_override_pattern) == self.num_hidden_layers
+        ), "hybrid_override_pattern must have the same length as num_hidden_layers"
+        assert re.match(
+            r"^[*-M]+$", self.hybrid_override_pattern
+        ), "hybrid_override_pattern must only contain characters 'M', '*', or '-'"
 
         # for backward compatibility
         if num_key_value_heads is None:
@@ -238,6 +242,10 @@ class NemotronHConfig(PretrainedConfig):
     @property
     def layers_block_type(self):
         return [
-            "mamba" if self.hybrid_override_pattern[i] == "M" else
-            "attention" if self.hybrid_override_pattern[i] == "*" else "mlp"
-            for i in range(self.num_hidden_layers)]
+            "mamba"
+            if self.hybrid_override_pattern[i] == "M"
+            else "attention"
+            if self.hybrid_override_pattern[i] == "*"
+            else "mlp"
+            for i in range(self.num_hidden_layers)
+        ]

@@ -15,9 +15,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def convert_checkpoint_folder(input_path, ouput_path, arch):
+def convert_checkpoint_folder(input_path, output_path, arch):
     checkpoints = os.listdir(os.path.join(input_path, "checkpoints"))
-    os.makedirs(os.path.join(ouput_path), exist_ok=True)
+    os.makedirs(os.path.join(output_path), exist_ok=True)
 
     for checkpoint in tqdm(
         checkpoints,
@@ -25,20 +25,16 @@ def convert_checkpoint_folder(input_path, ouput_path, arch):
         desc=f"Converting {os.path.basename(input_path)}",
     ):
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
-        print("\nProcessing", checkpoint_path)
-        checkpoint_output_path = os.path.join(ouput_path, checkpoint).replace("=", "_")
-        print("Output to", checkpoint_output_path)
+        checkpoint_output_path = os.path.join(output_path, checkpoint).replace("=", "_")
+        # print("Output to", checkpoint_output_path)
         if os.path.isfile(checkpoint_path):
-            print("Skipping file", checkpoint)
+            print("\nSkipping file", checkpoint)
             continue
         if checkpoint.endswith("-last"):
-            print("Skipping", checkpoint)
+            print("\nSkipping last", checkpoint)
             continue
         if os.path.isfile(checkpoint_path + "-unfinished"):
-            print("Skipping unfinished", checkpoint)
-            continue
-        if os.path.exists(checkpoint_output_path):
-            print("Skipping existing", checkpoint_output_path)
+            print("\nSkipping unfinished", checkpoint)
             continue
         else:
             convert_dist_to_hf.convert_checkpoint(
