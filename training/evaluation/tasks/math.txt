@@ -11,7 +11,7 @@ lighteval|math:prealgebra|5
 lighteval|math:precalculus|5
 
 # MGSM
-lighteval|mgsm:en|5
-lighteval|mgsm:fr|5
-lighteval|mgsm:es|5
-lighteval|mgsm:de|5
+# lighteval|mgsm:en|5
+# lighteval|mgsm:fr|5
+# lighteval|mgsm:es|5
+# lighteval|mgsm:de|5

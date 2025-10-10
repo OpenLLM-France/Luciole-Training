@@ -12,6 +12,7 @@ LANGUAGES = [
     "ita_Latn",
     "nld_Latn",
     "por_Latn",
+    "spa_Latn",
 ]
 
 

@@ -1,14 +1,15 @@
 import argparse
 import gc
 import torch
-from transformers import AutoModel
+from transformers import AutoModelForCausalLM
 
 
 def count_parameters(repo_id: str):
     print(f"\n>>> Loading {repo_id} to count parameters")
-    model = AutoModel.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         repo_id,
         low_cpu_mem_usage=True,  # use less RAM when loading
+        trust_remote_code=True,
     )
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model: {repo_id}")

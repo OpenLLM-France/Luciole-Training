@@ -24,6 +24,7 @@ set -e
 module purge
 module load arch/h100
 module load anaconda-py3/2024.06
+module load nccl/2.27.3-1-cuda
 conda activate eval-env
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
@@ -151,7 +152,7 @@ def launch_evaluation(
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             ckpt_dir=ckpt_dir.resolve(),
             command=command,
-            model_arg=f"model_name={ckpt},dtype=bfloat16"
+            model_arg=f"model_name={ckpt},dtype=bfloat16,trust_remote_code=True"  # Trust remote code for Nemotron-H
             if not revision
             else f"model_name={ckpt},revision={revision},dtype=bfloat16",
             output_dir=output_dir if not revision else output_dir / revision,
