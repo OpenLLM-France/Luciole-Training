@@ -173,15 +173,19 @@ def load_data(input_folder):
     for folder in folders:
         xp_folder = os.path.join(input_folder, folder)
         if not os.path.isfile(xp_folder):
+            print(f"Processing folder: {xp_folder}")
             try:
                 job_folders = [f for f in os.listdir(xp_folder) if f.startswith("job_")]
                 for job_folder in job_folders:
                     job_folder = os.path.join(xp_folder, job_folder)
+                    # Calculate stats
+                    if not os.path.exists(os.path.join(job_folder, "stats.json")):
+                        save_stats(job_folder)
                     files = os.listdir(job_folder)
                     stat_file = [
                         f
                         for f in files
-                        if f.startswith("stats_") and f.endswith(".json")
+                        if f.startswith("stats") and f.endswith(".json")
                     ][0]
                     stat_file = os.path.join(job_folder, stat_file)
                     config_file = [
@@ -275,6 +279,44 @@ def convert_data(data):
 
     df = pd.DataFrame(records)
     return df
+
+
+def save_stats(output_dir):
+    import re
+    import json
+    import numpy as np
+    from tqdm import tqdm
+
+    steps = dict()
+    model_size = dict()
+    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
+    with open(os.path.join(output_dir, "log.out"), "r") as f:
+        log_content = f.read()
+    iteration_timing = {
+        int(match[0]): float(match[1])
+        for match in tqdm(re.findall(pattern, log_content))
+    }
+    mean_list = list(iteration_timing.values())[5:]
+    mean = np.mean(mean_list)
+    steps = {
+        "step_timings": list(iteration_timing.values()),
+        "mean_step_timings": mean,
+    }
+
+    pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
+
+    matches = re.findall(pattern, log_content)
+
+    model_size = {
+        label: float(value) if unit == "B" else float(value) / 1000
+        for value, unit, label in matches
+    }
+    with open(os.path.join(output_dir, "stats.json"), "w") as jsonfile:
+        json_data = {
+            **steps,
+            **model_size,
+        }
+        json.dump(json_data, jsonfile, indent=2)
 
 
 def setup():
