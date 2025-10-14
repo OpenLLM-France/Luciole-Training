@@ -48,12 +48,10 @@ if __name__ == "__main__":
     assert os.path.exists(input + ".idx"), "Input .idx file must exist."
 
     output_bin_files = [
-        output + f"_ratio{ratio:.2f}_phase{i+1}.bin"
-        for i, ratio in enumerate(args.ratio)
+        output + f"_ratio{ratio:.2f}_phase{i}.bin" for i, ratio in enumerate(args.ratio)
     ]
     output_idx_files = [
-        output + f"_ratio{ratio:.2f}_phase{i+1}.idx"
-        for i, ratio in enumerate(args.ratio)
+        output + f"_ratio{ratio:.2f}_phase{i}.idx" for i, ratio in enumerate(args.ratio)
     ]
 
     if not os.path.isdir(os.path.dirname(output_bin_files[0])):
