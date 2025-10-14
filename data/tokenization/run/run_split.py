@@ -66,5 +66,6 @@ if __name__ == "__main__":
                     os.path.join(token_dir, name + "_text_document"),
                     str(ratio[0]),
                     str(ratio[1]),
+                    str(ratio[2]),
                 ]
             )

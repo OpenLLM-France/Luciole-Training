@@ -54,6 +54,16 @@ if __name__ == "__main__":
         output + f"_ratio{ratio:.2f}_phase{i}.idx" for i, ratio in enumerate(args.ratio)
     ]
 
+    # Check if any output files already exist
+    existing_files = [
+        f for f in output_bin_files + output_idx_files if os.path.exists(f)
+    ]
+    if existing_files:
+        raise FileExistsError(
+            "The following output files already exist and would be overwritten:\n"
+            + "\n".join(existing_files)
+        )
+
     if not os.path.isdir(os.path.dirname(output_bin_files[0])):
         os.makedirs(os.path.dirname(output_bin_files[0]))
 
