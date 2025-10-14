@@ -24,6 +24,7 @@ SUPPORTED_ARCHITECTURES = [
     "nemotron20b_wider",
     "nemotron20b_wider_v2",
     "nemotron20b_deeper",
+    "nemotron23b_wider_v2",
     "qwen32b",
 ]
 
@@ -69,6 +70,8 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
         from .nemotron_20b_wider_v2 import pretrain_recipe
     elif arch == "nemotron20b_deeper":
         from .nemotron_20b_deeper import pretrain_recipe
+    elif arch == "nemotron23b_wider_v2":
+        from .nemotron_23b_wider_v2 import pretrain_recipe
     elif arch == "nemotronh8b":
         from .nemotronh_8b import pretrain_recipe
     elif arch == "nemotron_nano9b":
@@ -119,7 +122,9 @@ def setup_parallelism(
     recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
     if context_parallelism:
         recipe.trainer.strategy.context_parallel_size = context_parallelism
-    if recipe.trainer.strategy.tensor_model_parallel_size == 1:
+    if (recipe.trainer.strategy.tensor_model_parallel_size == 1) or (
+        recipe.data.seq_length <= 4096
+    ):
         logger.warning("TP=1, setting sequence_parallel to False")
         recipe.trainer.strategy.sequence_parallel = False
     if recipe.data.seq_length <= 4096:

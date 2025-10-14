@@ -42,7 +42,7 @@ class CustomHFNemotronHExporter(HFNemotronHExporter):
         Returns:
             SSMConfig: The model configuration object.
         """
-        print("Load the model")
+        # print("Load the model")
         # source = io.load_context(str(self), subpath="model.config")
 
         from .configuration_nemotron_h import NemotronHConfig as HFNemotronConfig

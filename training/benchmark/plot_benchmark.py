@@ -171,23 +171,21 @@ def load_data(input_folder):
     folders = os.listdir(input_folder)
 
     for folder in folders:
+        print(f"Loading data from folder: {folder}")
         xp_folder = os.path.join(input_folder, folder)
         if not os.path.isfile(xp_folder):
-            print(f"Processing folder: {xp_folder}")
+            print(f"Processing experiment folder: {xp_folder}")
             try:
                 job_folders = [f for f in os.listdir(xp_folder) if f.startswith("job_")]
                 for job_folder in job_folders:
+                    print(f"  Processing job folder: {job_folder}")
                     job_folder = os.path.join(xp_folder, job_folder)
+                    if not os.path.exists(os.path.join(job_folder, "log.out")):
+                        continue
                     # Calculate stats
-                    if not os.path.exists(os.path.join(job_folder, "stats.json")):
-                        save_stats(job_folder)
+                    save_stats(job_folder)
                     files = os.listdir(job_folder)
-                    stat_file = [
-                        f
-                        for f in files
-                        if f.startswith("stats") and f.endswith(".json")
-                    ][0]
-                    stat_file = os.path.join(job_folder, stat_file)
+                    stat_file = os.path.join(job_folder, "stats.json")
                     config_file = [
                         f
                         for f in files
@@ -197,19 +195,26 @@ def load_data(input_folder):
                     if os.path.exists(stat_file) and os.path.exists(config_file):
                         with open(stat_file, "r") as f:
                             stat_data = json.load(f)
+                            print(stat_data)
                         with open(config_file, "r") as f:
                             config = json.load(f)
+                        if "args" not in config:
+                            config["args"] = {}
+                            config["args"]["arch"] = config["log"]["name"].split("_")[0]
+                            if isinstance(config["trainer"]["plugins"], list):
+                                config["trainer"]["plugins"] = config["trainer"][
+                                    "plugins"
+                                ][0]
+                            config["args"]["fp8"] = (
+                                "fp8" in config["trainer"]["plugins"]
+                            )
+                        data.append(dict(**stat_data, **config))
                         break
+
             except Exception as e:
                 print(f"Error loading data for {folder}: {e}")
                 continue
-            if "args" not in config:
-                config["args"] = {}
-                config["args"]["arch"] = config["log"]["name"].split("_")[0]
-                if isinstance(config["trainer"]["plugins"], list):
-                    config["trainer"]["plugins"] = config["trainer"]["plugins"][0]
-                config["args"]["fp8"] = "fp8" in config["trainer"]["plugins"]
-            data.append(dict(**stat_data, **config))
+            print(len(data))
     return data
 
 
@@ -228,9 +233,8 @@ def convert_data(data):
     records = []
     for entry in data:
         try:
-            batch = "global_batch_size"
             number_of_steps_per_trillion_tokens = 1e12 / (
-                entry["data"][batch] * entry["data"]["seq_length"]
+                entry["data"]["global_batch_size"] * entry["data"]["seq_length"]
             )
 
             if "error" in entry:
@@ -254,6 +258,13 @@ def convert_data(data):
                     )
                     / 3600,
                 )
+
+            try:
+                fp8_recipe = entry["trainer"]["plugins"].get("fp8_recipe", "bf16")
+            except AttributeError:
+                # entry["trainer"]["plugins"] is probably a list
+                fp8_recipe = entry["trainer"]["plugins"][0].get("fp8_recipe", "bf16")
+
             records.append(
                 {
                     "num_nodes": entry["trainer"]["num_nodes"],
@@ -266,7 +277,12 @@ def convert_data(data):
                     "precision": "fp8" if entry["args"]["fp8"] else "bf16",
                     "seq_length": entry["data"]["seq_length"],
                     "cp": entry["trainer"]["strategy"]["context_parallel_size"],
-                    "batch_size": entry["data"][batch],
+                    "batch_size": entry["data"]["global_batch_size"],
+                    "micro_batch_size": entry["data"]["micro_batch_size"],
+                    "fp8_recipe": fp8_recipe,
+                    "grad_reduce_in_fp32": entry["trainer"]["strategy"]["ddp"][
+                        "grad_reduce_in_fp32"
+                    ],
                     "sequence_parallel": entry["trainer"]["strategy"][
                         "sequence_parallel"
                     ],
@@ -329,7 +345,6 @@ def setup():
     output_folder = args.output_folder
 
     data = load_data(input_folder)
-
     df = convert_data(data)
     return output_folder, df, input_folder
 

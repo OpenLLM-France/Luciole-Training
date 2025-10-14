@@ -28,7 +28,8 @@ def get_parser():
         "--output_dir",
         default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "test_run"),
     )
-    parser.add_argument("--batch_size", default=1024, type=int)
+    parser.add_argument("--batch_size", "--gbs", default=1024, type=int)
+    parser.add_argument("--micro_batch_size", "--mbs", default=None, type=int)
     parser.add_argument("--seq_length", default=4096, type=int)
     parser.add_argument("--tensor_parallelism", "--tp", default=None, type=int)
     parser.add_argument("--pipeline_parallelism", "--pp", default=None, type=int)
@@ -46,8 +47,15 @@ def get_parser():
         default="{1: 1, 50_000: 500, 100_000: 5_000}",
         type=str,
     )
-    parser.add_argument("--fp8_recipe", default="tensorwise", choices=["delayed", "tensorwise"])
+    parser.add_argument(
+        "--fp8_recipe", default="tensorwise", choices=["delayed", "tensorwise"]
+    )
     parser.add_argument("--fp8_layers_bf16", default=4, type=int)
+    parser.add_argument(
+        "--no_grad_reduce_in_fp32",
+        action="store_true",
+        help="Disable gradient reduction in fp32",
+    )
     return parser
 
 
@@ -84,7 +92,6 @@ if __name__ == "__main__":
         check_tokenizer,
         process_datamix_file,
         save_config,
-        save_stats,
     )
 
     import nemo_run as run
@@ -134,13 +141,20 @@ if __name__ == "__main__":
     logger.info(f"Total tokens in your datamix: {total_tokens}")
 
     # Set up recipe data
+    micro_batch_size = (
+        recipe.data.micro_batch_size
+        if args.micro_batch_size is None
+        else args.micro_batch_size
+    )
+    logger.info(f"Micro batch size: {micro_batch_size}")
+
     data_args = dict(
         num_workers=8,
         pin_memory=True,
         split="1,0,0",
         paths=data_paths,
         global_batch_size=global_batch_size,
-        micro_batch_size=recipe.data.micro_batch_size,
+        micro_batch_size=micro_batch_size,
         seq_length=seq_length,
         seed=args.seed,
         index_mapping_dir=os.path.join(args.output_dir, "index_mapping"),
@@ -166,7 +180,7 @@ if __name__ == "__main__":
 
     # FP8 setup
     if args.fp8:
-        if args.fp8_recipe=="delayed":
+        if args.fp8_recipe == "delayed":
             fp8_plugin = bf16_with_fp8_mixed()
         else:
             fp8_plugin = bf16_with_fp8_current_scaling_mixed()
@@ -174,8 +188,10 @@ if __name__ == "__main__":
             fp8_plugin.num_layers_at_start_in_bf16 = args.fp8_layers_bf16
             fp8_plugin.num_layers_at_end_in_bf16 = args.fp8_layers_bf16
         recipe.trainer.plugins = fp8_plugin
-        recipe.trainer.plugins.grad_reduce_in_fp32 = True
-        recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = True
+        recipe.trainer.plugins.grad_reduce_in_fp32 = not args.no_grad_reduce_in_fp32
+        recipe.trainer.strategy.ddp.grad_reduce_in_fp32 = (
+            not args.no_grad_reduce_in_fp32
+        )
         logger.info(f"Using FP8 with config: {fp8_plugin}")
 
     # Parallelism setup
@@ -207,36 +223,19 @@ if __name__ == "__main__":
     time_limit = get_time_limit(
         args.time, 5 if args.mode in ["debug", "benchmark"] else 30
     )
-    if not recipe.trainer.callbacks:
-        recipe.trainer.callbacks = []
-    # Remove checkpoint callback if any
-    for cb in recipe.trainer.callbacks:
-        if (
-            getattr(cb, "fn_or_cls", getattr(cb, "__fn_or_cls__", cb)).__name__
-            == "ModelCheckpoint"
-        ):
-            recipe.trainer.callbacks.remove(cb)
-            logger.info("Removed existing ModelCheckpoint callback")
-    # Add callbacks if not already present
-    existing_callbacks = [
-        getattr(cb, "fn_or_cls", getattr(cb, "__fn_or_cls__", cb)).__name__
-        for cb in recipe.trainer.callbacks
-    ]
+    recipe.trainer.callbacks = []
     recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
     logger.info("Added StatelessTimer")
-    logger.info(f"Pre-existing callbacks in your recipe: {existing_callbacks}")
-    if "TimingCallback" not in existing_callbacks:
-        recipe.trainer.callbacks.append(run.Config(TimingCallback))
-        logger.info("Added TimingCallback")
-    if "GarbageCollectionCallback" not in existing_callbacks:
-        recipe.trainer.callbacks.append(
-            run.Config(
-                GarbageCollectionCallback,
-                gc_interval_train=100,
-                gc_interval_val=100,
-            )
+    recipe.trainer.callbacks.append(run.Config(TimingCallback))
+    logger.info("Added TimingCallback")
+    recipe.trainer.callbacks.append(
+        run.Config(
+            GarbageCollectionCallback,
+            gc_interval_train=100,
+            gc_interval_val=100,
         )
-        logger.info("Added GarbageCollectionCallback")
+    )
+    logger.info("Added GarbageCollectionCallback")
     # run.Config(MegatronCommOverlapCallback, tp_comm_overlap=True),
     # os.makedirs(f"{args.output_dir}/traces", exist_ok=True)
     # run.Config(PytorchProfilerCallback, start_step=15, end_step=20, warmup_steps=1, active_steps=5, trace_dir=f"{args.output_dir}/traces")
@@ -267,6 +266,7 @@ if __name__ == "__main__":
         mode="max",
         every_n_epochs=None,
         save_optim_on_train_end=True,  # set to True if you want to continue training even if max_steps was reached
+        # async_save = not args.sync_ckpt,
     )
 
     # Resume from base_checkpoint
@@ -301,9 +301,5 @@ if __name__ == "__main__":
 
     recipe_obj = fiddle.build(recipe)
     recipe_obj()
-
-    if args.mode == "benchmark":
-        save_stats(job_output, args.name)
-    # write completion ?
 
     logger.info("Finished training.")

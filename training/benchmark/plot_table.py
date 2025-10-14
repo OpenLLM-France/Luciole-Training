@@ -35,7 +35,7 @@ def summarize_training_times_by_arch_and_precision(df, show_fp8_only_if_better=F
 
     summary = pd.DataFrame()
     summary["Architecture"] = df.apply(
-        lambda row: f"{row['arch'].upper()} {row['precision'].upper()}\n({row['batch_size']}x{row['seq_length']} tp{row['tp']} pp{row['pp']} cp{row['cp']}){row['note']}",
+        lambda row: f"{row['arch'].upper()}\n{row['fp8_recipe']}, grad_reduce: {row['grad_reduce_in_fp32']}\n({row['batch_size']}x{row['seq_length']} mb{row['micro_batch_size']} tp{row['tp']} pp{row['pp']} cp{row['cp']}){row['note']}",
         axis=1,
     )
 

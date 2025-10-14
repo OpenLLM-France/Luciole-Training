@@ -147,7 +147,7 @@ def write_launch_slurm(
 
 def get_expe_name(slurm_args, train_args):
     job_name_parts = []
-    name_prefix = slurm_args.pop("name_prefix")
+    name_prefix = slurm_args.get("name_prefix")
     if name_prefix:
         job_name_parts.append(name_prefix)
     job_name_parts.extend([train_args["arch"], train_args["mode"]])
@@ -163,7 +163,7 @@ def get_expe_name(slurm_args, train_args):
         if train_args.get("fp8"):
             job_name_parts.append("fp8")
             if train_args.get("fp8_recipe"):
-                job_name_parts.append(train_args['fp8_recipe'])
+                job_name_parts.append(train_args["fp8_recipe"])
         if train_args.get("tensor_parallelism"):
             job_name_parts.append(f"tp{train_args['tensor_parallelism']}")
         if train_args.get("pipeline_parallelism"):
@@ -172,6 +172,8 @@ def get_expe_name(slurm_args, train_args):
             job_name_parts.append(f"cp{train_args['context_parallelism']}")
         if train_args.get("virtual_pipeline_parallelism"):
             job_name_parts.append(f"vpp{train_args['virtual_pipeline_parallelism']}")
+        if train_args.get("micro_batch_size"):
+            job_name_parts.append(f"mbs{train_args['micro_batch_size']}")
     elif train_args["mode"] in ["annealing"]:
         job_name_parts.append(train_args["mode"])
 
@@ -194,7 +196,7 @@ def submit_job(slurm_args, train_args):
         raise ValueError(
             f"You must specify --base_checkpoints when using mode {train_args['mode']}"
         )
-    if train_args["base_checkpoint"] is not None and train_args["name_prefix"] is None:
+    if train_args["base_checkpoint"] is not None and slurm_args["name_prefix"] is None:
         raise ValueError("You must specify --name_prefix when using --base_checkpoint")
 
     # SLURM args
