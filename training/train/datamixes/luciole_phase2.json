@@ -1,6 +1,6 @@
 {
     "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
-    "total_tokens": 1563397455872,
+    "total_tokens": 1604136730624,
     "train": [
         {
             "name": "claire_open_en_text_document",
@@ -87,11 +87,11 @@
             "weight": 5809232.0
         },
         {
-            "name": "culturax_fr_text_document_ratio0.70_phase1",
+            "name": "culturax_fr_text_document",
             "weight": 30698840.0
         },
         {
-            "name": "dclm-dolmino_en_text_document_ratio0.25_phase1",
+            "name": "dclm-dolmino_en_text_document",
             "weight": 31001087.0
         },
         {
@@ -111,40 +111,44 @@
             "weight": 6889796.0
         },
         {
-            "name": "fineweb-edu_en_text_document_ratio0.25_phase1",
+            "name": "fineweb-edu_en_text_document",
             "weight": 71584760.0
         },
         {
-            "name": "fineweb2_ar_text_document_ratio0.20_phase1",
-            "weight": 1340184.0
-        },
-        {
-            "name": "fineweb2_ca_text_document_ratio0.02_phase1",
+            "name": "fineweb2_ca_text_document",
             "weight": 37011.0
         },
         {
-            "name": "fineweb2_de_text_document_ratio0.20_phase1",
-            "weight": 10869572.0
-        },
-        {
-            "name": "fineweb2_es_text_document_ratio0.20_phase1",
-            "weight": 9757398.0
-        },
-        {
-            "name": "fineweb2_fr_text_document_ratio0.70_phase1",
+            "name": "fineweb2_fr_text_document",
             "weight": 26943981.0
         },
         {
-            "name": "fineweb2_it_text_document_ratio0.20_phase1",
-            "weight": 5351176.0
+            "name": "fineweb2_edu3+_fr_text_document",
+            "weight": 17356742.0
         },
         {
-            "name": "fineweb2_nl_text_document_ratio0.20_phase1",
-            "weight": 2974305.0
+            "name": "fineweb2_edu3+_ar_text_document",
+            "weight": 2121809.0
         },
         {
-            "name": "fineweb2_pt_text_document_ratio0.20_phase1",
-            "weight": 3920016.0
+            "name": "fineweb2_edu3+_de_text_document",
+            "weight": 10018429.0
+        },
+        {
+            "name": "fineweb2_edu3+_it_text_document",
+            "weight": 5934366.0
+        },
+        {
+            "name": "fineweb2_edu3+_nl_text_document",
+            "weight": 2940744.0
+        },
+        {
+            "name": "fineweb2_edu3+_pt_text_document",
+            "weight": 5135083.0
+        },
+        {
+            "name": "fineweb2_edu3+_es_text_document",
+            "weight": 13192444.0
         },
         {
             "name": "fineweb2_regional_text_document",
@@ -183,7 +187,7 @@
             "weight": 3914015.0
         },
         {
-            "name": "hplt2_fr_text_document_ratio0.70_phase1",
+            "name": "hplt2_fr_text_document",
             "weight": 37908732.0
         },
         {
@@ -224,7 +228,7 @@
         },
         {
             "name": "stack-edu_code_text_document",
-            "weight": 41801596.0
+            "weight": 29261117.0
         },
         {
             "name": "starcoder_olmomix_code_text_document",
@@ -243,7 +247,7 @@
             "weight": 265451.0
         },
         {
-            "name": "wikimedia-vikidia_ca_text_document_ratio0.20_phase1",
+            "name": "wikimedia-vikidia_ca_text_document",
             "weight": 58530.0
         },
         {
