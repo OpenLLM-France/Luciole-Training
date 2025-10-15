@@ -127,23 +127,13 @@ def setup_parallelism(
     ):
         logger.warning("TP=1, setting sequence_parallel to False")
         recipe.trainer.strategy.sequence_parallel = False
-    if recipe.data.seq_length <= 4096:
-        logger.warning("seq_length<=4096, setting context_parallel_size to 1")
-        recipe.trainer.strategy.context_parallel_size = 1
-    # if args.sequence_parallelism is not None:
-    #     recipe.trainer.strategy.sequence_parallel = args.sequence_parallelism
-    num_gpus = recipe.trainer.devices * recipe.trainer.num_nodes
-    if recipe.data.micro_batch_size > 1 and recipe.data.global_batch_size >= num_gpus:
-        logger.warning(
-            f"Micro batch size is set to {recipe.data.micro_batch_size} which is greater than 1 and global batch size is greater than number of GPUs. This is not supported for Megat. Setting micro batch size to 1."
-        )
-        recipe.data.micro_batch_size = 1
-
     if (
-        recipe.trainer.strategy.tensor_model_parallel_size > 4
-        and tensor_parallelism is None
+        recipe.data.seq_length <= 4096
+        and recipe.trainer.strategy.context_parallel_size > 1
     ):
-        logger.warning(
+        raise ValueError("seq_length <= 4096, and context_parallel_size > 1")
+    if recipe.trainer.strategy.tensor_model_parallel_size > 4:
+        raise ValueError(
             f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
         )
     recipe.trainer.strategy.ckpt_async_save = True

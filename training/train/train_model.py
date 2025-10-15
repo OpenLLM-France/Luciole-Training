@@ -291,12 +291,10 @@ if __name__ == "__main__":
     job_id = os.environ.get("SLURM_JOB_ID", "0")
     job_output = os.path.join(args.output_dir, f"job_{job_id}")
     os.makedirs(job_output, exist_ok=True)
-    data_args.update({"tokenizer_name": tokenizer_name})
     save_config(
         job_output,
         args,
-        data_args,
-        recipe=recipe,
+        recipe,
     )
 
     recipe_obj = fiddle.build(recipe)
