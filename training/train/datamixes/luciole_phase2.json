@@ -3,7 +3,7 @@
     "total_tokens": 1604136730624,
     "train": [
         {
-            "name": "claire_open_en_text_document",
+            "name": "claire_open_en_text_document_ratio0.50_phase1",
             "weight": 14501.0
         },
         {
@@ -11,27 +11,27 @@
             "weight": 46064.0
         },
         {
-            "name": "common-corpus_eurlex_multi_text_document",
+            "name": "common-corpus_eurlex_multi_text_document_ratio0.50_phase1",
             "weight": 1800832.0
         },
         {
-            "name": "common-corpus_gatt-library_multi_text_document",
+            "name": "common-corpus_gatt-library_multi_text_document_ratio0.50_phase1",
             "weight": 20661.0
         },
         {
-            "name": "common-corpus_oecd_multi_text_document",
+            "name": "common-corpus_oecd_multi_text_document_ratio0.50_phase1",
             "weight": 60984.0
         },
         {
-            "name": "common-corpus_tedeutenders_multi_text_document",
+            "name": "common-corpus_tedeutenders_multi_text_document_ratio0.50_phase1",
             "weight": 15638.0
         },
         {
-            "name": "common-corpus_wto_multi_text_document",
+            "name": "common-corpus_wto_multi_text_document_ratio0.50_phase1",
             "weight": 288639.0
         },
         {
-            "name": "common-pile_arxiv-papers_en_text_document",
+            "name": "common-pile_arxiv-papers_en_text_document_ratio0.25_phase1",
             "weight": 324758.0
         },
         {
@@ -59,7 +59,7 @@
             "weight": 2748.0
         },
         {
-            "name": "common-pile_peS2o_en_text_document",
+            "name": "common-pile_peS2o_en_text_document_ratio0.05_phase1",
             "weight": 508326.0
         },
         {
@@ -67,7 +67,7 @@
             "weight": 31891.0
         },
         {
-            "name": "common-pile_stackexchange_en_text_document",
+            "name": "common-pile_stackexchange_en_text_document_ratio0.12_phase1",
             "weight": 623169.0
         },
         {
@@ -87,23 +87,23 @@
             "weight": 5809232.0
         },
         {
-            "name": "culturax_fr_text_document",
+            "name": "culturax_fr_text_document_ratio0.70_phase1",
             "weight": 30698840.0
         },
         {
-            "name": "dclm-dolmino_en_text_document",
+            "name": "dclm-dolmino_en_text_document_ratio0.25_phase1",
             "weight": 31001087.0
         },
         {
-            "name": "europarl_aligned_text_document",
+            "name": "europarl_aligned_text_document_ratio0.50_phase1",
             "weight": 107803.0
         },
         {
-            "name": "europarl_multi_text_document",
+            "name": "europarl_multi_text_document_ratio0.50_phase1",
             "weight": 49876.0
         },
         {
-            "name": "eurovoc_filtered_multi_text_document",
+            "name": "eurovoc_filtered_multi_text_document_ratio0.50_phase1",
             "weight": 1075045.0
         },
         {
@@ -111,11 +111,11 @@
             "weight": 6889796.0
         },
         {
-            "name": "fineweb-edu_en_text_document",
+            "name": "fineweb-edu_en_text_document_ratio0.25_phase1",
             "weight": 71584760.0
         },
         {
-            "name": "fineweb2_ca_text_document",
+            "name": "fineweb2_ca_text_document_ratio0.02_phase1",
             "weight": 37011.0
         },
         {
@@ -127,27 +127,27 @@
             "weight": 17356742.0
         },
         {
-            "name": "fineweb2_edu3+_ar_text_document",
+            "name": "fineweb2_edu3+_ar_text_document_ratio0.50_phase1",
             "weight": 2121809.0
         },
         {
-            "name": "fineweb2_edu3+_de_text_document",
+            "name": "fineweb2_edu3+_de_text_document_ratio0.50_phase1",
             "weight": 10018429.0
         },
         {
-            "name": "fineweb2_edu3+_it_text_document",
+            "name": "fineweb2_edu3+_it_text_document_ratio0.50_phase1",
             "weight": 5934366.0
         },
         {
-            "name": "fineweb2_edu3+_nl_text_document",
+            "name": "fineweb2_edu3+_nl_text_document_ratio0.50_phase1",
             "weight": 2940744.0
         },
         {
-            "name": "fineweb2_edu3+_pt_text_document",
+            "name": "fineweb2_edu3+_pt_text_document_ratio0.50_phase1",
             "weight": 5135083.0
         },
         {
-            "name": "fineweb2_edu3+_es_text_document",
+            "name": "fineweb2_edu3+_es_text_document_ratio0.50_phase1",
             "weight": 13192444.0
         },
         {
@@ -155,15 +155,15 @@
             "weight": 2132152.0
         },
         {
-            "name": "gutenberg_de_text_document",
+            "name": "gutenberg_de_text_document_ratio0.50_phase1",
             "weight": 21165.0
         },
         {
-            "name": "gutenberg_en_text_document",
+            "name": "gutenberg_en_text_document_ratio0.50_phase1",
             "weight": 593827.0
         },
         {
-            "name": "gutenberg_es_text_document",
+            "name": "gutenberg_es_text_document_ratio0.50_phase1",
             "weight": 10889.0
         },
         {
@@ -171,15 +171,15 @@
             "weight": 91991.0
         },
         {
-            "name": "gutenberg_it_text_document",
+            "name": "gutenberg_it_text_document_ratio0.50_phase1",
             "weight": 14954.0
         },
         {
-            "name": "gutenberg_nl_text_document",
+            "name": "gutenberg_nl_text_document_ratio0.50_phase1",
             "weight": 12215.0
         },
         {
-            "name": "gutenberg_pt_text_document",
+            "name": "gutenberg_pt_text_document_ratio0.50_phase1",
             "weight": 4620.0
         },
         {
@@ -187,7 +187,7 @@
             "weight": 3914015.0
         },
         {
-            "name": "hplt2_fr_text_document",
+            "name": "hplt2_fr_text_document_ratio0.70_phase1",
             "weight": 37908732.0
         },
         {
@@ -227,7 +227,7 @@
             "weight": 141413.0
         },
         {
-            "name": "stack-edu_code_text_document",
+            "name": "stack-edu_code_text_document_ratio0.70_phase1",
             "weight": 29261117.0
         },
         {
@@ -247,7 +247,7 @@
             "weight": 265451.0
         },
         {
-            "name": "wikimedia-vikidia_ca_text_document",
+            "name": "wikimedia-vikidia_ca_text_document_ratio0.20_phase1",
             "weight": 58530.0
         },
         {
