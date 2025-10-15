@@ -118,13 +118,13 @@ def serialize_fdl(config):
         return f"<non-serializable: {type(config).__name__}>"
 
 
-def save_config(output_dir, args, data_args, recipe):
+def save_config(output_dir, args, recipe):
     import json
     from importlib.metadata import version
     from git import Repo
 
     recipe_dict = {
-        "data": data_args,
+        "data": serialize_fdl(recipe.data),
         "trainer": serialize_fdl(recipe.trainer),
         "model": serialize_fdl(recipe.model),
         "optim": serialize_fdl(recipe.optim),

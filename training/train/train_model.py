@@ -1,6 +1,47 @@
 import argparse
 from recipes.recipe_utils import SUPPORTED_ARCHITECTURES
 import os
+import datetime
+
+
+def setup_parallelism(
+    recipe,
+    tensor_parallelism=None,
+    pipeline_parallelism=None,
+    context_parallelism=None,
+    # sequence_parallelism=None,
+):
+    if tensor_parallelism:
+        recipe.trainer.strategy.tensor_model_parallel_size = tensor_parallelism
+    if pipeline_parallelism:
+        recipe.trainer.strategy.pipeline_model_parallel_size = pipeline_parallelism
+    recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
+    if context_parallelism:
+        recipe.trainer.strategy.context_parallel_size = context_parallelism
+    if (recipe.trainer.strategy.tensor_model_parallel_size == 1) or (
+        recipe.data.seq_length <= 4096
+    ):
+        logger.warning("TP=1, setting sequence_parallel to False")
+        recipe.trainer.strategy.sequence_parallel = False
+    assert not (
+        recipe.data.seq_length <= 4096
+        and recipe.trainer.strategy.context_parallel_size > 1
+    ), "seq_length <= 4096, and context_parallel_size > 1"
+    assert recipe.trainer.strategy.tensor_model_parallel_size <= 4, (
+        f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size}, "
+        "which is greater than 4. We only have 4 GPUs per node."
+    )
+    return recipe
+
+
+def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
+    logging.info(time_limit)
+    h, m, s = map(int, time_limit.split(":"))
+    slurm_time_limit = datetime.timedelta(hours=h, minutes=m, seconds=s)
+    td = slurm_time_limit - datetime.timedelta(minutes=buffer_minutes)
+    hours = td.seconds // 3600
+    minutes = (td.seconds % 3600) // 60
+    return f"{td.days:02}:{hours:02}:{minutes:02}:00"
 
 
 def get_parser():
@@ -86,7 +127,7 @@ if __name__ == "__main__":
         checkpoint_along_step_curve,
         StatelessTimer,
     )
-    from recipes.recipe_utils import get_recipe, get_time_limit, setup_parallelism
+    from recipes.recipe_utils import get_recipe
 
     from utils import (
         check_tokenizer,
@@ -177,6 +218,8 @@ if __name__ == "__main__":
     recipe.trainer.val_check_interval = max_steps
     recipe.trainer.limit_val_batches = 0.0
     recipe.trainer.log_every_n_steps = 1 if args.mode in ["debug", "benchmark"] else 5
+    recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
+    recipe.trainer.strategy.ckpt_async_save = True
 
     # FP8 setup
     if args.fp8:

@@ -1,5 +1,4 @@
 import logging
-import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,48 +102,3 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
 
     recipe = pretrain_recipe(**recipe_args)
     return recipe
-
-
-def setup_parallelism(
-    recipe,
-    tensor_parallelism=None,
-    pipeline_parallelism=None,
-    context_parallelism=None,
-    # sequence_parallelism=None,
-):
-    import torch
-
-    if tensor_parallelism:
-        recipe.trainer.strategy.tensor_model_parallel_size = tensor_parallelism
-    if pipeline_parallelism:
-        recipe.trainer.strategy.pipeline_model_parallel_size = pipeline_parallelism
-    recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
-    recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
-    if context_parallelism:
-        recipe.trainer.strategy.context_parallel_size = context_parallelism
-    if (recipe.trainer.strategy.tensor_model_parallel_size == 1) or (
-        recipe.data.seq_length <= 4096
-    ):
-        logger.warning("TP=1, setting sequence_parallel to False")
-        recipe.trainer.strategy.sequence_parallel = False
-    if (
-        recipe.data.seq_length <= 4096
-        and recipe.trainer.strategy.context_parallel_size > 1
-    ):
-        raise ValueError("seq_length <= 4096, and context_parallel_size > 1")
-    if recipe.trainer.strategy.tensor_model_parallel_size > 4:
-        raise ValueError(
-            f"Tensor parallelism is set to {recipe.trainer.strategy.tensor_model_parallel_size} which is greater than 4. We only have 4 GPUs per node. Setting tensor parallelism to 4."
-        )
-    recipe.trainer.strategy.ckpt_async_save = True
-    return recipe
-
-
-def get_time_limit(time_limit, buffer_minutes: int = 30) -> str:
-    logging.info(time_limit)
-    h, m, s = map(int, time_limit.split(":"))
-    slurm_time_limit = datetime.timedelta(hours=h, minutes=m, seconds=s)
-    td = slurm_time_limit - datetime.timedelta(minutes=buffer_minutes)
-    hours = td.seconds // 3600
-    minutes = (td.seconds % 3600) // 60
-    return f"{td.days:02}:{hours:02}:{minutes:02}:00"
