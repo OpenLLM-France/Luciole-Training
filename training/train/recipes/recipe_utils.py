@@ -73,7 +73,7 @@ def get_recipe(arch, recipe_args, performance_mode_if_possible=False):
     elif arch == "nemotron23b_wider_v2":
         from .nemotron_23b_wider_v2 import pretrain_recipe
     elif arch == "nemotron23b":
-        from .nemotron23b import pretrain_recipe
+        from .nemotron_23b import pretrain_recipe
     elif arch == "nemotronh8b":
         from .nemotronh_8b import pretrain_recipe
     elif arch == "nemotron_nano9b":

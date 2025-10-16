@@ -14,4 +14,5 @@ def pretrain_recipe(**kwargs):
     recipe.trainer.strategy.pipeline_model_parallel_size = 2
     # Micro batch_size
     recipe.data.micro_batch_size = 2
+    recipe.optim.config.lr = 3e-4
     return recipe
