@@ -11,11 +11,13 @@ def setup_parallelism(
     context_parallelism=None,
     # sequence_parallelism=None,
 ):
+    # Set custom values
     if tensor_parallelism:
         recipe.trainer.strategy.tensor_model_parallel_size = tensor_parallelism
     if pipeline_parallelism:
         recipe.trainer.strategy.pipeline_model_parallel_size = pipeline_parallelism
     recipe.trainer.strategy.virtual_pipeline_model_parallel_size = None
+    logger.warning("virtual_pipeline_model_parallel_size is set to None")
     if context_parallelism:
         recipe.trainer.strategy.context_parallel_size = context_parallelism
     if (recipe.trainer.strategy.tensor_model_parallel_size == 1) or (
@@ -23,6 +25,7 @@ def setup_parallelism(
     ):
         logger.warning("TP=1, setting sequence_parallel to False")
         recipe.trainer.strategy.sequence_parallel = False
+    # Assert
     assert not (
         recipe.data.seq_length <= 4096
         and recipe.trainer.strategy.context_parallel_size > 1

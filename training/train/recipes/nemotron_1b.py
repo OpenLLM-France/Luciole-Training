@@ -12,6 +12,7 @@ def pretrain_recipe(**kwargs):
     recipe.model.config.ffn_hidden_size = 8192
     recipe.model.config.kv_channels = None
     recipe.model.config.share_embeddings_and_output_weights = True
+    # Parallelism
     recipe.trainer.strategy.context_parallel_size = 1
     recipe.trainer.strategy.tensor_model_parallel_size = 1
     return recipe
