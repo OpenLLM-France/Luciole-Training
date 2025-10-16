@@ -2,85 +2,41 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import pandas as pd
 import os
-from plot_benchmark import setup
+from plot_utils import load_data
+import argparse
 
 
-def summarize_training_times_by_arch_and_precision(df, show_fp8_only_if_better=False):
-    if show_fp8_only_if_better:
-        bf16_df = df[df["precision"] == "bf16"]
-        fp8_df = df[df["precision"] == "fp8"]
+def df_to_png_adjusted(
+    df, filename="df_table.png", fontsize=10, row_height=0.5, col_width_factor=0.2
+):
+    """
+    Save a DataFrame as a PNG with columns properly adjusted to fit content.
 
-        # {arch: (training_time, consumed_gpu_hours)} pour bf16
-        bf16_stats = bf16_df.set_index("arch")[["training_time", "consumed_gpu_hours"]]
-
-        def is_better_than_bf16(row):
-            arch = row["arch"]
-            if arch not in bf16_stats.index:
-                return True  # pas de comparaison possible
-            bf16_time, bf16_gpu = bf16_stats.loc[arch]
-            return (
-                row["training_time"] < bf16_time
-                and row["consumed_gpu_hours"] < bf16_gpu
-            )
-
-        fp8_df_filtered = fp8_df[fp8_df.apply(is_better_than_bf16, axis=1)]
-
-        df = pd.concat([bf16_df, fp8_df_filtered], ignore_index=True)
-    grouped = df.copy()
-
-    def format_cell(days, gpuh, error=None):
-        if error and isinstance(error, str):
-            return error
-        return f"{days:.1f} days / {gpuh / 1000:.0f}k GPUh"
-
-    summary = pd.DataFrame()
-    summary["Architecture"] = df.apply(
-        lambda row: f"{row['arch'].upper()}\n{row['fp8_recipe']}, grad_reduce: {row['grad_reduce_in_fp32']}\n({row['batch_size']}x{row['seq_length']} mb{row['micro_batch_size']} tp{row['tp']} pp{row['pp']} cp{row['cp']}){row['note']}",
-        axis=1,
+    Parameters:
+    - df: pandas.DataFrame
+    - filename: str, output PNG file
+    - fontsize: int, font size
+    - row_height: float, height of each row
+    - col_width_factor: float, width factor per character
+    """
+    df = df.drop(
+        columns=["step_timings_mean", "step_timings_std", "total_time"], errors="ignore"
+    )
+    df["estimated_time"] = df["estimated_time"].apply(lambda x: f"{5*x/24:.2f} days")
+    df["consumed_gpu_hours"] = df["consumed_gpu_hours"].apply(
+        lambda x: f"{5*x/1000:.2f}k"
     )
 
-    summary["training_time"] = grouped["training_time"]
-    summary["1T tokens"] = [
-        format_cell(t, g, t)
-        for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
+    # Compute figure width based on max length of each column
+    col_widths = [
+        max(df[col].astype(str).map(len).max(), len(col)) * col_width_factor
+        for col in df.columns
     ]
-    summary["3T tokens"] = [
-        format_cell(t * 3, g * 3, t)
-        for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
-    ]
-    summary["5T tokens"] = [
-        format_cell(t * 5, g * 5, t)
-        for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
-    ]
-    summary["10T tokens"] = [
-        format_cell(t * 10, g * 10, t)
-        for t, g in zip(grouped["training_time"], grouped["consumed_gpu_hours"])
-    ]
+    fig_width = sum(col_widths)
+    fig_height = row_height * (len(df) + 1)  # +1 for header
 
-    summary["training_time"] = pd.to_numeric(summary["training_time"], errors="coerce")
-    summary = summary.sort_values(by=["training_time"])
-    summary = summary.drop(columns=["training_time"])
-    return summary
-
-
-def export_summary_to_markdown(df):
-    return df.to_markdown(index=False)
-
-
-def plot_training_time(summary_df, output_folder, plot_name=None):
-    import re
-
-    fig_height = len(summary_df) * 0.6 + 1  # adjust height based on number of rows
-    fig, ax = plt.subplots(figsize=(12, fig_height))
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     ax.axis("off")
-    ax.axis("tight")
-
-    column_labels = summary_df.columns.tolist()
-    table_data = summary_df.values.tolist()
-
-    def extract_gpu_hours(cell):
-        match = re.search(r"/\s*(\d+)k\s*GPUh", cell)
-        return int(match.group(1)) if match else "error"
 
     cmap = mcolors.LinearSegmentedColormap.from_list(
         "green_yellow_orange_red", ["#b6fcb6", "#fff89e", "#ffc074", "#ff8080"]
@@ -88,8 +44,8 @@ def plot_training_time(summary_df, output_folder, plot_name=None):
     max_gpuh = 900
 
     table = ax.table(
-        cellText=table_data,
-        colLabels=column_labels,
+        cellText=df.values,
+        colLabels=df.columns,
         cellLoc="center",
         loc="center",
         bbox=[0, 0, 1, 1],
@@ -99,35 +55,61 @@ def plot_training_time(summary_df, output_folder, plot_name=None):
     table.set_fontsize(10)
     table.scale(1, 1.5)
 
-    for i, row in enumerate(table_data):
-        for j, cell in enumerate(row):
-            if j == 0:
-                continue  # skip arch name
-            gpuh = extract_gpu_hours(cell)
-            if gpuh == "error":
-                table[(i + 1, j)].set_facecolor("#777777")
-            else:
-                ratio = min(gpuh / max_gpuh, 1.0)
-                color = cmap(ratio)
-                table[(i + 1, j)].set_facecolor(color)
+    # Set individual column widths
+    for i, width in enumerate(col_widths):
+        table.auto_set_column_width(i)
 
-    plt.tight_layout()
-    plt.savefig(
-        os.path.join(
-            output_folder, plot_name + ".png" if plot_name else "plot_table.png"
-        ),
-        dpi=300,
-        bbox_inches="tight",
-        pad_inches=0.1,
-    )
-    plt.close()
+    # Apply coloring to "consumed_gpu_hours"
+    col_idx = df.columns.get_loc("consumed_gpu_hours")
+    for row_idx, val_str in enumerate(df["consumed_gpu_hours"]):
+        gpuh = float(val_str.replace("k", ""))
+        ratio = min(gpuh / max_gpuh, 1.0)
+        color = cmap(ratio)
+        table[row_idx + 1, col_idx].set_facecolor(color)
+
+    plt.savefig(filename, bbox_inches="tight", dpi=300)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
-    output_folder, df, input = setup()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_folder")
+    args = parser.parse_args()
+
+    input_folder = args.input_folder
+
+    data = load_data(input_folder)
+    data = [{k: v for k, v in d.items() if k != "log"} for d in data]
+
+    df = pd.json_normalize(data, sep=".")
+    df["data.tokens_per_batch"] = df["data.global_batch_size"] * df["data.seq_length"]
+    df["estimated_time"] = (
+        df["step_timings_mean"] / df["data.tokens_per_batch"] * 1e12 / 3600
+    )
+    df["consumed_gpu_hours"] = (
+        df["estimated_time"] * df["trainer.num_nodes"] * df["trainer.devices"]
+    )
+    df = df.sort_values("consumed_gpu_hours")
+
+    # Remove columns
+    arch = df["args.arch"]
+    df = df.loc[:, df.apply(lambda col: col.dropna().map(str).nunique() > 1)]
+    df["args.arch"] = arch
+
+    columns_to_remove = [
+        "args.name",
+        "open_llm_training_version",
+        "data.index_mapping_dir",
+        "args.output_dir",
+        "trainer.plugins.grad_reduce_in_fp32",
+        "data.tokens_per_batch",
+        "trainer.callbacks",
+    ]
+
+    df = df.drop(columns=columns_to_remove, errors="ignore")
+    df.columns = [col.rsplit(".", 1)[-1] for col in df.columns]
+    cols = ["job_id", "arch"] + [c for c in df.columns if c not in ["job_id", "arch"]]
+    df = df[cols]
+
     print(df)
-    os.makedirs(output_folder, exist_ok=True)
-    table = summarize_training_times_by_arch_and_precision(df)
-    print(table)
-    markdown_table = export_summary_to_markdown(table)
-    plot_training_time(table, output_folder, os.path.basename(input).split("_")[-1])
+    df_to_png_adjusted(df, os.path.join(input_folder, "benchmark_table.png"))

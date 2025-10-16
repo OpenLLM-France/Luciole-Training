@@ -1,10 +1,9 @@
-import argparse
 import os
-import json
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
 import matplotlib.ticker as mtick
+from plot_utils import setup_data
+import argparse
 
 
 def create_config_name(entry):
@@ -166,176 +165,7 @@ def plot_training_and_gpu_hours(
     plt.close()
 
 
-def load_data(input_folder):
-    data = []
-    folders = os.listdir(input_folder)
-
-    for folder in folders:
-        print(f"Loading data from folder: {folder}")
-        xp_folder = os.path.join(input_folder, folder)
-        if not os.path.isfile(xp_folder):
-            print(f"Processing experiment folder: {xp_folder}")
-            try:
-                job_folders = [f for f in os.listdir(xp_folder) if f.startswith("job_")]
-                for job_folder in job_folders:
-                    print(f"  Processing job folder: {job_folder}")
-                    job_folder = os.path.join(xp_folder, job_folder)
-                    if not os.path.exists(os.path.join(job_folder, "log.out")):
-                        continue
-                    # Calculate stats
-                    save_stats(job_folder)
-                    files = os.listdir(job_folder)
-                    stat_file = os.path.join(job_folder, "stats.json")
-                    config_file = [
-                        f
-                        for f in files
-                        if f.startswith("config_") and f.endswith(".json")
-                    ][0]
-                    config_file = os.path.join(job_folder, config_file)
-                    if os.path.exists(stat_file) and os.path.exists(config_file):
-                        with open(stat_file, "r") as f:
-                            stat_data = json.load(f)
-                            print(stat_data)
-                        with open(config_file, "r") as f:
-                            config = json.load(f)
-                        if "args" not in config:
-                            config["args"] = {}
-                            config["args"]["arch"] = config["log"]["name"].split("_")[0]
-                            if isinstance(config["trainer"]["plugins"], list):
-                                config["trainer"]["plugins"] = config["trainer"][
-                                    "plugins"
-                                ][0]
-                            config["args"]["fp8"] = (
-                                "fp8" in config["trainer"]["plugins"]
-                            )
-                        data.append(dict(**stat_data, **config))
-                        break
-
-            except Exception as e:
-                print(f"Error loading data for {folder}: {e}")
-                continue
-            print(len(data))
-    return data
-
-
-def model_to_size(model_name):
-    if model_name == "llama8b":
-        return 7.5
-    elif model_name == "llama1b":
-        return 1.1
-    elif model_name == "llama70b":
-        return 988 * 1
-    elif model_name == "mambahybrid8b":
-        return 7.3
-
-
-def convert_data(data):
-    records = []
-    for entry in data:
-        try:
-            number_of_steps_per_trillion_tokens = 1e12 / (
-                entry["data"]["global_batch_size"] * entry["data"]["seq_length"]
-            )
-
-            if "error" in entry:
-                stats = dict(
-                    error=entry["error"],
-                    mean_step_timing=entry["error"],
-                    training_time=entry["error"],
-                    consumed_gpu_hours=entry["error"],
-                )
-            else:
-                stats = dict(
-                    mean_step_timing=entry["mean_step_timings"],
-                    training_time=entry["mean_step_timings"]
-                    * number_of_steps_per_trillion_tokens
-                    / (3600 * 24),
-                    consumed_gpu_hours=(
-                        entry["mean_step_timings"]
-                        * number_of_steps_per_trillion_tokens
-                        * entry["trainer"]["num_nodes"]
-                        * entry["trainer"]["devices"]
-                    )
-                    / 3600,
-                )
-
-            try:
-                fp8_recipe = entry["trainer"]["plugins"].get("fp8_recipe", "bf16")
-            except AttributeError:
-                # entry["trainer"]["plugins"] is probably a list
-                fp8_recipe = entry["trainer"]["plugins"][0].get("fp8_recipe", "bf16")
-
-            records.append(
-                {
-                    "num_nodes": entry["trainer"]["num_nodes"],
-                    "num_gpus": entry["trainer"]["num_nodes"]
-                    * entry["trainer"]["devices"],
-                    **stats,
-                    "arch": entry["args"]["arch"],
-                    "tp": entry["trainer"]["strategy"]["tensor_model_parallel_size"],
-                    "pp": entry["trainer"]["strategy"]["pipeline_model_parallel_size"],
-                    "precision": "fp8" if entry["args"]["fp8"] else "bf16",
-                    "seq_length": entry["data"]["seq_length"],
-                    "cp": entry["trainer"]["strategy"]["context_parallel_size"],
-                    "batch_size": entry["data"]["global_batch_size"],
-                    "micro_batch_size": entry["data"]["micro_batch_size"],
-                    "fp8_recipe": fp8_recipe,
-                    "grad_reduce_in_fp32": entry["trainer"]["strategy"]["ddp"][
-                        "grad_reduce_in_fp32"
-                    ],
-                    "sequence_parallel": entry["trainer"]["strategy"][
-                        "sequence_parallel"
-                    ],
-                    "note": "\n" + entry.get("info", ""),
-                    # "model_size": entry.get("model_size", model_to_size(entry["arch"])),
-                }
-            )
-        except Exception as e:
-            raise RuntimeError(f"error on {entry}") from e
-
-    df = pd.DataFrame(records)
-    return df
-
-
-def save_stats(output_dir):
-    import re
-    import json
-    import numpy as np
-    from tqdm import tqdm
-
-    steps = dict()
-    model_size = dict()
-    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-    with open(os.path.join(output_dir, "log.out"), "r") as f:
-        log_content = f.read()
-    iteration_timing = {
-        int(match[0]): float(match[1])
-        for match in tqdm(re.findall(pattern, log_content))
-    }
-    mean_list = list(iteration_timing.values())[5:]
-    mean = np.mean(mean_list)
-    steps = {
-        "step_timings": list(iteration_timing.values()),
-        "mean_step_timings": mean,
-    }
-
-    pattern = r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>[MB])\s+(?P<label>Trainable params|Total params)"
-
-    matches = re.findall(pattern, log_content)
-
-    model_size = {
-        label: float(value) if unit == "B" else float(value) / 1000
-        for value, unit, label in matches
-    }
-    with open(os.path.join(output_dir, "stats.json"), "w") as jsonfile:
-        json_data = {
-            **steps,
-            **model_size,
-        }
-        json.dump(json_data, jsonfile, indent=2)
-
-
-def setup():
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
     parser.add_argument("--output_folder", default="plots")
@@ -343,15 +173,9 @@ def setup():
 
     input_folder = args.input_folder
     output_folder = args.output_folder
-
-    data = load_data(input_folder)
-    df = convert_data(data)
-    return output_folder, df, input_folder
-
-
-if __name__ == "__main__":
-    output_folder, df, input = setup()
     os.makedirs(output_folder, exist_ok=True)
+
+    df = setup_data(input_folder)
     df = df.sort_values(by=["arch", "seq_length", "batch_size", "precision"])
     plot_training_and_gpu_hours(
         df,
