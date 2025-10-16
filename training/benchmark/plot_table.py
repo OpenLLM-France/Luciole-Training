@@ -23,11 +23,17 @@ def df_to_png_adjusted(
         columns=["step_timings_mean", "step_timings_std", "total_time"], errors="ignore"
     )
     df["estimated_time"] = df["estimated_time"].apply(lambda x: f"{5*x/24:.2f} days")
-    df["consumed_gpu_hours"] = df["consumed_gpu_hours"].apply(
+    df["estimated_gpu_hours"] = df["estimated_gpu_hours"].apply(
         lambda x: f"{5*x/1000:.2f}k"
     )
+    df["job_gpu_hours"] = df["job_gpu_hours"].apply(lambda x: f"{x/1000:.2f}k")
+
+    # Sort by date then convert to string
+    df = df.sort_values("creation_date", ascending=True)
+    df["creation_date"] = df["creation_date"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
     # Compute figure width based on max length of each column
+
     col_widths = [
         max(df[col].astype(str).map(len).max(), len(col)) * col_width_factor
         for col in df.columns
@@ -41,7 +47,6 @@ def df_to_png_adjusted(
     cmap = mcolors.LinearSegmentedColormap.from_list(
         "green_yellow_orange_red", ["#b6fcb6", "#fff89e", "#ffc074", "#ff8080"]
     )
-    max_gpuh = 900
 
     table = ax.table(
         cellText=df.values,
@@ -59,13 +64,18 @@ def df_to_png_adjusted(
     for i, width in enumerate(col_widths):
         table.auto_set_column_width(i)
 
-    # Apply coloring to "consumed_gpu_hours"
-    col_idx = df.columns.get_loc("consumed_gpu_hours")
-    for row_idx, val_str in enumerate(df["consumed_gpu_hours"]):
-        gpuh = float(val_str.replace("k", ""))
-        ratio = min(gpuh / max_gpuh, 1.0)
-        color = cmap(ratio)
-        table[row_idx + 1, col_idx].set_facecolor(color)
+    # Apply coloring to "estimated_gpu_hours"
+    def apply_color(table, df, column_name="estimated_gpu_hours", max_value=900):
+        col_idx = df.columns.get_loc(column_name)
+        for row_idx, val_str in enumerate(df[column_name]):
+            gpuh = float(val_str.replace("k", ""))
+            ratio = min(gpuh / max_value, 1.0)
+            color = cmap(ratio)
+            table[row_idx + 1, col_idx].set_facecolor(color)
+        return table
+
+    table = apply_color(table, df, column_name="estimated_gpu_hours", max_value=900)
+    table = apply_color(table, df, column_name="job_gpu_hours", max_value=50)
 
     plt.savefig(filename, bbox_inches="tight", dpi=300)
     plt.close(fig)
@@ -86,16 +96,33 @@ if __name__ == "__main__":
     df["estimated_time"] = (
         df["step_timings_mean"] / df["data.tokens_per_batch"] * 1e12 / 3600
     )
-    df["consumed_gpu_hours"] = (
+    df["estimated_gpu_hours"] = (
         df["estimated_time"] * df["trainer.num_nodes"] * df["trainer.devices"]
     )
-    df = df.sort_values("consumed_gpu_hours")
+    df["job_gpu_hours"] = (
+        df["total_time"] * df["trainer.num_nodes"] * df["trainer.devices"] / 3600
+    )
+    df = df.sort_values("estimated_gpu_hours")
 
     # Remove columns
-    arch = df["args.arch"]
-    df = df.loc[:, df.apply(lambda col: col.dropna().map(str).nunique() > 1)]
-    df["args.arch"] = arch
-
+    print(df.columns)
+    df = df.loc[
+        :,
+        df.apply(
+            lambda col: (col.dropna().map(str).nunique() > 1)
+            or (
+                col.name
+                in [
+                    "creation_date",
+                    "job_id",
+                    "args.arch",
+                    "estimated_time",
+                    "estimated_gpu_hours",
+                    "job_gpu_hours",
+                ]
+            )
+        ),
+    ]
     columns_to_remove = [
         "args.name",
         "open_llm_training_version",
@@ -108,7 +135,11 @@ if __name__ == "__main__":
 
     df = df.drop(columns=columns_to_remove, errors="ignore")
     df.columns = [col.rsplit(".", 1)[-1] for col in df.columns]
-    cols = ["job_id", "arch"] + [c for c in df.columns if c not in ["job_id", "arch"]]
+    cols = ["creation_date", "job_id", "job_gpu_hours", "arch"] + [
+        c
+        for c in df.columns
+        if c not in ["creation_date", "job_id", "arch", "job_gpu_hours"]
+    ]
     df = df[cols]
 
     print(df)

@@ -2,6 +2,7 @@ import json
 import pandas as pd
 import os
 import glob
+import datetime
 
 
 def load_data(input_folder):
@@ -27,9 +28,13 @@ def load_data(input_folder):
             stats_data = get_stats(job_folder)
             if not stats_data:
                 continue
+            # creation date
+            creation_time = os.path.getctime(job_folder)
+            creation_date = datetime.datetime.fromtimestamp(creation_time)
             # Process
             data.append(
                 dict(
+                    creation_date=creation_date,
                     job_id=os.path.basename(job_folder).removeprefix("job_"),
                     **stats_data,
                     **config,
