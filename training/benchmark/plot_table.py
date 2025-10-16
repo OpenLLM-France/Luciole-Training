@@ -29,7 +29,6 @@ def df_to_png_adjusted(
     df["job_gpu_hours"] = df["job_gpu_hours"].apply(lambda x: f"{x/1000:.2f}k")
 
     # Sort by date then convert to string
-    df = df.sort_values("creation_date", ascending=True)
     df["creation_date"] = df["creation_date"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
     # Compute figure width based on max length of each column
@@ -84,6 +83,8 @@ def df_to_png_adjusted(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
+    parser.add_argument("--sort_column", default="estimated_gpu_hours")
+    parser.add_argument("--ascending", action="store_true")
     args = parser.parse_args()
 
     input_folder = args.input_folder
@@ -102,10 +103,8 @@ if __name__ == "__main__":
     df["job_gpu_hours"] = (
         df["total_time"] * df["trainer.num_nodes"] * df["trainer.devices"] / 3600
     )
-    df = df.sort_values("estimated_gpu_hours")
 
     # Remove columns
-    print(df.columns)
     df = df.loc[
         :,
         df.apply(
@@ -141,6 +140,8 @@ if __name__ == "__main__":
         if c not in ["creation_date", "job_id", "arch", "job_gpu_hours"]
     ]
     df = df[cols]
+
+    df = df.sort_values(args.sort_column, ascending=args.ascending)
 
     print(df)
     df_to_png_adjusted(df, os.path.join(input_folder, "benchmark_table.png"))
