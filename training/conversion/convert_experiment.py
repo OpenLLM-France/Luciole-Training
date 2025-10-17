@@ -4,7 +4,7 @@ import logging  # noqa: F811
 import os
 from argparse import ArgumentParser
 from tqdm import tqdm
-
+import re
 import convert_dist_to_hf
 
 for name in logging.root.manager.loggerDict:
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def convert_checkpoint_folder(input_path, output_path, arch):
+def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None):
     checkpoints = os.listdir(os.path.join(input_path, "checkpoints"))
     os.makedirs(os.path.join(output_path), exist_ok=True)
 
@@ -36,10 +36,28 @@ def convert_checkpoint_folder(input_path, output_path, arch):
         if os.path.isfile(checkpoint_path + "-unfinished"):
             print("\nSkipping unfinished", checkpoint)
             continue
+        if multiple_of:
+            num_step = get_step(checkpoint)
+            if num_step and ((num_step + 1) % multiple_of == 0):
+                pass
+            else:
+                print(
+                    f"Skipping {checkpoint} because it is not a multiple of {multiple_of}"
+                )
+                continue
         else:
             convert_dist_to_hf.convert_checkpoint(
                 checkpoint_path, checkpoint_output_path, arch=arch
             )
+
+
+def get_step(text):
+    match = re.search(r"-step_(\d+)", text)
+    if match:
+        step_number = int(match.group(1))
+        return step_number
+    else:
+        return
 
 
 if __name__ == "__main__":
@@ -56,8 +74,13 @@ if __name__ == "__main__":
         default="llama",
         choices=["llama", "nemotron", "nemotronh"],
     )
+    parser.add_argument(
+        "--multiple_of",
+        type=str,
+        default=None,
+        help="Convert only checkpoints that are multiple of this value",
+    )
     parser.add_argument("--local-rank")
-    parser.add_argument("--no_completion", action="store_true")
     args = parser.parse_args()
     experiment_path = args.experiment_path
 
@@ -73,7 +96,7 @@ if __name__ == "__main__":
         )
 
     if os.path.exists(os.path.join(xp_path, "checkpoints")):
-        convert_checkpoint_folder(xp_path, xp_output_path, args.arch)
+        convert_checkpoint_folder(xp_path, xp_output_path, args.arch, args.multiple_of)
     else:
         runs = os.listdir(xp_path)
         for run in runs:
@@ -83,9 +106,3 @@ if __name__ == "__main__":
                 convert_checkpoint_folder(run_path, xp_output_path, args.arch)
 
     logger.info(f"Finished converting {experiment_path}!")
-
-    if not args.no_completion:
-        with open(
-            os.path.join(experiment_path, "conversion", "completed.txt"), "w"
-        ) as f:
-            f.write("")

@@ -31,6 +31,9 @@ def df_to_png_adjusted(
     # Sort by date then convert to string
     df["creation_date"] = df["creation_date"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
+    # print dataframe
+    print(df)
+
     # Compute figure width based on max length of each column
 
     col_widths = [
@@ -143,5 +146,4 @@ if __name__ == "__main__":
 
     df = df.sort_values(args.sort_column, ascending=args.ascending)
 
-    print(df)
     df_to_png_adjusted(df, os.path.join(input_folder, "benchmark_table.png"))

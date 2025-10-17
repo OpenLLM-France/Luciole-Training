@@ -98,8 +98,8 @@ module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
 
-pip install -U "datasets<4.0.0" 
-pip install -U lighteval[multilingual,vllm]
+cd lighteval/
+pip install -e .[multilingual]
 pip install seaborn
 pip install python-slugify
 ```
@@ -122,15 +122,19 @@ module purge
 module load arch/h100
 module load anaconda-py3/2024.06
 conda activate eval-env
+export HF_HUB_OFFLINE=1
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/math.txt"
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/smollm3.txt" --custom-tasks custom_benchmarks/smollm3_evals.py
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/en.txt"
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/multilingual.txt" --custom-tasks lighteval.tasks.multilingual.tasks
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/math.txt"
+
+
+
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/multilingual.txt" --custom-tasks lighteval.tasks.multilingual.tasks
+lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/math.txt"
 ```
 
 

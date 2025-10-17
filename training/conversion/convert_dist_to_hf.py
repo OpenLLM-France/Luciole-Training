@@ -68,12 +68,6 @@ if __name__ == "__main__":
         help="Path to a checkpoint",
     )
     parser.add_argument(
-        "--input_path",
-        type=str,
-        default=os.getenv("OpenLLM_OUTPUT"),
-        help="",
-    )
-    parser.add_argument(
         "--output_path",
         type=str,
         default="model.bin",
@@ -88,5 +82,5 @@ if __name__ == "__main__":
     parser.add_argument("--local-rank")
     args = parser.parse_args()
 
-    checkpoint_path = os.path.join(args.input_path, args.input_checkpoint)
+    checkpoint_path = args.input_checkpoint
     convert_checkpoint(checkpoint_path, args.output_path, args.arch)
