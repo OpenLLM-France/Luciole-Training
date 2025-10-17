@@ -75,7 +75,7 @@ dataset_groups:
 ```bash
 run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
 ```
-It will create one sbatch per dataset, using prepost partition.
+It will create one sbatch per dataset.
 
 3. Run statistics: 
 ```bash
