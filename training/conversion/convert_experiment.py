@@ -36,7 +36,7 @@ def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None):
         if os.path.isfile(checkpoint_path + "-unfinished"):
             print("\nSkipping unfinished", checkpoint)
             continue
-        if multiple_of:
+        if multiple_of is not None:
             num_step = get_step(checkpoint)
             if num_step and ((num_step + 1) % multiple_of == 0):
                 pass
@@ -45,19 +45,18 @@ def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None):
                     f"Skipping {checkpoint} because it is not a multiple of {multiple_of}"
                 )
                 continue
-        else:
-            convert_dist_to_hf.convert_checkpoint(
-                checkpoint_path, checkpoint_output_path, arch=arch
-            )
+        convert_dist_to_hf.convert_checkpoint(
+            checkpoint_path, checkpoint_output_path, arch=arch
+        )
 
 
 def get_step(text):
-    match = re.search(r"-step_(\d+)", text)
+    match = re.search(r"-step=(\d+)", text)
     if match:
         step_number = int(match.group(1))
         return step_number
     else:
-        return
+        return None
 
 
 if __name__ == "__main__":
