@@ -55,6 +55,15 @@ gutenberg_en,4864636693,49900,2,13568562,97487.70927855711,28772.5,71683.5,12595
 nemotron-posttraining-chat_en,824770275,627720,7,146981,1313.9142850315427,647.0,1090.0,1375.0,nemotron-posttraining-chat,,en
 nemotron-posttraining-stem_en,173245053,355000,63,5952,488.0142338028169,295.0,436.0,609.0,nemotron-posttraining-stem,,en
 open-code-reasoning_en,5507543882,567850,254,23102,9698.941414105839,5043.0,9911.0,14442.0,open-code-reasoning,,en
+open-r1-codeforces-solutions-decontaminated_en,575609291,40665,490,64409,14154.906947006024,7910.0,14495.0,19997.0,open-r1-codeforces-solutions-decontaminated,,en
+open-r1-codeforces-solutions-py-decontaminated_en,114947461,8133,603,64759,14133.46378949957,7840.0,14709.0,19993.0,open-r1-codeforces-solutions-py-decontaminated,,en
+open-r1-codeforces-solutions-short-and-long-decontaminated_en,232337999,16266,490,63630,14283.659104881348,7818.25,14416.0,20298.75,open-r1-codeforces-solutions-short-and-long-decontaminated,,en
+open-r1-codeforces-solutions-w-editorials-decontaminated_en,303815278,24490,671,66148,12405.687137607187,6755.0,11950.5,17616.5,open-r1-codeforces-solutions-w-editorials-decontaminated,,en
+open-r1-codeforces-solutions-w-editorials-py-decontaminated_en,121225115,9796,702,65032,12374.960698244182,6433.0,11934.5,17801.25,open-r1-codeforces-solutions-w-editorials-py-decontaminated,,en
+open-r1-math_en,401243926,65106,229,59335,6162.933155162351,3062.0,5063.5,8284.75,open-r1-math,,en
+open-r1-math-llama_en,170582073,28627,191,25782,5958.782722604534,2822.5,4881.0,8217.0,open-r1-math-llama,,en
+open-thoughts-code_en,4125033579,250000,567,99314,16500.134316,16646.0,17476.0,17860.0,open-thoughts-code,,en
+open-thoughts-science_en,910988570,100000,583,58954,9109.8857,4392.0,8197.0,13669.0,open-thoughts-science,,en
 stack-math-qa-1600k_en,727050984,1600000,98,6578,454.406865,270.0,388.0,559.0,stack-math-qa-1600k,,en
 wikimedia-vikidia_en,11808051917,16464277,5,674190,717.1922530822337,46.0,135.0,531.0,wikimedia-vikidia,,en
 common-corpus_spanish-pd-books_es,13747436247,1306141,65,27700,10525.231385432353,9682.0,10877.0,12022.0,common-corpus,spanish-pd-books,es
