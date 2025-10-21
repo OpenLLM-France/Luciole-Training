@@ -263,7 +263,7 @@ if __name__ == "__main__":
                 end_step=max_steps,
                 warmup_steps=0,
                 active_steps=max_steps,
-                trace_dir="/lustre/fsn1/projects/rech/qgz/uhm96nw/Training_OpenLLM/torch",
+                trace_dir=f"/lustre/fsn1/projects/rech/qgz/{os.environ['USER']}/Training_OpenLLM/torch",
                 profiler_kwargs={
                     'with_stack': True,
                     'profile_memory': True,
