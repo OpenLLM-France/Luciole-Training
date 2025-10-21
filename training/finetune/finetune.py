@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_every", default="4m", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
-        default="/lustre/fsn1/projects/rech/qgz/uhm96nw/nemo_test",
+        default=f"/lustre/fsn1/projects/rech/qgz/{os.environ['USER']}/nemo_test",
     )
     parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--seq_length", default=100, type=int)
