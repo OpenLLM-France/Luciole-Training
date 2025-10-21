@@ -3,7 +3,7 @@ import torch
 import json
 import logging
 import os
-import sys
+import transformers
 
 from finetune_recipe import (
     create_trainer,
@@ -11,8 +11,7 @@ from finetune_recipe import (
     create_logger,
     create_autoresume,
 )
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "train"))
-from utils import save_stats, write_completion
+from utils import read_datamix_file, save_stats, write_completion
 
 from finetune_dataloader import create_data
 
@@ -20,7 +19,7 @@ from nemo.collections import llm
 from nemo.utils.exp_manager import TimingCallback
 from nemo.collections.common.metrics.perf_metrics import FLOPsMeasurementCallback
 from nemo.lightning.pytorch.callbacks.garbage_collection import GarbageCollectionCallback
-# from nemo.lightning.pytorch.callbacks.pytorch_profiler import PytorchProfilerCallback
+from nemo.lightning.pytorch.callbacks.pytorch_profiler import PytorchProfilerCallback
 from megatron.core.distributed import DistributedDataParallelConfig
 from lightning.pytorch.loggers import TensorBoardLogger
 from nemo.collections.llm.modelopt import set_modelopt_spec_if_exists_in_ckpt
@@ -41,9 +40,10 @@ if __name__ == "__main__":
             ) from e
 
     parser = argparse.ArgumentParser()
+    #parser.add_argument("config")
     parser.add_argument(
         "--arch",
-        default="qwen3-8B",
+        default="llama1b",
         type=str,
         choices=["llama1b", "llama8b", "mamba1b", "mixtral8x7", "mambahybrid8b", "qwen25-7B", "qwen3-8B"],
     )
@@ -51,26 +51,25 @@ if __name__ == "__main__":
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--num_gpus_per_node", default=4, type=int)
     parser.add_argument("--mode", default="debug", type=to_nb_tokens)
-    parser.add_argument("--save_every", default="30m", type=to_nb_tokens)
+    parser.add_argument("--save_every", default="4m", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/ablations/train",
+        default="/lustre/fsn1/projects/rech/qgz/uhm96nw/nemo_test",
     )
-    parser.add_argument("--batch_size", default=None, type=int)
-    parser.add_argument("--seq_length", default=None, type=int)
-    parser.add_argument("--packed_seq_length", default=None, type=int)
-    parser.add_argument("--tensor_parallelism", default=None, type=int)
-    parser.add_argument("--pipeline_parallelism", default=None, type=int)
+    parser.add_argument("--batch_size", default=4, type=int)
+    parser.add_argument("--seq_length", default=100, type=int)
+    parser.add_argument("--packed_seq_length", default=100, type=int)
+    parser.add_argument("--tensor_parallelism", default=1, type=int)
+    parser.add_argument("--pipeline_parallelism", default=1, type=int)
     parser.add_argument("--context_parallelism", default=1, type=int)
-    parser.add_argument("--virtual_pipeline_parallelism", default=None, type=int)
+    parser.add_argument("--virtual_pipeline_parallelism", default=1, type=int)
     parser.add_argument("--sequence_parallelism", default=False, action="store_true")
     parser.add_argument("--fp8", default=False, action="store_true")
-    parser.add_argument("--n_recompute", default=None, type=int)
+    parser.add_argument("--n_recompute", default=0, type=int)
     parser.add_argument("--warmup", default=50, type=int)
     parser.add_argument("--lr", default=1e-5, type=float)
-    parser.add_argument("--dataset_path", default="", type=str)
-    parser.add_argument("--model_name", default="", type=str)
-    parser.add_argument("--tokenizer_path", default="", type=str)
+    parser.add_argument("--dataset_name", default="databricks/", type=str)
+    parser.add_argument("--model_name", default="meta-llama/Llama-3.2-1B", type=str)
     parser.add_argument("--profile", default=False, action="store_true")
     parser.add_argument("--val_steps", default=30, type=int)
     args = parser.parse_args()
@@ -82,8 +81,9 @@ if __name__ == "__main__":
     num_nodes = args.num_nodes
     output_dir = args.output_dir
 
-    data_paths = args.dataset_path
-    tokenizer_path = args.tokenizer_path
+    model_name = args.model_name
+    data_paths = f"{os.environ['SCRATCH']}/" + args.dataset_name
+    tokenizer_name = f"{os.environ['DSDIR']}/HuggingFace_Models/{model_name}"
 
     batch_size = args.batch_size
     seq_length = args.seq_length
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     #     packed_seq_length = 4_194_304 // batch_size
 
     data_args = dict(
-        batch_size=batch_size, seq_length=seq_length, packed_seq_length=packed_seq_length, tokenizer_path=tokenizer_path
+        batch_size=batch_size, seq_length=seq_length, packed_seq_length=packed_seq_length, tokenizer_name=tokenizer_name
     )
 
     data = create_data(data_paths, **data_args)
@@ -181,33 +181,32 @@ if __name__ == "__main__":
             raise ValueError(f"Unsupported qwen model : {arch}")
         model_config = QwenConfig()
         model = llm.Qwen3Model(model_config, tokenizer=data.tokenizer)
-    # From training (not tested)
-    # elif arch.startswith("mamba"):
-    #     if arch == "mamba1b":
-    #         from nemo.collections.llm.gpt.model.ssm import (
-    #             BaseMambaConfig1_3B as MambaConfig,
-    #         )
+    elif arch.startswith("mamba"):
+        if arch == "mamba1b":
+            from nemo.collections.llm.gpt.model.ssm import (
+                BaseMambaConfig1_3B as MambaConfig,
+            )
 
-    #         model_config = MambaConfig(
-    #             tokenizer_library="huggingface",
-    #             tokenizer_name=tokenizer_name,
-    #             share_embeddings_and_output_weights=True,
-    #         )
-    #     elif arch == "mambahybrid8b":
-    #         from nemo.collections.llm.gpt.model.ssm import (
-    #             NVIDIAMambaHybridConfig8B as MambaConfig,
-    #         )
+            model_config = MambaConfig(
+                tokenizer_library="huggingface",
+                tokenizer_name=tokenizer_name,
+                share_embeddings_and_output_weights=True,
+            )
+        elif arch == "mambahybrid8b":
+            from nemo.collections.llm.gpt.model.ssm import (
+                NVIDIAMambaHybridConfig8B as MambaConfig,
+            )
 
-    #         model_config = MambaConfig(
-    #             tokenizer_library="huggingface",
-    #             tokenizer_name=tokenizer_name,
-    #             hybrid_override_pattern="*-".join(["M-" * 5] * 5),
-    #             num_layers=58,
-    #         )
-    #         strategy_args["tensor_model_parallel_size"] = (
-    #             args.tensor_parallelism if args.tensor_parallelism else 4
-    #         )
-    #     model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
+            model_config = MambaConfig(
+                tokenizer_library="huggingface",
+                tokenizer_name=tokenizer_name,
+                hybrid_override_pattern="*-".join(["M-" * 5] * 5),
+                num_layers=58,
+            )
+            strategy_args["tensor_model_parallel_size"] = (
+                args.tensor_parallelism if args.tensor_parallelism else 4
+            )
+        model = llm.GPTModel(model_config, tokenizer=data.tokenizer)
     elif arch == "mixtral8x7":
         from nemo.collections.llm.gpt.model.mixtral import (
             MixtralConfig8x7B,
@@ -225,7 +224,7 @@ if __name__ == "__main__":
 
     if args.n_recompute:
         model_config.recompute_granularity = "full"
-        model_config.recompute_metshod = "block"
+        model_config.recompute_method = "block"
         model_config.recompute_num_layers = args.n_recompute
  
     args_dict = vars(args)
@@ -259,18 +258,17 @@ if __name__ == "__main__":
                 gc_interval=10,
                 gc_interval_val=10,
             ),
-            # Not available in nemo 2.3.1   
-            # PytorchProfilerCallback(
-            #     start_step=0,
-            #     end_step=max_steps,
-            #     warmup_steps=0,
-            #     active_steps=max_steps,
-            #     trace_dir="/lustre/fsn1/projects/rech/knb/ukq43aj/Training_OpenLLM/torch",
-            #     profiler_kwargs={
-            #         'with_stack': True,
-            #         'profile_memory': True,
-            #     }
-            # )
+            PytorchProfilerCallback(
+                start_step=0,
+                end_step=max_steps,
+                warmup_steps=0,
+                active_steps=max_steps,
+                trace_dir="/lustre/fsn1/projects/rech/qgz/uhm96nw/Training_OpenLLM/torch",
+                profiler_kwargs={
+                    'with_stack': True,
+                    'profile_memory': True,
+                }
+            )
         ]
 
     trainer = create_trainer(
@@ -296,7 +294,7 @@ if __name__ == "__main__":
         trainer=trainer,
         log=nemo_logger,
         optim=opt,
-        resume=create_autoresume(path=f"nemo://{args.model_name}", resume_if_exists=resume_if_exists),
+        #resume=create_autoresume(path=f"nemo://{model_name.split('/')[-1]}", resume_if_exists=resume_if_exists),
     )
 
     if args.mode in ["debug", "benchmark"]:
