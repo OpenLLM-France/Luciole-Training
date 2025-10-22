@@ -4,11 +4,12 @@ import argparse
 import os
 from slugify import slugify
 import math
+import re
 
 SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=eval
 #SBATCH --output={log_dir}/eval_log_{log_name}_%j.out
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:{gpus}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -128,6 +129,7 @@ def launch_evaluation(
     force=False,
     debug=False,
     multiple_of=None,
+    gpus=1,
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
@@ -180,6 +182,7 @@ def launch_evaluation(
             log_name=f"{task_to_evaluate.stem}_{slugify(ckpt)}",
             task_to_evaluate=task_to_evaluate.resolve(),
             extra_arg=extra_arg,
+            gpus=gpus,
             dependency=f"#SBATCH --dependency=afterok:{dependency}"
             if dependency
             else "",
@@ -246,6 +249,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--lighteval_kwargs", type=str, default="")
     parser.add_argument("--multiple_of", type=int, default=None)
+    parser.add_argument("--gpus", type=int, default=1)
     args = parser.parse_args()
 
     launch_evaluation(
@@ -260,5 +264,6 @@ if __name__ == "__main__":
         lighteval_kwargs=args.lighteval_kwargs,
         force=args.force,
         debug=args.debug,
-        multiple_of=args.multiple_of
+        multiple_of=args.multiple_of,
+        gpus=args.gpus
     )
