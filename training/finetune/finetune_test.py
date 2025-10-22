@@ -58,7 +58,7 @@ if __name__ == "__main__":
         num_nodes=args.num_nodes,
         num_gpus_per_node=args.num_gpus_per_node,
         packed_sequence=args.packed_sequence,
-        #peft_scheme="none",
+        peft_scheme="none",
     )
     recipe.resume.restore_config.path = args.resume_path
     if args.debug:
