@@ -98,8 +98,9 @@ module load anaconda-py3/2024.06
 conda create -n eval-env python=3.10
 conda activate eval-env
 
+git clone git@github.com:OpenLLM-France/lighteval.git
 cd lighteval/
-pip install -e .[multilingual]
+pip install -e .[multilingual,vllm]
 pip install seaborn
 pip install python-slugify
 ```
@@ -126,6 +127,10 @@ export HF_HUB_OFFLINE=1
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+
+model_path=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciolr_nemotron23b_phase1/huggingface_checkpoints/luciolr_nemotron23b_phase1-step_0074999
+lighteval accelerate "model_name=$model_path" "tasks/en.txt" --max-samples 10
+
 
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/en.txt"
 lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
