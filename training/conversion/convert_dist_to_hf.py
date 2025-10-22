@@ -45,6 +45,11 @@ def convert_checkpoint(input_path, output_path, arch="llama"):
             with open(config_path, "w") as f:
                 json.dump(config, f, indent=2)
             pass
+        if "rms_norm_eps" not in config:
+            config["rms_norm_eps"] = 1e-05
+            with open(config_path, "w") as f:
+                json.dump(config, f, indent=2)
+            pass
         # Copy config and modeling files
         custom_exporter_path = os.path.dirname(custom_exporter.__file__)
         if not os.path.exists(os.path.join(output_path, "configuration_nemotron_h.py")):

@@ -149,12 +149,18 @@ def launch_evaluation(
             print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
 
+        model_arg = f"model_name={ckpt},dtype=bfloat16"
+        if "nemotronh" in ckpt:
+            model_arg += ",trust_remote_code=True"
+            if command == "vllm":
+                model_arg += ",max_num_batched_tokens=4096,max_num_seqs=1"
+        if revision:
+            model_arg += f",revision={revision}"
+
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             ckpt_dir=ckpt_dir.resolve(),
             command=command,
-            model_arg=f"model_name={ckpt},dtype=bfloat16,trust_remote_code=True"  # Trust remote code for Nemotron-H
-            if not revision
-            else f"model_name={ckpt},revision={revision},dtype=bfloat16",
+            model_arg=model_arg,
             output_dir=output_dir if not revision else output_dir / revision,
             log_dir=log_dir,
             log_name=f"{task_to_evaluate.stem}_{slugify(ckpt)}",

@@ -247,7 +247,7 @@ def create_datamix_file(df, token_dir, output_dir):
 
 def map_language(x):
     european_arab = ["ar", "nl", "de", "pt", "es", "it"]
-    if x in ["code", "math", "fr", "en", "aligned", "multi"]:
+    if x in ["code", "math", "fr", "en", "aligned", "multi", "cot"]:
         return x
     elif x in european_arab:
         return "euro/arab"
@@ -267,6 +267,22 @@ def is_web_dataset(name):
     if "hplt2" in name:
         return "web"
     return "no_web"
+
+
+def patch_language_column(name, language):
+    if ("nemotron-post" in name) and ("think" in name or "stem" in name):
+        return "cot"
+    if "numina" in name:
+        return "math"
+    if "open-thoughts" in name:
+        return "cot"
+    if "stack-math-qa" in name:
+        return "math"
+    if "open-r1" in name:
+        return "cot"
+    if "open-code-reasoning" in name:
+        return "cot"
+    return language
 
 
 if __name__ == "__main__":
@@ -312,13 +328,18 @@ if __name__ == "__main__":
 
     df = pd.read_csv(stats_file)
 
+    df["language"] = df.apply(
+        lambda x: patch_language_column(x["name"], x["language"]), axis=1
+    )
+
     if os.path.isfile(repeats_file):
         repeats = pd.read_csv(repeats_file)
-        df = repeats.merge(df, on="name", how="left")
-        nan_rows = df[df["total_tokens"].isna()]
-        assert (
-            len(nan_rows) == 0
-        ), f"{nan_rows['name'].tolist()} not in all_stats_merged.csv file"
+        extra_keys = set(repeats["name"]) - set(df["name"])
+        if extra_keys:
+            raise ValueError(
+                f"Found keys in repeats not present in df: {sorted(extra_keys)}"
+            )
+        df = df.merge(repeats, on="name", how="left")
         df["total_tokens"] = df["total_tokens"] * df["repeat"]
         create_datamix_file(df, token_dir, output_dir)
     else:
@@ -364,7 +385,7 @@ if __name__ == "__main__":
         .sort_values("total_tokens", ascending=False)
     )
     df = df.sort_values(
-        by=["dataset", "language", "total_tokens"], ascending=[True, True, False]
+        by=["dataset", "subset", "language"], ascending=[True, True, True]
     )
 
     # Horizontal bar

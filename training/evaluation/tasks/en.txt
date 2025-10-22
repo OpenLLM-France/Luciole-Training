@@ -19,5 +19,3 @@ helm|commonsenseqa|0
 # Language Understanding
 leaderboard|hellaswag|0
 leaderboard|winogrande|0
-
-
