@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=1:00:00
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=64
 #SBATCH --hint=nomultithread
 #SBATCH --constraint h100
 #SBATCH --account zwy@h100
@@ -18,7 +18,7 @@
 ## load environment
 module purge
 module load arch/h100
-module load nemo/2.3.1
+module load nemo/2.4.0
 
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_DATASETS_OFFLINE=1
