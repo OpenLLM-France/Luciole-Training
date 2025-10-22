@@ -11,17 +11,20 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 # OLMO2
-for i in {1..20}; do
+for i in {1..19}; do
     step=$((i*100000))
-    tokens=$(python3 -c "import math; print(math.ceil($i * 209.73))")
+    tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
     revision="stage1-step${step}-tokens${tokens}B"
     echo -e "\n******\nLoading $revision\n"
     hf download allenai/OLMo-2-0425-1B --revision "$revision"
 done
 
-for i in {1..20}; do
+for i in {1..18}; do
     step=$((i*50000))
-    tokens=$(python3 -c "import math; print(math.ceil($i * 209.767))")
+    if [ $i -eq 2 ]; then
+        continue # One step is missing
+    fi
+    tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
     revision="stage1-step${step}-tokens${tokens}B"
     echo -e "\n******\nLoading $revision\n"
     hf download allenai/OLMo-2-1124-7B --revision "$revision"

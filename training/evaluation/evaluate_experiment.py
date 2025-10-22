@@ -73,14 +73,14 @@ def init_extra_args(custom_tasks, max_samples=-1):
 
 def get_hf_model(hf_model):
     if hf_model == "allenai/OLMo-2-0425-1B":
-        checkpoints = [hf_model for i in range(1, 20)]
+        checkpoints = [hf_model for i in range(1, 19)]
         revisions = [
-            f"stage1-step{i*100000}-tokens{math.ceil(i*209.73)}B" for i in range(1, 20)
+            f"stage1-step{i*100000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
     elif hf_model == "allenai/OLMo-2-1124-7B":
-        checkpoints = [hf_model for i in range(1, 20)]
+        checkpoints = [hf_model for i in range(1, 18) if i != 2]
         revisions = [
-            f"stage1-step{i*50000}-tokens{math.ceil(i*209.767)}B" for i in range(1, 20)
+            f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 18) if i != 2
         ]
     elif hf_model == "OpenLLM-France/Lucie-7B":
         checkpoints = [hf_model for i in range(1, 16)]
