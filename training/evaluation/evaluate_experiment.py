@@ -107,6 +107,13 @@ def get_checkpoints_and_revisions(experiment_path, hf_model=None):
         revisions = ["" for _ in checkpoints]
     return checkpoints, revisions, ckpt_dir
 
+def get_step(text):
+    match = re.search(r"-step[=_](\d+)", text)
+    if match:
+        step_number = int(match.group(1))
+        return step_number
+    else:
+        return None
 
 def launch_evaluation(
     experiment_path,
@@ -120,6 +127,7 @@ def launch_evaluation(
     lighteval_kwargs="",
     force=False,
     debug=False,
+    multiple_of=None,
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
@@ -144,6 +152,12 @@ def launch_evaluation(
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
+        
+        if multiple_of:
+            step = get_step(ckpt)
+            if ((step + 1) % args.multiple_of != 0):
+                print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {args.multiple_of}")
+                continue
 
         if (output_dir / "results" / ckpt).is_dir() and not force:
             print(f"Skipping existing results for checkpoint: {ckpt}")
@@ -231,6 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--lighteval_kwargs", type=str, default="")
+    parser.add_argument("--multiple_of", type=int, default=None)
     args = parser.parse_args()
 
     launch_evaluation(
@@ -245,4 +260,5 @@ if __name__ == "__main__":
         lighteval_kwargs=args.lighteval_kwargs,
         force=args.force,
         debug=args.debug,
+        multiple_of=args.multiple_of
     )
