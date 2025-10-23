@@ -36,7 +36,7 @@ def get_training_tokens_and_model_size(file_path):
     elif "CroissantLLMBase" in str(file_path):
         tokens = 3000
         model_size = 1.3
-    elif ("luciole" in str(file_path)) or ("llama1b" in str(file_path)):
+    elif ("luciol" in str(file_path)) or ("llama1b" in str(file_path)):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
         if "llama1b" in str(file_path):
@@ -44,7 +44,9 @@ def get_training_tokens_and_model_size(file_path):
         elif "nemotron1b" in str(file_path):
             model_size = 1.319309312
         elif "nemotronh8b" in str(file_path):
-            model_size = 8
+            model_size = 8.075686912
+        elif "nemotron23b" in str(file_path):
+            model_size = 23.216467968
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
         if "phase2" in str(file_path):
