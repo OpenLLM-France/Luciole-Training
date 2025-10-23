@@ -130,6 +130,7 @@ def launch_evaluation(
     debug=False,
     multiple_of=None,
     gpus=1,
+    dry_run=False,
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
@@ -187,6 +188,13 @@ def launch_evaluation(
             if dependency
             else "",
         )
+
+        if dry_run:
+            print(f"\n--- Job script for checkpoint: {ckpt} {revision} ---\n")
+            print(job_script)
+            if debug:
+                break
+            continue
 
         if not revision:
             job_filename = job_dir / f"job_{slugify(ckpt)}.slurm"
@@ -250,6 +258,7 @@ if __name__ == "__main__":
     parser.add_argument("--lighteval_kwargs", type=str, default="")
     parser.add_argument("--multiple_of", type=int, default=None)
     parser.add_argument("--gpus", type=int, default=1)
+    parser.add_argument("--dry_run", action="store_true", help="If set, do not submit jobs.")
     args = parser.parse_args()
 
     launch_evaluation(
@@ -265,5 +274,6 @@ if __name__ == "__main__":
         force=args.force,
         debug=args.debug,
         multiple_of=args.multiple_of,
-        gpus=args.gpus
+        gpus=args.gpus,
+        dry_run=args.dry_run
     )
