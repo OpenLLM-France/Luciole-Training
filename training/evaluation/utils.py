@@ -43,6 +43,8 @@ def get_training_tokens_and_model_size(file_path):
             model_size = 1.235290112
         elif "nemotron1b" in str(file_path):
             model_size = 1.319309312
+        elif "nemotronh8b" in str(file_path):
+            model_size = 8
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
         if "phase2" in str(file_path):
