@@ -79,13 +79,13 @@ For example, if you want to plot the evaluation of:
 - nemotron 1b:
 
 ```bash
-models="
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2
-$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B
-$OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-0425-1B
-$OpenLLM_OUTPUT/pretrain/compared_models/CroissantLLMBase
-$OpenLLM_OUTPUT/pretrain/compared_models/EuroLLM-1.7B
+models="\
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b \
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2 \
+$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B \
+$OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-0425-1B \
+$OpenLLM_OUTPUT/pretrain/compared_models/CroissantLLMBase \
+$OpenLLM_OUTPUT/pretrain/compared_models/EuroLLM-1.7B \
 "
 
 python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2/figs --flops 
@@ -95,12 +95,13 @@ python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrai
 - nemotron-h 8b:
 
 ```bash
-models="
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2
-$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B
-$OpenLLM_OUTPUT/pretrain/compared_models/CroissantLLMBase
+models="\
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1 \
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b \
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2 \
+$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B \
+$OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-1124-7B \
+$OpenLLM_OUTPUT/pretrain/compared_models/CroissantLLMBase \
 "
 
 python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1/figs --flops 
@@ -108,3 +109,17 @@ python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrai
 ```
 
 - nemotron 23b:
+
+```bash
+models="\
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciolr_nemotron23b_phase1 \
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1 \
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b \
+$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2 \
+$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B \
+$OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-1124-7B \
+"
+
+python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciolr_nemotron23b_phase1/figs --flops
+python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciolr_nemotron23b_phase1/figs --flops --max_samples 1000
+```
