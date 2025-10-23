@@ -435,6 +435,19 @@ dataset_groups:
       - name: fineweb2_edu4_it
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/ita_Latn/data
         regex: .*/cluster_size-.*_edu_4_rank.*\.jsonl\.gz$
+      # ES
+      # - name: fineweb2_edu1_it
+      #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/ita_Latn/data
+      #   regex: .*/cluster_size-.*_edu_1_rank.*\.jsonl\.gz$
+      # - name: fineweb2_edu2_it
+      #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/ita_Latn/data
+      #   regex: .*/cluster_size-.*_edu_2_rank.*\.jsonl\.gz$
+      - name: fineweb2_edu3_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/spa_Latn/data
+        regex: .*/cluster_size-.*_edu_3_rank.*\.jsonl\.gz$
+      - name: fineweb2_edu4_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/spa_Latn/data
+        regex: .*/cluster_size-.*_edu_4_rank.*\.jsonl\.gz$
       # OTHER
       - name: fineweb2_ca
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/cat_Latn/data
@@ -482,6 +495,9 @@ dataset_groups:
         regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
       - name: fineweb2_hq_pt
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/por_Latn/data
+        regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+      - name: fineweb2_hq_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/spa_Latn/data
         regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
       ## CULTURAX
       # DE
