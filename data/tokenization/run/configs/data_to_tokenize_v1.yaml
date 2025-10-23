@@ -284,6 +284,8 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_code_reasoning/data
       - name: open-math-reasoning_math
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_math_reasoning/data
+      - name: open-math-instruct_math
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_math_instruct/data
       # Starcoder
       - name: starcoder_olmomix_code
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/olmo_mix/starcoder/data
