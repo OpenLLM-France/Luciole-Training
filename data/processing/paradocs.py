@@ -200,3 +200,22 @@ if __name__ == "__main__":
     )
 
     filter_executor.run()
+
+# python paradocs.py --languages en-fr --revert 0
+# python paradocs.py --languages en-fr --revert 1
+# python paradocs.py --languages en-fr --revert 0.5
+# python paradocs.py --languages en-es --revert 0
+# python paradocs.py --languages en-es --revert 1
+# python paradocs.py --languages en-es --revert 0.5
+# python paradocs.py --languages en-nl --revert 0
+# python paradocs.py --languages en-nl --revert 1
+# python paradocs.py --languages en-nl --revert 0.5
+# python paradocs.py --languages en-de --revert 0
+# python paradocs.py --languages en-de --revert 1
+# python paradocs.py --languages en-de --revert 0.5
+# python paradocs.py --languages en-pt --revert 0
+# python paradocs.py --languages en-pt --revert 1
+# python paradocs.py --languages en-pt --revert 0.5
+# python paradocs.py --languages en-it --revert 0
+# python paradocs.py --languages en-it --revert 1
+# python paradocs.py --languages en-it --revert 0.5
