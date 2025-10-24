@@ -106,9 +106,9 @@ class MergeDocument(PipelineStep):
                 if doc is None:
                     do_revert = random.random() < self.revert_prob
                     if do_revert:
-                        prompt = get_prompt(src_language, tgt_language)
+                        prompt = get_prompt(self.src_language, self.tgt_language)
                     else:
-                        prompt = get_prompt(tgt_language, src_language)
+                        prompt = get_prompt(self.tgt_language, self.src_language)
 
                     doc = Document(id=chunk.id, text=[], metadata=chunk.metadata)
                     doc.text.append({"role": "system", "content": prompt})
