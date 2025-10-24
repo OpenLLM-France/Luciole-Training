@@ -1,0 +1,50 @@
+Je vais te passer des extraits d'un document et tu vas devoir les traduire en {language}.
+Je vais te fournir des extraits d’un document, et tu devras les traduire en {language}.
+Je vais t’envoyer plusieurs passages d’un texte. Ta tâche sera de les traduire en {language}.
+Je vais te transmettre des segments d’un document à traduire en {language}.
+Je vais partager avec toi des parties d’un document, que tu devras traduire en {language}.
+Je vais t’envoyer différents extraits d’un document, et tu devras en produire la traduction en {language}.
+Traduis en {language} les extraits du document que je vais te donner.
+Ta mission sera de traduire en {language} les passages que je te transmettrai.
+Pour chaque extrait que je te fournirai, rends la traduction en {language}.
+À partir des extraits que je t’enverrai, génère leur traduction en {language}.
+Je vais te fournir du texte en plusieurs morceaux : traduis-les en {language}, un par un.
+Je vais te montrer quelques passages d’un document, et j’aimerais que tu les traduises en {language}.
+Je vais te copier plusieurs bouts de texte ; peux-tu les traduire en {language} ?
+Je vais te passer des extraits d’un document à traduire en {language}, d’accord ?
+Je vais t’envoyer des extraits, et ton rôle sera simplement de les traduire en {language}.
+Je vais partager des morceaux de texte avec toi ; traduis-les directement en {language}.
+Je vais te communiquer plusieurs extraits d’un texte : merci de les traduire en {language}.
+Je vais t’envoyer des extraits d’un document : rends-moi leur version en {language}.
+Je te donnerai plusieurs passages d’un texte, à traduire en {language}.
+Je vais t’envoyer du contenu textuel que tu devras traduire en {language}.
+Je vais te donner des extraits d’un document et tu fourniras leur traduction en {language}.
+Je vais partager avec toi des extraits d’un document : traduis-les en {language}.
+Je vais te transmettre des extraits, et tu produiras leur traduction en {language}.
+Ta tâche consistera à traduire en {language} les extraits que je t’enverrai.
+Je vais te faire parvenir plusieurs extraits de texte à traduire en {language}.
+Je vais te donner des morceaux d’un texte, et tu devras les traduire en {language}.
+Je vais t’envoyer plusieurs passages d’un document pour que tu les traduises en {language}.
+Je te confierai plusieurs extraits à traduire en {language}.
+Je vais te soumettre des extraits d’un document à traduire en {language}.
+Je vais t’envoyer plusieurs phrases d’un texte, traduis-les en {language}.
+Je vais te présenter des extraits d’un texte, et tu les traduiras en {language}.
+Je vais te transmettre du texte en français à traduire en {language}.
+Je vais te donner des extraits à traduire mot pour mot en {language}.
+Je vais partager des extraits que tu devras reformuler et traduire en {language}.
+Je vais te faire parvenir des passages d’un document, traduis-les en {language}.
+Je vais te transmettre des extraits successifs d’un texte à traduire en {language}.
+Je vais t’envoyer des morceaux d’un document, traduis chacun d’eux en {language}.
+Je vais te présenter plusieurs extraits de texte : donne-moi leur traduction en {language}.
+Je vais t’envoyer du contenu écrit que tu devras traduire en {language}.
+Je vais te confier des fragments d’un texte à traduire en {language}.
+Je vais te montrer des extraits de texte, traduis-les en {language}.
+Je vais te passer des passages d’un texte à traduire en {language}.
+Je vais t’envoyer des extraits un par un pour que tu les traduises en {language}.
+Je vais te partager du texte : convertis-le en {language}.
+Je vais te fournir du texte source à traduire en {language}.
+Je vais t’envoyer plusieurs extraits, et tu devras générer leur équivalent en {language}.
+Je vais te passer des fragments d’un document, à traduire fidèlement en {language}.
+Je vais te donner des extraits à traduire avec précision en {language}.
+Je vais te fournir du contenu à transformer en {language}.
+Je vais te donner plusieurs extraits d’un texte ; traduis-les naturellement en {language}.
