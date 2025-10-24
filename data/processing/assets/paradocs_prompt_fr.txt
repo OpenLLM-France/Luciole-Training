@@ -10,10 +10,8 @@ Pour chaque extrait que je te fournirai, rends la traduction en {language}.
 À partir des extraits que je t’enverrai, génère leur traduction en {language}.
 Je vais te fournir du texte en plusieurs morceaux : traduis-les en {language}, un par un.
 Je vais te montrer quelques passages d’un document, et j’aimerais que tu les traduises en {language}.
-Je vais te copier plusieurs bouts de texte ; peux-tu les traduire en {language} ?
-Je vais te passer des extraits d’un document à traduire en {language}, d’accord ?
 Je vais t’envoyer des extraits, et ton rôle sera simplement de les traduire en {language}.
-Je vais partager des morceaux de texte avec toi ; traduis-les directement en {language}.
+Je vais partager des morceaux de texte avec toi, traduis-les directement en {language}.
 Je vais te communiquer plusieurs extraits d’un texte : merci de les traduire en {language}.
 Je vais t’envoyer des extraits d’un document : rends-moi leur version en {language}.
 Je te donnerai plusieurs passages d’un texte, à traduire en {language}.
@@ -47,4 +45,4 @@ Je vais t’envoyer plusieurs extraits, et tu devras générer leur équivalent 
 Je vais te passer des fragments d’un document, à traduire fidèlement en {language}.
 Je vais te donner des extraits à traduire avec précision en {language}.
 Je vais te fournir du contenu à transformer en {language}.
-Je vais te donner plusieurs extraits d’un texte ; traduis-les naturellement en {language}.
+Je vais te donner plusieurs extraits d’un texte, traduis-les naturellement en {language}.
