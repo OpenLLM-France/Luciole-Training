@@ -147,6 +147,7 @@ def apply_chat_template(
     tokenizer_name = "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct"
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     for doc in data:
+        doc.metadata["conversation"] = doc.text
         doc.text = tokenizer.apply_chat_template(
             doc.text, tokenize=False, enable_thinking=False
         )
