@@ -122,6 +122,7 @@ main_patterns=(
     synthetic-fineweb_extract-knowledge-hard*
     fineweb2_hq*
     fineweb2_edu3+*
+    fineweb2_edu4*
     open-math-instruct*
 )
 link_files \
@@ -152,7 +153,11 @@ link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2"
 
 # --- Instruct tokens ---
+main_patterns=(
+    open-thoughts*
+    aya*
+)
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2_instruct" \
-    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2"
-
+    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2" \
+    "${main_patterns[@]}"
