@@ -8,8 +8,10 @@ from functools import partial
 from transformers import AutoTokenizer
 
 import os
+import re
 
 def convert_message(message):
+    # Convert from the old format to the new format
     message["role"] = {"human": "user", "gpt": "assistant"}[message.pop("from")]
     message["content"] = message.pop("value")
     return message
@@ -17,9 +19,33 @@ def convert_message(message):
 def convert_messages(data: DocumentsPipeline, rank: int = 0, world_size: int = 1, tokenizer=None) -> DocumentsPipeline:
     for document in data:
         messages = [convert_message(m) for m in document.text]
-        document.metadata["conversation"] = messages
         document.text = tokenizer.apply_chat_template(messages, tokenize=False)
+        # Remove empty think tags, caused by unfinished thoughts
+        if "<think>\n\n</think>\n\n<think>" in document.text:
+            document.text = document.text.replace("<think>\n\n</think>\n\n<think>", "<think>\n")
+            document.text = document.text[:-11] # remove "<|im_end|>\n" at the end
+        # Remove Chinese-heavy lines that can appear in thoughts
+        document.text = remove_chinese_heavy_lines(document.text)
+        document.metadata["conversation"] = messages
         yield document
+
+def remove_chinese_heavy_lines(text):
+    lines = text.splitlines()
+    cleaned_lines = []
+    chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
+    latin_pattern = re.compile(r'[A-Za-z]')
+
+    for line in lines:
+        chinese_chars = len(chinese_pattern.findall(line))
+        latin_chars = len(latin_pattern.findall(line))
+
+        if chinese_chars and chinese_chars > latin_chars:
+            continue  # Skip this line
+
+        cleaned_lines.append(line)
+
+    return "\n".join(cleaned_lines)
+
 
 if __name__ == "__main__":
     parser = create_parser()
