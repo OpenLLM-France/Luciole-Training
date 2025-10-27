@@ -295,6 +295,25 @@ dataset_groups:
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/starcoder/1_low_stars_count
       - name: stack-edu_code
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu
+      # Aya_dataset
+      - name: aya_dataset_ar
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/arb
+      - name: aya_dataset_de
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/deu
+      - name: aya_dataset_en
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/eng
+      - name: aya_dataset_fr  
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/fra
+      - name: aya_dataset_it
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/ita
+      - name: aya_dataset_nl
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/nld
+      - name: aya_dataset_pt
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/por
+      - name: aya_dataset_es
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/spa
+      - name: aya_dataset_eu
+        path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/eus
       ## WEB EN
       - name: fineweb-edu_part1_en
         path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_edu_filtered/data
