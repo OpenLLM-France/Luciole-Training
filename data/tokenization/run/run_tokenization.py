@@ -13,15 +13,10 @@ if __name__ == "__main__":
         help=".yaml file that contains the datasets you want to tokenize. See for example configs/ablations_v0.yaml.",
     )
     parser.add_argument(
-        "output_dir",
-        type=str,
-        help="Output directory that will contain all your tokenized datasets, with name provided by your yaml file. You cannot use different tokenizer in one output_dir (it will raise an error).",
-    )
-    parser.add_argument(
         "--tokenizer_name",
         type=str,
         default=None,
-        help="The tokenizer you want to use to tokenize the data. This name will be saved in your output_dir.",
+        help="The tokenizer you want to use to tokenize the data. This name will be saved in the output_dir.",
     )
     parser.add_argument(
         "--start_with",
@@ -36,10 +31,15 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     yaml_file = args.yaml_file
-    tokens_dataset_path = args.output_dir
     tokenizer_name = args.tokenizer_name
     start_with = args.start_with
 
+    # Load the YAML config
+    with open(yaml_file, "r") as f:
+        yaml_data = yaml.safe_load(f)
+
+    # Read output dir
+    tokens_dataset_path = yaml_data["output_dir"]
     os.makedirs(tokens_dataset_path, exist_ok=True)
 
     # Check if tokenizer name is already register, and if it match
@@ -63,54 +63,47 @@ if __name__ == "__main__":
         with open(tokenizer_name_file, "w", encoding="utf-8") as f:
             f.write(tokenizer_name)
 
-    # Load the YAML content
-    with open(yaml_file, "r") as f:
-        yaml_data = yaml.safe_load(f)
-
     # Iterate through each dataset entry
-    for dataset_group in yaml_data["dataset_groups"]:
-        root_path = dataset_group["root_path"]
-        for dataset in dataset_group["datasets"]:
-            name = dataset["name"]
-            relative_path = dataset["path"]
-            regex_filter = dataset.get("regex", r".*\.json.*")
+    for dataset in yaml_data["datasets"]:
+        name = dataset["name"]
+        raw_path = dataset["path"]
+        regex_filter = dataset.get("regex", r".*\.json.*")
 
-            raw_path = os.path.join(root_path, relative_path)
-            output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
-            output_bin = os.path.join(tokens_dataset_path, f"{name}_text_document.bin")
+        output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
+        output_bin = os.path.join(tokens_dataset_path, f"{name}_text_document.bin")
 
-            if os.path.isdir(raw_path):
-                if not os.path.isfile(output_idx) and name.startswith(args.start_with):
-                    if os.path.isfile(output_bin):
-                        print("--------------------------------------")
-                        print(
-                            f"⚠️  Warning for {name}! Found a .bin file at {output_bin}, but no .idx file. Either a job has failed or is still running."
-                        )
-                        print("--------------------------------------")
-                    else:
-                        print("--------------------------------------")
-                        print(f"🚀 Processing dataset: {name}")
-                        print(f"📂 Path: {raw_path}")
-                        print("--------------------------------------")
-
-                        # Submit job using sbatch
-                        subprocess.run(
-                            [
-                                "sbatch",
-                                f"--job-name=tok_{name}",
-                                "tokenize_one_dataset.slurm",
-                                raw_path,
-                                os.path.join(tokens_dataset_path, name),
-                                tokenizer_name,
-                                regex_filter,
-                                "--remove-prefix" if args.remove_prefix else "",
-                            ]
-                        )
+        if os.path.isdir(raw_path):
+            if not os.path.isfile(output_idx) and name.startswith(args.start_with):
+                if os.path.isfile(output_bin):
+                    print("--------------------------------------")
+                    print(
+                        f"⚠️  Warning for {name}! Found a .bin file at {output_bin}, but no .idx file. Either a job has failed or is still running."
+                    )
+                    print("--------------------------------------")
                 else:
                     print("--------------------------------------")
-                    print(f"⏩ Skipping {name}")
+                    print(f"🚀 Processing dataset: {name}")
+                    print(f"📂 Path: {raw_path}")
                     print("--------------------------------------")
+
+                    # Submit job using sbatch
+                    subprocess.run(
+                        [
+                            "sbatch",
+                            f"--job-name=tok_{name}",
+                            "tokenize_one_dataset.slurm",
+                            raw_path,
+                            os.path.join(tokens_dataset_path, name),
+                            tokenizer_name,
+                            regex_filter,
+                            "--remove-prefix" if args.remove_prefix else "",
+                        ]
+                    )
             else:
                 print("--------------------------------------")
-                print(f"❌ Raw dataset not found for {name} at {raw_path}.")
+                print(f"⏩ Skipping {name}")
                 print("--------------------------------------")
+        else:
+            print("--------------------------------------")
+            print(f"❌ Raw dataset not found for {name} at {raw_path}.")
+            print("--------------------------------------")
