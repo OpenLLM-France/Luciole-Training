@@ -162,4 +162,8 @@ link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2" \
     "${main_patterns[@]}"
 
-python merge_stats.py "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2"
+# run stats
+module purge
+module load arch/a100 nemo/2.2.1
+
+python merge_stats.py "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2" --add_output_path ./chronicles

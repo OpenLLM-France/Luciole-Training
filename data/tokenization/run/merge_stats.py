@@ -42,6 +42,7 @@ if __name__ == "__main__":
         type=str,
         help="Directory that contains all your tokenized datasets (.idx)",
     )
+    parser.add_argument("--add_output_path", type=str, nargs="+", default=[])
     args = parser.parse_args()
     token_dir = args.token_dir
 
@@ -51,9 +52,10 @@ if __name__ == "__main__":
     )
     merged_df = merged_df.sort_values(["language", "dataset"], ascending=True)
 
-    for output_csv_path in [
-        os.path.join(token_dir, "stats/all_stats_merged.csv"),
-        "chronicles/all_stats_merged.csv",
-    ]:
+    output_paths = [os.path.join(token_dir, "stats/all_stats_merged.csv")]
+    if args.add_output_path:
+        output_paths.extend(args.add_output_path)
+
+    for output_csv_path in output_paths:
         merged_df.to_csv(output_csv_path, index=False)
         print(f"Merged stats saved to {output_csv_path}")
