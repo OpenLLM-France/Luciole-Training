@@ -8,54 +8,80 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.writers.disk_base import DiskWriter
 
 
-class MergeDocument(PipelineStep):
-    type = "📑  MERGE"
-    name = "📑  Merge Document"
+def merge_document(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
+    from datatrove.data import Document
 
+    def breaks_document(chunk, frequency_cutoff, lid_cutoff):
+        line = chunk.metadata
+        if "None" in [
+            line["src_paragraph_id"],
+            line["src_sentence_id"],
+            line["src_start_id"],
+            line["src_end_id"],
+            line["tgt_paragraph_id"],
+            line["tgt_sentence_id"],
+            line["tgt_start_id"],
+            line["tgt_end_id"],
+        ]:
+            return True
+        if int(line["duplication_count"]) > frequency_cutoff:
+            return True
+        if float(line["src_lid_prob"]) < lid_cutoff:
+            return True
+        if float(line["tgt_lid_prob"]) < lid_cutoff:
+            return True
+        if len(line["src"].strip()) == 0:
+            return True
+        if len(line["tgt"].strip()) == 0:
+            return True
+        return False
+
+    doc = None
+    for chunk in data:
+        chunk.metadata["src"] = chunk.text
+        # Init new doc
+        if doc is None:
+            doc = Document(id=chunk.id, text=[], metadata={})
+            doc.metadata["src_docid"] = chunk.metadata["src_docid"]
+            doc.metadata["collection"] = chunk.metadata["collection"]
+            doc.metadata["tgt"] = []
+
+        # Continue
+        if chunk.metadata["src_docid"] == doc.metadata["src_docid"]:
+            if breaks_document(chunk, frequency_cutoff=100, lid_cutoff=0.5):
+                pass
+            else:
+                doc.text.append(chunk.text)
+                doc.metadata["tgt"].append(chunk.metadata["tgt"])
+
+        # break
+        else:
+            yield doc
+            doc = None
+
+
+class ParadocsProcessing(PipelineStep):
     def __init__(
         self,
         src_language,
         tgt_language,
         revert_prob=0.5,
+        geometric_param=1.0 / 3,
         exclusion_writer: DiskWriter = None,
     ):
         super().__init__()
         self.src_language = src_language
         self.tgt_language = tgt_language
         self.revert_prob = revert_prob
+        self.geometric_param = geometric_param
         self.exclusion_writer = exclusion_writer
 
     def run(
         self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1
     ) -> DocumentsPipeline:
-        import contextlib
-        from datatrove.data import Document
         import random
-
-        def breaks_document(chunk, frequency_cutoff, lid_cutoff):
-            line = chunk.metadata
-            if "None" in [
-                line["src_paragraph_id"],
-                line["src_sentence_id"],
-                line["src_start_id"],
-                line["src_end_id"],
-                line["tgt_paragraph_id"],
-                line["tgt_sentence_id"],
-                line["tgt_start_id"],
-                line["tgt_end_id"],
-            ]:
-                return True
-            if int(line["duplication_count"]) > frequency_cutoff:
-                return True
-            if float(line["src_lid_prob"]) < lid_cutoff:
-                return True
-            if float(line["tgt_lid_prob"]) < lid_cutoff:
-                return True
-            if len(line["src"].strip()) == 0:
-                return True
-            if len(line["tgt"].strip()) == 0:
-                return True
-            return False
 
         def translate(text, prompt_language):
             translations = {
@@ -85,7 +111,7 @@ class MergeDocument(PipelineStep):
                     f"No translation for '{text}' in '{prompt_language}'"
                 )
 
-        def get_prompt(src_language, prompt_language):
+        def get_prompt(src_language):
             # Build the file path
             prompt_language = "fr" if random.random() < 0.5 else "en"
             file_path = f"assets/paradocs_prompt_{prompt_language}.txt"
@@ -98,45 +124,51 @@ class MergeDocument(PipelineStep):
             )
             return prompt
 
-        doc = None
-        with self.exclusion_writer if self.exclusion_writer else contextlib.nullcontext() as writer:
-            for chunk in data:
-                chunk.metadata["src"] = chunk.text
-                # Init new doc
-                if doc is None:
-                    do_revert = random.random() < self.revert_prob
-                    if do_revert:
-                        prompt = get_prompt(self.src_language, self.tgt_language)
-                    else:
-                        prompt = get_prompt(self.tgt_language, self.src_language)
+        def chunk_parallel_lists(src, tgt):
+            import numpy as np
 
-                    doc = Document(id=chunk.id, text=[], metadata=chunk.metadata)
-                    doc.text.append({"role": "system", "content": prompt})
+            assert len(src) == len(tgt), "src and tgt must have the same length"
 
-                # Continue
-                if chunk.metadata["src_docid"] == doc.metadata["src_docid"]:
-                    if breaks_document(chunk, frequency_cutoff=100, lid_cutoff=0.5):
-                        if self.exclusion_writer:
-                            writer.write(chunk, rank)
-                    elif not do_revert:
-                        doc.text.extend(
-                            [
-                                {"role": "user", "content": chunk.text},
-                                {"role": "assistant", "content": chunk.metadata["tgt"]},
-                            ]
-                        )
-                    else:
-                        doc.text.extend(
-                            [
-                                {"role": "user", "content": chunk.metadata["tgt"]},
-                                {"role": "assistant", "content": chunk.text},
-                            ]
-                        )
+            src_chunks, tgt_chunks = [], []
+            i = 0
+            n = len(src)
 
-                # break
-                else:
-                    yield doc
-                    doc = None
+            while i < n:
+                # choose random chunk length between min_size and max_size
+                chunk_size = np.random.geometric(self.geometric_param, size=None)
+                src_chunks.append(src[i : i + chunk_size])
+                tgt_chunks.append(tgt[i : i + chunk_size])
+                i += chunk_size
+
+            src_chunks = ["\n".join(s) for s in src_chunks]
+            tgt_chunks = ["\n".join(s) for s in tgt_chunks]
+            return src_chunks, tgt_chunks
+
+        for doc in data:
+            prompt = get_prompt(self.src_language)
+            do_revert = random.random() < self.revert_prob
+            if not do_revert:
+                src = doc.text
+                tgt = doc.metadata.pop("tgt")
+            else:
+                src = doc.metadata.pop("tgt")
+                tgt = doc.text
+
+            # Merge chunk
+            src, tgt = chunk_parallel_lists(src, tgt)
+
+            # Conversation template
+            src[0] = prompt + "\n\n" + src[0]
+            # doc.text = [{"role": "system", "content": prompt}]
+            # num_of_chunk_in_current_turn = np.random.poisson(3)
+            for user_turn, assistant_turn in zip(src, tgt):
+                doc.text.extend(
+                    [
+                        {"role": "user", "content": user_turn},
+                        {"role": "assistant", "content": assistant_turn},
+                    ]
+                )
+            yield doc
 
 
 def apply_chat_template(
@@ -158,6 +190,7 @@ if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--languages", default="en-fr", type=str)
     parser.add_argument("--revert", default=0.5, type=float)
+    parser.add_argument("--geometric_param", default=1.0 / 3, type=float)
     args = parse_args(parser)
     src_language, tgt_language = args.languages.split("-")
     DATA_PATH = args.data_path
@@ -173,17 +206,15 @@ if __name__ == "__main__":
             streaming=True,
             text_key="src",
         ),
-        MergeDocument(
+        merge_document,
+        ParadocsProcessing(
             src_language=src_language,
             tgt_language=tgt_language,
             revert_prob=args.revert,
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/paradocs/{args.languages}_revert{args.revert}/removed",
-            ),
         ),
         apply_chat_template,
         JsonlWriter(
-            f"{DATA_PATH}/paradocs/{args.languages}_revert{args.revert}/data",
+            f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data",
             output_filename="${collection}/${rank}.jsonl.gz",
         ),
     ]
@@ -192,7 +223,7 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/paradocs/{args.languages}_revert{args.revert}/logs",
+        logging_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/logs",
         job_name="paradocs",
         tasks=20,
         partition="prepost",
