@@ -75,7 +75,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--multiple_of",
-        type=str,
+        type=int,
         default=None,
         help="Convert only checkpoints that are multiple of this value",
     )
