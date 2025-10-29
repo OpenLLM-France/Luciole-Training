@@ -251,7 +251,7 @@ def map_language(x):
         return x
     elif x in european_arab:
         return "euro/arab"
-    elif x in ["ca", "regional"]:
+    elif x in ["ca", "eu", "regional"]:
         return "regional"
     else:
         raise ValueError(f"Unknown language: {x}")
