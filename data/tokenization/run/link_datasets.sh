@@ -156,6 +156,7 @@ link_files \
 main_patterns=(
     open-thoughts*
     aya*
+    paradocs*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2_instruct" \

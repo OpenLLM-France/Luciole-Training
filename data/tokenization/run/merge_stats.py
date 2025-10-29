@@ -54,7 +54,8 @@ if __name__ == "__main__":
 
     output_paths = [os.path.join(token_dir, "stats/all_stats_merged.csv")]
     if args.add_output_path:
-        output_paths.extend(args.add_output_path)
+        for path in args.add_output_path:
+            output_paths.append(os.path.join(path, "all_stats_merged.csv"))
 
     for output_csv_path in output_paths:
         merged_df.to_csv(output_csv_path, index=False)
