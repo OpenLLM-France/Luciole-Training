@@ -82,6 +82,16 @@ def get_hf_model(hf_model):
         revisions = [
             f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 18) if i != 2
         ]
+    elif hf_model == "allenai/OLMo-2-0325-32B":
+        checkpoints = [hf_model for i in range(1, 19)]
+        revisions = [
+            f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19) if i != 14
+        ]
+    elif hf_model == "swiss-ai/Apertus-8B-2509":
+        checkpoints = [hf_model for i in range(1, 19)]
+        revisions = [
+            f"step{i*50000}-tokens{math.ceil(i*210)}B" for i in range(1, 19)
+        ]
     elif hf_model == "OpenLLM-France/Lucie-7B":
         checkpoints = [hf_model for i in range(1, 16)]
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]

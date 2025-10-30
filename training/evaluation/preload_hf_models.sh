@@ -30,6 +30,26 @@ for i in {1..18}; do
     hf download allenai/OLMo-2-1124-7B --revision "$revision"
 done
 
+for i in {1..18}; do
+    step=$((i*25000))
+    if [ $i -eq 14 ]; then
+        continue # One step is missing
+    fi
+    tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
+    revision="stage1-step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download allenai/OLMo-2-0325-32B --revision "$revision"
+done
+
+# Apertus
+for i in {1..20}; do
+    step=$((i*50000))
+    tokens=$(python3 -c "import math; print(math.ceil($i * 210))")
+    revision="step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download swiss-ai/Apertus-8B-2509 --revision "$revision"
+done
+
 # Lucie
 for i in {1..15}; do
     step=$(python3 -c "print(f'{$i*50000:07d}')")
