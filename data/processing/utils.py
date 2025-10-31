@@ -81,7 +81,7 @@ def filter_kwargs_for_class(cls, kwargs):
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
     if debug:
-        pipeline[0].limit = 1000
+        pipeline[0].limit = 10
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
     # Executor arguments
@@ -96,10 +96,16 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         qos = kwargs.pop("qos", "qos_cpu-t3")
         partition = kwargs.pop("partition", "prepost")
         cpus_per_task = kwargs.pop("cpus_per_task", 1)
+        env_command = kwargs.pop(
+            "env_command", "source ~/OpenLLM-BPI-Training/data/set_env.sh"
+        )
+        sbatch_args = kwargs.pop(
+            "sbatch_args", {"account": "qgz@cpu", "hint": "nomultithread"}
+        )
         slurm_kwargs = filter_kwargs_for_class(SlurmPipelineExecutor, kwargs)
         main_processing_executor = SlurmPipelineExecutor(
             pipeline=pipeline,
-            sbatch_args={"account": "qgz@cpu", "hint": "nomultithread"},
+            sbatch_args=sbatch_args,
             tasks=tasks,
             cpus_per_task=cpus_per_task,
             time=time,
@@ -107,7 +113,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
             partition=partition,
             requeue_signals=None,
             requeue=False,
-            env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+            env_command=env_command,
             **slurm_kwargs,
         )
     return main_processing_executor
