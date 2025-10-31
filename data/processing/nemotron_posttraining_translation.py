@@ -109,7 +109,6 @@ class MergeTranslation(PipelineStep):
                 self.buffer[doc.id] = []
             self.buffer[doc.id].append(doc)
             # Check if buffer completed
-            print(len(self.buffer[doc.id]))
             if len(self.buffer[doc.id]) == doc.metadata["num_chunks"]:
                 completed_list = self.buffer.pop(doc.id)
                 completed_list = sorted(
@@ -147,7 +146,22 @@ def clean_doc(
             return f"<think>{thinking_translated}</think>"
 
         last_turn = re.sub(pattern, repl, last_turn, flags=re.DOTALL).strip()
-        doc.metadata["messages"][-1] = last_turn
+        doc.metadata["messages"][-1]["content"] = last_turn
+        yield doc
+
+
+def apply_chat_template(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
+    from transformers import AutoTokenizer
+
+    tokenizer_name = "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct"
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    for doc in data:
+        doc.text = tokenizer.apply_chat_template(
+            doc.metadata["messages"],
+            tokenize=False,
+        )
         yield doc
 
 
@@ -242,6 +256,7 @@ if __name__ == "__main__":
         JsonlReader(f"{output_path}/data"),
         MergeTranslation(),
         clean_doc,
+        apply_chat_template,
         JsonlWriter(f"{output_path}/data_cleaned"),
     ]
 
