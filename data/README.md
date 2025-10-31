@@ -21,7 +21,8 @@ pip install -r requirements.txt
 git clone https://github.com/linagora-labs/datatrove.git
 cd datatrove
 git checkout lucie_v2
-pip install -e .[io,processing]
+pip install -e .[io,processing,inference]
+pip install vllm
 ```
 
 You can add a hostname in `set_env.sh` and set your `$OpenLLM_OUTPUT` variable. Then you can use `source set_env.sh`.
