@@ -11,6 +11,18 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 # OLMO2
+
+for i in {1..19}; do
+    step=$((i*25000))
+    tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
+    revision="stage1-step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download allenai/OLMo-2-1124-13B --revision "$revision"
+done
+
+
+exit 0
+
 for i in {1..19}; do
     step=$((i*100000))
     tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
@@ -66,6 +78,7 @@ done
 
 # EUROLLM
 hf download utter-project/EuroLLM-1.7B
+hf download utter-project/EuroLLM-9B
 hf download HuggingFaceTB/SmolLM2-1.7B
 hf download HuggingFaceTB/SmolLM3-3B
 hf download croissantllm/CroissantLLMBase

@@ -14,6 +14,10 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else None
         model_size = 7.0
+    elif "OLMo-2-1124-13B" in str(file_path):
+        match = re.search(r"-tokens([0-9.]+)B", str(file_path))
+        tokens = float(match.group(1)) if match else None
+        model_size = 13.0
     elif "OLMo-2-0325-32B" in str(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else None
@@ -25,6 +29,9 @@ def get_training_tokens_and_model_size(file_path):
     elif "EuroLLM-1.7B" in str(file_path):
         tokens = 4000
         model_size = 1.394_706_432
+    elif "EuroLLM-9B" in str(file_path):
+        tokens = 4000
+        model_size = 9.0
     elif "SmolLM2-1.7B" in str(file_path):
         match = re.search(r"step-([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
