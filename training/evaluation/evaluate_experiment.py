@@ -50,24 +50,24 @@ def init_extra_args(custom_tasks, max_samples=-1):
     if custom_tasks is None:
         pass
     elif custom_tasks == "multilingual":
-        extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\"
+        extra_arg += "--custom-tasks lighteval.tasks.multilingual.tasks \\\n"
     elif custom_tasks == "smollm3":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "smollm3_evals.py")
-        extra_arg += f"--custom-tasks {custom_path} \\"
+        extra_arg += f"--custom-tasks {custom_path} \\\n"
     elif custom_tasks == "fineweb":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
-        extra_arg += f"--custom-tasks {custom_path} \\"
+        extra_arg += f"--custom-tasks {custom_path} \\\n"
     elif custom_tasks == "lucie":
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "lucie2_evals.py")
-        extra_arg += f"--custom-tasks {custom_path} \\"
+        extra_arg += f"--custom-tasks {custom_path} \\\n"
     else:
         raise ValueError(f"Unknown custom_tasks: {custom_tasks}")
     # Max samples
     if max_samples > 0:
-        extra_arg += f"--max-samples {max_samples} \\"
+        extra_arg += f"--max-samples {max_samples} \\\n"
     return extra_arg
 
 
@@ -82,8 +82,13 @@ def get_hf_model(hf_model):
         revisions = [
             f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 18) if i != 2
         ]
-    elif hf_model == "allenai/OLMo-2-0325-32B":
+    elif hf_model == "allenai/OLMo-2-1124-13B":
         checkpoints = [hf_model for i in range(1, 19)]
+        revisions = [
+            f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
+        ]
+    elif hf_model == "allenai/OLMo-2-0325-32B":
+        checkpoints = [hf_model for i in range(1, 19) if i != 14]
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19) if i != 14
         ]
@@ -181,6 +186,8 @@ def launch_evaluation(
             model_arg += ",trust_remote_code=True"
             if command == "vllm":
                 model_arg += ",max_num_batched_tokens=4096,max_num_seqs=1"
+            else:
+                model_arg += ",batch_size=1"
         if revision:
             model_arg += f",revision={revision}"
 
