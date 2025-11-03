@@ -9,7 +9,9 @@ All about preprocessing datasets.
 #### Create environment 
 ```bash
 module purge
+module load arch/h100 
 module load anaconda-py3/2024.06
+module load cuda/12.4.1
 conda create -n datatrove-env python=3.10
 conda activate datatrove-env
 pip install -r requirements.txt
@@ -23,6 +25,7 @@ cd datatrove
 git checkout lucie_v2
 pip install -e .[io,processing,inference]
 pip install vllm
+pip install --no-build-isolation flash-attn
 ```
 
 You can add a hostname in `set_env.sh` and set your `$OpenLLM_OUTPUT` variable. Then you can use `source set_env.sh`.

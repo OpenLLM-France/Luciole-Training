@@ -6,16 +6,21 @@ from datatrove.data import DocumentsPipeline
 from functools import partial
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
 from typing import Any
-from datatrove.data import Document
 import os
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers.disk_base import DiskWriter
+from datatrove.data import Document
 
 
-def split_into_chunks(
-    data: DocumentsPipeline, rank: int = 0, world_size: int = 1, min_size=200
+def prepare_data(
+    data: DocumentsPipeline,
+    rank: int = 0,
+    world_size: int = 1,
+    min_size=200,
+    model_name="",
 ) -> DocumentsPipeline:
     import re
+    from datatrove.data import Document
 
     def extract_thinking(text):
         pattern = r"<think>(.*?)(</think>|$)"
@@ -49,6 +54,7 @@ def split_into_chunks(
         document.metadata["num_chunks"] = len(chunks)
         document.metadata["last_turn"] = last_turn
         document.metadata["original_thinking"] = thinking
+        document.metadata["model_name"] = model_name
 
         for i, chunk in enumerate(chunks):
             meta = document.metadata.copy()
@@ -103,11 +109,14 @@ class MergeTranslation(PipelineStep):
     def run(
         self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1
     ) -> DocumentsPipeline:
+        from datatrove.data import Document
+
         for doc in data:
             # Add doc to buffer
             if doc.id not in self.buffer.keys():
                 self.buffer[doc.id] = []
-            self.buffer[doc.id].append(doc)
+            # if doc.metadata["inference_results"][-1].finish_reason == "stop":
+            # self.buffer[doc.id].append(doc)
             # Check if buffer completed
             if len(self.buffer[doc.id]) == doc.metadata["num_chunks"]:
                 completed_list = self.buffer.pop(doc.id)
@@ -179,6 +188,7 @@ if __name__ == "__main__":
             "multilingual_de",
         ],
     )
+    parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-32B")
     parser.add_argument("--tp", type=int, default=2)
     args = parse_args(parser)
     DATA_PATH = args.data_path
@@ -194,10 +204,10 @@ if __name__ == "__main__":
 
     config: InferenceConfig = InferenceConfig(
         server_type="vllm",
-        model_name_or_path="Qwen/Qwen3-32B",
+        model_name_or_path=args.model_name,
         # temperature=0.6,
         tp=args.tp,
-        model_max_context=8192,
+        model_max_context=32768,
         max_concurrent_requests=500,
         max_concurrent_tasks=500,
         metric_interval=120,
@@ -213,8 +223,9 @@ if __name__ == "__main__":
             f"/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/{args.subset}/data",
         ),
         partial(
-            split_into_chunks,
+            prepare_data,
             min_size=1000,
+            model_name=args.model_name,
         ),
         InferenceRunner(
             query_builder=simple_query_builder,
@@ -237,11 +248,11 @@ if __name__ == "__main__":
         logging_dir=f"{output_path}/logs",
         job_name=dataset_name,
         tasks=16,
-        time="20:00:00",
+        time="05:00:00",
         qos="qos_gpu_h100-t3",
         partition="gpu_p6",
         cpus_per_task=32,
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
+        env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
         sbatch_args={
             "account": "wuh@h100",
             "constraint": "h100",
@@ -250,6 +261,7 @@ if __name__ == "__main__":
             "hint": "nomultithread",
         },
     )
+    # inference_executor.run()
 
     # Postprocess
     pipeline = [
@@ -267,7 +279,10 @@ if __name__ == "__main__":
         logging_dir=f"{output_path}/logs_cleaned",
         job_name=dataset_name,
         tasks=1 if args.debug else 16,
-        depends=inference_executor,
+        partition="cpu_p1",
+        cpus_per_task=2,
+        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
+        # depends=inference_executor,
     )
 
     final_executor.run()
