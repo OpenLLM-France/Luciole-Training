@@ -155,7 +155,6 @@ def get_expe_name(slurm_args, train_args):
     if train_args["mode"] in ["benchmark", "debug"]:
         datamix_name = os.path.splitext(os.path.basename(train_args["datamix"]))[0]
         job_name_parts.append(datamix_name)
-        job_name_parts.append(train_args["mode"])
         if train_args["mode"] == "benchmark":
             job_name_parts.append(f"{slurm_args['num_nodes']}n")
             if train_args.get("performance_mode"):
@@ -174,8 +173,6 @@ def get_expe_name(slurm_args, train_args):
             job_name_parts.append(f"vpp{train_args['virtual_pipeline_parallelism']}")
         if train_args.get("micro_batch_size"):
             job_name_parts.append(f"mbs{train_args['micro_batch_size']}")
-    elif train_args["mode"] in ["annealing"]:
-        job_name_parts.append(train_args["mode"])
 
     expe_name = "_".join(job_name_parts).replace(".", "_")
     return expe_name
