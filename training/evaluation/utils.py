@@ -81,6 +81,8 @@ def get_training_tokens_and_model_size(file_path):
             raise ValueError(f"Unknown model size for model in: {file_path}")
         if "phase2" in str(file_path):
             steps += 715786
+        if "annealing" in str(file_path):
+            steps += 715786 + 382456
         tokens = steps * 4096 * 1024 / 10**9
     else:
         raise ValueError(f"Unknown model in file path: {file_path}")
