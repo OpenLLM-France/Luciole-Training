@@ -119,7 +119,7 @@ def get_checkpoints_and_revisions(experiment_path, hf_model=None):
     else:
         ckpt_dir = experiment_path / "huggingface_checkpoints"
         assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
-        checkpoints = [d for d in ckpt_dir.iterdir() if d.is_dir()]
+        checkpoints = sorted([d for d in ckpt_dir.iterdir() if d.is_dir()])
         revisions = ["" for _ in checkpoints]
     return checkpoints, revisions, ckpt_dir
 
@@ -144,6 +144,7 @@ def launch_evaluation(
     force=False,
     debug=False,
     multiple_of=None,
+    last_checkpoint_only=False,
     gpus=1,
     dry_run=False,
 ):
@@ -155,6 +156,9 @@ def launch_evaluation(
     checkpoints, revisions, ckpt_dir = get_checkpoints_and_revisions(
         experiment_path, hf_model
     )
+    if last_checkpoint_only:
+        checkpoints = [checkpoints[-1]]
+        revisions = [revisions[-1]]
 
     # create output dirs
     output_dir = experiment_path / evaluation_dir / task_to_evaluate.stem
@@ -188,6 +192,8 @@ def launch_evaluation(
                 model_arg += ",max_num_batched_tokens=4096,max_num_seqs=1"
             else:
                 model_arg += ",batch_size=1"
+        if "Teuken" in ckpt:
+            model_arg += ",trust_remote_code=True"
         if revision:
             model_arg += f",revision={revision}"
 
@@ -252,7 +258,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--custom_tasks",
         default=None,
-        choices=[None, "multilingual"],
+        choices=[None, "multilingual", "smollm3"],
     )
     parser.add_argument(
         "--max_samples",
@@ -274,6 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--lighteval_kwargs", type=str, default="")
     parser.add_argument("--multiple_of", type=int, default=None)
+    parser.add_argument("--last_checkpoint_only", action="store_true")
     parser.add_argument("--gpus", type=int, default=1)
     parser.add_argument("--dry_run", action="store_true", help="If set, do not submit jobs.")
     args = parser.parse_args()
@@ -291,6 +298,7 @@ if __name__ == "__main__":
         force=args.force,
         debug=args.debug,
         multiple_of=args.multiple_of,
+        last_checkpoint_only=args.last_checkpoint_only,
         gpus=args.gpus,
         dry_run=args.dry_run
     )
