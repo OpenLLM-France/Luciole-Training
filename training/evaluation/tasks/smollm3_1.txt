@@ -1,9 +1,0 @@
-custom|hellaswag_cf|0
-custom|arc_cf|0
-custom|boolq_cf|0
-custom|commonsenseqa_cf|0
-custom|winogrande_cf|0
-custom|openbookqa_cf|0
-custom|piqa_cf|0
-custom|gsm8k|5
-custom|math_cot|4
