@@ -17,14 +17,32 @@ def assign_colors(df):
     else:
         cmap = plt.get_cmap("tab20")
     colors = [cmap(i) for i in range(cmap.N)]
-    return {name: colors[i % len(colors)] for i, name in enumerate(unique_experiments)}
+    color_map = {}
+    i = -1
+    previous_name = ""
+    for name in unique_experiments:
+        if name.split("_phase")[0] != previous_name.split("_phase")[0]:
+            i += 1
+        previous_name = name
+        color_map[name] = colors[i % len(colors)]
+    return color_map
+
+def assign_styles(df):
+    unique_experiments = df["expe_name"].unique()
+    style_map = {}
+    for name in unique_experiments:
+        if "phase2" in name:
+            style_map[name] = ":"
+        else:
+            style_map[name] = "-"
+    return style_map
 
 
 df_info = read_info()
 
 
 def plot_task(
-    ax, df, task, metric, color_map, xlog=False, fit=False, flops=False, max_tokens=None
+    ax, df, task, metric, color_map, style_map, xlog=False, fit=False, flops=False, max_tokens=None
 ):
     xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -38,6 +56,7 @@ def plot_task(
 
     for _, row in df.iterrows():
         color = color_map[row["expe_name"]]
+        linestyle = style_map[row["expe_name"]]
 
         if fit:
             ax.plot(
@@ -86,6 +105,7 @@ def plot_task(
                     row["score"],
                     alpha=1,
                     color=color,
+                    linestyle=linestyle,
                     label=row["expe_name"],
                 )
 
@@ -112,12 +132,16 @@ def plot_list_of_tasks(
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
     ]
     n_tasks = len(list_of_tasks_to_plot)
-    if n_tasks > max_subplot:
+    if not isinstance(max_subplot, int) or n_tasks > max_subplot:
         print("Splitting results in different figures...")
         for i, chunk_list in enumerate(
             [
                 list_of_tasks_to_plot[i : i + max_subplot]
                 for i in range(0, n_tasks, max_subplot)
+            ] if isinstance(max_subplot, int) else
+            [
+                list_of_tasks_to_plot[sum(max_subplot[:i]):sum(max_subplot[:i+1])]
+                for i in range(len(max_subplot))
             ]
         ):
             if output_file:
@@ -142,6 +166,7 @@ def plot_list_of_tasks(
     else:
         axes = axes.flatten()
     color_map = assign_colors(df)  # Global color map
+    style_map = assign_styles(df)
 
     # Keep track of labels added to the legend
     legend_dict = {}
@@ -153,6 +178,7 @@ def plot_list_of_tasks(
             task,
             metric,
             color_map=color_map,
+            style_map=style_map,
             xlog=xlog,
             fit=fit,
             flops=flops,
@@ -186,7 +212,7 @@ def plot_list_of_tasks(
         print(f"Saved figure to {output_file}")
 
 
-def plot_experiments(df, args):
+def plot_experiments(df, args, max_subplot=15):
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
@@ -220,6 +246,7 @@ def plot_experiments(df, args):
             fit=args.fit,
             flops=args.flops,
             max_tokens=args.max_tokens,
+            max_subplot=max_subplot,
         )
 
     if not args.output_path:
@@ -233,6 +260,10 @@ def process_experiments(args):
     for path in args.experiment_path:
         # Step 1: read experiment results
         df = read_experiment_results(path, evaluation_dir=args.evaluation_dir)
+
+        if df is None or df.empty:
+            print(f"No results found in {path}, skipping...")
+            continue
 
         # Step 2: calculate aggregated scores if needed
         if "agg" in args.group:
@@ -277,6 +308,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--max_samples", type=str, default="None")
     parser.add_argument(
+        "--selection", default=False, action="store_true", help="Use only a selection of tasks"
+    )
+    parser.add_argument(
         "--evaluation_dir",
         type=str,
         default="evaluation",
@@ -299,7 +333,62 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     df = process_experiments(args)
-    df = df[df["max_samples"] == args.max_samples]
+    if args.selection:
+
+        task_and_metric_selection = [
+            ("helm|boolq:_average|0", "em_with_type_exact_match"),
+            ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
+            ("helm|siqa|0", "em"),
+            ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
+            ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
+            ("leaderboard|hellaswag|0", "acc"),
+            ("leaderboard|winogrande|0", "acc"),
+            ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
+            ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
+            ("lighteval|piqa|0", "acc_with_logprob_normalization"),
+            ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
+
+            ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
+            ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
+            ("lighteval|xcodah_fra_cf|0", "acc_norm"),
+            ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
+            ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"),
+            ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
+            ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
+            ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+            ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+
+            ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm"),
+            ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm"),
+            ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm"),
+            ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm"),
+
+            ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
+            ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
+            ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
+            ("lighteval|global_mmlu_all_ara_cf:_average|0", "acc_norm"),
+
+            ("lighteval|belebele_deu_Latn_cf|0", "acc_norm"),
+            ("lighteval|belebele_spa_Latn_cf|0", "acc_norm"),
+            ("lighteval|belebele_ita_Latn_cf|0", "acc_norm"),
+            ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
+
+            ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
+            ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
+            ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
+            # ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
+        ]
+
+        max_subplot = (11, 9, 15)
+
+        df_new = df[(df["task"] == task_and_metric_selection[0][0]) & (df["metric"] == task_and_metric_selection[0][1])]
+        for task, metric in task_and_metric_selection[1:]:
+            df_new = pd.concat([df_new, df[(df["task"] == task) & (df["metric"] == metric)]])
+        df = df_new
+    else:
+        df = df[df["max_samples"] == args.max_samples]
+
+        max_subplot = 15
 
     print(df)
-    plot_experiments(df, args)
+    plot_experiments(df, args, max_subplot=max_subplot)
