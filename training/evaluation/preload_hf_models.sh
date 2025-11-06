@@ -82,6 +82,11 @@ hf download utter-project/EuroLLM-9B
 hf download HuggingFaceTB/SmolLM2-1.7B
 hf download HuggingFaceTB/SmolLM3-3B
 hf download croissantllm/CroissantLLMBase
+hf download BSC-LT/salamandra-7b
+hf download openGPT-X/Teuken-7B-base-v0.6
+hf download almanach/Gaperon-1125-1B
+hf download almanach/Gaperon-1125-8B
+hf download almanach/Gaperon-1125-24B
 
 # Count parameters
 python count_parameters.py allenai/OLMo-2-0425-1B utter-project/EuroLLM-1.7B HuggingFaceTB/SmolLM2-1.7B HuggingFaceTB/SmolLM3-3B

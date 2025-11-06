@@ -26,12 +26,27 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else None
         model_size = 8.0
+    elif "Gaperon-1125-1B" in str(file_path):
+        tokens = 3000
+        model_size = 1.0
+    elif "Gaperon-1125-8B" in str(file_path):
+        tokens = 4000
+        model_size = 8.0
+    elif "Gaperon-1125-24B" in str(file_path):
+        tokens = 2000
+        model_size = 24.0
     elif "EuroLLM-1.7B" in str(file_path):
         tokens = 4000
         model_size = 1.394_706_432
     elif "EuroLLM-9B" in str(file_path):
         tokens = 4000
         model_size = 9.0
+    elif "salamandra-7b" in str(file_path):
+        tokens = 12_875
+        model_size = 7.768_117_248
+    elif "Teuken-7B" in str(file_path):
+        tokens = 6_000
+        model_size = 7.0
     elif "SmolLM2-1.7B" in str(file_path):
         match = re.search(r"step-([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
