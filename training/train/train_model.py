@@ -100,6 +100,13 @@ def get_parser():
         action="store_true",
         help="Disable gradient reduction in fp32",
     )
+    parser.add_argument(
+        "--scheduler",
+        default="wsd",
+        choices=["wsd", "cosine"],
+        type=str,
+    )
+    parser.add_argument("--max_lr", type=float, default=None)
     return parser
 
 
@@ -121,14 +128,17 @@ if __name__ == "__main__":
         bf16_with_fp8_mixed,
     )
     from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
-    from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
+    from nemo.lightning.pytorch.callbacks import (
+        GarbageCollectionCallback,
+    )  # , SpikeDetection
     from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
-    from nemo.utils.exp_manager import TimingCallback
 
     from callbacks import (
         ProgressiveIntervalCheckpoint,
         checkpoint_along_step_curve,
         StatelessTimer,
+        CustomTimingCallback,
+        # StopAtEndOfPhaseCallback,
     )
     from recipes.recipe_utils import get_recipe
 
@@ -250,20 +260,32 @@ if __name__ == "__main__":
     )
 
     ### OPTIM SETUP
-    max_lr = recipe.optim.config.lr
+    max_lr = args.max_lr if args.max_lr is not None else recipe.optim.config.lr
     if args.mode in ["debug", "benchmark"]:
         warmup = 5
     elif args.mode == "phase1":
         warmup = 2000
     elif args.mode in ["phase2", "annealing"]:
         warmup = 0
-    min_lr = max_lr if args.mode != "annealing" else max_lr * 0.1
-    recipe.optim.lr_scheduler = run.Config(
-        WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
-    )
-    logger.info(
-        f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
-    )
+    # Scheduler setup
+    if args.scheduler == "wsd":
+        min_lr = max_lr if args.mode != "annealing" else max_lr * 0.1
+        recipe.optim.lr_scheduler = run.Config(
+            WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
+        )
+        logger.info(
+            f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
+        )
+    elif args.scheduler == "cosine" and args.mode == "phase2":
+        max_steps = 2 * 1e12 / tokens_per_batch
+        recipe.optim.lr_scheduler.max_steps = max_steps
+        logger.info(
+            f"Setting Cosine Scheduler with max_steps: {max_steps} (2T tokens), warmup: {warmup}"
+        )
+    else:
+        raise ValueError(
+            f"Scheduler {args.scheduler} not supported in mode {args.mode}"
+        )
 
     # Callbacks setup
     time_limit = get_time_limit(
@@ -272,8 +294,12 @@ if __name__ == "__main__":
     recipe.trainer.callbacks = []
     recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
     logger.info("Added StatelessTimer")
-    recipe.trainer.callbacks.append(run.Config(TimingCallback))
+    recipe.trainer.callbacks.append(
+        run.Config(CustomTimingCallback)
+    )  # , max_training_time_per_step=args.max_training_time_per_step))
     logger.info("Added TimingCallback")
+    # recipe.trainer.callbacks.append(run.Config(StopAtEndOfPhaseCallback, end_step=args.end_step))
+    # logger.info("Added StopAtEndOfPhaseCallback")
     recipe.trainer.callbacks.append(
         run.Config(
             GarbageCollectionCallback,

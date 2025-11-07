@@ -26,6 +26,7 @@ from nemo.utils import logging
 from nemo.utils.get_rank import get_rank
 from nemo import lightning as nl
 from datetime import timedelta
+from nemo.utils.exp_manager import TimingCallback
 
 
 def checkpoint_along_step_curve(
@@ -35,6 +36,50 @@ def checkpoint_along_step_curve(
         if global_step <= s:
             return global_step % interval == 0
     return global_step % else_interval == 0
+
+
+class CustomTimingCallback(TimingCallback):
+    def __init__(
+        self,
+        log_tokens_per_sec: bool = False,
+        timer_kwargs={},
+        max_training_time_per_step=None,
+    ):
+        super().__init__(log_tokens_per_sec, timer_kwargs)
+        self.max_training_time_per_step = max_training_time_per_step
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
+        if self.max_training_time_per_step:
+            should_stop = (
+                self.timer["train_step_timing"] > self.max_training_time_per_step
+            )
+            if should_stop:
+                logging.info(
+                    f"Training step is too large: {self.timer['train_step_timing']} > {self.max_training_time_per_step}. Stopping training."
+                )
+            should_stop = trainer.strategy.broadcast(should_stop)
+            trainer.should_stop = trainer.should_stop or should_stop
+
+
+class StopAtEndOfPhaseCallback(Callback, IOMixin):
+    def __init__(
+        self,
+        end_step: int = None,
+    ):
+        self.end_step = end_step
+
+    def on_train_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx: int
+    ) -> None:
+        if self.end_step:
+            should_stop = trainer.global_step >= self.end_step
+            if should_stop:
+                logging.info(
+                    f"End of phase is reached at step: {trainer.global_step}. Stopping training."
+                )
+            should_stop = trainer.strategy.broadcast(should_stop)
+            trainer.should_stop = trainer.should_stop or should_stop
 
 
 class ProgressiveIntervalCheckpoint(nl.ModelCheckpoint):
