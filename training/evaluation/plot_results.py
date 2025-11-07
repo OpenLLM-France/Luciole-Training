@@ -7,7 +7,50 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-task_group_mapping = {}
+task_group_mapping = {
+    "en": [
+        ("helm|boolq:_average|0", "em_with_type_exact_match"),
+        ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
+        ("helm|siqa|0", "em"),
+        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
+        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
+        ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
+        ("lighteval|piqa|0", "acc_with_logprob_normalization"),
+        ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
+    ],
+    "fr": [
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|xcodah_fra_cf|0", "acc_norm"),
+        ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
+        ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+    ],
+    "multilingual": [
+        ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_ara_cf:_average|0", "acc_norm"),
+        ("lighteval|belebele_deu_Latn_cf|0", "acc_norm"),
+        ("lighteval|belebele_spa_Latn_cf|0", "acc_norm"),
+        ("lighteval|belebele_ita_Latn_cf|0", "acc_norm"),
+        ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
+        ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
+        ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
+    ],
+}
 
 
 def assign_colors(df):
@@ -27,12 +70,16 @@ def assign_colors(df):
         color_map[name] = colors[i % len(colors)]
     return color_map
 
-def assign_styles(df):
+
+def assign_styles(df, apply_phase_style=True):
     unique_experiments = df["expe_name"].unique()
     style_map = {}
     for name in unique_experiments:
-        if "phase2" in name:
-            style_map[name] = ":"
+        if apply_phase_style:
+            if "phase2" in name:
+                style_map[name] = ":"
+            else:
+                style_map[name] = "-"
         else:
             style_map[name] = "-"
     return style_map
@@ -42,7 +89,16 @@ df_info = read_info()
 
 
 def plot_task(
-    ax, df, task, metric, color_map, style_map, xlog=False, fit=False, flops=False, max_tokens=None
+    ax,
+    df,
+    task,
+    metric,
+    color_map,
+    style_map,
+    xlog=False,
+    fit=False,
+    flops=False,
+    max_tokens=None,
 ):
     xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -125,8 +181,9 @@ def plot_list_of_tasks(
     xlog=False,
     fit=False,
     flops=False,
-    max_subplot=15,
+    apply_phase_style=True,
     max_tokens=None,
+    max_subplot=15,
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
@@ -138,9 +195,10 @@ def plot_list_of_tasks(
             [
                 list_of_tasks_to_plot[i : i + max_subplot]
                 for i in range(0, n_tasks, max_subplot)
-            ] if isinstance(max_subplot, int) else
-            [
-                list_of_tasks_to_plot[sum(max_subplot[:i]):sum(max_subplot[:i+1])]
+            ]
+            if isinstance(max_subplot, int)
+            else [
+                list_of_tasks_to_plot[sum(max_subplot[:i]) : sum(max_subplot[: i + 1])]
                 for i in range(len(max_subplot))
             ]
         ):
@@ -150,7 +208,15 @@ def plot_list_of_tasks(
             else:
                 chunk_output_file = None
             plot_list_of_tasks(
-                df, chunk_list, chunk_output_file, title, xlog, fit, flops
+                df,
+                chunk_list,
+                chunk_output_file,
+                title,
+                xlog,
+                fit,
+                flops,
+                apply_phase_style,
+                max_tokens,
             )
         return
 
@@ -166,7 +232,7 @@ def plot_list_of_tasks(
     else:
         axes = axes.flatten()
     color_map = assign_colors(df)  # Global color map
-    style_map = assign_styles(df)
+    style_map = assign_styles(df, apply_phase_style=apply_phase_style)
 
     # Keep track of labels added to the legend
     legend_dict = {}
@@ -233,7 +299,7 @@ def plot_experiments(df, args, max_subplot=15):
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
 
-        filename = f'{g}{"_max" + args.max_samples if args.max_samples != "None" else ""}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
+        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
 
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None
@@ -247,6 +313,7 @@ def plot_experiments(df, args, max_subplot=15):
             flops=args.flops,
             max_tokens=args.max_tokens,
             max_subplot=max_subplot,
+            apply_phase_style=args.apply_phase_style,
         )
 
     if not args.output_path:
@@ -306,10 +373,6 @@ if __name__ == "__main__":
         default="out/",
         help="Output path where your plot are storred",
     )
-    parser.add_argument("--max_samples", type=str, default="None")
-    parser.add_argument(
-        "--selection", default=False, action="store_true", help="Use only a selection of tasks"
-    )
     parser.add_argument(
         "--evaluation_dir",
         type=str,
@@ -329,66 +392,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_tokens", type=int, default=None, help="Max tokens to plot (in B)"
     )
+    parser.add_argument("--apply_phase_style", action="store_true")
 
     args = parser.parse_args()
 
     df = process_experiments(args)
-    if args.selection:
-
-        task_and_metric_selection = [
-            ("helm|boolq:_average|0", "em_with_type_exact_match"),
-            ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
-            ("helm|siqa|0", "em"),
-            ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
-            ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
-            ("leaderboard|hellaswag|0", "acc"),
-            ("leaderboard|winogrande|0", "acc"),
-            ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
-            ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
-            ("lighteval|piqa|0", "acc_with_logprob_normalization"),
-            ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
-
-            ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
-            ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
-            ("lighteval|xcodah_fra_cf|0", "acc_norm"),
-            ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
-            ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"),
-            ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
-            ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
-            ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-            ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
-
-            ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm"),
-            ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm"),
-            ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm"),
-            ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm"),
-
-            ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
-            ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
-            ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
-            ("lighteval|global_mmlu_all_ara_cf:_average|0", "acc_norm"),
-
-            ("lighteval|belebele_deu_Latn_cf|0", "acc_norm"),
-            ("lighteval|belebele_spa_Latn_cf|0", "acc_norm"),
-            ("lighteval|belebele_ita_Latn_cf|0", "acc_norm"),
-            ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
-
-            ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
-            ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
-            ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
-            # ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
-        ]
-
-        max_subplot = (11, 9, 15)
-
-        df_new = df[(df["task"] == task_and_metric_selection[0][0]) & (df["metric"] == task_and_metric_selection[0][1])]
-        for task, metric in task_and_metric_selection[1:]:
-            df_new = pd.concat([df_new, df[(df["task"] == task) & (df["metric"] == metric)]])
-        df = df_new
-    else:
-        df = df[df["max_samples"] == args.max_samples]
-
-        max_subplot = 15
 
     print(df)
-    plot_experiments(df, args, max_subplot=max_subplot)
+    plot_experiments(df, args, max_subplot=15)

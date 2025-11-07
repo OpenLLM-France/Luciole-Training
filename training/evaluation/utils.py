@@ -66,7 +66,11 @@ def get_training_tokens_and_model_size(file_path):
     elif "CroissantLLMBase" in str(file_path):
         tokens = 3000
         model_size = 1.3
-    elif ("luciol" in str(file_path)) or ("llama1b" in str(file_path)):
+    elif (
+        ("luciol" in str(file_path))
+        or ("llama1b" in str(file_path))
+        or ("ablation" in str(file_path))
+    ):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
         if "llama1b" in str(file_path):
