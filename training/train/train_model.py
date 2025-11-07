@@ -88,7 +88,7 @@ def get_parser():
     parser.add_argument("--time", default="100:00:00", type=str)
     parser.add_argument(
         "--ckpt_intervals",
-        default="{1: 1, 50_000: 500, 100_000: 5_000}",
+        default="{1: 1, 50_000: 1000, 100_000: 5_000}",
         type=str,
     )
     parser.add_argument(
