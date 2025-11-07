@@ -279,6 +279,7 @@ if __name__ == "__main__":
     elif args.scheduler == "cosine" and args.mode == "phase2":
         max_steps = 2 * 1e12 / tokens_per_batch
         recipe.optim.lr_scheduler.max_steps = max_steps
+        recipe.optim.lr_scheduler.warmup_steps = 0
         logger.info(
             f"Setting Cosine Scheduler with max_steps: {max_steps} (2T tokens), warmup: {warmup}"
         )
