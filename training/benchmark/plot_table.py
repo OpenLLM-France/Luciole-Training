@@ -84,30 +84,53 @@ def df_to_png_adjusted(
 
 
 if __name__ == "__main__":
+    # --- Parse command-line arguments ---
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_folder")
-    parser.add_argument("--sort_column", default="estimated_gpu_hours")
-    parser.add_argument("--ascending", action="store_true")
+    parser.add_argument(
+        "input_folder"
+    )  # Folder containing benchmark logs or JSON files
+    parser.add_argument(
+        "--sort_column", default="estimated_gpu_hours"
+    )  # Column to sort the output by
+    parser.add_argument(
+        "--ascending", action="store_true"
+    )  # Sort order (default: descending)
     args = parser.parse_args()
 
     input_folder = args.input_folder
 
-    data = load_data(input_folder)
+    # --- Load and preprocess data ---
+    data = load_data(
+        input_folder
+    )  # Custom function: loads JSON/dict data from the folder
+
+    # Remove large nested "log" fields to simplify normalization
     data = [{k: v for k, v in d.items() if k != "log"} for d in data]
 
+    # Flatten nested dictionaries into a DataFrame (e.g., {"trainer": {"devices": 8}} → "trainer.devices")
     df = pd.json_normalize(data, sep=".")
+
+    # --- Compute derived metrics ---
+    # Tokens processed per batch = batch size × sequence length
     df["data.tokens_per_batch"] = df["data.global_batch_size"] * df["data.seq_length"]
+
+    # Estimate per-step GPU time in hours per 1T tokens
     df["estimated_time"] = (
         df["step_timings_mean"] / df["data.tokens_per_batch"] * 1e12 / 3600
     )
+
+    # Total estimated GPU hours for 1T tokens across all nodes/devices
     df["estimated_gpu_hours"] = (
         df["estimated_time"] * df["trainer.num_nodes"] * df["trainer.devices"]
     )
+
+    # Actual total GPU hours consumed by the job
     df["job_gpu_hours"] = (
         df["total_time"] * df["trainer.num_nodes"] * df["trainer.devices"] / 3600
     )
 
-    # Remove columns
+    # --- Remove uninformative or redundant columns ---
+    # Keep columns that vary across runs OR are explicitly useful for reporting
     df = df.loc[
         :,
         df.apply(
@@ -117,6 +140,8 @@ if __name__ == "__main__":
                 in [
                     "creation_date",
                     "job_id",
+                    "min_iteration",
+                    "max_iteration",
                     "args.arch",
                     "estimated_time",
                     "estimated_gpu_hours",
@@ -125,6 +150,8 @@ if __name__ == "__main__":
             )
         ),
     ]
+
+    # Drop columns known to be irrelevant or noisy
     columns_to_remove = [
         "args.name",
         "open_llm_training_version",
@@ -134,9 +161,12 @@ if __name__ == "__main__":
         "data.tokens_per_batch",
         "trainer.callbacks",
     ]
-
     df = df.drop(columns=columns_to_remove, errors="ignore")
+
+    # Simplify column names (keep only last component, e.g., "trainer.devices" → "devices")
     df.columns = [col.rsplit(".", 1)[-1] for col in df.columns]
+
+    # Reorder columns for readability: metadata first, then computed values
     cols = ["creation_date", "job_id", "job_gpu_hours", "arch"] + [
         c
         for c in df.columns
@@ -144,6 +174,8 @@ if __name__ == "__main__":
     ]
     df = df[cols]
 
+    # --- Sort the table and export ---
     df = df.sort_values(args.sort_column, ascending=args.ascending)
 
+    # Export the final benchmark table to an image
     df_to_png_adjusted(df, os.path.join(input_folder, "benchmark_table.png"))

@@ -88,7 +88,7 @@ def get_parser():
     parser.add_argument("--time", default="100:00:00", type=str)
     parser.add_argument(
         "--ckpt_intervals",
-        default="{1: 1, 50_000: 500, 100_000: 5_000}",
+        default="{1: 1, 50_000: 1000, 100_000: 5_000}",
         type=str,
     )
     parser.add_argument(
@@ -100,6 +100,13 @@ def get_parser():
         action="store_true",
         help="Disable gradient reduction in fp32",
     )
+    parser.add_argument(
+        "--scheduler",
+        default="wsd",
+        choices=["wsd", "cosine"],
+        type=str,
+    )
+    parser.add_argument("--max_lr", type=float, default=None)
     return parser
 
 
@@ -121,14 +128,17 @@ if __name__ == "__main__":
         bf16_with_fp8_mixed,
     )
     from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
-    from nemo.lightning.pytorch.callbacks import GarbageCollectionCallback
+    from nemo.lightning.pytorch.callbacks import (
+        GarbageCollectionCallback,
+    )  # , SpikeDetection
     from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
-    from nemo.utils.exp_manager import TimingCallback
 
     from callbacks import (
         ProgressiveIntervalCheckpoint,
         checkpoint_along_step_curve,
         StatelessTimer,
+        CustomTimingCallback,
+        StopAtEndOfPhaseCallback,
     )
     from recipes.recipe_utils import get_recipe
 
@@ -178,7 +188,11 @@ if __name__ == "__main__":
     )
     seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
     tokens_per_batch = seq_length * global_batch_size
-    max_steps = math.floor(total_tokens / tokens_per_batch)
+    if args.scheduler == "cosine" and args.mode == "phase2":
+        max_steps = math.floor(2 * 1e12 / tokens_per_batch)  # 2T horizon for phase 2
+        max_steps_phase2 = math.floor(total_tokens / tokens_per_batch)
+    else:
+        max_steps = math.floor(total_tokens / tokens_per_batch)
     logger.info(f"Global batch size: {global_batch_size}")
     logger.info(f"Sequence length: {seq_length}")
     logger.info(f"Tokens per batch: {tokens_per_batch}")
@@ -249,22 +263,6 @@ if __name__ == "__main__":
         # sequence_parallelism=args.sequence_parallelism,
     )
 
-    ### OPTIM SETUP
-    max_lr = recipe.optim.config.lr
-    if args.mode in ["debug", "benchmark"]:
-        warmup = 5
-    elif args.mode == "phase1":
-        warmup = 2000
-    elif args.mode in ["phase2", "annealing"]:
-        warmup = 0
-    min_lr = max_lr if args.mode != "annealing" else max_lr * 0.1
-    recipe.optim.lr_scheduler = run.Config(
-        WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
-    )
-    logger.info(
-        f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
-    )
-
     # Callbacks setup
     time_limit = get_time_limit(
         args.time, 5 if args.mode in ["debug", "benchmark"] else 30
@@ -272,8 +270,12 @@ if __name__ == "__main__":
     recipe.trainer.callbacks = []
     recipe.trainer.callbacks.append(run.Config(StatelessTimer, duration=time_limit))
     logger.info("Added StatelessTimer")
-    recipe.trainer.callbacks.append(run.Config(TimingCallback))
+    recipe.trainer.callbacks.append(
+        run.Config(CustomTimingCallback)
+    )  # , max_training_time_per_step=args.max_training_time_per_step))
     logger.info("Added TimingCallback")
+    # recipe.trainer.callbacks.append(run.Config(StopAtEndOfPhaseCallback, end_step=args.end_step))
+    # logger.info("Added StopAtEndOfPhaseCallback")
     recipe.trainer.callbacks.append(
         run.Config(
             GarbageCollectionCallback,
@@ -314,6 +316,39 @@ if __name__ == "__main__":
         save_optim_on_train_end=True,  # set to True if you want to continue training even if max_steps was reached
         # async_save = not args.sync_ckpt,
     )
+
+    ### OPTIM SETUP
+    max_lr = args.max_lr if args.max_lr is not None else recipe.optim.config.lr
+    if args.mode in ["debug", "benchmark"]:
+        warmup = 5
+    elif args.mode == "phase1":
+        warmup = 2000
+    elif args.mode in ["phase2", "annealing"]:
+        warmup = 0
+    # Scheduler setup
+    if args.scheduler == "wsd":
+        min_lr = max_lr if args.mode != "annealing" else max_lr * 0.1
+        recipe.optim.lr_scheduler = run.Config(
+            WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
+        )
+        logger.info(
+            f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
+        )
+    elif args.scheduler == "cosine" and args.mode == "phase2":
+        recipe.optim.lr_scheduler.warmup_steps = 0
+        recipe.trainer.callbacks.append(
+            run.Config(StopAtEndOfPhaseCallback, end_step=max_steps_phase2)
+        )
+        logger.info(
+            f"Setting Cosine Scheduler with max_steps: {max_steps} (2T tokens), warmup: {warmup}"
+        )
+        logger.info(
+            f"Setting StopAtEndOfPhaseCallback with end_step: {max_steps_phase2}"
+        )
+    else:
+        raise ValueError(
+            f"Scheduler {args.scheduler} not supported in mode {args.mode}"
+        )
 
     # Resume from base_checkpoint
     restore_config = (

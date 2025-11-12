@@ -116,7 +116,7 @@ class MergeTranslation(PipelineStep):
             if doc.id not in self.buffer.keys():
                 self.buffer[doc.id] = []
             # if doc.metadata["inference_results"][-1].finish_reason == "stop":
-            # self.buffer[doc.id].append(doc)
+            self.buffer[doc.id].append(doc)
             # Check if buffer completed
             if len(self.buffer[doc.id]) == doc.metadata["num_chunks"]:
                 completed_list = self.buffer.pop(doc.id)
@@ -172,6 +172,22 @@ def apply_chat_template(
             tokenize=False,
         )
         yield doc
+
+
+def sort_chunk_files(files: list[str]) -> list[str]:
+    import re
+
+    # pattern: PREFIX_chunk_CHUNK.jsonl.gz
+    pattern = re.compile(r"(\d+)_chunk_(\d+)\.jsonl\.gz$")
+
+    def sort_key(filename: str):
+        m = pattern.search(filename)
+        if not m:
+            return (float("inf"), float("inf"))  # put non-matching last
+        prefix, chunk = m.groups()
+        return (int(prefix), int(chunk))
+
+    return sorted(files, key=sort_key)
 
 
 if __name__ == "__main__":
@@ -265,11 +281,11 @@ if __name__ == "__main__":
 
     # Postprocess
     pipeline = [
-        JsonlReader(f"{output_path}/data"),
+        JsonlReader(f"{output_path}/data", order_files=partial(sort_chunk_files)),
         MergeTranslation(),
         clean_doc,
         apply_chat_template,
-        JsonlWriter(f"{output_path}/data_cleaned"),
+        JsonlWriter(f"{output_path}/data_cleaned", max_file_size=3_221_225_472),
     ]
 
     final_executor = create_executor(
@@ -278,7 +294,8 @@ if __name__ == "__main__":
         debug=False,
         logging_dir=f"{output_path}/logs_cleaned",
         job_name=dataset_name,
-        tasks=1 if args.debug else 16,
+        tasks=1,
+        time="10:00:00",
         partition="cpu_p1",
         cpus_per_task=2,
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
