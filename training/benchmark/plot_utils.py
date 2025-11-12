@@ -124,10 +124,13 @@ def get_stats(output_dir):
     if not matches:
         return None
 
+    iterations = [int(m[0]) for m in matches]
     times = [float(m[1]) for m in matches]
     valid_times = times[5:]  # skip warmup
 
     steps = {
+        "min_iteration": min(iterations),
+        "max_iteration": max(iterations),
         # "step_timings": times,
         "step_timings_mean": np.mean(valid_times),
         "step_timings_std": np.std(valid_times),
