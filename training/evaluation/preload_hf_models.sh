@@ -10,18 +10,31 @@ conda activate eval-env
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
-# OLMO2
+# Apertus
 
-for i in {1..19}; do
-    step=$((i*25000))
-    tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
-    revision="stage1-step${step}-tokens${tokens}B"
+for i in {1..20}; do
+    step=$((i*50000))
+    tokens=$(python3 -c "import math; print(math.ceil($i * 210))")
+    revision="step${step}-tokens${tokens}B"
     echo -e "\n******\nLoading $revision\n"
-    hf download allenai/OLMo-2-1124-13B --revision "$revision"
+    hf download swiss-ai/Apertus-8B-2509 --revision "$revision"
+done
+for i in {0..2}; do
+    step=$((i*238000 + 1194000))
+    tokens=$((i*1000 + 5014))
+    revision="step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download swiss-ai/Apertus-8B-2509 --revision "$revision"
+done
+for i in {0..8}; do
+    step=$((i*100000 + 1800000))
+    tokens=$((i*840 + 8072))
+    revision="step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download swiss-ai/Apertus-8B-2509 --revision "$revision"
 done
 
-
-exit 0
+# OLMO2
 
 for i in {1..19}; do
     step=$((i*100000))
@@ -42,6 +55,14 @@ for i in {1..18}; do
     hf download allenai/OLMo-2-1124-7B --revision "$revision"
 done
 
+for i in {1..19}; do
+    step=$((i*25000))
+    tokens=$(python3 -c "import math; print(math.ceil($i * 209.72))")
+    revision="stage1-step${step}-tokens${tokens}B"
+    echo -e "\n******\nLoading $revision\n"
+    hf download allenai/OLMo-2-1124-13B --revision "$revision"
+done
+
 for i in {1..18}; do
     step=$((i*25000))
     if [ $i -eq 14 ]; then
@@ -51,15 +72,6 @@ for i in {1..18}; do
     revision="stage1-step${step}-tokens${tokens}B"
     echo -e "\n******\nLoading $revision\n"
     hf download allenai/OLMo-2-0325-32B --revision "$revision"
-done
-
-# Apertus
-for i in {1..20}; do
-    step=$((i*50000))
-    tokens=$(python3 -c "import math; print(math.ceil($i * 210))")
-    revision="step${step}-tokens${tokens}B"
-    echo -e "\n******\nLoading $revision\n"
-    hf download swiss-ai/Apertus-8B-2509 --revision "$revision"
 done
 
 # Lucie
