@@ -53,7 +53,7 @@ task_group_mapping = {
 }
 
 
-def assign_colors(df):
+def assign_colors(df, apply_phase_style=True):
     unique_experiments = df["expe_name"].unique()
     if len(unique_experiments) <= 10:
         cmap = plt.get_cmap("tab10")
@@ -64,7 +64,7 @@ def assign_colors(df):
     i = -1
     previous_name = ""
     for name in unique_experiments:
-        if name.split("_phase")[0] != previous_name.split("_phase")[0]:
+        if not apply_phase_style or name.split("_phase")[0] != previous_name.split("_phase")[0]:
             i += 1
         previous_name = name
         color_map[name] = colors[i % len(colors)]
@@ -100,9 +100,23 @@ def plot_task(
     flops=False,
     max_tokens=None,
 ):
+    # print(f"Plotting {task} - {metric} with {len(df)} lines")
+
     xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
-    # print(f"Plotting {task} - {metric} with {len(df)} lines")
+    if max_tokens:
+        def truncate_row(row, max_tokens):
+            tokens = row["tokens"]
+            # find cutoff index where tokens <= max_tokens
+            cutoff = sum(t <= max_tokens for t in tokens)
+            
+            # slice lists accordingly
+            row["tokens"] = tokens[:cutoff]
+            row["FLOPs"] = row["FLOPs"][:cutoff]
+            row["score"] = row["score"][:cutoff]
+            return row
+
+        df = df.apply(truncate_row, axis=1, max_tokens=max_tokens)
 
     # Access random
     if task in df_info["task"].values:
@@ -231,7 +245,7 @@ def plot_list_of_tasks(
         axes = [axes]  # wrap single Axes in a list
     else:
         axes = axes.flatten()
-    color_map = assign_colors(df)  # Global color map
+    color_map = assign_colors(df, apply_phase_style=apply_phase_style)  # Global color map
     style_map = assign_styles(df, apply_phase_style=apply_phase_style)
 
     # Keep track of labels added to the legend
