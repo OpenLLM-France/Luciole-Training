@@ -1,0 +1,406 @@
+{
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
+    "total_tokens": 100000000000,
+    "train": [
+        {
+            "name": "croissant-aligned_aligned_text_document",
+            "weight": 1161846.0
+        },
+        {
+            "name": "paradocs-grouped_en-de_aligned_text_document",
+            "weight": 456177.0
+        },
+        {
+            "name": "paradocs-grouped_en-es_aligned_text_document",
+            "weight": 349932.0
+        },
+        {
+            "name": "paradocs-grouped_en-fr_aligned_text_document",
+            "weight": 293439.0
+        },
+        {
+            "name": "paradocs-grouped_en-it_aligned_text_document",
+            "weight": 100882.0
+        },
+        {
+            "name": "paradocs-grouped_en-nl_aligned_text_document",
+            "weight": 123502.0
+        },
+        {
+            "name": "paradocs-grouped_en-pt_aligned_text_document",
+            "weight": 128704.0
+        },
+        {
+            "name": "aya_dataset_ar_text_document",
+            "weight": 273.0
+        },
+        {
+            "name": "fineweb2_edu4_ar_text_document",
+            "weight": 346150.0
+        },
+        {
+            "name": "fineweb2_hq_ar_text_document",
+            "weight": 392759.0
+        },
+        {
+            "name": "wikimedia-vikidia_ar_text_document",
+            "weight": 53090.0
+        },
+        {
+            "name": "fineweb2_ca_text_document",
+            "weight": 7402.0
+        },
+        {
+            "name": "wikimedia-vikidia_ca_text_document",
+            "weight": 11706.0
+        },
+        {
+            "name": "nemotron-posttraining-code_code_text_document",
+            "weight": 63081.0
+        },
+        {
+            "name": "stack-edu_code_text_document",
+            "weight": 12540479.0
+        },
+        {
+            "name": "aya_dataset_de_text_document",
+            "weight": 7.0
+        },
+        {
+            "name": "fineweb2_edu4_de_text_document",
+            "weight": 375540.0
+        },
+        {
+            "name": "fineweb2_hq_de_text_document",
+            "weight": 2967041.0
+        },
+        {
+            "name": "gutenberg_de_text_document",
+            "weight": 4233.0
+        },
+        {
+            "name": "nemotron-posttraining-de_de_text_document",
+            "weight": 31478.0
+        },
+        {
+            "name": "nemotron-posttraining-de-think_de_text_document",
+            "weight": 1490583.0
+        },
+        {
+            "name": "wikimedia-vikidia_de_text_document",
+            "weight": 219719.0
+        },
+        {
+            "name": "aya_dataset_en_text_document",
+            "weight": 144.0
+        },
+        {
+            "name": "claire_open_en_text_document",
+            "weight": 2900.0
+        },
+        {
+            "name": "common-pile_arxiv-papers_en_text_document",
+            "weight": 64951.0
+        },
+        {
+            "name": "common-pile_data-provenance-initiative_en_text_document",
+            "weight": 37989.0
+        },
+        {
+            "name": "common-pile_doab_en_text_document",
+            "weight": 142557.0
+        },
+        {
+            "name": "common-pile_foodista_en_text_document",
+            "weight": 1120.0
+        },
+        {
+            "name": "common-pile_github-archive_en_text_document",
+            "weight": 448844.0
+        },
+        {
+            "name": "common-pile_libretexts_en_text_document",
+            "weight": 4209.0
+        },
+        {
+            "name": "common-pile_news_en_text_document",
+            "weight": 2870.0
+        },
+        {
+            "name": "common-pile_oercommons_en_text_document",
+            "weight": 549.0
+        },
+        {
+            "name": "common-pile_peS2o_en_text_document",
+            "weight": 101665.0
+        },
+        {
+            "name": "common-pile_pressbooks_en_text_document",
+            "weight": 6378.0
+        },
+        {
+            "name": "common-pile_public-domain-review_en_text_document",
+            "weight": 76.0
+        },
+        {
+            "name": "common-pile_python-enhancement-proposals_en_text_document",
+            "weight": 130.0
+        },
+        {
+            "name": "common-pile_stackexchange_en_text_document",
+            "weight": 124633.0
+        },
+        {
+            "name": "dclm-dolmino_en_text_document",
+            "weight": 6200217.0
+        },
+        {
+            "name": "fineweb-edu_en_text_document",
+            "weight": 14316952.0
+        },
+        {
+            "name": "gutenberg_en_text_document",
+            "weight": 118765.0
+        },
+        {
+            "name": "nemotron-posttraining-chat_en_text_document",
+            "weight": 201359.0
+        },
+        {
+            "name": "nemotron-posttraining-stem_en_text_document",
+            "weight": 42296.0
+        },
+        {
+            "name": "open-code-reasoning_en_text_document",
+            "weight": 1344615.0
+        },
+        {
+            "name": "open-thoughts-code_en_text_document",
+            "weight": 1007088.0
+        },
+        {
+            "name": "open-thoughts-science_en_text_document",
+            "weight": 222409.0
+        },
+        {
+            "name": "wikimedia-vikidia_en_text_document",
+            "weight": 576565.0
+        },
+        {
+            "name": "aya_dataset_es_text_document",
+            "weight": 118.0
+        },
+        {
+            "name": "fineweb2_edu4_es_text_document",
+            "weight": 1486103.0
+        },
+        {
+            "name": "fineweb2_hq_es_text_document",
+            "weight": 2194901.0
+        },
+        {
+            "name": "gutenberg_es_text_document",
+            "weight": 2177.0
+        },
+        {
+            "name": "nemotron-posttraining-es_es_text_document",
+            "weight": 28013.0
+        },
+        {
+            "name": "nemotron-posttraining-es-think_es_text_document",
+            "weight": 1297278.0
+        },
+        {
+            "name": "wikimedia-vikidia_es_text_document",
+            "weight": 126368.0
+        },
+        {
+            "name": "aya_dataset_eu_text_document",
+            "weight": 22.0
+        },
+        {
+            "name": "aya_dataset_fr_text_document",
+            "weight": 50.0
+        },
+        {
+            "name": "claire_open_fr_text_document",
+            "weight": 9212.0
+        },
+        {
+            "name": "culturax_fr_text_document",
+            "weight": 6139768.0
+        },
+        {
+            "name": "fineweb2_edu3+_fr_text_document",
+            "weight": 3471348.0
+        },
+        {
+            "name": "fineweb2_edu4_fr_text_document",
+            "weight": 446572.0
+        },
+        {
+            "name": "fineweb2_fr_text_document",
+            "weight": 5388796.0
+        },
+        {
+            "name": "fineweb2_hq_fr_text_document",
+            "weight": 2012621.0
+        },
+        {
+            "name": "gutenberg_fr_text_document",
+            "weight": 9199.0
+        },
+        {
+            "name": "hal-cea_full-filtered_fr_text_document",
+            "weight": 782803.0
+        },
+        {
+            "name": "hplt2_fr_text_document",
+            "weight": 7581746.0
+        },
+        {
+            "name": "insee_fr_text_document",
+            "weight": 5537.0
+        },
+        {
+            "name": "nemotron-posttraining-fr_fr_text_document",
+            "weight": 30277.0
+        },
+        {
+            "name": "nemotron-posttraining-fr-think_fr_text_document",
+            "weight": 1441505.0
+        },
+        {
+            "name": "opendata_fr_text_document",
+            "weight": 274940.0
+        },
+        {
+            "name": "parlement_fr_text_document",
+            "weight": 28282.0
+        },
+        {
+            "name": "wikipedia-synthetic-qa_fr_text_document",
+            "weight": 967292.0
+        },
+        {
+            "name": "aya_dataset_it_text_document",
+            "weight": 20.0
+        },
+        {
+            "name": "fineweb2_edu4_it_text_document",
+            "weight": 371191.0
+        },
+        {
+            "name": "fineweb2_hq_it_text_document",
+            "weight": 1193942.0
+        },
+        {
+            "name": "gutenberg_it_text_document",
+            "weight": 2990.0
+        },
+        {
+            "name": "nemotron-posttraining-it_it_text_document",
+            "weight": 30765.0
+        },
+        {
+            "name": "nemotron-posttraining-it-think_it_text_document",
+            "weight": 1483977.0
+        },
+        {
+            "name": "wikimedia-vikidia_it_text_document",
+            "weight": 130815.0
+        },
+        {
+            "name": "finemath-filtered_4plus_math_text_document",
+            "weight": 1790815.0
+        },
+        {
+            "name": "infiwebmath-filtered_4plus_math_text_document",
+            "weight": 1631566.0
+        },
+        {
+            "name": "nemotron-posttraining-math_math_text_document",
+            "weight": 47037.0
+        },
+        {
+            "name": "open-math-instruct_math_text_document",
+            "weight": 82556.0
+        },
+        {
+            "name": "common-corpus_eurlex_multi_text_document",
+            "weight": 360166.0
+        },
+        {
+            "name": "common-corpus_gatt-library_multi_text_document",
+            "weight": 4132.0
+        },
+        {
+            "name": "common-corpus_oecd_multi_text_document",
+            "weight": 12196.0
+        },
+        {
+            "name": "common-corpus_tedeutenders_multi_text_document",
+            "weight": 3127.0
+        },
+        {
+            "name": "common-corpus_wto_multi_text_document",
+            "weight": 57727.0
+        },
+        {
+            "name": "europarl_multi_text_document",
+            "weight": 9975.0
+        },
+        {
+            "name": "eurovoc_filtered_multi_text_document",
+            "weight": 215009.0
+        },
+        {
+            "name": "aya_dataset_nl_text_document",
+            "weight": 67.0
+        },
+        {
+            "name": "fineweb2_edu4_nl_text_document",
+            "weight": 285147.0
+        },
+        {
+            "name": "fineweb2_hq_nl_text_document",
+            "weight": 603161.0
+        },
+        {
+            "name": "gutenberg_nl_text_document",
+            "weight": 2443.0
+        },
+        {
+            "name": "wikimedia_nl_text_document",
+            "weight": 69063.0
+        },
+        {
+            "name": "aya_dataset_pt_text_document",
+            "weight": 179.0
+        },
+        {
+            "name": "fineweb2_edu4_pt_text_document",
+            "weight": 564716.0
+        },
+        {
+            "name": "fineweb2_hq_pt_text_document",
+            "weight": 902783.0
+        },
+        {
+            "name": "gutenberg_pt_text_document",
+            "weight": 924.0
+        },
+        {
+            "name": "wikimedia-vikidia_pt_text_document",
+            "weight": 60878.0
+        },
+        {
+            "name": "fineweb2_regional_text_document",
+            "weight": 426430.0
+        },
+        {
+            "name": "wikimedia-vikidia_regional_text_document",
+            "weight": 23846.0
+        }
+    ]
+}
