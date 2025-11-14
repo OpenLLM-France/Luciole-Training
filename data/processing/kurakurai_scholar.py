@@ -12,9 +12,7 @@ def process_documents(
 ) -> DocumentsPipeline:
     for doc in data:
         doc.metadata["messages"] = doc.text
-        question = doc.text[-2]["content"]
-        answer = doc.text[-1]["content"]
-        doc.text = (question + "\n" + answer).strip()
+        doc.text = "\n".join([x["content"] for x in doc.text]).strip()
         yield doc
 
 

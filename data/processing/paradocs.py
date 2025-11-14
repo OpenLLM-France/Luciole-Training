@@ -13,53 +13,32 @@ def merge_document(
 ) -> DocumentsPipeline:
     from datatrove.data import Document
 
-    def breaks_document(chunk, frequency_cutoff, lid_cutoff):
-        line = chunk.metadata
-        if "None" in [
-            line["src_paragraph_id"],
-            line["src_sentence_id"],
-            line["src_start_id"],
-            line["src_end_id"],
-            line["tgt_paragraph_id"],
-            line["tgt_sentence_id"],
-            line["tgt_start_id"],
-            line["tgt_end_id"],
-        ]:
-            return True
-        if int(line["duplication_count"]) > frequency_cutoff:
-            return True
-        if float(line["src_lid_prob"]) < lid_cutoff:
-            return True
-        if float(line["tgt_lid_prob"]) < lid_cutoff:
-            return True
-        if len(line["src"].strip()) == 0:
-            return True
-        if len(line["tgt"].strip()) == 0:
-            return True
-        return False
-
     doc = None
     for chunk in data:
-        chunk.metadata["src"] = chunk.text
-        # Init new doc
         if doc is None:
-            doc = Document(id=chunk.id, text=[], metadata={})
-            doc.metadata["src_docid"] = chunk.metadata["src_docid"]
-            doc.metadata["collection"] = chunk.metadata["collection"]
-            doc.metadata["tgt"] = []
-
-        # Continue
-        if chunk.metadata["src_docid"] == doc.metadata["src_docid"]:
-            if breaks_document(chunk, frequency_cutoff=100, lid_cutoff=0.5):
-                pass
-            else:
-                doc.text.append(chunk.text)
-                doc.metadata["tgt"].append(chunk.metadata["tgt"])
-
-        # break
+            doc = Document(
+                id=chunk.metadata["src_docid"],
+                text=[chunk.text],
+                metadata={
+                    "tgt": [chunk.metadata["tgt"]],
+                    "collection": chunk.metadata["collection"],
+                },
+            )
+        elif doc.id == chunk.metadata["src_docid"]:
+            # Add chunk to current document
+            doc.text.append(chunk.text)
+            doc.metadata["tgt"].append(chunk.metadata["tgt"])
         else:
             yield doc
-            doc = None
+            doc = Document(
+                id=chunk.metadata["src_docid"],
+                text=[chunk.text],
+                metadata={
+                    "tgt": [chunk.metadata["tgt"]],
+                    "collection": chunk.metadata["collection"],
+                },
+            )
+    yield doc
 
 
 class ParadocsProcessing(PipelineStep):
@@ -83,47 +62,6 @@ class ParadocsProcessing(PipelineStep):
     ) -> DocumentsPipeline:
         import random
 
-        def translate(text, prompt_language):
-            translations = {
-                "en": {
-                    "en": "English",
-                    "fr": "French",
-                    "es": "Spanish",
-                    "de": "German",
-                    "it": "Italian",
-                    "pt": "Portuguese",
-                    "nl": "Dutch",
-                },
-                "fr": {
-                    "en": "anglais",
-                    "fr": "français",
-                    "es": "espagnol",
-                    "de": "allemand",
-                    "it": "italien",
-                    "pt": "portuguais",
-                    "nl": "néerlandais",
-                },
-            }
-            try:
-                return translations.get(prompt_language, "fr")[text]
-            except KeyError:
-                raise NotImplementedError(
-                    f"No translation for '{text}' in '{prompt_language}'"
-                )
-
-        def get_prompt(src_language):
-            # Build the file path
-            prompt_language = "fr" if random.random() < 0.5 else "en"
-            file_path = f"assets/paradocs_prompt_{prompt_language}.txt"
-            # Read all lines (stripping trailing newlines/spaces)
-            with open(file_path, "r", encoding="utf-8") as f:
-                prompts = [line.strip() for line in f if line.strip()]
-            # Draw one prompt uniformly at random
-            prompt = random.choice(prompts).format(
-                language=translate(src_language, prompt_language)
-            )
-            return prompt
-
         def chunk_parallel_lists(src, tgt):
             import numpy as np
 
@@ -145,24 +83,27 @@ class ParadocsProcessing(PipelineStep):
             return src_chunks, tgt_chunks
 
         for doc in data:
-            prompt = get_prompt(self.src_language)
             do_revert = random.random() < self.revert_prob
             if not do_revert:
                 src = doc.text
                 tgt = doc.metadata.pop("tgt")
+                doc.metadata["src_language"] = self.src_language
+                doc.metadata["tgt_language"] = self.tgt_language
             else:
                 src = doc.metadata.pop("tgt")
                 tgt = doc.text
+                doc.metadata["src_language"] = self.tgt_language
+                doc.metadata["tgt_language"] = self.src_language
+            doc.text = " "  # Clear text
 
             # Merge chunk
             src, tgt = chunk_parallel_lists(src, tgt)
 
             # Conversation template
-            src[0] = prompt + "\n\n" + src[0]
-            # doc.text = [{"role": "system", "content": prompt}]
+            doc.metadata["conversation"] = []
             # num_of_chunk_in_current_turn = np.random.poisson(3)
             for user_turn, assistant_turn in zip(src, tgt):
-                doc.text.extend(
+                doc.metadata["conversation"].extend(
                     [
                         {"role": "user", "content": user_turn},
                         {"role": "assistant", "content": assistant_turn},
@@ -171,18 +112,23 @@ class ParadocsProcessing(PipelineStep):
             yield doc
 
 
-def apply_chat_template(
-    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+def apply_template(
+    data: DocumentsPipeline,
+    rank: int = 0,
+    world_size: int = 1,
 ) -> DocumentsPipeline:
-    from transformers import AutoTokenizer
-
-    tokenizer_name = "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct"
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     for doc in data:
-        doc.metadata["conversation"] = doc.text
-        doc.text = tokenizer.apply_chat_template(
-            doc.text, tokenize=False, enable_thinking=False
-        )
+        conversation = doc.metadata["conversation"]
+        doc.text = ""
+        for message in conversation:
+            role = message["role"]
+            content = message["content"]
+            if role == "user":
+                doc.text += "- " + doc.metadata["src_language"] + ": " + content + "\n"
+            elif role == "assistant":
+                doc.text += (
+                    "- " + doc.metadata["tgt_language"] + ": " + content + "\n\n"
+                )
         yield doc
 
 
@@ -212,7 +158,7 @@ if __name__ == "__main__":
             tgt_language=tgt_language,
             revert_prob=args.revert,
         ),
-        apply_chat_template,
+        apply_template,
         JsonlWriter(
             f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data",
             output_filename="${collection}/${rank}.jsonl.gz",
@@ -233,21 +179,9 @@ if __name__ == "__main__":
 
     filter_executor.run()
 
-# python paradocs.py --languages en-fr --revert 0
-# python paradocs.py --languages en-fr --revert 1
 # python paradocs.py --languages en-fr --revert 0.5
-# python paradocs.py --languages en-es --revert 0
-# python paradocs.py --languages en-es --revert 1
 # python paradocs.py --languages en-es --revert 0.5
-# python paradocs.py --languages en-nl --revert 0
-# python paradocs.py --languages en-nl --revert 1
 # python paradocs.py --languages en-nl --revert 0.5
-# python paradocs.py --languages en-de --revert 0
-# python paradocs.py --languages en-de --revert 1
 # python paradocs.py --languages en-de --revert 0.5
-# python paradocs.py --languages en-pt --revert 0
-# python paradocs.py --languages en-pt --revert 1
 # python paradocs.py --languages en-pt --revert 0.5
-# python paradocs.py --languages en-it --revert 0
-# python paradocs.py --languages en-it --revert 1
 # python paradocs.py --languages en-it --revert 0.5

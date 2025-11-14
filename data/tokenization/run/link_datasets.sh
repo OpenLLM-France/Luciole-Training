@@ -124,6 +124,9 @@ main_patterns=(
     fineweb2_edu3+*
     fineweb2_edu4*
     open-math-instruct*
+    aya*
+    kurakurai-scholar*
+    paradocs_geom*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \
@@ -151,17 +154,6 @@ link_files \
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped" \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2"
-
-# --- Instruct tokens ---
-main_patterns=(
-    open-thoughts*
-    aya*
-    paradocs-grouped*
-)
-link_files \
-    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2_instruct" \
-    "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2" \
-    "${main_patterns[@]}"
 
 # run stats
 module purge

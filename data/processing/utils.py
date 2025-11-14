@@ -81,7 +81,7 @@ def filter_kwargs_for_class(cls, kwargs):
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
     if debug:
-        pipeline[0].limit = 10
+        pipeline[0].limit = 1000
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
     # Executor arguments
