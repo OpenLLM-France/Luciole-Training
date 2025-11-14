@@ -124,16 +124,25 @@ class MergeTranslation(PipelineStep):
                 completed_list = sorted(
                     completed_list, key=lambda d: d.metadata["chunk_id"]
                 )
-                yield Document(
+                merged_document = Document(
                     id=doc.id,
                     text="\n\n".join(
                         [doc.text for doc in completed_list]
                     ),  # sor the list given doc.metadata["chunk_id"] order
                     metadata=completed_list[0].metadata.copy(),
                 )
+                # Check that all chunks were completed
+                if all(
+                    d.metadata["inference_results"][0]["finish_reason"] == "stop"
+                    for d in completed_list
+                ):
+                    yield merged_document
+                else:
+                    if self.exclusion_writer:
+                        with self.exclusion_writer as writer:
+                            writer.write(merged_document, rank)
         if self.buffer:
             print(f"Buffer not empty. It contains {len(self.buffer)} elements")
-            # print(self.buffer)
 
 
 def clean_doc(
@@ -268,7 +277,12 @@ if __name__ == "__main__":
     # Postprocess
     pipeline = [
         JsonlReader(f"{output_path}/data", order_files=partial(sort_chunk_files)),
-        MergeTranslation(),
+        MergeTranslation(
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed_merged",
+                output_filename="${rank}.jsonl",
+            ),
+        ),
         clean_doc,
         partial(
             convert_messages,
