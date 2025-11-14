@@ -318,7 +318,10 @@ if __name__ == "__main__":
     )
 
     ### OPTIM SETUP
-    max_lr = args.max_lr if args.max_lr is not None else recipe.optim.config.lr
+    recipe.optim.config.lr = (
+        args.max_lr if args.max_lr is not None else recipe.optim.config.lr
+    )
+    max_lr = recipe.optim.config.lr
     if args.mode in ["debug", "benchmark"]:
         warmup = 5
     elif args.mode == "phase1":

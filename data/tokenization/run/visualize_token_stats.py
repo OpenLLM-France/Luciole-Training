@@ -239,7 +239,9 @@ def create_datamix_file(df, token_dir, output_dir):
     out = {
         "data_path": token_dir,
         "total_tokens": int(total_tokens_global),
-        "train": df[["name", "weight"]].to_dict(orient="records"),
+        "train": df[["name", "weight"]]
+        .sort_values(by="name")
+        .to_dict(orient="records"),
     }
     with open(f"{output_dir}/datamix.json", "w") as f:
         json.dump(out, f, indent=4)
