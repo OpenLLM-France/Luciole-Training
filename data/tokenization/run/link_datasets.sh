@@ -125,7 +125,7 @@ main_patterns=(
     fineweb2_edu4*
     open-math-instruct*
     aya*
-    kurakurai-scholar*
+    kurakurai_scholar*
     paradocs_geom*
 )
 link_files \
