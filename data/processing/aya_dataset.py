@@ -7,28 +7,15 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import LambdaFilter
 
-def append_input_output(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
-    for document in data:
-        answer = document.metadata["targets"]
-        document.text = [
-                {"role": "user", "content": document.text},
-                {"role": "assistant", "content": answer},
-            ]
-        yield document
 
-def apply_chat_template(
+def append_input_output(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
 ) -> DocumentsPipeline:
-    from transformers import AutoTokenizer
+    for document in data:
+        answer = document.metadata["targets"]
+        document.text = (document.text + "\n" + answer).strip()
+        yield document
 
-    tokenizer_name = "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct"
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    for doc in data:
-        doc.metadata["conversation"] = doc.text
-        doc.text = tokenizer.apply_chat_template(
-            doc.text, tokenize=False, enable_thinking=False
-        )
-        yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -40,16 +27,16 @@ if __name__ == "__main__":
 
     pipeline = [
         HuggingFaceDatasetReader(
-                "CohereLabs/aya_dataset",
-                {"name": "default", "split": "train"},
-                streaming=True,
-                text_key="inputs",
-            ),
+            "CohereLabs/aya_dataset",
+            {"name": "default", "split": "train"},
+            streaming=True,
+            text_key="inputs",
+        ),
         LambdaFilter(
-            lambda doc: doc.metadata["language_code"] in ["arb", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
+            lambda doc: doc.metadata["language_code"]
+            in ["arb", "deu", "eng", "fra", "ita", "nld", "por", "spa", "eus"],
         ),
         append_input_output,
-        apply_chat_template,
         JsonlWriter(
             os.path.join(output_path, "data"),
             output_filename="${language_code}/${rank}.jsonl.gz",

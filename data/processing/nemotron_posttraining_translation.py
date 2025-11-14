@@ -10,6 +10,7 @@ import os
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
+from nemotron_posttraining import convert_messages
 
 
 def prepare_data(
@@ -159,21 +160,6 @@ def clean_doc(
         yield doc
 
 
-def apply_chat_template(
-    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
-) -> DocumentsPipeline:
-    from transformers import AutoTokenizer
-
-    tokenizer_name = "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct"
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    for doc in data:
-        doc.text = tokenizer.apply_chat_template(
-            doc.metadata["messages"],
-            tokenize=False,
-        )
-        yield doc
-
-
 def sort_chunk_files(files: list[str]) -> list[str]:
     import re
 
@@ -284,7 +270,14 @@ if __name__ == "__main__":
         JsonlReader(f"{output_path}/data", order_files=partial(sort_chunk_files)),
         MergeTranslation(),
         clean_doc,
-        apply_chat_template,
+        partial(
+            convert_messages,
+            keep_thinking=True,
+            language="en"
+            if not args.subset.startswith("multilingual")
+            else args.subset.split("_")[-1],
+            message_length=2,
+        ),
         JsonlWriter(f"{output_path}/data_cleaned", max_file_size=3_221_225_472),
     ]
 
