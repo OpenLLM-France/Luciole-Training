@@ -127,6 +127,7 @@ main_patterns=(
     aya*
     kurakurai_scholar*
     paradocs_geom*
+    pleias*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \

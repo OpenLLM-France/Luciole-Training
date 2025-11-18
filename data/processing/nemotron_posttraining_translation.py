@@ -290,7 +290,6 @@ if __name__ == "__main__":
             language="en"
             if not args.subset.startswith("multilingual")
             else args.subset.split("_")[-1],
-            message_length=2,
         ),
         JsonlWriter(f"{output_path}/data_cleaned", max_file_size=3_221_225_472),
     ]
@@ -306,7 +305,7 @@ if __name__ == "__main__":
         partition="cpu_p1",
         cpus_per_task=2,
         env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
-        depends=inference_executor,
+        # depends=inference_executor,
     )
 
     final_executor.run()

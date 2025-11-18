@@ -3,6 +3,9 @@ import pandas as pd
 import os
 import glob
 import datetime
+import re
+import numpy as np
+from typing import Optional, Dict, Any
 
 
 def load_data(input_folder):
@@ -28,13 +31,9 @@ def load_data(input_folder):
             stats_data = get_stats(job_folder)
             if not stats_data:
                 continue
-            # creation date
-            creation_time = os.path.getctime(job_folder)
-            creation_date = datetime.datetime.fromtimestamp(creation_time)
             # Process
             data.append(
                 dict(
-                    creation_date=creation_date,
                     job_id=os.path.basename(job_folder).removeprefix("job_"),
                     **stats_data,
                     **config,
@@ -112,31 +111,59 @@ def convert_data(data):
     return df
 
 
-def get_stats(output_dir):
-    import re
-    import numpy as np
+LOG_DATETIME = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+ITER_TIMING = re.compile(r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)")
 
-    steps = dict()
-    pattern = r"iteration (\d+)/\d+.*?train_step_timing in s: ([\d.]+)"
-    with open(os.path.join(output_dir, "log.out"), "r") as f:
-        log_content = f.read()
-    matches = re.findall(pattern, log_content)
-    if not matches:
+
+def extract_log_datetime(s: str) -> Optional[datetime.datetime]:
+    """Extract first datetime from a log string."""
+    m = LOG_DATETIME.search(s)
+    if m:
+        return datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+    return None
+
+
+def get_stats(output_dir: str) -> Optional[Dict[str, Any]]:
+    """
+    Parse iteration/timing statistics from `log.out` in a streaming way.
+    Much faster than reading the entire file and using re.findall.
+    """
+    log_path = os.path.join(output_dir, "log.out")
+
+    iterations = []
+    times = []
+    start_time = None
+
+    with open(log_path, "r") as f:
+        for line in f:
+            # extract first timestamp only
+            if start_time is None:
+                dt = LOG_DATETIME.search(line)
+                if dt:
+                    start_time = datetime.datetime.strptime(
+                        dt.group(1), "%Y-%m-%d %H:%M:%S"
+                    )
+
+            # parse iteration + timing
+            m = ITER_TIMING.search(line)
+            if m:
+                iterations.append(int(m.group(1)))
+                times.append(float(m.group(2)))
+
+    if not times:
         return None
 
-    iterations = [int(m[0]) for m in matches]
-    times = [float(m[1]) for m in matches]
-    valid_times = times[5:]  # skip warmup
+    # skip warmup
+    valid_times = times[5:] if len(times) > 5 else times
 
-    steps = {
+    return {
+        "start_time": start_time,
         "min_iteration": min(iterations),
         "max_iteration": max(iterations),
-        # "step_timings": times,
-        "step_timings_mean": np.mean(valid_times),
-        "step_timings_std": np.std(valid_times),
-        "total_time": np.sum(times),
+        "step_timings_mean": float(np.mean(valid_times)),
+        "step_timings_std": float(np.std(valid_times)),
+        "total_time": float(np.sum(times)),
     }
-    return steps
 
 
 def setup_data(input_folder):

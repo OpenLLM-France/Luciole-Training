@@ -29,7 +29,7 @@ def df_to_png_adjusted(
     df["job_gpu_hours"] = df["job_gpu_hours"].apply(lambda x: f"{x/1000:.2f}k")
 
     # Sort by date then convert to string
-    df["creation_date"] = df["creation_date"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    df["start_time"] = df["start_time"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
     # print dataframe
     print(df)
@@ -103,7 +103,6 @@ if __name__ == "__main__":
     data = load_data(
         input_folder
     )  # Custom function: loads JSON/dict data from the folder
-
     # Remove large nested "log" fields to simplify normalization
     data = [{k: v for k, v in d.items() if k != "log"} for d in data]
 
@@ -138,7 +137,7 @@ if __name__ == "__main__":
             or (
                 col.name
                 in [
-                    "creation_date",
+                    "start_time",
                     "job_id",
                     "min_iteration",
                     "max_iteration",
@@ -167,10 +166,10 @@ if __name__ == "__main__":
     df.columns = [col.rsplit(".", 1)[-1] for col in df.columns]
 
     # Reorder columns for readability: metadata first, then computed values
-    cols = ["creation_date", "job_id", "job_gpu_hours", "arch"] + [
+    cols = ["start_time", "job_id", "job_gpu_hours", "arch"] + [
         c
         for c in df.columns
-        if c not in ["creation_date", "job_id", "arch", "job_gpu_hours"]
+        if c not in ["start_time", "job_id", "arch", "job_gpu_hours"]
     ]
     df = df[cols]
 

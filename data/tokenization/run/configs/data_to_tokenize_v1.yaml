@@ -652,14 +652,30 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/kurakurai_scholar/data
   # Paradocs
   - name: paradocs_en-de_aligned
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-de_revert0.5
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-de_revert0.5/data
   - name: paradocs_en-es_aligned
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-es_revert0.5
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-es_revert0.5/data
   - name: paradocs_en-fr_aligned
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-fr_revert0.5
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-fr_revert0.5/data
   - name: paradocs_en-it_aligned
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-it_revert0.5
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-it_revert0.5/data
   - name: paradocs_en-nl_aligned
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-nl_revert0.5
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-nl_revert0.5/data
   - name: paradocs_en-pt_aligned
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-pt_revert0.5
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-pt_revert0.5/data
+  # Pleias Synth
+  - name: pleias-synth_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
+    regex: .*/en.*\.jsonl\.gz$
+  - name: pleias-synth_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
+    regex: .*/fr.*\.jsonl\.gz$
+  - name: pleias-synth_multi
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
+    regex: .*/de.*\.jsonl\.gz$|.*/it.*\.jsonl\.gz$|.*/es.*\.jsonl\.gz$|.*/pt.*\.jsonl\.gz$|.*/ar.*\.jsonl\.gz$|.*/nl.*\.jsonl\.gz$
+  - name: pleias-synth_regional
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
+    regex: .*/eu.*\.jsonl\.gz$|.*/oc.*\.jsonl\.gz$|.*/ca.*\.jsonl\.gz$
+  # Nemotron translated
+  - name: nemotron-posttraining-fr-think-translated_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_translation/multilingual_fr/data_cleaned
