@@ -43,7 +43,7 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/fineweb_hq_filtered/logs",
         job_name="fw-hq",
-        tasks=100,
+        tasks=200,
         time="20:00:00",
     )
     main_processing_executor.run()

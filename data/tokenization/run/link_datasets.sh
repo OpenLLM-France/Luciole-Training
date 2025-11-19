@@ -126,7 +126,7 @@ main_patterns=(
     open-math-instruct*
     aya*
     kurakurai_scholar*
-    paradocs_geom*
+    paradocs*
     pleias*
 )
 link_files \
