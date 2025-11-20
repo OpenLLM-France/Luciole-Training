@@ -22,7 +22,19 @@ module load arch/h100 nemo/2.4.0
 bash run.sh $model_name $benchmark_name
 ```
 
+For example:
+```bash 
+bash run.sh luciole-1b-phase1 synthetic
+bash run.sh luciole-8b-phase1 synthetic
+```
+
 see `config_models.sh`, `config_tasks.sh` to see the list of available models and benchmarks
+
+If you just want to prepare the data (and push them to the hub):
+```bash
+bash prepare_data.sh $model_name $benchmark_name
+python push_to_hub.py
+```
 
 ### Add a model
 

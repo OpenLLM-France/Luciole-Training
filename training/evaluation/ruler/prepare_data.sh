@@ -58,33 +58,6 @@ if [ -z "${TASKS}" ]; then
     exit 1
 fi
 
-
-# Start server (you may want to run in other container.)
-if [ "$MODEL_FRAMEWORK" == "vllm" ]; then
-    python ${RULER_DIR}/pred/serve_vllm.py \
-        --model=${MODEL_PATH} \
-        --tensor-parallel-size=${GPUS} \
-        --dtype bfloat16 \
-        --disable-custom-all-reduce \
-        --trust-remote-code \
-        --max-num-seqs 1 \
-        &
-
-elif [ "$MODEL_FRAMEWORK" == "trtllm" ]; then
-    python ${RULER_DIR}/pred/serve_trt.py \
-        --model_path=${MODEL_PATH} \
-        &
-
-elif [ "$MODEL_FRAMEWORK" == "sglang" ]; then
-    python -m sglang.launch_server \
-        --model-path ${MODEL_PATH} \
-        --tp ${GPUS} \
-        --port 5000 \
-        --enable-flashinfer \
-        &
-    # use sglang/test/killall_sglang.sh to kill sglang server if it hangs
-fi
-
 # Add this at the top of your script or pass it as an env variable:
 # DATA_PREP_ONLY=true   # or false
 
@@ -113,34 +86,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
             --model_template_type ${MODEL_TEMPLATE_TYPE} \
             --num_samples ${NUM_SAMPLES} \
             ${REMOVE_NEWLINE_TAB}
-
-        # -------------------------
-        # PREDICTION
-        # -------------------------
-        start_time=$(date +%s)
-        python ${RULER_DIR}/pred/call_api.py \
-            --data_dir ${DATA_DIR} \
-            --save_dir ${PRED_DIR} \
-            --benchmark ${BENCHMARK} \
-            --task ${TASK} \
-            --server_type ${MODEL_FRAMEWORK} \
-            --model_name_or_path ${MODEL_PATH} \
-            --temperature ${TEMPERATURE} \
-            --top_k ${TOP_K} \
-            --top_p ${TOP_P} \
-            --batch_size ${BATCH_SIZE} \
-            ${STOP_WORDS}
-        end_time=$(date +%s)
-        time_diff=$((end_time - start_time))
-        total_time=$((total_time + time_diff))
     done
-
-    # -------------------------
-    # EVALUATION
-    # -------------------------
-    python ${RULER_DIR}/eval/evaluate.py \
-        --data_dir ${PRED_DIR} \
-        --benchmark ${BENCHMARK}
 done
 
 echo "Total time spent on call_api: $total_time seconds"

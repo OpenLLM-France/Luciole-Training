@@ -300,7 +300,7 @@ if __name__ == "__main__":
     every_function_train_steps = partial(
         checkpoint_along_step_curve,
         intervals=intervals,
-        else_interval=10_000,
+        else_interval=5_000,
     )
 
     recipe.log.ckpt = run.Config(

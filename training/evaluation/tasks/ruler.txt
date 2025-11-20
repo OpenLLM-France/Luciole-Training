@@ -1,0 +1,6 @@
+custom|ruler_4096|0
+custom|ruler_8192|0
+custom|ruler_16384|0
+custom|ruler_32768|0
+custom|ruler_65536|0
+custom|ruler_131072|0
