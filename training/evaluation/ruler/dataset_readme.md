@@ -98,6 +98,10 @@ configs:
   data_files:
   - path: qa_1/8196/validation.parquet
     split: validation
+- config_name: qa_2-8196
+  data_files:
+  - path: qa_2/8196/validation.parquet
+    split: validation
 # 16384
 - config_name: niah_single_1-16384
   data_files:
@@ -146,6 +150,10 @@ configs:
 - config_name: qa_1-16384
   data_files:
   - path: qa_1/16384/validation.parquet
+    split: validation
+- config_name: qa_2-16384
+  data_files:
+  - path: qa_2/16384/validation.parquet
     split: validation
 # 32768
 - config_name: niah_single_1-32768
@@ -196,6 +204,10 @@ configs:
   data_files:
   - path: qa_1/32768/validation.parquet
     split: validation
+- config_name: qa_2-32768
+  data_files:
+  - path: qa_2/32768/validation.parquet
+    split: validation
 # 65536
 - config_name: niah_single_1-65536
   data_files:
@@ -245,6 +257,10 @@ configs:
   data_files:
   - path: qa_1/65536/validation.parquet
     split: validation
+- config_name: qa_2-65536
+  data_files:
+  - path: qa_2/65536/validation.parquet
+    split: validation
 # 131072
 - config_name: niah_single_1-131072
   data_files:
@@ -293,5 +309,9 @@ configs:
 - config_name: qa_1-131072
   data_files:
   - path: qa_1/131072/validation.parquet
+    split: validation
+- config_name: qa_2-131072
+  data_files:
+  - path: qa_2/131072/validation.parquet
     split: validation
 ---

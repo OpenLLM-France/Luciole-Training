@@ -38,7 +38,7 @@ subsets = [
     "cwe",
     "fwe",
     "qa_1",
-    # "qa_2",
+    "qa_2",
 ]
 
 lengths = [131072, 65536, 32768, 16384, 8192, 4096]
@@ -47,6 +47,8 @@ task_configs = []
 
 for subset in subsets:
     for length in lengths:
+        if subset == "qa_2" and length == 4096:
+            continue  # Dataset not available due to a bug during dataset generation
         task_configs.append(
             LightevalTaskConfig(
                 name=f"ruler_{length}:{subset}",

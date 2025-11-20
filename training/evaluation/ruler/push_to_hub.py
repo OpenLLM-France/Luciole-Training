@@ -18,6 +18,7 @@ TASKS = [
     "cwe",
     "fwe",
     "qa_1",
+    "qa_2",
 ]
 MAX_SEQ_LENGTHS = [131072, 65536, 32768, 16384, 8192, 4096]
 
@@ -25,6 +26,8 @@ api = HfApi(token=os.getenv("HF_TOKEN"))
 
 for TASK in TASKS:
     for MAX_SEQ_LENGTH in MAX_SEQ_LENGTHS:
+        if TASK == "qa_2" and MAX_SEQ_LENGTH == 4096:
+            continue  # Dataset not available due to a bug during dataset generation
         DATA_DIR = (
             f"{ROOT_DIR}/data/{TOKENIZER_NAME}/{BENCHMARK}/{MAX_SEQ_LENGTH}/{TASK}"
         )
