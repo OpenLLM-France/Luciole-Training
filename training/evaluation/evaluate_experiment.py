@@ -56,13 +56,9 @@ def init_extra_args(custom_tasks, max_samples=-1):
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "smollm3_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\\n"
-    elif custom_tasks == "fineweb":
+    elif custom_tasks == "ruler":
         current_dir = os.path.dirname(__file__)
-        custom_path = os.path.join(current_dir, "custom_benchmarks", "fineweb_evals.py")
-        extra_arg += f"--custom-tasks {custom_path} \\\n"
-    elif custom_tasks == "lucie":
-        current_dir = os.path.dirname(__file__)
-        custom_path = os.path.join(current_dir, "custom_benchmarks", "lucie2_evals.py")
+        custom_path = os.path.join(current_dir, "custom_benchmarks", "ruler.py")
         extra_arg += f"--custom-tasks {custom_path} \\\n"
     else:
         raise ValueError(f"Unknown custom_tasks: {custom_tasks}")
@@ -81,7 +77,9 @@ def get_hf_model(hf_model):
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "allenai/OLMo-2-1124-7B":
         revisions = [
-            f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 18) if i != 2
+            f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B"
+            for i in range(1, 18)
+            if i != 2
         ]
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "allenai/OLMo-2-1124-13B":
@@ -91,17 +89,17 @@ def get_hf_model(hf_model):
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "allenai/OLMo-2-0325-32B":
         revisions = [
-            f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19) if i != 14
+            f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B"
+            for i in range(1, 19)
+            if i != 14
         ]
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "swiss-ai/Apertus-8B-2509":
-        revisions = [
-            f"step{i*50000}-tokens{i*210}B" for i in range(1, 21)
-        ] + [
-            f"step{i*238000 + 1194000}-tokens{i*1000 + 5014}B" for i in range(3)
-        ] + [
-            f"step{i*100000 + 1800000}-tokens{i*840 + 8072}B" for i in range(9)
-        ]
+        revisions = (
+            [f"step{i*50000}-tokens{i*210}B" for i in range(1, 21)]
+            + [f"step{i*238000 + 1194000}-tokens{i*1000 + 5014}B" for i in range(3)]
+            + [f"step{i*100000 + 1800000}-tokens{i*840 + 8072}B" for i in range(9)]
+        )
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "OpenLLM-France/Lucie-7B":
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
@@ -127,7 +125,9 @@ def get_hf_model(hf_model):
             "step-464000_tokens-1946B-phase4",
         ]
         revisions = [""] * len(checkpoints)
-        ckpt_dir = Path("/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-24B")
+        ckpt_dir = Path(
+            "/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-24B"
+        )
     elif hf_model == "almanach/Gaperon-1125-8B":
         checkpoints = [
             "step-0334000_tokens-0700B-phase1",
@@ -145,7 +145,9 @@ def get_hf_model(hf_model):
             # "step-1409000_tokens-4110B-black-pepper",
         ]
         revisions = [""] * len(checkpoints)
-        ckpt_dir = Path("/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-8B")
+        ckpt_dir = Path(
+            "/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-8B"
+        )
     else:
         print(f"Selection the main revision of {hf_model} model.")
         checkpoints = [hf_model]
@@ -163,6 +165,7 @@ def get_checkpoints_and_revisions(experiment_path, hf_model=None):
         revisions = ["" for _ in checkpoints]
     return checkpoints, revisions, ckpt_dir
 
+
 def get_step(text):
     match = re.search(r"-step[=_](\d+)", text)
     if match:
@@ -170,6 +173,7 @@ def get_step(text):
         return step_number
     else:
         return None
+
 
 def launch_evaluation(
     experiment_path,
@@ -216,20 +220,24 @@ def launch_evaluation(
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
-        
+
         if min_step:
             step = get_step(ckpt)
-            if ((step + 1) < args.min_step):
+            if (step + 1) < args.min_step:
                 # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {args.min_step}")
                 continue
 
         if multiple_of:
             step = get_step(ckpt)
-            if ((step + 1) % args.multiple_of != 0):
+            if (step + 1) % args.multiple_of != 0:
                 # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {args.multiple_of}")
                 continue
 
-        if ((output_dir / "results" / ckpt).is_dir() if not revision else (output_dir / revision / "results").is_dir()) and not force:
+        if (
+            (output_dir / "results" / ckpt).is_dir()
+            if not revision
+            else (output_dir / revision / "results").is_dir()
+        ) and not force:
             # print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
 
@@ -242,7 +250,11 @@ def launch_evaluation(
                 model_arg += ",batch_size=1"
         elif "Teuken" in ckpt:
             model_arg += ",trust_remote_code=True"
-        elif "Gaperon" in ckpt_dir.name and "24B" in ckpt_dir.name and command == "accelerate":
+        elif (
+            "Gaperon" in ckpt_dir.name
+            and "24B" in ckpt_dir.name
+            and command == "accelerate"
+        ):
             model_arg += ",batch_size=1"
         if revision:
             model_arg += f",revision={revision}"
@@ -338,15 +350,45 @@ if __name__ == "__main__":
         default=None,
         help="A dependency after which it should launch the evals",
     )
-    parser.add_argument("--force", action="store_true", help="If set, force re-evaluation even if results exist.")
-    parser.add_argument("--debug", action="store_true", help="If set, run in debug mode.")
-    parser.add_argument("--lighteval_kwargs", type=str, default="", help="Additional arguments to pass to lighteval.")
-    parser.add_argument("--multiple_of", type=int, default=None, help="Only evaluate checkpoints whose step+1 is a multiple of this number.")
-    parser.add_argument("--min_step", type=int, default=None, help="Minimum step to evaluate.")
-    parser.add_argument("--last_checkpoint_only", action="store_true", help="If set, only evaluate the last checkpoint.")
-    parser.add_argument("--gpu", type=str, default="h100", choices=["h100", "a100"], help="GPU type to request.")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="If set, force re-evaluation even if results exist.",
+    )
+    parser.add_argument(
+        "--debug", action="store_true", help="If set, run in debug mode."
+    )
+    parser.add_argument(
+        "--lighteval_kwargs",
+        type=str,
+        default="",
+        help="Additional arguments to pass to lighteval.",
+    )
+    parser.add_argument(
+        "--multiple_of",
+        type=int,
+        default=None,
+        help="Only evaluate checkpoints whose step+1 is a multiple of this number.",
+    )
+    parser.add_argument(
+        "--min_step", type=int, default=None, help="Minimum step to evaluate."
+    )
+    parser.add_argument(
+        "--last_checkpoint_only",
+        action="store_true",
+        help="If set, only evaluate the last checkpoint.",
+    )
+    parser.add_argument(
+        "--gpu",
+        type=str,
+        default="h100",
+        choices=["h100", "a100"],
+        help="GPU type to request.",
+    )
     parser.add_argument("--gpus", type=int, default=1, help="Number of gpus to use.")
-    parser.add_argument("--dry_run", action="store_true", help="If set, do not submit jobs.")
+    parser.add_argument(
+        "--dry_run", action="store_true", help="If set, do not submit jobs."
+    )
     args = parser.parse_args()
 
     launch_evaluation(
@@ -365,5 +407,5 @@ if __name__ == "__main__":
         multiple_of=args.multiple_of,
         last_checkpoint_only=args.last_checkpoint_only,
         gpus=args.gpus,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
     )
