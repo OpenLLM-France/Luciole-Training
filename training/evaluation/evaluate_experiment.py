@@ -3,9 +3,9 @@ import os
 import math
 import re
 
-SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
-#SBATCH --job-name=eval_{eval_name}
-#SBATCH --output={log_dir}/eval_log_{log_name}_%j.out
+SBATCH_ARRAY_TEMPLATE = """#!/bin/bash
+#SBATCH --job-name=eval
+#SBATCH --output={log_dir}/eval_log_%x_%A_%a.out
 #SBATCH --gres=gpu:{gpus}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -15,6 +15,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --qos=qos_gpu_{gpu}-t3
 #SBATCH --account={account}@{gpu}
 #SBATCH --constraint={gpu}
+#SBATCH --array=0-{max_index}
 {dependency}
 
 set -e
@@ -30,15 +31,33 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
-cd {ckpt_dir}
+# ------------------------------
+# Load checkpoint info from task list
+# ------------------------------
+TASK_LIST="{task_list}"
+ENTRY=$(jq -r ".[$SLURM_ARRAY_TASK_ID]" "$TASK_LIST")
 
-mkdir -p {output_dir}
+CKPT_DIR=$(echo "$ENTRY" | jq -r '.ckpt_dir')
+OUTPUT_DIR=$(echo "$ENTRY" | jq -r '.output_dir')
+MODEL_ARG=$(echo "$ENTRY" | jq -r '.model_arg')
+TASK_TO_EVALUATE=$(echo "$ENTRY" | jq -r '.task_to_evaluate')
+EXTRA_ARGS=$(echo "$ENTRY" | jq -r '.extra_args')
 
-VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
-    "{model_arg}" \\
-    "{task_to_evaluate}" \\
-    --output-dir {output_dir} \\
-    {extra_arg}
+echo "[Task $SLURM_ARRAY_TASK_ID] Running checkpoint: $CKPT_DIR"
+echo "Model args: $MODEL_ARG"
+echo "Task to evaluate: $TASK_TO_EVALUATE"
+echo "Output dir: $OUTPUT_DIR"
+echo "Extra args: $EXTRA_ARGS"
+
+mkdir -p "$OUTPUT_DIR"
+
+cd "$CKPT_DIR"
+
+VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \
+    "$MODEL_ARG" \
+    "$TASK_TO_EVALUATE" \
+    --output-dir "$OUTPUT_DIR" \
+    $EXTRA_ARGS
 """
 
 
@@ -177,10 +196,10 @@ def get_step(text):
 def launch_evaluation(
     experiment_path,
     task_to_evaluate,
-    hf_model,
-    custom_tasks,
-    evaluation_dir,
-    command,
+    hf_model=None,
+    custom_tasks=None,
+    evaluation_dir="",
+    command="vllm",
     max_samples=-1,
     dependency=None,
     lighteval_kwargs="",
@@ -193,7 +212,6 @@ def launch_evaluation(
     gpus=1,
     dry_run=False,
 ):
-    from slugify import slugify
     import subprocess
     from pathlib import Path
 
@@ -214,11 +232,10 @@ def launch_evaluation(
     output_dir.mkdir(parents=True, exist_ok=True)
     log_dir = output_dir / "slurm_logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    job_dir = output_dir / "slurm_scripts"
-    job_dir.mkdir(parents=True, exist_ok=True)
-
     extra_arg = init_extra_args(custom_tasks, max_samples)
     extra_arg += lighteval_kwargs
+
+    tasks = []
 
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
@@ -226,14 +243,14 @@ def launch_evaluation(
 
         if min_step:
             step = get_step(ckpt)
-            if (step + 1) < args.min_step:
-                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {args.min_step}")
+            if (step + 1) < min_step:
+                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}")
                 continue
 
         if multiple_of:
             step = get_step(ckpt)
-            if (step + 1) % args.multiple_of != 0:
-                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {args.multiple_of}")
+            if (step + 1) % multiple_of != 0:
+                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
                 continue
 
         if (
@@ -262,45 +279,58 @@ def launch_evaluation(
         if revision:
             model_arg += f",revision={revision}"
 
-        eval_name = task_to_evaluate.stem
+        output_dir = output_dir if not revision else output_dir / revision
 
-        job_script = SBATCH_SCRIPT_TEMPLATE.format(
-            ckpt_dir=ckpt_dir.resolve(),
-            command=command,
-            model_arg=model_arg,
-            output_dir=output_dir if not revision else output_dir / revision,
-            log_dir=log_dir,
-            log_name=f"{eval_name}_{slugify(ckpt)}",
-            eval_name=eval_name,
-            task_to_evaluate=task_to_evaluate.resolve(),
-            extra_arg=extra_arg,
-            gpu=gpu,
-            account="wuh" if gpu == "h100" else "qgz",
-            gpus=gpus,
-            cpus=gpus * (24 if gpu == "h100" else 8),
-            dependency=f"#SBATCH --dependency=afterok:{dependency}"
-            if dependency
-            else "",
+        # Save the tuple representing a job array element
+        tasks.append(
+            {
+                "ckpt_dir": str(ckpt_dir.resolve()),
+                "output_dir": str(output_dir.resolve()),
+                "model_arg": model_arg,
+                "task_to_evaluate": str(task_to_evaluate.resolve()),
+                "extra_args": extra_arg,
+            }
         )
 
-        if not revision:
-            job_filename = job_dir / f"job_{slugify(ckpt)}.slurm"
-        else:
-            job_filename = job_dir / f"job_{slugify(ckpt)}_{revision}.slurm"
-        with open(job_filename, "w") as f:
-            f.write(job_script)
+    # Write list to JSON so Slurm script can read it
+    import json
 
-        if dry_run:
-            print("sbatch", str(job_filename))
-            if debug:
-                break
-            continue
+    task_list_path = output_dir / "task_list.json"
+    with open(task_list_path, "w") as f:
+        json.dump(tasks, f, indent=2)
 
-        print(f"# Submitting job for checkpoint: {ckpt} {revision}")
-        subprocess.run(["sbatch", str(job_filename)], check=True)
+    print(f"Prepared {len(tasks)} tasks for array job.")
 
-        if debug:
-            break
+    array_script = SBATCH_ARRAY_TEMPLATE.format(
+        command=command,
+        log_dir=log_dir,
+        gpu=gpu,
+        account="wuh" if gpu == "h100" else "qgz",
+        gpus=gpus,
+        cpus=gpus * (24 if gpu == "h100" else 8),
+        dependency=f"#SBATCH --dependency=afterok:{dependency}" if dependency else "",
+        max_index=len(tasks) - 1,
+        task_list=task_list_path,
+    )
+
+    array_filename = output_dir / "job_array_eval.slurm"
+    with open(array_filename, "w") as f:
+        f.write(array_script)
+
+    if dry_run:
+        print("sbatch", str(array_filename))
+    else:
+        print("Submitting array:", array_filename)
+        result = subprocess.run(
+            ["sbatch", "--parsable", str(array_filename)],
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+
+        # Example stdout: "Submitted batch job 123456"
+        job_id = result.stdout.strip()
+        return job_id
 
 
 def get_parser():
