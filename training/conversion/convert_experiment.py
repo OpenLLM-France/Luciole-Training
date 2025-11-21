@@ -1,23 +1,13 @@
-import torch
-from nemo.utils import logging
-import logging  # noqa: F811
 import os
 from argparse import ArgumentParser
 from tqdm import tqdm
 import re
-import convert_dist_to_hf
-
-for name in logging.root.manager.loggerDict:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.ERROR)
-torch.set_float32_matmul_precision("high")
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None):
     checkpoints = os.listdir(os.path.join(input_path, "checkpoints"))
     os.makedirs(os.path.join(output_path), exist_ok=True)
+    import convert_dist_to_hf
 
     for checkpoint in tqdm(
         checkpoints,
@@ -59,7 +49,7 @@ def get_step(text):
         return None
 
 
-if __name__ == "__main__":
+def get_parser():
     parser = ArgumentParser()
     parser.add_argument(
         "experiment_path",
@@ -76,12 +66,27 @@ if __name__ == "__main__":
     parser.add_argument(
         "--multiple_of",
         type=int,
-        default=None,
+        default=1,
         help="Convert only checkpoints that are multiple of this value",
     )
     parser.add_argument("--local-rank")
-    args = parser.parse_args()
+    return parser
+
+
+if __name__ == "__main__":
+    args = get_parser().parse_args()
     experiment_path = args.experiment_path
+
+    import torch
+    from nemo.utils import logging
+    import logging  # noqa: F811
+
+    for name in logging.root.manager.loggerDict:
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.ERROR)
+    torch.set_float32_matmul_precision("high")
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
     logger.info(f"Converting experiment {experiment_path}")
 

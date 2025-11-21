@@ -1,8 +1,5 @@
-import subprocess
-from pathlib import Path
 import argparse
 import os
-from slugify import slugify
 import math
 import re
 
@@ -69,6 +66,8 @@ def init_extra_args(custom_tasks, max_samples=-1):
 
 
 def get_hf_model(hf_model):
+    from pathlib import Path
+
     ckpt_dir = Path(".")
     if hf_model == "allenai/OLMo-2-0425-1B":
         revisions = [
@@ -194,6 +193,10 @@ def launch_evaluation(
     gpus=1,
     dry_run=False,
 ):
+    from slugify import slugify
+    import subprocess
+    from pathlib import Path
+
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
     print(f"\n# Experiment path: {experiment_path}")
@@ -271,21 +274,14 @@ def launch_evaluation(
             eval_name=eval_name,
             task_to_evaluate=task_to_evaluate.resolve(),
             extra_arg=extra_arg,
-            gpu=args.gpu,
-            account="wuh" if args.gpu == "h100" else "qgz",
+            gpu=gpu,
+            account="wuh" if gpu == "h100" else "qgz",
             gpus=gpus,
-            cpus=gpus * (24 if args.gpu == "h100" else 8),
+            cpus=gpus * (24 if gpu == "h100" else 8),
             dependency=f"#SBATCH --dependency=afterok:{dependency}"
             if dependency
             else "",
         )
-
-        # if dry_run:
-        #     print(f"\n--- Job script for checkpoint: {ckpt} {revision} ---\n")
-        #     print(job_script)
-        #     if debug:
-        #         break
-        #     continue
 
         if not revision:
             job_filename = job_dir / f"job_{slugify(ckpt)}.slurm"
@@ -307,7 +303,7 @@ def launch_evaluation(
             break
 
 
-if __name__ == "__main__":
+def get_parser():
     parser = argparse.ArgumentParser(
         description="Submit SLURM jobs for each model checkpoint."
     )
@@ -389,8 +385,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
     )
-    args = parser.parse_args()
+    return parser
 
+
+if __name__ == "__main__":
+    args = get_parser().parse_args()
     launch_evaluation(
         experiment_path=args.experiment_path,
         task_to_evaluate=args.task_to_evaluate,
