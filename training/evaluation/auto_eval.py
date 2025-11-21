@@ -47,16 +47,14 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
-echo {str_args}
-python evaluate_experiment.py {str_args}
+python evaluate_experiment.py {experiment_path} tasks/gsm8k.txt --multiple_of {multiple_of} --command vllm 
+python evaluate_experiment.py {experiment_path} tasks/en.txt --multiple_of {multiple_of} --command vllm
+python evaluate_experiment.py {experiment_path} tasks/fr.txt --multiple_of {multiple_of} --command vllm --custom_tasks multilingual --max_samples 1000
+python evaluate_experiment.py {experiment_path} tasks/multilingual.txt --multiple_of {multiple_of} --command vllm --custom_tasks multilingual --max_samples 1000
 """
 
 
-def launch_conversion(args, slurm_args=None):
-    experiment_path = args.experiment_path
-    arch = args.arch
-    multiple_of = args.multiple_of
-
+def launch_conversion(experiment_path, arch, multiple_of=1, begin=None):
     print(
         f"Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
     )
@@ -76,42 +74,23 @@ def launch_conversion(args, slurm_args=None):
 
     command = ["sbatch", "--parsable", str(job_filename)]
 
-    if slurm_args:
-        slurm_args = vars(slurm_args)
-        for key, value in slurm_args.items():
-            command.insert(1, f"--{key}={value}")
+    if begin:
+        command.insert(1, f"--begin={begin}")
 
     result = subprocess.run(command, check=True, capture_output=True, text=True)
     job_id = result.stdout.strip()
     return job_id
 
 
-def dict_to_cli(args_dict, positional_args=["experiment_path", "task_to_evaluate"]):
-    cli_parts = []
-    for k, v in args_dict.items():
-        if k in positional_args:
-            cli_parts.append(str(v))
-        elif isinstance(v, bool):
-            if v:  # only include True flags
-                cli_parts.append(f"\\\n    --{k}")
-        elif isinstance(v, str):
-            cli_parts.append(f"\\\n    --{k} '{v}'")
-        elif v is not None:
-            cli_parts.append(f"\\\n    --{k} {v}")
-    return " ".join(cli_parts)
-
-
-def launch_evaluation(args, dependency_job_id=None):
-    experiment_path = args.experiment_path
-    multiple_of = args.multiple_of
-
-    print(f"Launching evaluation for {experiment_path} and multiple_of={multiple_of}")
+def launch_evaluation(experiment_path, multiple_of=1, dependency_job_id=None):
+    print(f"Launching evaluation for {experiment_path}")
     job_dir = Path(experiment_path) / "evaluation"
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    str_args = dict_to_cli(vars(args))
     job_script = SBATCH_EVAL_TEMPLATE.format(
-        log_dir=job_dir / "slurm_logs", str_args=str_args
+        log_dir=job_dir / "slurm_logs",
+        experiment_path=experiment_path,
+        multiple_of=multiple_of,
     )
 
     job_filename = job_dir / "evaluation_job.slurm"
@@ -124,37 +103,27 @@ def launch_evaluation(args, dependency_job_id=None):
     )
 
 
-def get_parser():
-    from argparse import ArgumentParser
+if __name__ == "__main__":
+    import sys
 
-    parser = ArgumentParser()
+    sys.path.append("..")
+    from conversion.convert_experiment import get_parser as get_conv_parser
+
+    parser = get_conv_parser()
     parser.add_argument(
         "--begin",
         type=str,
         default=None,
         help="Begin time for slurm job (e.g., now+30minutes)",
     )
-    return parser
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.path.append("..")
-    from conversion.convert_experiment import get_parser as get_conv_parser
-    from evaluate_experiment import get_parser as get_eval_parser
-
-    parser = get_parser()
-    conv_parser = get_conv_parser()
-    eval_parser = get_eval_parser()
-
-    # Parse each independently
-    conv_args, _ = conv_parser.parse_known_args()
-    eval_args, _ = eval_parser.parse_known_args()
-    slurm_args, _ = parser.parse_known_args()
+    args = parser.parse_args()
 
     # Launch conversion job
-    conversion_job_id = launch_conversion(conv_args, slurm_args)
+    conversion_job_id = launch_conversion(
+        args.experiment_path, args.arch, args.multiple_of, begin=args.begin
+    )
 
     # Launch evaluation job
-    launch_evaluation(eval_args, dependency_job_id=conversion_job_id)
+    launch_evaluation(
+        args.experiment_path, args.multiple_of, dependency_job_id=conversion_job_id
+    )
