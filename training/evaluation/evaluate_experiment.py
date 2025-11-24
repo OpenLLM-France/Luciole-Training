@@ -4,7 +4,7 @@ import math
 import re
 
 SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
-#SBATCH --job-name=eval_{eval_name}
+#SBATCH --job-name=eval_{log_name}
 #SBATCH --output={log_dir}/eval_log_{log_name}_%j.out
 #SBATCH --gres=gpu:{gpus}
 #SBATCH --nodes=1
@@ -15,6 +15,7 @@ SBATCH_SCRIPT_TEMPLATE = """#!/bin/bash
 #SBATCH --qos=qos_gpu_{gpu}-t3
 #SBATCH --account={account}@{gpu}
 #SBATCH --constraint={gpu}
+#SBATCH --mail-type=FAIL
 {dependency}
 
 set -e
@@ -160,7 +161,7 @@ def get_checkpoints_and_revisions(experiment_path, hf_model=None):
     else:
         ckpt_dir = experiment_path / "huggingface_checkpoints"
         assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
-        checkpoints = sorted([d for d in ckpt_dir.iterdir() if d.is_dir()])[::-1]
+        checkpoints = sorted([d for d in ckpt_dir.iterdir() if d.is_dir()]) # [::-1]
         revisions = ["" for _ in checkpoints]
     return checkpoints, revisions, ckpt_dir
 
@@ -262,16 +263,13 @@ def launch_evaluation(
         if revision:
             model_arg += f",revision={revision}"
 
-        eval_name = task_to_evaluate.stem
-
         job_script = SBATCH_SCRIPT_TEMPLATE.format(
             ckpt_dir=ckpt_dir.resolve(),
             command=command,
             model_arg=model_arg,
             output_dir=output_dir if not revision else output_dir / revision,
             log_dir=log_dir,
-            log_name=f"{eval_name}_{slugify(ckpt)}",
-            eval_name=eval_name,
+            log_name=f"{task_to_evaluate.stem}_{slugify(ckpt)}",
             task_to_evaluate=task_to_evaluate.resolve(),
             extra_arg=extra_arg,
             gpu=gpu,
