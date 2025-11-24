@@ -178,10 +178,10 @@ def get_step(text):
 def launch_evaluation(
     experiment_path,
     task_to_evaluate,
-    hf_model,
-    custom_tasks,
-    evaluation_dir,
-    command,
+    hf_model=None,
+    custom_tasks=None,
+    evaluation_dir="",
+    command="vllm",
     max_samples=-1,
     dependency=None,
     lighteval_kwargs="",
@@ -221,6 +221,7 @@ def launch_evaluation(
     extra_arg = init_extra_args(custom_tasks, max_samples)
     extra_arg += lighteval_kwargs
 
+    job_ids = []
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
@@ -295,10 +296,19 @@ def launch_evaluation(
             continue
 
         print(f"# Submitting job for checkpoint: {ckpt} {revision}")
-        subprocess.run(["sbatch", str(job_filename)], check=True)
+
+        result = subprocess.run(
+            ["sbatch", "--parsable", str(job_filename)],
+            check=True,
+            text=True,
+        )
+        job_id = result.stdout.strip()
+        job_ids.append(job_id)
 
         if debug:
             break
+
+    return ",".join(job_ids)
 
 
 def get_parser():
