@@ -1,5 +1,6 @@
 import subprocess
 from pathlib import Path
+from argparse import ArgumentParser
 
 SBATCH_CONV_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=convert
@@ -105,7 +106,9 @@ def launch_conversion(experiment_path, arch, multiple_of=1, begin=None):
     return job_id
 
 
-def launch_evaluation(experiment_path, multiple_of=1, dependency_job_id=None):
+def launch_evaluation(
+    experiment_path, multiple_of=1, dependency_job_id=None, force=False
+):
     import evaluate_experiment
 
     job_ids = []
@@ -132,12 +135,16 @@ def launch_evaluation(experiment_path, multiple_of=1, dependency_job_id=None):
     ]
     for command in COMMANDS:
         job_id = evaluate_experiment.launch_evaluation(
-            experiment_path=experiment_path, **command, dependency=dependency_job_id
+            experiment_path=experiment_path,
+            **command,
+            dependency=dependency_job_id,
+            force=force,
         )
-        job_ids.append(job_id)
+        if job_id is not None:
+            job_ids.append(job_id)
 
     print(f"Launching evaluation for {experiment_path}")
-    return ",".join(job_ids)
+    return ",".join(job_ids) if job_ids else None
 
 
 def launch_plot(experiment_path, email="", dependency_job_id=None):
@@ -160,12 +167,25 @@ def launch_plot(experiment_path, email="", dependency_job_id=None):
 
 
 if __name__ == "__main__":
-    import sys
-
-    sys.path.append("..")
-    from conversion.convert_experiment import get_parser as get_conv_parser
-
-    parser = get_conv_parser()
+    parser = ArgumentParser()
+    parser.add_argument(
+        "experiment_path",
+        type=str,
+        default=None,
+        help="Path to an experiment",
+    )
+    parser.add_argument(
+        "--arch",
+        type=str,
+        default="nemotron",
+        choices=["llama", "nemotron", "nemotronh"],
+    )
+    parser.add_argument(
+        "--multiple_of",
+        type=int,
+        default=1,
+        help="Convert only checkpoints that are multiple of this value",
+    )
     parser.add_argument(
         "--begin",
         type=str,
@@ -178,6 +198,11 @@ if __name__ == "__main__":
         default="",
         help="Email to send final figures",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="If set, force re-evaluation even if results exist.",
+    )
     args = parser.parse_args()
 
     # Launch conversion job
@@ -187,11 +212,14 @@ if __name__ == "__main__":
 
     # Launch evaluation job
     evaluation_job_id = launch_evaluation(
-        args.experiment_path, args.multiple_of, dependency_job_id=conversion_job_id
+        args.experiment_path,
+        args.multiple_of,
+        dependency_job_id=conversion_job_id,
+        force=args.force,
     )
-    print(evaluation_job_id)
 
     # Plot
-    launch_plot(
-        args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email
-    )
+    if evaluation_job_id is not None:
+        launch_plot(
+            args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email
+        )
