@@ -228,14 +228,14 @@ def launch_evaluation(
 
         if min_step:
             step = get_step(ckpt)
-            if (step + 1) < args.min_step:
-                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {args.min_step}")
+            if (step + 1) < min_step:
+                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}")
                 continue
 
         if multiple_of:
             step = get_step(ckpt)
-            if (step + 1) % args.multiple_of != 0:
-                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {args.multiple_of}")
+            if (step + 1) % multiple_of != 0:
+                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
                 continue
 
         if (
