@@ -9,6 +9,8 @@ from datasets import load_dataset_builder
 import sys
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
+import dataclasses
+import json
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 if not MAIN_PATH:
@@ -81,7 +83,7 @@ def filter_kwargs_for_class(cls, kwargs):
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
     if debug:
-        pipeline[0].limit = 1000
+        pipeline[0].limit = 10
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
     # Executor arguments
@@ -174,3 +176,33 @@ def parse_args(parser):
     if args.debug:
         args.data_path += "_debug"
     return args
+
+
+def _custom_adapter_for_hf(
+    self,
+    document,
+    source,
+    id_key=None,
+    language=None,
+    language_key=None,
+    conversation_key=None,
+    remove_keys=[],
+):
+    data = {key: val for key, val in dataclasses.asdict(document).items() if val}
+    metadata = data.pop("metadata")
+    id = metadata.pop(id_key, document.id) if id_key else document.id
+    if language_key:
+        language = metadata.pop(language_key, language)
+    conversation = metadata.pop(conversation_key, None) if conversation_key else None
+    text = document.text
+    for key in remove_keys:
+        metadata.pop(key)
+    data = {
+        "source": source,
+        "id": id,
+        "language": language,
+        "text": text,
+        "conversation": conversation,
+        "metadata": json.dumps(metadata),
+    }
+    return data
