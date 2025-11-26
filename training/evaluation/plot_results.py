@@ -247,9 +247,9 @@ def plot_list_of_tasks(
     flops=False,
     apply_phase_style=True,
     max_tokens=None,
-    max_subplot=15,
     last_checkpoint_only=False,
     dpi=300,
+    max_subplot=15,
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
@@ -285,6 +285,7 @@ def plot_list_of_tasks(
                 max_tokens,
                 last_checkpoint_only,
                 dpi,
+                max_subplot,
             )
         return
 
