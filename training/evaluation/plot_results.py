@@ -21,6 +21,35 @@ task_group_mapping = {
         ("lighteval|piqa|0", "acc_with_logprob_normalization"),
         ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
     ],
+    "smollm": [
+        ("custom|piqa_cf|0", "acc_norm"),
+        ("lighteval|piqa|0", "acc_with_logprob_normalization"),
+        ("custom|hellaswag_cf|0", "acc_norm"),
+        ("leaderboard|hellaswag|0", "acc"),
+        ("custom|openbookqa_cf|0", "acc_norm"),
+        ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
+        ("custom|commonsenseqa_cf|0", "acc_norm"),
+        ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
+        ("custom|boolq_cf|0", "acc_norm"),
+        ("helm|boolq:_average|0", "em_with_type_exact_match"),
+        ("custom|arc_cf:challenge|0", "acc_norm"),
+        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
+        ("custom|arc_cf:easy|0", "acc_norm"),
+        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
+        ("custom|winogrande_cf|0", "acc_norm"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("custom|gsm8k|5", "extractive_match"),
+        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
+    ],
+    "mmlu": [
+        ("custom|mmlu_pro_cf|0", "acc_norm"),
+        ("custom|mmlu_cf:_average|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
+    ],
+    "en_new": [
+        ("lighteval|belebele_eng_Latn_cf|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
+    ],
     "fr": [
         ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
         ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
@@ -49,6 +78,12 @@ task_group_mapping = {
         ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
         ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
         ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
+    ],
+    "translation": [
+        ("lighteval|flores200:fra_Latn-eng_Latn|0", "bleu"),
+        ("lighteval|flores200:eng_Latn-fra_Latn|0", "bleu"),
+        ("lighteval|flores200:fra_Latn-eng_Latn|0", "bleu_4"),
+        ("lighteval|flores200:eng_Latn-fra_Latn|0", "bleu_4"),
     ],
 }
 
@@ -99,6 +134,7 @@ def plot_task(
     fit=False,
     flops=False,
     max_tokens=None,
+    last_checkpoint_only=False,
 ):
     # print(f"Plotting {task} - {metric} with {len(df)} lines")
 
@@ -170,13 +206,23 @@ def plot_task(
                     label=row["expe_name"],
                 )
             else:
+                if not last_checkpoint_only:
+                    ax.plot(
+                        row[xaxis_column],
+                        row["score"],
+                        alpha=1,
+                        color=color,
+                        linestyle=linestyle,
+                        label=row["expe_name"],
+                    )
                 ax.plot(
-                    row[xaxis_column],
-                    row["score"],
-                    alpha=1,
+                    row[xaxis_column][-1],
+                    row["score"][-1],
+                    marker="+",
                     color=color,
-                    linestyle=linestyle,
-                    label=row["expe_name"],
+                    markersize=10,
+                    markeredgewidth=2,
+                    label=row["expe_name"] if last_checkpoint_only else None,
                 )
 
     ax.set_xlabel("FLOPs" if flops else "B tokens")
@@ -198,6 +244,7 @@ def plot_list_of_tasks(
     apply_phase_style=True,
     max_tokens=None,
     max_subplot=15,
+    last_checkpoint_only=False,
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
@@ -231,6 +278,7 @@ def plot_list_of_tasks(
                 flops,
                 apply_phase_style,
                 max_tokens,
+                last_checkpoint_only=last_checkpoint_only,
             )
         return
 
@@ -263,6 +311,7 @@ def plot_list_of_tasks(
             fit=fit,
             flops=flops,
             max_tokens=max_tokens,
+            last_checkpoint_only=last_checkpoint_only,
         )
 
         handles, labels = axes[i].get_legend_handles_labels()
@@ -328,6 +377,7 @@ def plot_experiments(df, args, max_subplot=15):
             max_tokens=args.max_tokens,
             max_subplot=max_subplot,
             apply_phase_style=args.apply_phase_style,
+            last_checkpoint_only=args.last_checkpoint_only,
         )
 
     if not args.output_path:
@@ -407,6 +457,11 @@ if __name__ == "__main__":
         "--max_tokens", type=int, default=None, help="Max tokens to plot (in B)"
     )
     parser.add_argument("--apply_phase_style", action="store_true")
+    parser.add_argument(
+        "--last_checkpoint_only",
+        action="store_true",
+        help="If set, only show the last checkpoint.",
+    )
 
     args = parser.parse_args()
 
