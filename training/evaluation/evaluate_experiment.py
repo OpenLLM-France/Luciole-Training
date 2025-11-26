@@ -42,13 +42,12 @@ CKPT_DIR=$(echo "$ENTRY" | jq -r '.ckpt_dir')
 OUTPUT_DIR=$(echo "$ENTRY" | jq -r '.output_dir')
 MODEL_ARG=$(echo "$ENTRY" | jq -r '.model_arg')
 TASK_TO_EVALUATE=$(echo "$ENTRY" | jq -r '.task_to_evaluate')
-EXTRA_ARGS=$(echo "$ENTRY" | jq -r '.extra_args')
 
 echo "[Task $SLURM_ARRAY_TASK_ID] Running checkpoint: $CKPT_DIR"
 echo "Model args: $MODEL_ARG"
 echo "Task to evaluate: $TASK_TO_EVALUATE"
 echo "Output dir: $OUTPUT_DIR"
-echo "Extra args: $EXTRA_ARGS"
+echo "Extra args: {extra_args}"
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -58,7 +57,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
     "$MODEL_ARG" \\
     "$TASK_TO_EVALUATE" \\
     --output-dir "$OUTPUT_DIR" \\
-    $EXTRA_ARGS
+    {extra_args}
 """
 
 
@@ -236,8 +235,8 @@ def launch_evaluation(
     job_dir = output_dir / "slurm_scripts"
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    extra_arg = init_extra_args(custom_tasks, max_samples)
-    extra_arg += lighteval_kwargs
+    extra_args = init_extra_args(custom_tasks, max_samples)
+    extra_args += lighteval_kwargs
 
     tasks = []
 
@@ -292,7 +291,6 @@ def launch_evaluation(
                 ),
                 "model_arg": model_arg,
                 "task_to_evaluate": str(task_to_evaluate.resolve()),
-                "extra_args": extra_arg,
             }
         )
 
@@ -319,6 +317,7 @@ def launch_evaluation(
         dependency=f"#SBATCH --dependency=afterok:{dependency}" if dependency else "",
         max_index=len(tasks) - 1,
         task_list=task_list_path,
+        extra_args=extra_args,
     )
 
     array_filename = job_dir / "job_array_eval.slurm"

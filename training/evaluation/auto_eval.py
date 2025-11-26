@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 from argparse import ArgumentParser
+import os
 
 SBATCH_CONV_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=convert
@@ -45,7 +46,7 @@ module purge
 module load anaconda-py3/2024.06
 conda activate eval-env
 
-python plot_results.py {experiment_path} --group all en fr multilingual --output_path {experiment_path}/figs
+python plot_results.py {compared_models} --group all en fr multilingual --output_path {experiment_path}/figs
 
 # Variables
 TO="{email}"
@@ -152,8 +153,46 @@ def launch_plot(experiment_path, email="", dependency_job_id=None):
     job_dir = Path(experiment_path) / "evaluation"
     job_dir.mkdir(parents=True, exist_ok=True)
 
+    base = os.environ["OpenLLM_OUTPUT"]
+
+    if "1b" in experiment_path:
+        compared_models = [
+            f"{base}/pretrain/luciole_serie/luciole_nemotron1b",
+            f"{base}/pretrain/luciole_serie/luciole_nemotron1b_phase2",
+            f"{base}/pretrain/luciole_serie/luciole_variant_nemotron1b_phase2",
+            f"{base}/pretrain/compared_models/OLMo-2-0425-1B",
+            f"{base}/pretrain/compared_models/EuroLLM-1.7B",
+            f"{base}/pretrain/compared_models/Gaperon-1125-1B",
+            f"{base}/pretrain/compared_models/CroissantLLMBase",
+        ]
+    elif "8b" in experiment_path:
+        compared_models = [
+            f"{base}/pretrain/luciole_serie/luciole_nemotronh8b_phase1",
+            f"{base}/pretrain/luciole_serie/luciole_nemotronh8b_phase2",
+            f"{base}/pretrain/compared_models/OLMo-2-1124-7B",
+            f"{base}/pretrain/compared_models/EuroLLM-9B",
+            f"{base}/pretrain/compared_models/Gaperon-1125-8B",
+            f"{base}/pretrain/compared_models/Apertus-8B-2509",
+            f"{base}/pretrain/compared_models/salamandra-7b",
+            f"{base}/pretrain/compared_models/Lucie-7B",
+        ]
+    elif "23b" in experiment_path:
+        compared_models = [
+            f"{base}/pretrain/luciole_serie/luciolr_nemotron23b_phase1",
+            f"{base}/pretrain/compared_models/OLMo-2-0325-13B",
+            f"{base}/pretrain/compared_models/OLMo-2-0325-32B",
+            f"{base}/pretrain/compared_models/Gaperon-1125-24B",
+        ]
+    else:
+        compared_models = ""
+    if experiment_path not in compared_models:
+        compared_models = [experiment_path] + compared_models
+
     job_script = SBATCH_PLOT_TEMPLATE.format(
-        log_dir=job_dir / "slurm_logs", experiment_path=experiment_path, email=email
+        log_dir=job_dir / "slurm_logs",
+        experiment_path=experiment_path,
+        compared_models=compared_models,
+        email=email,
     )
 
     job_filename = job_dir / "plot_job.slurm"

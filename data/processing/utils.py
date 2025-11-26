@@ -11,6 +11,7 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
 import dataclasses
 import json
+import pyarrow as pa
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 if not MAIN_PATH:
@@ -202,7 +203,27 @@ def _custom_adapter_for_hf(
         "id": id,
         "language": language,
         "text": text,
-        "conversation": conversation,
+        "messages": conversation,
         "metadata": json.dumps(metadata),
     }
     return data
+
+
+HF_SCHEMA = pa.schema(
+    [
+        pa.field("source", pa.string()),
+        pa.field("id", pa.string()),
+        pa.field("language", pa.string()),
+        pa.field("text", pa.string()),
+        pa.field(
+            "messages",
+            pa.list_(
+                pa.struct(
+                    [pa.field("role", pa.string()), pa.field("content", pa.string())]
+                )
+            ),
+            nullable=True,
+        ),
+        pa.field("metadata", pa.string(), nullable=True),
+    ]
+)
