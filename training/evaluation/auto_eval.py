@@ -67,6 +67,10 @@ ATTACHMENTS=""
 for f in "$FOLDER"/*; do
     # Skip if folder is empty or no files match
     [[ -e "$f" ]] || continue
+    # Skip files starting with "all"
+    filename=$(basename "$f")
+    [[ "$filename" == all* ]] && continue
+
     ATTACHMENTS="$ATTACHMENTS -a \"$f\""
 done
 
