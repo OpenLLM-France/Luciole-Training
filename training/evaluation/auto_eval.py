@@ -46,7 +46,7 @@ module purge
 module load anaconda-py3/2024.06
 conda activate eval-env
 
-python plot_results.py {compared_models} --group all en fr multilingual --output_path {experiment_path}/figs
+python plot_results.py {compared_models} --group all en fr multilingual --output_path {experiment_path}/figs --dpi 150
 
 # Variables
 TO="{email}"
@@ -191,7 +191,7 @@ def launch_plot(experiment_path, email="", dependency_job_id=None):
     job_script = SBATCH_PLOT_TEMPLATE.format(
         log_dir=job_dir / "slurm_logs",
         experiment_path=experiment_path,
-        compared_models=compared_models,
+        compared_models=" ".join(compared_models),
         email=email,
     )
 
@@ -199,8 +199,12 @@ def launch_plot(experiment_path, email="", dependency_job_id=None):
     with open(job_filename, "w") as f:
         f.write(job_script)
 
+    command = ["sbatch", str(job_filename)]
+    if dependency_job_id:
+        command.insert(1, f"--dependency=afterok:{dependency_job_id}")
+
     subprocess.run(
-        ["sbatch", f"--dependency=afterok:{dependency_job_id}", str(job_filename)],
+        command,
         check=True,
     )
 
@@ -223,7 +227,7 @@ if __name__ == "__main__":
         "--multiple_of",
         type=int,
         default=1,
-        help="Convert only checkpoints that are multiple of this value",
+        help="Convert and evaluate only checkpoints that are multiple of this value",
     )
     parser.add_argument(
         "--begin",
@@ -258,7 +262,6 @@ if __name__ == "__main__":
     )
 
     # Plot
-    if evaluation_job_id is not None:
-        launch_plot(
-            args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email
-        )
+    launch_plot(
+        args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email
+    )
