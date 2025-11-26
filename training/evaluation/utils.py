@@ -77,6 +77,11 @@ def get_training_tokens_and_model_size(file_path):
     ):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
+        if steps is None:
+            match = re.search(r"_([0-9.]+)-last", str(file_path))
+            steps = float(match.group(1)) if match else None
+            if steps is None:
+                raise ValueError(f"Could not extract steps from file path: {file_path}")
         if "llama1b" in str(file_path):
             model_size = 1.235290112
         elif "nemotron1b" in str(file_path):
