@@ -64,7 +64,10 @@ def assign_colors(df, apply_phase_style=True):
     i = -1
     previous_name = ""
     for name in unique_experiments:
-        if not apply_phase_style or name.split("_phase")[0] != previous_name.split("_phase")[0]:
+        if (
+            not apply_phase_style
+            or name.split("_phase")[0] != previous_name.split("_phase")[0]
+        ):
             i += 1
         previous_name = name
         color_map[name] = colors[i % len(colors)]
@@ -105,11 +108,12 @@ def plot_task(
     xaxis_column = "FLOPs" if flops else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
     if max_tokens:
+
         def truncate_row(row, max_tokens):
             tokens = row["tokens"]
             # find cutoff index where tokens <= max_tokens
             cutoff = sum(t <= max_tokens for t in tokens)
-            
+
             # slice lists accordingly
             row["tokens"] = tokens[:cutoff]
             row["FLOPs"] = row["FLOPs"][:cutoff]
@@ -198,6 +202,7 @@ def plot_list_of_tasks(
     apply_phase_style=True,
     max_tokens=None,
     max_subplot=15,
+    dpi=300,
 ):
     list_of_tasks_to_plot = [
         task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
@@ -231,6 +236,7 @@ def plot_list_of_tasks(
                 flops,
                 apply_phase_style,
                 max_tokens,
+                dpi,
             )
         return
 
@@ -245,7 +251,9 @@ def plot_list_of_tasks(
         axes = [axes]  # wrap single Axes in a list
     else:
         axes = axes.flatten()
-    color_map = assign_colors(df, apply_phase_style=apply_phase_style)  # Global color map
+    color_map = assign_colors(
+        df, apply_phase_style=apply_phase_style
+    )  # Global color map
     style_map = assign_styles(df, apply_phase_style=apply_phase_style)
 
     # Keep track of labels added to the legend
@@ -288,7 +296,7 @@ def plot_list_of_tasks(
         fig.suptitle(title)
     plt.tight_layout()
     if output_file:
-        plt.savefig(output_file, dpi=300)
+        plt.savefig(output_file, dpi=dpi)
         print(f"Saved figure to {output_file}")
 
 
@@ -328,6 +336,7 @@ def plot_experiments(df, args, max_subplot=15):
             max_tokens=args.max_tokens,
             max_subplot=max_subplot,
             apply_phase_style=args.apply_phase_style,
+            dpi=args.dpi,
         )
 
     if not args.output_path:
@@ -407,6 +416,7 @@ if __name__ == "__main__":
         "--max_tokens", type=int, default=None, help="Max tokens to plot (in B)"
     )
     parser.add_argument("--apply_phase_style", action="store_true")
+    parser.add_argument("--dpi", type=int, default=300)
 
     args = parser.parse_args()
 
