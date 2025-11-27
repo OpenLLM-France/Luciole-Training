@@ -149,7 +149,9 @@ def launch_evaluation(
         if job_id is not None:
             job_ids.append(job_id)
 
-    print(f"Launching evaluation for {experiment_path}")
+    print(
+        f"Launching evaluation for {experiment_path} with job ids: {','.join(job_ids)}"
+    )
     return ",".join(job_ids) if job_ids else None
 
 
