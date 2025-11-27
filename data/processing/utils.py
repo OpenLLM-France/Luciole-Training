@@ -146,7 +146,10 @@ def create_parser():
         help="Process a dataset for ablation DEPRECATED",
     )
     parser.add_argument("--local", action="store_true", help="Use a local executor")
-    parser.add_argument("--debug", action="store_true", help="Use a local executor")
+    parser.add_argument("--debug", action="store_true", help="Debug mode")
+    parser.add_argument(
+        "--push_only", action="store_true", help="Only push the data on the hub"
+    )
     parser.add_argument(
         "--sample_rate",
         default=1.0,
@@ -196,8 +199,9 @@ def _custom_adapter_for_hf(
         language = metadata.pop(language_key, language)
     conversation = metadata.pop(conversation_key, None) if conversation_key else None
     text = document.text
+    remove_keys.append("file_path")
     for key in remove_keys:
-        metadata.pop(key)
+        metadata.pop(key, None)
     data = {
         "source": source,
         "id": id,
