@@ -173,15 +173,23 @@ def get_hf_model(hf_model):
     return checkpoints, revisions, ckpt_dir
 
 
-def get_checkpoints_and_revisions(experiment_path, hf_model=None):
+def get_checkpoints_and_revisions(
+    experiment_path, hf_model=None, infer_ckpt_name=False
+):
     if hf_model is not None:
         checkpoints, revisions, ckpt_dir = get_hf_model(hf_model)
     else:
-        ckpt_dir = experiment_path / "huggingface_checkpoints"
+        hf_dir = experiment_path / "huggingface_checkpoints"
+        if infer_ckpt_name:
+            # Infer name of ckpt based on nemo checkpoints instead of HF conversion (needed in auto_eval.py dependency)
+            experiment_name = experiment_path.name
+            ckpt_dir = experiment_path / experiment_name / "checkpoints"
+        else:
+            ckpt_dir = hf_dir
         assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
         checkpoints = sorted([d for d in ckpt_dir.iterdir() if d.is_dir()])  # [::-1]
         revisions = ["" for _ in checkpoints]
-    return checkpoints, revisions, ckpt_dir
+    return checkpoints, revisions, hf_dir
 
 
 def get_step(text):
@@ -211,6 +219,7 @@ def launch_evaluation(
     gpu="h100",
     gpus=1,
     dry_run=False,
+    infer_ckpt_name=False,
 ):
     import subprocess
     from pathlib import Path
@@ -221,7 +230,7 @@ def launch_evaluation(
     print(f"# Task to evaluate: {task_to_evaluate}")
 
     checkpoints, revisions, ckpt_dir = get_checkpoints_and_revisions(
-        experiment_path, hf_model
+        experiment_path, hf_model, infer_ckpt_name
     )
     if last_checkpoint_only:
         checkpoints = [checkpoints[-1]]

@@ -144,6 +144,7 @@ def launch_evaluation(
             **command,
             dependency=dependency_job_id,
             force=force,
+            infer_ckpt_name=True,
         )
         if job_id is not None:
             job_ids.append(job_id)
