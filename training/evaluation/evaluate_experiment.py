@@ -184,10 +184,16 @@ def get_checkpoints_and_revisions(
             # Infer name of ckpt based on nemo checkpoints instead of HF conversion (needed in auto_eval.py dependency)
             experiment_name = experiment_path.name
             ckpt_dir = experiment_path / experiment_name / "checkpoints"
+            assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
+            checkpoints = sorted(
+                [d.replace("=", "_") for d in ckpt_dir.iterdir() if d.is_dir()]
+            )  # [::-1]
         else:
             ckpt_dir = hf_dir
-        assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
-        checkpoints = sorted([d for d in ckpt_dir.iterdir() if d.is_dir()])  # [::-1]
+            assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
+            checkpoints = sorted(
+                [d for d in ckpt_dir.iterdir() if d.is_dir()]
+            )  # [::-1]
         revisions = ["" for _ in checkpoints]
     return checkpoints, revisions, hf_dir
 
