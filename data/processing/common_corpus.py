@@ -48,40 +48,16 @@ def additionnal_formatting(doc):
 
 DATASETS = {
     "culture": [
-        "arabic-pd",
         "bnl-newspapers-1841-1879",
-        "catalan-pd",
-        "dutch-pd",
-        "english-pd",
-        "europeana",
-        "german-pd",
-        "german-pd-newspapers",
-        "italian-pd",
-        "multilingual-pd",
-        "portuguese-pd",
-        "spanish-pd-books",
-        "spanish-pd-newspapers",
-        "us-pd-books",
     ],
     "government": [
         "eurlex",
-        "french-open-data",
-        "gatt-library",
-        "marianne-europe",
-        "oecd",
-        "sec",
-        "tedeutenders",
-        "un-digital-library",
         "wto",
-    ],
-    "science": [
-        "french-science-pile",
-        "german-science-pile",
-        "open-science-pile",
-        "spanish-science-pile",
+        "oecd",
+        "gatt-library",
+        "tedeutenders",
     ],
 }
-
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -179,7 +155,53 @@ if __name__ == "__main__":
                 cpus_per_task=2,
                 tasks=tasks,
                 time="20:00:00",
-                # depends_job_id=""
             )
 
-            filter_executor.run()
+            ############
+            # Push to Hub
+            ############
+            from datatrove.pipeline.readers import JsonlReader
+            from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+            from utils import _custom_adapter_for_hf, HF_SCHEMA
+            from functools import partial
+
+            pipeline = [
+                JsonlReader(
+                    f"{DATA_PATH}/common_corpus_filtered/data/{open_type}/{collection}"
+                ),
+                HuggingFaceDatasetWriter(
+                    dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                    + ("-debug" if args.debug else ""),
+                    private=True,
+                    local_working_dir=f"{DATA_PATH}/common_corpus_filtered/data_hf/{open_type}/{collection}",
+                    output_filename=f"data/common_corpus/open-{open_type}/{collection}/"
+                    + "${language}/${rank}.parquet",
+                    adapter=partial(
+                        _custom_adapter_for_hf,
+                        source=f"common_corpus/open-{open_type}/{collection}",
+                        id_key=None,
+                        language=None,
+                        language_key="language",
+                        conversation_key=None,
+                        remove_keys=["token_counts", "char_counts", "token_per_chars"],
+                    ),
+                    cleanup=True,
+                    expand_metadata=False,
+                    schema=HF_SCHEMA,
+                ),
+            ]
+
+            hf_executor = create_executor(
+                pipeline,
+                local=args.local,
+                debug=args.debug,
+                logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_hf/{open_type}/{collection}",
+                job_name="hf_cc",
+                tasks=5,
+                workers=1,
+                time="20:00:00",
+                skip_completed=not args.force,
+                depends=None if args.push_only else filter_executor,
+            )
+
+            hf_executor.run()

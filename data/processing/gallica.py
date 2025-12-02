@@ -94,6 +94,51 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{output_path}/logs",
         job_name=args.name,
-        # depends_job_id="1602437:1602429:1602423:1602449"
     )
-    main_processing_executor.run()
+    # main_processing_executor.run()
+
+    ############
+    # Push to Hub
+    ############
+    from datatrove.pipeline.readers import JsonlReader
+    from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+    from utils import _custom_adapter_for_hf, HF_SCHEMA
+    from functools import partial
+
+    pipeline = [
+        JsonlReader(
+            f"{output_path}/data",
+        ),
+        HuggingFaceDatasetWriter(
+            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            + ("-debug" if args.debug else ""),
+            private=True,
+            local_working_dir=f"{output_path}/data_hf",
+            output_filename=f"data/gallica/{args.name}/fr/" + "${rank}.parquet",
+            adapter=partial(
+                _custom_adapter_for_hf,
+                source=f"gallica_{args.name}",
+                id_key=None,
+                language="fr",
+                language_key=None,
+                conversation_key=None,
+                remove_keys=["token_counts", "char_counts", "token_per_chars"],
+            ),
+            cleanup=True,
+            expand_metadata=False,
+            schema=HF_SCHEMA,
+        ),
+    ]
+
+    hf_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{output_path}/logs_hf",
+        job_name="hf",
+        tasks=5,
+        skip_completed=not args.force,
+        depends=None if args.push_only else main_processing_executor,
+    )
+
+    hf_executor.run()

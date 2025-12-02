@@ -102,6 +102,7 @@ def get_pii_formatter(language):
 
 
 map_language_to_iso = {
+    "eng_Latn": "en",
     "fra_Latn": "fr",
     "ita_Latn": "it",
     "spa_Latn": "es",
@@ -109,6 +110,7 @@ map_language_to_iso = {
     "nld_Latn": "nl",
     "por_Latn": "pt",
     "arb_Arab": "ar",
+    "eus": "eu",
 }
 map_iso_to_language = {v: k for k, v in map_language_to_iso.items()}
 

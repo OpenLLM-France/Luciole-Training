@@ -95,7 +95,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         )
     else:
         tasks = kwargs.pop("tasks", 50)
-        time = kwargs.pop("time", "05:00:00")
+        time = kwargs.pop("time", "20:00:00")
         qos = kwargs.pop("qos", "qos_cpu-t3")
         partition = kwargs.pop("partition", "prepost")
         cpus_per_task = kwargs.pop("cpus_per_task", 1)
@@ -149,6 +149,9 @@ def create_parser():
     parser.add_argument("--debug", action="store_true", help="Debug mode")
     parser.add_argument(
         "--push_only", action="store_true", help="Only push the data on the hub"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Force and ignore completed tasks"
     )
     parser.add_argument(
         "--sample_rate",

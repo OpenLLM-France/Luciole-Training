@@ -47,9 +47,69 @@ if __name__ == "__main__":
     main_processing_executor = create_executor(
         pipeline,
         local=args.local,
+        debug=args.debug,
         logging_dir=os.path.join(output_path, "logs"),
         job_name=dataset_name,
         tasks=50,
     )
 
-    main_processing_executor.run()
+    # main_processing_executor.run()
+
+    ############
+    # Push to Hub
+    ############
+    from datatrove.pipeline.readers import JsonlReader
+    from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+    from utils import _custom_adapter_for_hf, HF_SCHEMA
+    from functools import partial
+
+    def fix_data(data: DocumentsPipeline, rank: int = 0, world_size: int = 1):
+        from web_utils import map_language_to_iso
+
+        map_language_to_iso = {
+            k.split("_")[0]: v for k, v in map_language_to_iso.items()
+        }
+        for doc in data:
+            doc.metadata.pop("targets")
+            doc.metadata["language"] = map_language_to_iso.get(
+                doc.metadata.pop("language_code")
+            )
+            yield doc
+
+    pipeline = [
+        JsonlReader(
+            f"{output_path}/data",
+        ),
+        fix_data,
+        HuggingFaceDatasetWriter(
+            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            + ("-debug" if args.debug else ""),
+            private=True,
+            local_working_dir=f"{output_path}/data_hf",
+            output_filename="data/aya/" + "${language}/${rank}.parquet",
+            adapter=partial(
+                _custom_adapter_for_hf,
+                source="aya_dataset",
+                id_key=None,
+                language=None,
+                language_key="language",
+                conversation_key=None,
+                remove_keys=[],
+            ),
+            cleanup=True,
+            expand_metadata=False,
+            schema=HF_SCHEMA,
+        ),
+    ]
+
+    hf_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{output_path}/logs_hf",
+        job_name="hf_aya",
+        tasks=1,
+        depends=None if args.push_only else main_processing_executor,
+    )
+
+    hf_executor.run()

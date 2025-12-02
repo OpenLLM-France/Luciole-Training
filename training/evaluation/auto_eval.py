@@ -246,7 +246,7 @@ if __name__ == "__main__":
         "--email",
         type=str,
         default="",
-        help="Email to send final figures",
+        help="Email to send final figures (use spacing if you have more than one recipient)",
     )
     parser.add_argument(
         "--force",
