@@ -188,6 +188,9 @@ def get_checkpoints_and_revisions(
             checkpoints = sorted(
                 [d.name.replace("=", "_") for d in ckpt_dir.iterdir() if d.is_dir()]
             )  # [::-1]
+            checkpoints = [
+                d for d in checkpoints if not d.endswith("-last")
+            ]
         else:
             ckpt_dir = hf_dir
             assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
