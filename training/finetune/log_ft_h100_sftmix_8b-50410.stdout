@@ -1,0 +1,490 @@
+[NeMo I 2025-12-03 09:56:27 nemo_logging:393] Getting HuggingFace AutoTokenizer with pretrained_model_name: /lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_tokenizer_instruct_new/, vocab_file: None,  merges_files: None, special_tokens_dict: {}, and use_fast: True
+[NeMo I 2025-12-03 09:56:28 nemo_logging:393] Getting HuggingFace AutoTokenizer with pretrained_model_name: nvidia/Nemotron-H-8B-Base-8K
+[NeMo I 2025-12-03 09:56:28 nemo_logging:393] Experiments will be logged at /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/sftmix_test_8b/2025-12-03_09-56-28
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Fixing mis-match between ddp-config & mcore-optimizer config
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has data parallel group : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has combined group of data parallel and context parallel : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] All data parallel group ranks with context parallel combined: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Ranks 0 has data parallel rank: 0
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has context parallel group: [0]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] All context parallel group ranks: [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Ranks 0 has context parallel rank: 0
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has model parallel group: [0]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] All model parallel group ranks: [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has tensor model parallel group: [0]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] All tensor model parallel group ranks: [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has tensor model parallel rank: 0
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has pipeline model parallel group: [0]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has embedding group: [0]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] All pipeline model parallel group ranks: [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has pipeline model parallel rank 0
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] All embedding group ranks: [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]]
+[NeMo I 2025-12-03 09:56:29 nemo_logging:393] Rank 0 has embedding rank: 0
+[Gloo] Rank 14 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 12 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 13 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 15 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 0 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 1 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 2 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 3 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 4 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 5 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 6 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 8 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 10 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 7 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 9 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 11 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 0 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 1 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 2 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 3 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 15 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 4 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 5 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 12 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 14 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 13 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 6 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 8 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 9 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 11 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 10 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 7 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 2 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 0 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 6 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 5 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 4 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 7 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 3 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 1 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 11 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank [Gloo] Rank 108 is connected to  is connected to 1515 peer ranks. Expected number of connected peer ranks is :  peer ranks. 15Expected number of connected peer ranks is : 
+15
+[Gloo] Rank 9 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 12 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15[Gloo] Rank 
+14 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 15 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 13 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 0 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 1 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 2 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 3 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 4 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 5 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 6 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 7 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 12 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 8 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 9 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 10 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 11 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank 13 is connected to 15 peer ranks. Expected number of connected peer ranks is : 15
+[Gloo] Rank [Gloo] Rank 14 is connected to 15 peer ranks. Expected number of connected peer ranks is : 1515 is connected to 15
+ peer ranks. Expected number of connected peer ranks is : 15
+[NeMo I 2025-12-03 09:56:33 nemo_logging:393] Padded vocab_size: 128000, original vocab_size: 128000, dummy tokens: 0.
+[NeMo I 2025-12-03 09:56:33 utils:661] Using hybrid override pattern
+[NeMo I 2025-12-03 09:56:33 utils:661] Warning: overriding pattern A with pattern B
+[NeMo I 2025-12-03 09:56:33 utils:661] A: MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+[NeMo I 2025-12-03 09:56:33 utils:661] B: M-M-M-M*-M-M-M-M-M*-M-M-M-M-M*-M-M-M-M-M*-M-M-M-M-M-
+[NeMo I 2025-12-03 09:56:33 utils:661] Hybrid allocation (M is mamba, * is attention, - is mlp):
+[NeMo I 2025-12-03 09:56:33 utils:661] M-M-M-M*-M-M-M-M-M*-M-M-M-M-M*-M-M-M-M-M*-M-M-M-M-M-
+[NeMo I 2025-12-03 09:56:33 utils:661] 4 attention layers in 52 total layers.
+[NeMo I 2025-12-03 09:56:33 utils:661] Target attention ratio: 0.00. Actual attention ratio: 0.08.
+[NeMo I 2025-12-03 09:56:33 utils:661] 24 mlp layers in 52 total layers.
+[NeMo I 2025-12-03 09:56:33 utils:661] Target mlp ratio: 0.00. Actual mlp ratio: 0.46.
+[NeMo I 2025-12-03 09:56:33 nemo_logging:393] Copying Trainer's 'max_steps' (2000) to LR scheduler's 'max_steps'.
+[NeMo I 2025-12-03 09:56:33 num_microbatches_calculator:228] setting number of microbatches to constant 2
+[NeMo I 2025-12-03 09:56:33 nemo_logging:393]  > number of parameters on (tensor, pipeline) model parallel rank (0 ,0): 8075686912
+[NeMo I 2025-12-03 09:56:33 utils:661] Setting up DistributedDataParallel with config DistributedDataParallelConfig(grad_reduce_in_fp32=True, overlap_grad_reduce=True, overlap_param_gather=True, align_param_gather=False, use_distributed_optimizer=True, num_distributed_optimizer_instances=1, check_for_nan_in_grad=True, check_for_large_grads=False, bucket_size=134217728, pad_buckets_for_high_nccl_busbw=False, average_in_collective=False, fp8_param_gather=False, reuse_grad_buf_for_mxfp8_param_ag=False, use_custom_fsdp=False, data_parallel_sharding_strategy='no_shard', gradient_reduce_div_fusion=True, suggested_communication_unit_size=None, preserve_fp32_weights=True, keep_fp8_transpose_cache_when_using_custom_fsdp=False, nccl_ub=False, fsdp_double_buffer=False)
+[NeMo I 2025-12-03 09:56:33 utils:682] Number of buckets for gradient all-reduce / reduce-scatter: 40
+    Params for bucket 1 (524288000 elements, 524288000 padded size):
+    	module.output_layer.weight
+    Params for bucket 2 (176164864 elements, 176164864 padded size):
+    	module.decoder.final_norm.weight
+    	module.decoder.layers.51.mlp.linear_fc2.weight
+    	module.decoder.layers.51.mlp.linear_fc1.weight
+    Params for bucket 3 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.50.mixer.norm.weight
+    	module.decoder.layers.50.mixer.in_proj.weight
+    	module.decoder.layers.50.mixer.dt_bias
+    	module.decoder.layers.49.mlp.linear_fc2.weight
+    	module.decoder.layers.51.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.50.mixer.conv1d.weight
+    	module.decoder.layers.50.mixer.out_proj.weight
+    	module.decoder.layers.50.mixer.conv1d.bias
+    	module.decoder.layers.50.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.50.mixer.D
+    	module.decoder.layers.50.mixer.A_log
+    Params for bucket 4 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.49.mlp.linear_fc1.weight
+    	module.decoder.layers.48.mixer.norm.weight
+    	module.decoder.layers.48.mixer.in_proj.weight
+    	module.decoder.layers.49.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.48.mixer.out_proj.weight
+    	module.decoder.layers.48.mixer.conv1d.bias
+    	module.decoder.layers.48.mixer.conv1d.weight
+    Params for bucket 5 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.48.mixer.dt_bias
+    	module.decoder.layers.47.mlp.linear_fc2.weight
+    	module.decoder.layers.47.mlp.linear_fc1.weight
+    	module.decoder.layers.48.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.48.mixer.A_log
+    	module.decoder.layers.48.mixer.D
+    Params for bucket 6 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.46.mixer.norm.weight
+    	module.decoder.layers.46.mixer.in_proj.weight
+    	module.decoder.layers.46.mixer.dt_bias
+    	module.decoder.layers.45.mlp.linear_fc2.weight
+    	module.decoder.layers.47.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.46.mixer.conv1d.weight
+    	module.decoder.layers.46.mixer.out_proj.weight
+    	module.decoder.layers.46.mixer.conv1d.bias
+    	module.decoder.layers.46.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.46.mixer.D
+    	module.decoder.layers.46.mixer.A_log
+    Params for bucket 7 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.45.mlp.linear_fc1.weight
+    	module.decoder.layers.44.mixer.norm.weight
+    	module.decoder.layers.44.mixer.in_proj.weight
+    	module.decoder.layers.45.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.44.mixer.out_proj.weight
+    	module.decoder.layers.44.mixer.conv1d.bias
+    	module.decoder.layers.44.mixer.conv1d.weight
+    Params for bucket 8 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.44.mixer.dt_bias
+    	module.decoder.layers.43.mlp.linear_fc2.weight
+    	module.decoder.layers.43.mlp.linear_fc1.weight
+    	module.decoder.layers.44.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.44.mixer.A_log
+    	module.decoder.layers.44.mixer.D
+    Params for bucket 9 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.42.mixer.norm.weight
+    	module.decoder.layers.42.mixer.in_proj.weight
+    	module.decoder.layers.42.mixer.dt_bias
+    	module.decoder.layers.41.mlp.linear_fc2.weight
+    	module.decoder.layers.43.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.42.mixer.out_proj.weight
+    	module.decoder.layers.42.mixer.conv1d.weight
+    	module.decoder.layers.42.mixer.conv1d.bias
+    	module.decoder.layers.42.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.42.mixer.D
+    	module.decoder.layers.42.mixer.A_log
+    Params for bucket 10 (163586048 elements, 163586048 padded size):
+    	module.decoder.layers.40.self_attention.linear_proj.weight
+    	module.decoder.layers.40.self_attention.linear_qkv.weight
+    	module.decoder.layers.40.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.39.mixer.out_proj.weight
+    	module.decoder.layers.41.mlp.linear_fc1.weight
+    	module.decoder.layers.41.mlp.linear_fc1.layer_norm_weight
+    Params for bucket 11 (164166016 elements, 164166016 padded size):
+    	module.decoder.layers.39.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.39.mixer.conv1d.bias
+    	module.decoder.layers.39.mixer.conv1d.weight
+    	module.decoder.layers.39.mixer.D
+    	module.decoder.layers.39.mixer.A_log
+    	module.decoder.layers.39.mixer.norm.weight
+    	module.decoder.layers.39.mixer.in_proj.weight
+    	module.decoder.layers.39.mixer.dt_bias
+    	module.decoder.layers.38.mlp.linear_fc2.weight
+    Params for bucket 12 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.37.mixer.conv1d.bias
+    	module.decoder.layers.37.mixer.out_proj.weight
+    	module.decoder.layers.38.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.37.mixer.conv1d.weight
+    	module.decoder.layers.38.mlp.linear_fc1.weight
+    	module.decoder.layers.37.mixer.norm.weight
+    	module.decoder.layers.37.mixer.in_proj.weight
+    Params for bucket 13 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.37.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.37.mixer.D
+    	module.decoder.layers.37.mixer.A_log
+    	module.decoder.layers.37.mixer.dt_bias
+    	module.decoder.layers.36.mlp.linear_fc2.weight
+    	module.decoder.layers.36.mlp.linear_fc1.weight
+    Params for bucket 14 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.36.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.35.mixer.conv1d.bias
+    	module.decoder.layers.35.mixer.out_proj.weight
+    	module.decoder.layers.35.mixer.conv1d.weight
+    	module.decoder.layers.35.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.35.mixer.D
+    	module.decoder.layers.35.mixer.A_log
+    	module.decoder.layers.35.mixer.norm.weight
+    	module.decoder.layers.35.mixer.in_proj.weight
+    	module.decoder.layers.35.mixer.dt_bias
+    	module.decoder.layers.34.mlp.linear_fc2.weight
+    Params for bucket 15 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.33.mixer.conv1d.bias
+    	module.decoder.layers.33.mixer.out_proj.weight
+    	module.decoder.layers.34.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.33.mixer.conv1d.weight
+    	module.decoder.layers.34.mlp.linear_fc1.weight
+    	module.decoder.layers.33.mixer.norm.weight
+    	module.decoder.layers.33.mixer.in_proj.weight
+    Params for bucket 16 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.33.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.33.mixer.D
+    	module.decoder.layers.33.mixer.A_log
+    	module.decoder.layers.33.mixer.dt_bias
+    	module.decoder.layers.32.mlp.linear_fc2.weight
+    	module.decoder.layers.32.mlp.linear_fc1.weight
+    Params for bucket 17 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.32.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.31.mixer.conv1d.bias
+    	module.decoder.layers.31.mixer.out_proj.weight
+    	module.decoder.layers.31.mixer.conv1d.weight
+    	module.decoder.layers.31.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.31.mixer.D
+    	module.decoder.layers.31.mixer.A_log
+    	module.decoder.layers.31.mixer.norm.weight
+    	module.decoder.layers.31.mixer.in_proj.weight
+    	module.decoder.layers.31.mixer.dt_bias
+    	module.decoder.layers.30.mlp.linear_fc2.weight
+    Params for bucket 18 (163586048 elements, 163586048 padded size):
+    	module.decoder.layers.30.mlp.linear_fc1.weight
+    	module.decoder.layers.30.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.29.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.29.self_attention.linear_proj.weight
+    	module.decoder.layers.29.self_attention.linear_qkv.weight
+    	module.decoder.layers.28.mixer.out_proj.weight
+    Params for bucket 19 (164166016 elements, 164166016 padded size):
+    	module.decoder.layers.28.mixer.in_proj.weight
+    	module.decoder.layers.28.mixer.D
+    	module.decoder.layers.28.mixer.dt_bias
+    	module.decoder.layers.27.mlp.linear_fc2.weight
+    	module.decoder.layers.28.mixer.norm.weight
+    	module.decoder.layers.28.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.28.mixer.conv1d.bias
+    	module.decoder.layers.28.mixer.conv1d.weight
+    	module.decoder.layers.28.mixer.A_log
+    Params for bucket 20 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.27.mlp.linear_fc1.weight
+    	module.decoder.layers.26.mixer.norm.weight
+    	module.decoder.layers.26.mixer.in_proj.weight
+    	module.decoder.layers.27.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.26.mixer.conv1d.bias
+    	module.decoder.layers.26.mixer.out_proj.weight
+    	module.decoder.layers.26.mixer.conv1d.weight
+    Params for bucket 21 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.25.mlp.linear_fc2.weight
+    	module.decoder.layers.26.mixer.dt_bias
+    	module.decoder.layers.26.mixer.D
+    	module.decoder.layers.25.mlp.linear_fc1.weight
+    	module.decoder.layers.26.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.26.mixer.A_log
+    Params for bucket 22 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.24.mixer.norm.weight
+    	module.decoder.layers.24.mixer.in_proj.weight
+    	module.decoder.layers.24.mixer.D
+    	module.decoder.layers.24.mixer.dt_bias
+    	module.decoder.layers.23.mlp.linear_fc2.weight
+    	module.decoder.layers.25.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.24.mixer.conv1d.bias
+    	module.decoder.layers.24.mixer.out_proj.weight
+    	module.decoder.layers.24.mixer.conv1d.weight
+    	module.decoder.layers.24.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.24.mixer.A_log
+    Params for bucket 23 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.23.mlp.linear_fc1.weight
+    	module.decoder.layers.22.mixer.norm.weight
+    	module.decoder.layers.22.mixer.in_proj.weight
+    	module.decoder.layers.22.mixer.conv1d.bias
+    	module.decoder.layers.23.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.22.mixer.out_proj.weight
+    	module.decoder.layers.22.mixer.conv1d.weight
+    Params for bucket 24 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.22.mixer.dt_bias
+    	module.decoder.layers.22.mixer.D
+    	module.decoder.layers.22.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.21.mlp.linear_fc2.weight
+    	module.decoder.layers.22.mixer.A_log
+    	module.decoder.layers.21.mlp.linear_fc1.weight
+    Params for bucket 25 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.20.mixer.conv1d.weight
+    	module.decoder.layers.20.mixer.out_proj.weight
+    	module.decoder.layers.20.mixer.conv1d.bias
+    	module.decoder.layers.20.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.20.mixer.A_log
+    	module.decoder.layers.21.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.20.mixer.norm.weight
+    	module.decoder.layers.20.mixer.in_proj.weight
+    	module.decoder.layers.20.mixer.D
+    	module.decoder.layers.20.mixer.dt_bias
+    	module.decoder.layers.19.mlp.linear_fc2.weight
+    Params for bucket 26 (163586048 elements, 163586048 padded size):
+    	module.decoder.layers.19.mlp.linear_fc1.weight
+    	module.decoder.layers.18.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.19.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.18.self_attention.linear_qkv.weight
+    	module.decoder.layers.17.mixer.out_proj.weight
+    	module.decoder.layers.18.self_attention.linear_proj.weight
+    Params for bucket 27 (164166016 elements, 164166016 padded size):
+    	module.decoder.layers.17.mixer.conv1d.bias
+    	module.decoder.layers.17.mixer.conv1d.weight
+    	module.decoder.layers.17.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.17.mixer.A_log
+    	module.decoder.layers.17.mixer.norm.weight
+    	module.decoder.layers.17.mixer.in_proj.weight
+    	module.decoder.layers.17.mixer.D
+    	module.decoder.layers.17.mixer.dt_bias
+    	module.decoder.layers.16.mlp.linear_fc2.weight
+    Params for bucket 28 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.15.mixer.out_proj.weight
+    	module.decoder.layers.15.mixer.conv1d.bias
+    	module.decoder.layers.16.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.15.mixer.conv1d.weight
+    	module.decoder.layers.16.mlp.linear_fc1.weight
+    	module.decoder.layers.15.mixer.norm.weight
+    	module.decoder.layers.15.mixer.in_proj.weight
+    Params for bucket 29 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.15.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.15.mixer.A_log
+    	module.decoder.layers.15.mixer.D
+    	module.decoder.layers.15.mixer.dt_bias
+    	module.decoder.layers.14.mlp.linear_fc2.weight
+    	module.decoder.layers.14.mlp.linear_fc1.weight
+    Params for bucket 30 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.14.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.13.mixer.out_proj.weight
+    	module.decoder.layers.13.mixer.conv1d.weight
+    	module.decoder.layers.13.mixer.conv1d.bias
+    	module.decoder.layers.13.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.13.mixer.A_log
+    	module.decoder.layers.13.mixer.norm.weight
+    	module.decoder.layers.13.mixer.in_proj.weight
+    	module.decoder.layers.13.mixer.D
+    	module.decoder.layers.13.mixer.dt_bias
+    	module.decoder.layers.12.mlp.linear_fc2.weight
+    Params for bucket 31 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.11.mixer.out_proj.weight
+    	module.decoder.layers.12.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.11.mixer.conv1d.bias
+    	module.decoder.layers.11.mixer.conv1d.weight
+    	module.decoder.layers.12.mlp.linear_fc1.weight
+    	module.decoder.layers.11.mixer.norm.weight
+    	module.decoder.layers.11.mixer.in_proj.weight
+    Params for bucket 32 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.11.mixer.A_log
+    	module.decoder.layers.10.mlp.linear_fc2.weight
+    	module.decoder.layers.11.mixer.dt_bias
+    	module.decoder.layers.11.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.11.mixer.D
+    	module.decoder.layers.10.mlp.linear_fc1.weight
+    Params for bucket 33 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.10.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.9.mixer.conv1d.bias
+    	module.decoder.layers.9.mixer.out_proj.weight
+    	module.decoder.layers.9.mixer.conv1d.weight
+    	module.decoder.layers.9.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.9.mixer.A_log
+    	module.decoder.layers.9.mixer.norm.weight
+    	module.decoder.layers.9.mixer.in_proj.weight
+    	module.decoder.layers.9.mixer.D
+    	module.decoder.layers.9.mixer.dt_bias
+    	module.decoder.layers.8.mlp.linear_fc2.weight
+    Params for bucket 34 (163586048 elements, 163586048 padded size):
+    	module.decoder.layers.8.mlp.linear_fc1.weight
+    	module.decoder.layers.7.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.7.self_attention.linear_proj.weight
+    	module.decoder.layers.8.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.7.self_attention.linear_qkv.weight
+    	module.decoder.layers.6.mixer.out_proj.weight
+    Params for bucket 35 (164166016 elements, 164166016 padded size):
+    	module.decoder.layers.6.mixer.in_proj.weight
+    	module.decoder.layers.6.mixer.dt_bias
+    	module.decoder.layers.5.mlp.linear_fc2.weight
+    	module.decoder.layers.6.mixer.norm.weight
+    	module.decoder.layers.6.mixer.conv1d.bias
+    	module.decoder.layers.6.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.6.mixer.conv1d.weight
+    	module.decoder.layers.6.mixer.D
+    	module.decoder.layers.6.mixer.A_log
+    Params for bucket 36 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.5.mlp.linear_fc1.weight
+    	module.decoder.layers.4.mixer.norm.weight
+    	module.decoder.layers.4.mixer.conv1d.weight
+    	module.decoder.layers.4.mixer.in_proj.weight
+    	module.decoder.layers.4.mixer.conv1d.bias
+    	module.decoder.layers.4.mixer.out_proj.weight
+    	module.decoder.layers.5.mlp.linear_fc1.layer_norm_weight
+    Params for bucket 37 (176165248 elements, 176165248 padded size):
+    	module.decoder.layers.4.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.4.mixer.D
+    	module.decoder.layers.4.mixer.A_log
+    	module.decoder.layers.4.mixer.dt_bias
+    	module.decoder.layers.3.mlp.linear_fc2.weight
+    	module.decoder.layers.3.mlp.linear_fc1.weight
+    Params for bucket 38 (197724544 elements, 197724544 padded size):
+    	module.decoder.layers.3.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.2.mixer.out_proj.weight
+    	module.decoder.layers.2.mixer.conv1d.bias
+    	module.decoder.layers.2.mixer.conv1d.weight
+    	module.decoder.layers.2.mixer.in_proj.layer_norm_weight
+    	module.decoder.layers.2.mixer.D
+    	module.decoder.layers.2.mixer.A_log
+    	module.decoder.layers.2.mixer.norm.weight
+    	module.decoder.layers.2.mixer.in_proj.weight
+    	module.decoder.layers.2.mixer.dt_bias
+    	module.decoder.layers.1.mlp.linear_fc2.weight
+    Params for bucket 39 (197720064 elements, 197720064 padded size):
+    	module.decoder.layers.1.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.0.mixer.conv1d.bias
+    	module.decoder.layers.0.mixer.out_proj.weight
+    	module.decoder.layers.0.mixer.norm.weight
+    	module.decoder.layers.0.mixer.in_proj.weight
+    	module.decoder.layers.1.mlp.linear_fc1.weight
+    	module.decoder.layers.0.mixer.conv1d.weight
+    Params for bucket 40 (524292480 elements, 524292480 padded size):
+    	module.decoder.layers.0.mixer.in_proj.layer_norm_weight
+    	module.embedding.word_embeddings.weight
+    	module.decoder.layers.0.mixer.D
+    	module.decoder.layers.0.mixer.A_log
+    	module.decoder.layers.0.mixer.dt_bias
+[NeMo I 2025-12-03 09:56:33 utils:661] Setting up optimizer with config OptimizerConfig(optimizer='adam', lr=5e-06, min_lr=None, decoupled_lr=None, decoupled_min_lr=None, weight_decay=0.1, fp8_recipe='delayed', fp16=False, bf16=True, reuse_grad_buf_for_mxfp8_param_ag=False, params_dtype=torch.bfloat16, use_precision_aware_optimizer=False, store_param_remainders=True, main_grads_dtype=torch.float32, main_params_dtype=torch.float32, exp_avg_dtype=torch.float32, exp_avg_sq_dtype=torch.float32, loss_scale=None, initial_loss_scale=4294967296, min_loss_scale=1.0, loss_scale_window=1000, hysteresis=2, adam_beta1=0.9, adam_beta2=0.95, adam_eps=1e-05, sgd_momentum=0.9, use_distributed_optimizer=True, overlap_param_gather_with_optimizer_step=False, optimizer_cpu_offload=False, optimizer_offload_fraction=0.0, use_torch_optimizer_for_cpu_offload=False, overlap_cpu_optimizer_d2h_h2d=False, pin_cpu_grads=True, pin_cpu_params=True, clip_grad=1.0, log_num_zeros_in_grad=False, barrier_with_L1_time=False, timers=None, config_logger_dir='')
+[NeMo I 2025-12-03 09:56:33 nemo_logging:393] Doing selective restore from RestoreConfig(path='/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last', load_model_state=True, load_optim_state=False, load_artifacts=True)
+[NeMo I 2025-12-03 09:56:33 nemo_logging:393] Using <megatron.core.dist_checkpointing.strategies.fully_parallel.FullyParallelLoadStrategyWrapper object at 0x14d16c0813d0> dist-ckpt load strategy.
+[NeMo I 2025-12-03 09:56:44 nemo_logging:393] Global Checkpoint Load : Rank : 0 : Start time : 1764752193.615s : Time spent in load_checkpoint: 10.676s
+[NeMo I 2025-12-03 09:56:44 nemo_logging:393] Restoring model weights from RestoreConfig(path='/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last', load_model_state=True, load_optim_state=False, load_artifacts=True)
+[NeMo I 2025-12-03 09:56:44 nemo_logging:393] Finished restoring from RestoreConfig(path='/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last', load_model_state=True, load_optim_state=False, load_artifacts=True), cleaning up.
+Training epoch 0, iteration 0/1999 | lr: 9.804e-08 | global_batch_size: 32 | global_step: 0 | reduced_train_loss: 2.684 | train_step_timing in s: 20.63
+Training epoch 0, iteration 1/1999 | lr: 1.961e-07 | global_batch_size: 32 | global_step: 1 | reduced_train_loss: 2.857 | train_step_timing in s: 7.238 | consumed_samples: 64
+Training epoch 0, iteration 2/1999 | lr: 2.941e-07 | global_batch_size: 32 | global_step: 2 | reduced_train_loss: 2.049 | train_step_timing in s: 0.6594 | consumed_samples: 96
+Training epoch 0, iteration 3/1999 | lr: 3.922e-07 | global_batch_size: 32 | global_step: 3 | reduced_train_loss: 1.982 | train_step_timing in s: 0.5289 | consumed_samples: 128
+Training epoch 0, iteration 4/1999 | lr: 4.902e-07 | global_batch_size: 32 | global_step: 4 | reduced_train_loss: 2.734 | train_step_timing in s: 0.5736 | consumed_samples: 160
+Training epoch 0, iteration 5/1999 | lr: 5.882e-07 | global_batch_size: 32 | global_step: 5 | reduced_train_loss: 1.648 | train_step_timing in s: 0.7065 | consumed_samples: 192
+Training epoch 0, iteration 6/1999 | lr: 6.863e-07 | global_batch_size: 32 | global_step: 6 | reduced_train_loss: 2.324 | train_step_timing in s: 0.5984 | consumed_samples: 224
+Training epoch 0, iteration 7/1999 | lr: 7.843e-07 | global_batch_size: 32 | global_step: 7 | reduced_train_loss: 2.783 | train_step_timing in s: 0.5647 | consumed_samples: 256
+Training epoch 0, iteration 8/1999 | lr: 8.824e-07 | global_batch_size: 32 | global_step: 8 | reduced_train_loss: 2.92 | train_step_timing in s: 0.5165 | consumed_samples: 288
+Training epoch 0, iteration 9/1999 | lr: 9.804e-07 | global_batch_size: 32 | global_step: 9 | reduced_train_loss: 2.171 | train_step_timing in s: 0.5086 | consumed_samples: 320
+Training epoch 0, iteration 10/1999 | lr: 1.078e-06 | global_batch_size: 32 | global_step: 10 | reduced_train_loss: 2.453 | train_step_timing in s: 1.517 | consumed_samples: 352
+Training epoch 0, iteration 11/1999 | lr: 1.176e-06 | global_batch_size: 32 | global_step: 11 | reduced_train_loss: 2.592 | train_step_timing in s: 0.5165 | consumed_samples: 384
+Training epoch 0, iteration 12/1999 | lr: 1.275e-06 | global_batch_size: 32 | global_step: 12 | reduced_train_loss: 1.756 | train_step_timing in s: 0.541 | consumed_samples: 416
+Training epoch 0, iteration 13/1999 | lr: 1.373e-06 | global_batch_size: 32 | global_step: 13 | reduced_train_loss: 2.409 | train_step_timing in s: 1.421 | consumed_samples: 448
+Training epoch 0, iteration 14/1999 | lr: 1.471e-06 | global_batch_size: 32 | global_step: 14 | reduced_train_loss: 2.548 | train_step_timing in s: 0.5408 | consumed_samples: 480
+Training epoch 0, iteration 15/1999 | lr: 1.569e-06 | global_batch_size: 32 | global_step: 15 | reduced_train_loss: 1.777 | train_step_timing in s: 0.5625 | consumed_samples: 512
+Training epoch 0, iteration 16/1999 | lr: 1.667e-06 | global_batch_size: 32 | global_step: 16 | reduced_train_loss: 1.705 | train_step_timing in s: 0.664 | consumed_samples: 544
+Training epoch 0, iteration 17/1999 | lr: 1.765e-06 | global_batch_size: 32 | global_step: 17 | reduced_train_loss: 2.139 | train_step_timing in s: 0.6485 | consumed_samples: 576
+Training epoch 0, iteration 18/1999 | lr: 1.863e-06 | global_batch_size: 32 | global_step: 18 | reduced_train_loss: 2.547 | train_step_timing in s: 0.5388 | consumed_samples: 608
+Training epoch 0, iteration 19/1999 | lr: 1.961e-06 | global_batch_size: 32 | global_step: 19 | reduced_train_loss: 2.328 | train_step_timing in s: 0.5686 | consumed_samples: 640
+Training epoch 0, iteration 20/1999 | lr: 2.059e-06 | global_batch_size: 32 | global_step: 20 | reduced_train_loss: 2.568 | train_step_timing in s: 1.112 | consumed_samples: 672
+Training epoch 0, iteration 21/1999 | lr: 2.157e-06 | global_batch_size: 32 | global_step: 21 | reduced_train_loss: 2.779 | train_step_timing in s: 0.5129 | consumed_samples: 704
+Training epoch 0, iteration 22/1999 | lr: 2.255e-06 | global_batch_size: 32 | global_step: 22 | reduced_train_loss: 2.118 | train_step_timing in s: 0.5029 | consumed_samples: 736
+Training epoch 0, iteration 23/1999 | lr: 2.353e-06 | global_batch_size: 32 | global_step: 23 | reduced_train_loss: 2.319 | train_step_timing in s: 0.5046 | consumed_samples: 768
+Training epoch 0, iteration 24/1999 | lr: 2.451e-06 | global_batch_size: 32 | global_step: 24 | reduced_train_loss: 2.519 | train_step_timing in s: 0.7811 | consumed_samples: 800
+Training epoch 0, iteration 25/1999 | lr: 2.549e-06 | global_batch_size: 32 | global_step: 25 | reduced_train_loss: 2.192 | train_step_timing in s: 1.394 | consumed_samples: 832
+Training epoch 0, iteration 26/1999 | lr: 2.647e-06 | global_batch_size: 32 | global_step: 26 | reduced_train_loss: 1.999 | train_step_timing in s: 0.4996 | consumed_samples: 864
+Training epoch 0, iteration 27/1999 | lr: 2.745e-06 | global_batch_size: 32 | global_step: 27 | reduced_train_loss: 2.342 | train_step_timing in s: 0.6421 | consumed_samples: 896
+Training epoch 0, iteration 28/1999 | lr: 2.843e-06 | global_batch_size: 32 | global_step: 28 | reduced_train_loss: 1.937 | train_step_timing in s: 0.6467 | consumed_samples: 928
+Training epoch 0, iteration 29/1999 | lr: 2.941e-06 | global_batch_size: 32 | global_step: 29 | reduced_train_loss: 1.568 | train_step_timing in s: 0.5458 | consumed_samples: 960
+Training epoch 0, iteration 30/1999 | lr: 3.039e-06 | global_batch_size: 32 | global_step: 30 | reduced_train_loss: 1.805 | train_step_timing in s: 0.5439 | consumed_samples: 992
+Training epoch 0, iteration 31/1999 | lr: 3.137e-06 | global_batch_size: 32 | global_step: 31 | reduced_train_loss: 2.019 | train_step_timing in s: 1.24 | consumed_samples: 1024
+Training epoch 0, iteration 32/1999 | lr: 3.235e-06 | global_batch_size: 32 | global_step: 32 | reduced_train_loss: 2.665 | train_step_timing in s: 0.5084 | consumed_samples: 1056
+Training epoch 0, iteration 33/1999 | lr: 3.333e-06 | global_batch_size: 32 | global_step: 33 | reduced_train_loss: 2.399 | train_step_timing in s: 0.5031 | consumed_samples: 1088
+Training epoch 0, iteration 34/1999 | lr: 3.431e-06 | global_batch_size: 32 | global_step: 34 | reduced_train_loss: 3.081 | train_step_timing in s: 1.404 | consumed_samples: 1120
+Training epoch 0, iteration 35/1999 | lr: 3.529e-06 | global_batch_size: 32 | global_step: 35 | reduced_train_loss: 1.885 | train_step_timing in s: 0.5269 | consumed_samples: 1152
+Training epoch 0, iteration 36/1999 | lr: 3.627e-06 | global_batch_size: 32 | global_step: 36 | reduced_train_loss: 1.884 | train_step_timing in s: 1.269 | consumed_samples: 1184
+Training epoch 0, iteration 37/1999 | lr: 3.725e-06 | global_batch_size: 32 | global_step: 37 | reduced_train_loss: 1.68 | train_step_timing in s: 0.5118 | consumed_samples: 1216
+Training epoch 0, iteration 38/1999 | lr: 3.824e-06 | global_batch_size: 32 | global_step: 38 | reduced_train_loss: 2.94 | train_step_timing in s: 0.7314 | consumed_samples: 1248
