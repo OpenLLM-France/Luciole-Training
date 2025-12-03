@@ -20,7 +20,6 @@ module purge
 module load arch/h100
 module load nemo/2.4.0
 #module load nemo/2.5.2
-module load pytorch-gpu/
 #module load nemo/2.3.1
 
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
