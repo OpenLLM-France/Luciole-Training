@@ -339,6 +339,7 @@ if __name__ == "__main__":
         )
     elif args.scheduler == "cosine" and args.mode == "phase2":
         recipe.optim.lr_scheduler.warmup_steps = 0
+        recipe.optim.lr_scheduler.min_lr = max_lr * 0.1
         recipe.trainer.callbacks.append(
             run.Config(StopAtEndOfPhaseCallback, end_step=max_steps_phase2)
         )
