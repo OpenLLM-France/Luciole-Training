@@ -14,7 +14,7 @@
 ## load environment
 module purge
 module load arch/h100
-module load nemo/2.4.0
+module load nemo/2.3.1
 
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 export HF_DATASETS_OFFLINE=1
@@ -40,5 +40,5 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 
-srun torchrun $DISTRIBUTED_ARGS finetune_test.py --num_nodes $SLURM_NNODES --chat
+srun torchrun $DISTRIBUTED_ARGS finetune_test.py --num_nodes $SLURM_NNODES
 

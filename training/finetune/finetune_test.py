@@ -9,6 +9,56 @@ from nemo import lightning as nl
 import nemo_run as run
 from nemo.lightning.pytorch.callbacks import ModelCheckpoint
 from nemo.utils.exp_manager import TimingCallback
+import functools
+import nemo
+from packaging.version import Version
+
+nemo_version = Version(nemo.__version__)
+
+
+def serialize_fdl(config):
+    import fiddle as fdl
+
+    if isinstance(config, fdl.Buildable):
+        result = {
+            "__type__": type(config).__name__,
+            "__fn_or_cls__": str(config.__fn_or_cls__),
+        }
+        for k, v in config.__arguments__.items():
+            try:
+                result[k] = serialize_fdl(v)
+            except Exception:
+                result[k] = f"<non-serializable: {type(v).__name__}>"
+        return result
+    elif isinstance(config, (list, tuple)):
+        return [serialize_fdl(x) for x in config]
+    elif isinstance(config, dict):
+        return {k: serialize_fdl(v) for k, v in config.items()}
+    elif isinstance(config, (str, int, float, bool, type(None))):
+        return config
+    else:
+        # Fallback for non-serializable objects
+        return f"<non-serializable: {type(config).__name__}>"
+
+
+def deep_debug(obj, name="obj", indent=0):
+    if indent > 2:
+        return
+    pad = " " * indent
+    print(f"{pad}{name}: {type(obj)}")
+
+    if isinstance(obj, functools.partial):
+        print(f"{pad}  partial.func = {obj.func}")
+        for k, v in obj.keywords.items():
+            deep_debug(v, k, indent + 1)
+        return
+
+    if hasattr(obj, "__dict__"):
+        for k, v in obj.__dict__.items():
+            if isinstance(v, (int, float, str, bool, type(None))):
+                print(f"{pad}  {k} = {v}")
+            else:
+                deep_debug(v, k, indent + 1)
 
 
 def get_recipe(arch):
@@ -55,12 +105,14 @@ if __name__ == "__main__":
         type=str,
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last",
     )
-    # parser.add_argument("--data_path", type=str, default="databricks") # /Datasets/Train-Math-en-fr-NEMO-2
     parser.add_argument(
-        "--data_path",
-        type=str,
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix",
+        "--data_path", type=str, default="databricks"
     )  # /Datasets/Train-Math-en-fr-NEMO-2
+    # parser.add_argument(
+    #     "--data_path",
+    #     type=str,
+    #     default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix",
+    # )  # /Datasets/Train-Math-en-fr-NEMO-2
     parser.add_argument(
         "--output_dir",
         default=f"{os.environ['qgz_ALL_CCFRSCRATCH']}/OpenLLM-BPI-output/finetune/olivier",
@@ -68,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--name", default="nemo_test", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
     parser.add_argument("--num_gpus_per_node", default=4, type=int)
-    parser.add_argument("--batch_size", default=2, type=int)
+    parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--seq_length", default=1024, type=int)
     parser.add_argument(
         "--tokenizer_name",
@@ -76,6 +128,7 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument("--chat", default=False, action="store_true")
+    parser.add_argument("--verbose", default=False, action="store_true")
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
@@ -98,7 +151,8 @@ if __name__ == "__main__":
     if args.chat:
         from nemo.collections.llm.gpt.data import FineTuningDataModule
 
-        recipe.data = FineTuningDataModule(
+        recipe.data = run.Config(
+            FineTuningDataModule,
             dataset_root=args.data_path,
             global_batch_size=args.batch_size,
             micro_batch_size=1,
@@ -112,10 +166,12 @@ if __name__ == "__main__":
             # ),
             dataset_kwargs={"chat": True, "use_hf_tokenizer_chat_template": True},
         )
+
     else:
         from nemo.collections.llm.gpt.data import FineTuningDataModule
 
-        recipe.data = FineTuningDataModule(
+        recipe.data = run.Config(
+            FineTuningDataModule,
             dataset_root=args.data_path,
             global_batch_size=args.batch_size,
             micro_batch_size=1,
@@ -128,13 +184,19 @@ if __name__ == "__main__":
                 tokenizer_model_name=args.tokenizer_name.split("/")[-1],
             ),
         )
-    recipe.tokenizer = "data"
+
+    if nemo_version == Version("2.3.1"):
+        recipe.model.tokenizer = recipe.data.tokenizer
+    else:
+        recipe.tokenizer = "data"
     recipe.model.config.seq_length = recipe.data.seq_length
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = 10
     recipe.trainer.limit_val_batches = 0.0
 
-    restore_config = nl.RestoreConfig(path=args.resume_path, load_optim_state=False)
+    restore_config = run.Config(
+        nl.RestoreConfig, path=args.resume_path, load_optim_state=False
+    )
     recipe.resume = run.Config(
         nl.AutoResume,
         restore_config=restore_config,
@@ -144,7 +206,7 @@ if __name__ == "__main__":
         run.Config(
             ModelCheckpoint,
             every_n_train_steps=10,
-            dirpath=dir,
+            dirpath=args.output_dir,
             save_top_k=-1,
             always_save_context=True,
             save_optim_on_train_end=True,
@@ -152,7 +214,22 @@ if __name__ == "__main__":
         ),
     ]
 
+    if args.verbose:
+        # Print config
+        recipe_dict = {
+            "data": serialize_fdl(recipe.data),
+            "trainer": serialize_fdl(recipe.trainer),
+            "model": serialize_fdl(recipe.model),
+            "optim": serialize_fdl(recipe.optim),
+            "resume": serialize_fdl(recipe.resume),
+            "log": serialize_fdl(recipe.log),
+        }
+        print(recipe_dict)
+
     # Finetune
-    recipe_obj = fiddle.build(recipe)
-    recipe_obj()
+    recipe_fn = fiddle.build(recipe)
+    if args.verbose:
+        deep_debug(recipe_fn, "recipe_fn")
+
+    recipe_fn()
     logger.info("Finished training.")
