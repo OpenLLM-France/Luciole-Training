@@ -83,7 +83,7 @@ eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS "$TO"
 """
 
 
-def launch_conversion(experiment_path, arch, multiple_of=1, begin=None):
+def launch_conversion(experiment_path, arch, multiple_of=1):
     print(
         f"Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
     )
@@ -102,9 +102,6 @@ def launch_conversion(experiment_path, arch, multiple_of=1, begin=None):
         f.write(job_script)
 
     command = ["sbatch", "--parsable", str(job_filename)]
-
-    if begin:
-        command.insert(1, f"--begin={begin}")
 
     result = subprocess.run(command, check=True, capture_output=True, text=True)
     job_id = result.stdout.strip()
@@ -237,12 +234,6 @@ if __name__ == "__main__":
         help="Convert and evaluate only checkpoints that are multiple of this value",
     )
     parser.add_argument(
-        "--begin",
-        type=str,
-        default=None,
-        help="Begin time for slurm job (e.g., now+30minutes)",
-    )
-    parser.add_argument(
         "--email",
         type=str,
         default="",
@@ -257,7 +248,9 @@ if __name__ == "__main__":
 
     # Launch conversion job
     conversion_job_id = launch_conversion(
-        args.experiment_path, args.arch, args.multiple_of, begin=args.begin
+        args.experiment_path,
+        args.arch,
+        args.multiple_of,
     )
 
     # Launch evaluation job
