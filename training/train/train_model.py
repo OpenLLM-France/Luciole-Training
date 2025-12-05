@@ -330,7 +330,7 @@ if __name__ == "__main__":
         warmup = 0
     # Scheduler setup
     if args.scheduler == "wsd":
-        min_lr = max_lr if args.mode != "annealing" else max_lr * 0.1
+        min_lr = max_lr if args.mode != "annealing" else 0
         recipe.optim.lr_scheduler = run.Config(
             WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
         )
