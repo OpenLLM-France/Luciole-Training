@@ -679,3 +679,37 @@ datasets:
   # Nemotron translated
   - name: nemotron-posttraining-fr-think-translated_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_translation/multilingual_fr/data_cleaned
+  # Fineweb-HQ
+  - name: fineweb-hq_quality-100_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_1\.00.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-95_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.95.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-90_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.90.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-85_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.85.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-80_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.80.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-75_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.75.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-70_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.70.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-65_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.65.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-60_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.60.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-55_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.55.*\.jsonl\.gz$
+  - name: fineweb-hq_quality-50_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
+    regex: .*/quality_0\.50.*\.jsonl\.gz$
