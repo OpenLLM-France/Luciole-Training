@@ -105,14 +105,14 @@ if __name__ == "__main__":
         type=str,
         default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last",
     )
-    parser.add_argument(
-        "--data_path", type=str, default="databricks"
-    )  # /Datasets/Train-Math-en-fr-NEMO-2
     # parser.add_argument(
-    #     "--data_path",
-    #     type=str,
-    #     default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix",
+    #     "--data_path", type=str, default="databricks"
     # )  # /Datasets/Train-Math-en-fr-NEMO-2
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix_test2",
+    )  # /Datasets/Train-Math-en-fr-NEMO-2
     parser.add_argument(
         "--output_dir",
         default=f"{os.environ['qgz_ALL_CCFRSCRATCH']}/OpenLLM-BPI-output/finetune/olivier",
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     # DATA
     tokenizer = get_tokenizer(tokenizer_name=args.tokenizer_name, use_fast=True)
     if args.chat:
-        from nemo.collections.llm.gpt.data import FineTuningDataModule
+        from nemo_patch.data.fine_tuning import FineTuningDataModule
 
         recipe.data = run.Config(
             FineTuningDataModule,
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         )
 
     else:
-        from nemo.collections.llm.gpt.data import FineTuningDataModule
+        from nemo_patch.data.fine_tuning import FineTuningDataModule
 
         recipe.data = run.Config(
             FineTuningDataModule,
@@ -183,6 +183,7 @@ if __name__ == "__main__":
                 packed_sequence_size=args.seq_length,
                 tokenizer_model_name=args.tokenizer_name.split("/")[-1],
             ),
+            force=True,
         )
 
     if nemo_version == Version("2.3.1"):

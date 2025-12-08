@@ -40,5 +40,5 @@ DISTRIBUTED_ARGS=" \
        --max_restarts 0 \
        "
 
-srun torchrun $DISTRIBUTED_ARGS finetune_test.py --num_nodes $SLURM_NNODES
+srun torchrun $DISTRIBUTED_ARGS finetune_test.py --num_nodes $SLURM_NNODES --verbose --chat
 
