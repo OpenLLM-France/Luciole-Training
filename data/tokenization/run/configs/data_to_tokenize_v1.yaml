@@ -158,6 +158,8 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/insee
   - name: hal-cea_full-filtered_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hal_cea_full_filtered
+  - name: hal-cea_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hal_cea_filtered/data
   # Lucie 
   - name: stac_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/stac/data
@@ -618,7 +620,6 @@ datasets:
   # Synthetic data
   - name: synthetic-fineweb_extract-knowledge_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_filtered/data
-  # Split
   - name: synthetic-fineweb_extract-knowledge-easy_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_filtered/data
     regex: .*/easy_.*\.jsonl\.gz
@@ -628,6 +629,8 @@ datasets:
   - name: synthetic-fineweb_extract-knowledge-hard_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_filtered/data
     regex: .*/hard_.*\.jsonl\.gz
+  - name: wikipedia-synthetic-qa_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_wikipedia_fr_qa  # Split
   # Aya_dataset
   - name: aya_dataset_ar
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/aya_dataset/data/arb
@@ -679,3 +682,24 @@ datasets:
   # Nemotron translated
   - name: nemotron-posttraining-fr-think-translated_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_translation/multilingual_fr/data_cleaned
+  # MISC
+  - name: numina-math_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/numina_math/data
+  - name: open-thoughts-code_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_thoughts/data/code
+  - name: open-thoughts-science_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_thoughts/data/science
+  - name: open-r1-math_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_math/data/usellamaFalse
+  - name: open-r1-math-llama_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_math/data/usellamaTrue
+  - name: open-r1-codeforces-solutions-decontaminated_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_decontaminated
+  - name: open-r1-codeforces-solutions-py-decontaminated_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_py_decontaminated
+  - name: open-r1-codeforces-solutions-short-and-long-decontaminated_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_short_and_long_decontaminated
+  - name: open-r1-codeforces-solutions-w-editorials-decontaminated_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_w_editorials_decontaminated
+  - name: open-r1-codeforces-solutions-w-editorials-py-decontaminated_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_w_editorials_py_decontaminated
