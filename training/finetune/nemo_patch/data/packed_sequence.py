@@ -153,6 +153,14 @@ def prepare_packed_sequence_data(
     output_data = fill_packing_strategy(
         assignments, sequences, packed_sequence_size, tokenizer.eos_id
     )
+    
+    # To tackle NaN error; remove samples where loss mask is True only for EOS token
+    indices = []
+    for i in range(len(output_data)):
+        if np.sum(output_data[i]['loss_mask'])!=1:
+                indices.append(i)
+
+    output_data = [output_data[i] for i in indices] #This removes the prob indices
 
     # save output data
     np.save(output_path, output_data)
