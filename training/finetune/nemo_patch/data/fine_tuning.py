@@ -77,7 +77,7 @@ class FineTuningDataModule(pl.LightningDataModule):
         persistent_workers: bool = False,
         packed_sequence_specs: Optional["PackedSequenceSpecs"] = None,
         dataset_kwargs: Optional[Dict[str, Any]] = None,
-        force: bool = True,
+        force: bool = False,
     ):
         super().__init__()
         self.seq_length = seq_length
@@ -297,8 +297,9 @@ class FineTuningDataModule(pl.LightningDataModule):
 
     @property
     def train_path(self) -> Path:
-        """Path to training dataset file"""
-        return self.dataset_root / "training.jsonl"
+        folder = self.dataset_root / "training"
+        jsonl_files = list(str(p) for p in folder.rglob("*.jsonl"))
+        return jsonl_files
 
     @property
     def default_pack_path(self) -> Path:
@@ -357,13 +358,15 @@ class FineTuningDataModule(pl.LightningDataModule):
 
     @property
     def validation_path(self) -> Path:
-        """Path to validation dataset file"""
-        return self.dataset_root / "validation.jsonl"
+        folder = self.dataset_root / "validation"
+        jsonl_files = list(str(p) for p in folder.rglob("*.jsonl"))
+        return jsonl_files
 
     @property
     def test_path(self) -> Path:
-        """Path to test dataset file"""
-        return self.dataset_root / "test.jsonl"
+        folder = self.dataset_root / "test"
+        jsonl_files = list(str(p) for p in folder.rglob("*.jsonl"))
+        return jsonl_files
 
     @property
     def pad_cu_seqlens(self) -> bool:

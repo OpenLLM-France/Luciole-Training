@@ -25,7 +25,8 @@ import torch
 from datasets import load_dataset
 
 from nemo.collections.common.tokenizers import TokenizerSpec
-from nemo.collections.llm.gpt.data.utils import (
+from .utils import (
+    _chat_preprocess,
     _get_samples_mapping,
     _JSONLMemMapDataset,
     _OnlineSampleMapping,
@@ -33,7 +34,6 @@ from nemo.collections.llm.gpt.data.utils import (
 )
 from nemo.core.classes import Dataset
 from nemo.lightning.base import NEMO_DATASETS_CACHE
-from .utils import _chat_preprocess
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def create_sft_dataset(
         path = Path(path)
 
     gpt_sft_dataset_kwargs = {
-        "file_path": str(path),
+        "file_path": path,
         "tokenizer": tokenizer,
         "max_seq_length": seq_length,
         "memmap_workers": memmap_workers,
@@ -111,7 +111,7 @@ def create_sft_dataset(
 
     # print(f"Suffix: {path.suffix}")
 
-    if path.suffix == ".npy":
+    if isinstance(path, Path) and path.suffix == ".npy":
         # print(">>> A")
         return GPTSFTPackedDataset(
             pack_metadata_file_path=pack_metadata_file_path,
@@ -139,7 +139,7 @@ class GPTSFTDataset(Dataset):
 
     def __init__(
         self,
-        file_path: str,
+        file_path: str | list[str],
         tokenizer: TokenizerSpec,
         max_seq_length: int = 1024,
         min_seq_length: int = 1,
@@ -270,6 +270,9 @@ class GPTSFTDataset(Dataset):
 
     def _load_dataset(self):
         if self.hf_dataset:
+            assert isinstance(
+                self.file_path, str
+            ), "file_path must be a str when hf_dataset is True"
             self.indexed_dataset = load_dataset(
                 "json",
                 data_files=self.file_path,
@@ -279,7 +282,7 @@ class GPTSFTDataset(Dataset):
             )
         else:
             self.indexed_dataset = _JSONLMemMapDataset(
-                dataset_paths=[self.file_path],
+                dataset_paths=self.file_path,
                 tokenizer=None,
                 header_lines=0,
                 index_mapping_dir=self.index_mapping_dir,
@@ -1026,7 +1029,7 @@ class GPTSFTChatDataset(GPTSFTDataset):
 
     def __init__(
         self,
-        file_path: str,
+        file_path: str | list[str],
         tokenizer: TokenizerSpec,
         max_seq_length: int = 1024,
         min_seq_length: int = 1,
