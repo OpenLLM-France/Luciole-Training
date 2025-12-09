@@ -39,7 +39,6 @@ if __name__ == "__main__":
             continue
         name = row["name"]
         data_path = os.path.join(args.root_data_path, f"{name}_text_document")
-        pattern = os.path.join(args.output, f"{name}*")
 
         if os.path.exists(os.path.join(args.output, "completion", name)):
             print("--------------------------------------")
@@ -47,6 +46,7 @@ if __name__ == "__main__":
             print("--------------------------------------")
             continue
 
+        pattern = os.path.join(args.output, "data", f"{name}*")
         if glob.glob(pattern):
             print("--------------------------------------")
             print(f"⚠️  Warning for {name}!")
@@ -66,7 +66,11 @@ if __name__ == "__main__":
                 args.output,
                 "--sample_rate",
                 str(repeat),
+                "--debug" if args.debug else "",
             ],
             capture_output=True,
             text=True,
         )
+
+        if args.debug:
+            break
