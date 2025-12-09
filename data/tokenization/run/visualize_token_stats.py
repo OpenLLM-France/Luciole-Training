@@ -292,16 +292,16 @@ if __name__ == "__main__":
         description="Plot token treemaps by language and dataset."
     )
     parser.add_argument(
+        "output_dir",
+        type=str,
+        default="chronicles/raw",
+        help="Path to the output directory. It must contains the repeats.csv file if you want to create a datamix.",
+    )
+    parser.add_argument(
         "--stats_file",
         type=str,
         default="chronicles/all_stats_merged.csv",
         help="Path to the all_stats.",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="chronicles/raw",
-        help="Path to the output directory. It must contains the repeats.csv file if you want to create a datamix.",
     )
     parser.add_argument(
         "--token_dir",
