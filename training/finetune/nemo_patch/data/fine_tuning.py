@@ -22,14 +22,14 @@ from lightning.pytorch.utilities.rank_zero import rank_zero_info
 from torch.utils.data import DataLoader
 
 from nemo.collections.common.tokenizers import AutoTokenizer
-from nemo.collections.llm.gpt.data.core import create_sft_dataset
+from .core import create_sft_dataset
 from nemo.lightning.data import WrappedDataLoader
 from nemo.lightning.pytorch.plugins import MegatronDataSampler
 from nemo.utils import logging
 
 if TYPE_CHECKING:
     from nemo.collections.common.tokenizers import TokenizerSpec
-    from nemo.collections.llm.gpt.data.packed_sequence import PackedSequenceSpecs
+    from .packed_sequence import PackedSequenceSpecs
 
 print(">>> Hello and welcome to this custom data class... Hope you'll enjoy\n\n")
 

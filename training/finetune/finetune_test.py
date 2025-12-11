@@ -9,56 +9,11 @@ from nemo import lightning as nl
 import nemo_run as run
 from nemo.lightning.pytorch.callbacks import ModelCheckpoint
 from nemo.utils.exp_manager import TimingCallback
-import functools
 import nemo
 from packaging.version import Version
+from utils import serialize_fdl, deep_debug
 
 nemo_version = Version(nemo.__version__)
-
-
-def serialize_fdl(config):
-    import fiddle as fdl
-
-    if isinstance(config, fdl.Buildable):
-        result = {
-            "__type__": type(config).__name__,
-            "__fn_or_cls__": str(config.__fn_or_cls__),
-        }
-        for k, v in config.__arguments__.items():
-            try:
-                result[k] = serialize_fdl(v)
-            except Exception:
-                result[k] = f"<non-serializable: {type(v).__name__}>"
-        return result
-    elif isinstance(config, (list, tuple)):
-        return [serialize_fdl(x) for x in config]
-    elif isinstance(config, dict):
-        return {k: serialize_fdl(v) for k, v in config.items()}
-    elif isinstance(config, (str, int, float, bool, type(None))):
-        return config
-    else:
-        # Fallback for non-serializable objects
-        return f"<non-serializable: {type(config).__name__}>"
-
-
-def deep_debug(obj, name="obj", indent=0):
-    if indent > 2:
-        return
-    pad = " " * indent
-    print(f"{pad}{name}: {type(obj)}")
-
-    if isinstance(obj, functools.partial):
-        print(f"{pad}  partial.func = {obj.func}")
-        for k, v in obj.keywords.items():
-            deep_debug(v, k, indent + 1)
-        return
-
-    if hasattr(obj, "__dict__"):
-        for k, v in obj.__dict__.items():
-            if isinstance(v, (int, float, str, bool, type(None))):
-                print(f"{pad}  {k} = {v}")
-            else:
-                deep_debug(v, k, indent + 1)
 
 
 def get_recipe(arch):
@@ -77,8 +32,8 @@ def get_recipe(arch):
             recipe.model.config.kv_channels = None
             recipe.model.config.share_embeddings_and_output_weights = True
             # Parallelism
-            recipe.trainer.strategy.context_parallel_size = 1
-            recipe.trainer.strategy.tensor_model_parallel_size = 2
+            recipe.trainer.strategy.context_parallel_size = 2
+            recipe.trainer.strategy.tensor_model_parallel_size = 1
             return recipe
 
         return finetune_recipe
@@ -90,8 +45,8 @@ def get_recipe(arch):
         def finetune_recipe(**kwargs):
             recipe = finetune_base_recipe(**kwargs)
             # Parallelism
-            recipe.trainer.strategy.context_parallel_size = 1
-            recipe.trainer.strategy.tensor_model_parallel_size = 4
+            recipe.trainer.strategy.context_parallel_size = 2
+            recipe.trainer.strategy.tensor_model_parallel_size = 1
             return recipe
 
         return finetune_recipe
@@ -99,20 +54,7 @@ def get_recipe(arch):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--resume_path", type=str, default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotron1b_phase2/luciole_nemotron1b_phase2/checkpoints/luciole_nemotron1b_phase2-step=0382455")
-    parser.add_argument(
-        "--resume_path",
-        type=str,
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last",
-    )
-    # parser.add_argument(
-    #     "--data_path", type=str, default="databricks"
-    # )  # /Datasets/Train-Math-en-fr-NEMO-2
-    parser.add_argument(
-        "--data_path",
-        type=str,
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix_test2",
-    )  # /Datasets/Train-Math-en-fr-NEMO-2
+    parser.add_argument("--base_model", type=str, default="nemotron1b")
     parser.add_argument(
         "--output_dir",
         default=f"{os.environ['qgz_ALL_CCFRSCRATCH']}/OpenLLM-BPI-output/finetune/olivier",
@@ -135,7 +77,15 @@ if __name__ == "__main__":
 
     torch.set_float32_matmul_precision("high")
 
-    finetune_recipe = get_recipe("nemotronh8b")
+    if args.base_model == "nemotron1b":
+        finetune_recipe = get_recipe("nemotron1b")
+        resume_path = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotron1b_phase2/luciole_nemotron1b_phase2/checkpoints/luciole_nemotron1b_phase2-step=0382455"
+    elif args.base_model == "nemotronh8b":
+        finetune_recipe = get_recipe("nemotronh8b")
+        resume_path = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last"
+    else:
+        raise ValueError(f"Unknown base model: {args.base_model}")
+
     recipe = finetune_recipe(
         dir=args.output_dir,
         name=args.name,
@@ -151,28 +101,30 @@ if __name__ == "__main__":
     if args.chat:
         from nemo_patch.data.fine_tuning import FineTuningDataModule
 
+        data_path = "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix_test3"
         recipe.data = run.Config(
             FineTuningDataModule,
-            dataset_root=args.data_path,
+            dataset_root=data_path,
             global_batch_size=args.batch_size,
             micro_batch_size=1,
             num_workers=0,
             pin_memory=True,
             seq_length=args.seq_length,
             tokenizer=tokenizer,
-            # packed_sequence_specs=PackedSequenceSpecs(
-            #     packed_sequence_size=args.seq_length,
-            #     tokenizer_model_name=args.tokenizer_name.split("/")[-1],
-            # ),
+            packed_sequence_specs=PackedSequenceSpecs(
+                packed_sequence_size=args.seq_length,
+                tokenizer_model_name=args.tokenizer_name.split("/")[-1],
+            ),
             dataset_kwargs={"chat": True, "use_hf_tokenizer_chat_template": True},
         )
 
     else:
         from nemo_patch.data.fine_tuning import FineTuningDataModule
 
+        data_path = "databricks"
         recipe.data = run.Config(
             FineTuningDataModule,
-            dataset_root=args.data_path,
+            dataset_root=data_path,
             global_batch_size=args.batch_size,
             micro_batch_size=1,
             num_workers=0,
@@ -196,12 +148,16 @@ if __name__ == "__main__":
     recipe.trainer.limit_val_batches = 0.0
 
     restore_config = run.Config(
-        nl.RestoreConfig, path=args.resume_path, load_optim_state=False
+        nl.RestoreConfig, path=resume_path, load_optim_state=False
     )
     recipe.resume = run.Config(
         nl.AutoResume,
+        resume_if_exists=True,
+        resume_ignore_no_checkpoint=True,
+        # resume_past_end=True,  # set to True if you want to continue training even if max_steps was reached
         restore_config=restore_config,
     )
+
     recipe.trainer.callbacks = [
         run.Config(TimingCallback),
         run.Config(
