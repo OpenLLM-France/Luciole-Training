@@ -337,18 +337,19 @@ if __name__ == "__main__":
         logger.info(
             f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
         )
-    elif args.scheduler == "cosine" and args.mode == "phase2":
+    elif args.scheduler == "cosine":
         recipe.optim.lr_scheduler.warmup_steps = 0
         recipe.optim.lr_scheduler.min_lr = max_lr * 0.1
-        recipe.trainer.callbacks.append(
-            run.Config(StopAtEndOfPhaseCallback, end_step=max_steps_phase2)
-        )
         logger.info(
             f"Setting Cosine Scheduler with max_steps: {max_steps} (2T tokens), warmup: {warmup}"
         )
-        logger.info(
-            f"Setting StopAtEndOfPhaseCallback with end_step: {max_steps_phase2}"
-        )
+        if args.mode == "phase2":
+            recipe.trainer.callbacks.append(
+                run.Config(StopAtEndOfPhaseCallback, end_step=max_steps_phase2)
+            )
+            logger.info(
+                f"Setting StopAtEndOfPhaseCallback with end_step: {max_steps_phase2}"
+            )
     else:
         raise ValueError(
             f"Scheduler {args.scheduler} not supported in mode {args.mode}"
