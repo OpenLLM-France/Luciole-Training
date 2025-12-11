@@ -107,6 +107,8 @@ def get_parser():
         type=str,
     )
     parser.add_argument("--max_lr", type=float, default=None)
+    parser.add_argument("--weight_decay", type=float, default=0.1)
+    parser.add_argument("--no_load_optim_state", default=False, action="store_true")
     return parser
 
 
@@ -354,10 +356,15 @@ if __name__ == "__main__":
         raise ValueError(
             f"Scheduler {args.scheduler} not supported in mode {args.mode}"
         )
+    # Weight decay
+    recipe.optim.weight_decay = args.weight_decay
+    logger.info(f"Setting weight decay to {args.weight_decay}")
 
     # Resume from base_checkpoint
     restore_config = (
-        nl.RestoreConfig(path=args.base_checkpoint, load_optim_state=True)
+        nl.RestoreConfig(
+            path=args.base_checkpoint, load_optim_state=not args.no_load_optim_state
+        )
         if args.base_checkpoint
         else None
     )
