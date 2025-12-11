@@ -23,7 +23,7 @@ def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None, l
         if os.path.isfile(checkpoint_path):
             print("\nSkipping file", checkpoint)
             continue
-        if checkpoint.endswith("-last") and not last:
+        if checkpoint.endswith("-last") and multiple_of is None and not last:
             print("\nSkipping last", checkpoint)
             continue
         if os.path.isfile(checkpoint_path + "-unfinished"):

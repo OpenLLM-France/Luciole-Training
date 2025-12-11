@@ -188,9 +188,6 @@ def get_checkpoints_and_revisions(
             checkpoints = sorted(
                 [d.name.replace("=", "_") for d in ckpt_dir.iterdir() if d.is_dir()]
             )  # [::-1]
-            checkpoints = [
-                d for d in checkpoints if not d.endswith("-last")
-            ]
         else:
             ckpt_dir = hf_dir
             assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
@@ -273,6 +270,10 @@ def launch_evaluation(
             if (step + 1) % multiple_of != 0:
                 # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
                 continue
+
+        if ckpt.endswith("-last") and multiple_of is None:
+            # print(f"Skipping last checkpoint: {ckpt}")
+            continue
 
         if (
             (output_dir / "results" / ckpt).is_dir()
