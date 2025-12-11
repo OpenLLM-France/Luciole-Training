@@ -4,10 +4,13 @@ from tqdm import tqdm
 import re
 
 
-def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None):
-    checkpoints = os.listdir(os.path.join(input_path, "checkpoints"))
+def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None, last=False):
+    checkpoints = sorted(os.listdir(os.path.join(input_path, "checkpoints")))
     os.makedirs(os.path.join(output_path), exist_ok=True)
     import convert_dist_to_hf
+
+    if last:
+        checkpoints = checkpoints[-1:]
 
     for checkpoint in tqdm(
         checkpoints,
@@ -15,12 +18,12 @@ def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None):
         desc=f"Converting {os.path.basename(input_path)}",
     ):
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
-        checkpoint_output_path = os.path.join(output_path, checkpoint).replace("=", "_")
+        checkpoint_output_path = os.path.join(output_path, checkpoint).replace("=", "_").replace("-last", "")
         # print("Output to", checkpoint_output_path)
         if os.path.isfile(checkpoint_path):
             print("\nSkipping file", checkpoint)
             continue
-        if checkpoint.endswith("-last"):
+        if checkpoint.endswith("-last") and not last:
             print("\nSkipping last", checkpoint)
             continue
         if os.path.isfile(checkpoint_path + "-unfinished"):
@@ -69,6 +72,7 @@ def get_parser():
         default=1,
         help="Convert only checkpoints that are multiple of this value",
     )
+    parser.add_argument("--last", action="store_true")
     parser.add_argument("--local-rank")
     return parser
 
@@ -100,13 +104,13 @@ if __name__ == "__main__":
         )
 
     if os.path.exists(os.path.join(xp_path, "checkpoints")):
-        convert_checkpoint_folder(xp_path, xp_output_path, args.arch, args.multiple_of)
+        convert_checkpoint_folder(xp_path, xp_output_path, args.arch, args.multiple_of, args.last)
     else:
         runs = os.listdir(xp_path)
         for run in runs:
             run_path = os.path.join(xp_path, run)
             if os.path.exists(os.path.join(run_path, "checkpoints")):
                 run_output_path = os.path.join(xp_output_path, run)
-                convert_checkpoint_folder(run_path, xp_output_path, args.arch)
+                convert_checkpoint_folder(run_path, run_output_path, args.arch, args.multiple_of, args.last)
 
     logger.info(f"Finished converting {experiment_path}!")
