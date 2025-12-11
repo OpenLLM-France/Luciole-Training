@@ -192,7 +192,7 @@ if __name__ == "__main__":
         recipe.tokenizer = "data"
     recipe.model.config.seq_length = recipe.data.seq_length
     recipe.trainer.max_steps = max_steps
-    recipe.trainer.val_check_interval = 10
+    recipe.trainer.val_check_interval = max_steps
     recipe.trainer.limit_val_batches = 0.0
 
     restore_config = run.Config(
