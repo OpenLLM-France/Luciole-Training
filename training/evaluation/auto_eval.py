@@ -183,6 +183,8 @@ def launch_plot(experiment_path, email="", dependency_job_id=None):
     elif "23b" in experiment_path:
         compared_models = [
             f"{base}/pretrain/luciole_serie/luciolr_nemotron23b_phase1",
+            f"{base}/pretrain/luciole_serie/luciolr_lower_nemotron23b_phase1",
+            f"{base}/pretrain/luciole_serie/luciole_nemotron23b_phase2",
             f"{base}/pretrain/compared_models/OLMo-2-0325-13B",
             f"{base}/pretrain/compared_models/OLMo-2-0325-32B",
             f"{base}/pretrain/compared_models/Gaperon-1125-24B",
