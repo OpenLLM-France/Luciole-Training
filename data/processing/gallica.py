@@ -1,16 +1,10 @@
 import os
-
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
-
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
-from datatrove.pipeline.filters import ExtremeTokenizerFilter
+from datatrove.pipeline.filters import ExtremeTokenizerFilter, LambdaFilter
 from functools import partial
-
-# Tried GopherQualityFilter with fineweb-2 config file for french
-# It took 7 minutes and 47 secondes for 1k documents...
-#     Stats: {total: 538, dropped: 355, dropped_gopher_below_alpha_threshold: 328, dropped_gopher_long_doc: 26, forwarded: 183, doc_len: 17142473 [min=2233, max=592330, 93674.72±96825/doc], dropped_gopher_below_avg_threshold: 1}
 
 mapping = {
     "monographies": "PleIAs/French-PD-Books",
@@ -22,9 +16,6 @@ def additionnal_formatting(doc, name):
     import re
 
     out = {}
-    # ocr = doc.metadata.get("ocr")
-    # if ocr:
-    #     out["ocr"] = doc.metadata.get("ocr")
     author = doc.metadata.get("author")
     if author and author != "None":
         out["author"] = doc.metadata.get("author")
@@ -64,24 +55,36 @@ if __name__ == "__main__":
             text_key="complete_text",
         ),
         ExtremeTokenizerFilter(
-            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional",
-            max_token_per_char=0.4,
+            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
+            max_token_per_char=0.38,
+            normalize_digits=False,
             mode="CHUNKS",
+            min_length=1000,
+            max_length=2000,
+            separator=("\n", ". ", ", ", " "),
             replace_span="\n\n[...]\n\n",
             removed_spans_in_metadata=False,  # FOR DEBUGGING only
             exclusion_writer=JsonlWriter(f"{output_path}/removed/extreme_tokenizer"),
+        ),
+        LambdaFilter(
+            lambda doc: len(doc.text.split()) > 50,
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed/too_short_doc",
+            ),
         ),
         PrefixFormatter(
             date_keys=[],
             additionnal_formatting=partial(additionnal_formatting, name=args.name),
             prefix_pipeline={
-                "author": "Author",
-                "title": "Title",
+                "author": "Auteur",
+                "title": "Titre",
                 "date": "Date",
-                # "ocr": "OCR score"
             },
         ),
-        JsonlWriter(f"{output_path}/data"),
+        JsonlWriter(
+            f"{output_path}/data",
+            output_filename="${rank}.jsonl.gz",
+        ),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
@@ -92,4 +95,50 @@ if __name__ == "__main__":
         logging_dir=f"{output_path}/logs",
         job_name=args.name,
     )
-    main_processing_executor.run()
+    # main_processing_executor.run()
+
+    ############
+    # Push to Hub
+    ############
+    from datatrove.pipeline.readers import JsonlReader
+    from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+    from utils import _custom_adapter_for_hf, HF_SCHEMA
+    from functools import partial
+
+    pipeline = [
+        JsonlReader(
+            f"{output_path}/data",
+        ),
+        HuggingFaceDatasetWriter(
+            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            + ("-debug" if args.debug else ""),
+            private=True,
+            local_working_dir=f"{output_path}/data_hf",
+            output_filename=f"data/gallica/{args.name}/fr/" + "${rank}.parquet",
+            adapter=partial(
+                _custom_adapter_for_hf,
+                source=f"gallica_{args.name}",
+                id_key=None,
+                language="fr",
+                language_key=None,
+                conversation_key=None,
+                remove_keys=["token_counts", "char_counts", "token_per_chars"],
+            ),
+            cleanup=True,
+            expand_metadata=False,
+            schema=HF_SCHEMA,
+        ),
+    ]
+
+    hf_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{output_path}/logs_hf",
+        job_name="hf",
+        tasks=5,
+        skip_completed=not args.force,
+        depends=None if args.push_only else main_processing_executor,
+    )
+
+    hf_executor.run()

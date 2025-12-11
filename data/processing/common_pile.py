@@ -7,19 +7,19 @@ from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 
 COMMON_PILE_DATASETS = [
     "peS2o_filtered",
-    "uspto_filtered",
+    # "uspto_filtered",
     "biodiversity_heritage_library_filtered",
     "caselaw_access_project_filtered",
     "pubmed_filtered",
     "libretexts_filtered",
-    "project_gutenberg_filtered",
+    # "project_gutenberg_filtered",
     "doab_filtered",
     "library_of_congress_filtered",
     "pressbooks_filtered",
     "pre_1929_books_filtered",
     "regulations_filtered",
-    "uk_hansard_filtered",
-    "usgpo_filtered",
+    # "uk_hansard_filtered",
+    # "usgpo_filtered",
     "stackexchange_filtered",
     "ubuntu_irc_filtered",
     "public_domain_review_filtered",
@@ -31,7 +31,7 @@ COMMON_PILE_DATASETS = [
     "news_filtered",
     "arxiv_papers_filtered",
     "arxiv_abstracts_filtered",
-    "cccc_filtered",
+    # "cccc_filtered",
     "github_archive_filtered",
 ]
 
@@ -141,4 +141,50 @@ if __name__ == "__main__":
             tasks=50,
         )
 
-        main_processing_executor.run()
+        ############
+        # Push to Hub
+        ############
+        from datatrove.pipeline.readers import JsonlReader
+        from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+        from utils import _custom_adapter_for_hf, HF_SCHEMA
+        from functools import partial
+
+        pipeline = [
+            JsonlReader(
+                f"{DATA_PATH}/common_pile/{name}/data",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{DATA_PATH}/common_pile/{name}/data_hf",
+                output_filename=f"data/common_pile/{name}/en/" + "${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source=f"common_pile/{name}",
+                    id_key=None,
+                    language="en",
+                    language_key=None,
+                    conversation_key=None,
+                    remove_keys=[],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/common_pile/{name}/logs_hf",
+            job_name="hf_cp",
+            tasks=5,
+            workers=1,
+            time="20:00:00",
+            skip_completed=not args.force,
+            depends=None if args.push_only else main_processing_executor,
+        )
+
+        hf_executor.run()

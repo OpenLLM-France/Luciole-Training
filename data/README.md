@@ -9,11 +9,13 @@ All about preprocessing datasets.
 #### Create environment 
 ```bash
 module purge
+module load arch/h100 
 module load anaconda-py3/2024.06
+module load cuda/12.4.1
 conda create -n datatrove-env python=3.10
 conda activate datatrove-env
 pip install -r requirements.txt
-pip install lighteval[extended_tasks,math,multilingual]
+# pip install lighteval[extended_tasks,math,multilingual]
 ```
 
 #### Clone datatrove
@@ -21,7 +23,9 @@ pip install lighteval[extended_tasks,math,multilingual]
 git clone https://github.com/linagora-labs/datatrove.git
 cd datatrove
 git checkout lucie_v2
-pip install -e .[io,processing]
+pip install -e .[io,processing,inference]
+pip install vllm
+pip install --no-build-isolation flash-attn
 ```
 
 You can add a hostname in `set_env.sh` and set your `$OpenLLM_OUTPUT` variable. Then you can use `source set_env.sh`.
@@ -73,9 +77,9 @@ dataset_groups:
 
 2. Run tokenzation by using the script `run/run_tokenization.py`
 ```bash
-run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional
+run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
 ```
-It will create one sbatch per dataset, using prepost partition.
+It will create one sbatch per dataset.
 
 3. Run statistics: 
 ```bash
@@ -83,6 +87,18 @@ sbatch run_statistics.slurm OUTPUT_DIR
 ```
 where `OUTPUT_DIR` is the absolute path of your tokenized datasets.
 It will create a folder `stats` in the tokenized data folder, with the statistics of each tokens file.
+
+Then add your datasets in `link_datasets.sh`
+and run it to create symbolic links in a common folder.
+Then
+```bash
+python merge_stats.py OUTPUT_DIR
+```
+and to visualize
+```bash
+python visualize_token_stats.py
+
+```
 
 4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../training/README.md).
 

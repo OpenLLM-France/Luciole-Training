@@ -182,6 +182,9 @@ class Encoder(object):
             ids = {}
             for key in self.args.json_keys:
                 text = data[key]
+                if self.args.remove_prefix:
+                    if "metadata" in data and "prefix" in data["metadata"]:
+                        text = text[len(data["metadata"]["prefix"]) :]
                 if self.args.apply_ftfy:
                     text = ftfy.fix_text(text)
                 doc_ids = []
@@ -231,6 +234,11 @@ def get_args():
         "--keep-newlines",
         action="store_true",
         help="Keep newlines between sentences when splitting.",
+    )
+    group.add_argument(
+        "--remove-prefix",
+        action="store_true",
+        help="Remove prefix to the data.",
     )
     group.add_argument(
         "--text_file", action="store_true", help="Use text file instead of json."
@@ -365,7 +373,7 @@ def main():
         json_files = pathlib.Path(args.input).glob(args.files_filter)
         regex_pattern = re.compile(args.regex_filter)
         json_files = (
-            str(f) for f in json_files if f.is_file() and regex_pattern.match(f.name)
+            str(f) for f in json_files if f.is_file() and regex_pattern.match(str(f))
         )
         json_files = [
             f
@@ -383,6 +391,9 @@ def main():
             print(
                 f"Found {len(json_files)} .json or .jsonl or json.gz or .jsonl.gz files."
             )
+        print("File list:")
+        for rf in json_files:
+            print("  ", rf)
     else:
         assert os.path.exists(args.input), f"File does not exist: {args.input}"
         json_files = [args.input]

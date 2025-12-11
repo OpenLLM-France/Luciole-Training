@@ -1,0 +1,185 @@
+# Megamath
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/megamath-web-filtered_part1_math_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/megamath-web-filtered_part2_math_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/megamath-web-filtered_math_text_document
+
+# Starcoder
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/starcoder-data_high-stars_code_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/starcoder-data_low-stars_code_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/starcoder-data_code_text_document
+
+# DCLM
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part1_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part2_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part3_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part4_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/dclm-dolmino_part5_en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/dclm-dolmino_en_text_document
+
+# Fineweb-edu
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part1_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part2_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part3_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part4_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part5_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part6_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part7_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part8_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part9_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/fineweb-edu_part10_en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/fineweb-edu_en_text_document
+
+# Europarl
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/europarl_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/europarl_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/europarl_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/europarl_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/europarl_it_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/europarl_pt_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/europarl_multi_text_document
+
+# Eurovoc
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_it_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_nl_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/eurovoc_filtered_pt_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/eurovoc_filtered_multi_text_document
+
+# Wikimedia
+# ar
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_ar_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_ar_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_ar_text_document
+# de
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_de_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_de_text_document
+# en
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_en_text_document
+# es
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_es_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_es_text_document
+# fr
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_fr_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_fr_text_document
+# it
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_it_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_it_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_it_text_document
+# pt
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_pt_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_pt_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_pt_text_document
+# ca
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_ca_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_ca_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_ca_text_document
+# other
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_br_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_co_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_frp_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_pcd_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_eu_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/wikimedia_oc_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_eu_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2/vikidia_oc_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/wikimedia-vikidia_regional_text_document
+
+# Culturax
+# fr
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part1_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part2_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part3_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part4_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part5_fr_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/culturax_fr_text_document
+# de
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part1_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part2_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part3_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part4_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part5_de_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/culturax_de_text_document
+# es
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part1_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part2_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part3_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part4_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/culturax_part5_es_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/culturax_es_text_document
+# HPLT2
+# fr
+- input:  
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/hplt2_part1_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/hplt2_part2_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/hplt2_part3_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/hplt2_part4_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/hplt2_part5_fr_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/hplt2_fr_text_document
+# Fineweb2
+# fr
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part1_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part2_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part3_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part4_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part5_fr_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/fineweb2_fr_text_document
+# de
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part1_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part2_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part3_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part4_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part5_de_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/fineweb2_de_text_document
+# es
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part1_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part2_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part3_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part4_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_part5_es_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/fineweb2_es_text_document
+# Regional
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_ca_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_acf_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_br_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_co_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_crs_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_eu_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_frp_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_gcf_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_gcr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_oc_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_pcd_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_rcf_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_tah_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_web_wo_prefix/fineweb2_wln_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_grouped/fineweb2_regional_text_document

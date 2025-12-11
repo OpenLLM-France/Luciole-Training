@@ -7,14 +7,25 @@ from utils import (
 )
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
+from web_utils import get_robot_filter
 import os
+
+DECONT_PATH = os.path.join(
+    os.getenv("OpenLLM_OUTPUT"),
+    "data/raw_data/full_datasets/decontamination_index/data",
+)
 
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
         "--name",
         type=str,
-        choices=["finemath", "infiwebmath"],
+        choices=[
+            "finemath-3plus",
+            "infiwebmath-3plus",
+            "finemath-4plus",
+            "infiwebmath-4plus",
+        ],
         default="finemath",
         help="Subset to load",
     )
@@ -24,28 +35,29 @@ if __name__ == "__main__":
     if args.name is None:
         print_builder_config("HuggingFaceTB/finemath")
 
-    name = f"{args.name}-3plus"
+    name = args.name
 
-    output_path = os.path.join(DATA_PATH, "finemath", name)
-
+    ### FILTER
     pipeline = [
         ParquetReader(
             f"hf://datasets/HuggingFaceTB/finemath/{name}",
             glob_pattern="*.parquet",
         ),
+        get_robot_filter(output_path=f"{DATA_PATH}/finemath_filtered/{name}"),
         JsonlWriter(
-            f"{output_path}/data",
+            f"{DATA_PATH}/finemath_filtered/{name}/data",
             output_filename="score_${int_score}_rank${rank}.jsonl.gz",
         ),
     ]
     add_sampler_filter(pipeline, args.sample_rate)
 
-    main_processing_executor = create_executor(
+    filter_executor = create_executor(
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{output_path}/logs",
+        logging_dir=f"{DATA_PATH}/finemath_filtered/{name}/logs",
         job_name=name,
+        partition="prepost",
     )
 
-    main_processing_executor.run()
+    filter_executor.run()

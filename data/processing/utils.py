@@ -9,6 +9,9 @@ from datasets import load_dataset_builder
 import sys
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
+import dataclasses
+import json
+import pyarrow as pa
 
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 if not MAIN_PATH:
@@ -81,7 +84,7 @@ def filter_kwargs_for_class(cls, kwargs):
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
     if debug:
-        pipeline[0].limit = 1000
+        pipeline[0].limit = 10
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
     # Executor arguments
@@ -92,14 +95,20 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         )
     else:
         tasks = kwargs.pop("tasks", 50)
-        time = kwargs.pop("time", "05:00:00")
+        time = kwargs.pop("time", "20:00:00")
         qos = kwargs.pop("qos", "qos_cpu-t3")
         partition = kwargs.pop("partition", "prepost")
         cpus_per_task = kwargs.pop("cpus_per_task", 1)
+        env_command = kwargs.pop(
+            "env_command", "source ~/OpenLLM-BPI-Training/data/set_env.sh"
+        )
+        sbatch_args = kwargs.pop(
+            "sbatch_args", {"account": "qgz@cpu", "hint": "nomultithread"}
+        )
         slurm_kwargs = filter_kwargs_for_class(SlurmPipelineExecutor, kwargs)
         main_processing_executor = SlurmPipelineExecutor(
             pipeline=pipeline,
-            sbatch_args={"account": "qgz@cpu", "hint": "nomultithread"},
+            sbatch_args=sbatch_args,
             tasks=tasks,
             cpus_per_task=cpus_per_task,
             time=time,
@@ -107,7 +116,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
             partition=partition,
             requeue_signals=None,
             requeue=False,
-            env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+            env_command=env_command,
             **slurm_kwargs,
         )
     return main_processing_executor
@@ -137,7 +146,13 @@ def create_parser():
         help="Process a dataset for ablation DEPRECATED",
     )
     parser.add_argument("--local", action="store_true", help="Use a local executor")
-    parser.add_argument("--debug", action="store_true", help="Use a local executor")
+    parser.add_argument("--debug", action="store_true", help="Debug mode")
+    parser.add_argument(
+        "--push_only", action="store_true", help="Only push the data on the hub"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Force and ignore completed tasks"
+    )
     parser.add_argument(
         "--sample_rate",
         default=1.0,
@@ -168,3 +183,54 @@ def parse_args(parser):
     if args.debug:
         args.data_path += "_debug"
     return args
+
+
+def _custom_adapter_for_hf(
+    self,
+    document,
+    source,
+    id_key=None,
+    language=None,
+    language_key=None,
+    conversation_key=None,
+    remove_keys=[],
+):
+    data = {key: val for key, val in dataclasses.asdict(document).items() if val}
+    metadata = data.pop("metadata")
+    id = metadata.pop(id_key, document.id) if id_key else document.id
+    if language_key:
+        language = metadata.pop(language_key, language)
+    conversation = metadata.pop(conversation_key, None) if conversation_key else None
+    text = document.text
+    remove_keys.append("file_path")
+    for key in remove_keys:
+        metadata.pop(key, None)
+    data = {
+        "source": source,
+        "id": id,
+        "language": language,
+        "text": text,
+        "messages": conversation,
+        "metadata": json.dumps(metadata),
+    }
+    return data
+
+
+HF_SCHEMA = pa.schema(
+    [
+        pa.field("source", pa.string()),
+        pa.field("id", pa.string()),
+        pa.field("language", pa.string()),
+        pa.field("text", pa.string()),
+        pa.field(
+            "messages",
+            pa.list_(
+                pa.struct(
+                    [pa.field("role", pa.string()), pa.field("content", pa.string())]
+                )
+            ),
+            nullable=True,
+        ),
+        pa.field("metadata", pa.string(), nullable=True),
+    ]
+)

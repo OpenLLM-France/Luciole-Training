@@ -1,13 +1,9 @@
 import time
 
-tic = time.time()
 from datetime import datetime
 import random
 import datasets
 import os
-
-os.environ["VLLM_USE_V1"] = "0"
-# os.environ["DISTILABEL_LOG_LEVEL"] = "DEBUG"
 
 import argparse
 import psutil
@@ -17,6 +13,10 @@ from distilabel.models.llms import vLLM
 from distilabel.pipeline import Pipeline
 from distilabel.steps.tasks import TextGeneration
 from distilabel.steps import StepResources
+
+tic = time.time()
+os.environ["VLLM_USE_V1"] = "0"
+# os.environ["DISTILABEL_LOG_LEVEL"] = "DEBUG"
 
 
 def print_memory_usage(tag=""):
@@ -42,15 +42,17 @@ def to_shorthand(n):
     else:
         return str(n)
 
+
 def cut_long_text(text, max_length=15000):
     """Cut long text to a maximum length."""
     if len(text) > max_length:
         # Look for the last period before the max length
-        cut_index = text.rfind('.', 0, max_length)
+        cut_index = text.rfind(".", 0, max_length)
         if cut_index == -1:  # No period found, cut at max_length
-            cut_index = max_length-1
-        text = text[:cut_index+1]
+            cut_index = max_length - 1
+        text = text[: cut_index + 1]
     return text
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -83,7 +85,6 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--weights",
         type=float,
-        required=True,
         help="Weights for the prompts",
         nargs="+",
     )
@@ -151,10 +152,12 @@ if __name__ == "__main__":
     # Create name
     prompt_names = [os.path.splitext(os.path.basename(p))[0] for p in prompt_paths]
     common_prefix = os.path.commonprefix(prompt_names)
-    prompt_name = common_prefix + "-".join([p[len(common_prefix):] for p in prompt_names])
+    prompt_name = common_prefix + "-".join(
+        [p[len(common_prefix) :] for p in prompt_names]
+    )
 
     date = datetime.now().strftime("%Y-%m-%dT%H-%M-%S.%f")
-    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{expe_name}" # t{args.temperature}_n{to_shorthand(args.nsamples)}-{args.seed}"  # _{date}
+    output_name = f"{model_name.split('/')[-1]}_{prompt_name}_{expe_name}"  # t{args.temperature}_n{to_shorthand(args.nsamples)}-{args.seed}"  # _{date}
     if (not args.disable_thinking) and ("Qwen" in model_name):
         output_name += "_think"
     print(output_name)
@@ -186,7 +189,9 @@ if __name__ == "__main__":
     if args.nsamples and len(dataset) > args.nsamples:
         print(f"Subsampling dataset from {len(dataset)} to {args.nsamples} samples.")
         if args.seed <= 0:
-            random_indices = range(-args.seed, -args.seed + args.nsamples)  # Use all samples if no seed is provided
+            random_indices = range(
+                -args.seed, -args.seed + args.nsamples
+            )  # Use all samples if no seed is provided
         else:
             random_indices = random.sample(range(len(dataset)), args.nsamples)
         dataset = dataset.select(random_indices)
@@ -194,18 +199,30 @@ if __name__ == "__main__":
     if len(prompts) == 1:
         prompt = prompts[0]
         dataset = dataset.map(
-            lambda x: {"instruction": prompt.replace("<text>", cut_long_text(x["text"]))},
+            lambda x: {
+                "instruction": prompt.replace("<text>", cut_long_text(x["text"]))
+            },
             num_proc=4,
         )
     elif args.weights:
-        assert len(prompts) == len(args.weights), "Number of prompts must match number of weights."
+        assert len(prompts) == len(
+            args.weights
+        ), "Number of prompts must match number of weights."
         dataset = dataset.map(
-            lambda x: {"instruction": random.choices(prompts, weights=args.weights)[0].replace("<text>", cut_long_text(x["text"]))},
+            lambda x: {
+                "instruction": random.choices(prompts, weights=args.weights)[0].replace(
+                    "<text>", cut_long_text(x["text"])
+                )
+            },
             num_proc=4,
         )
     else:
         dataset = dataset.map(
-            lambda x: {"instruction": random.choice(prompts).replace("<text>", cut_long_text(x["text"]))},
+            lambda x: {
+                "instruction": random.choice(prompts).replace(
+                    "<text>", cut_long_text(x["text"])
+                )
+            },
             num_proc=4,
         )
     dataset = dataset.select_columns(["text", "instruction", "id"])
@@ -231,7 +248,7 @@ if __name__ == "__main__":
         generation = TextGeneration(
             llm=llm,
             input_batch_size=args.batch_size,
-            resources=StepResources(replicas=DP, gpus=args.gpus/DP),
+            resources=StepResources(replicas=DP, gpus=args.gpus / DP),
         )
 
     print("Time to build pipeline:", time.time() - tic)

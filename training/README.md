@@ -35,15 +35,35 @@ If you want to train a Mamba model:
 pip install --user --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
 
-### Train
+### Pipeline
 
-Here is an example of training command,
-to train on 20B tokens:
+Here is an example of pipeline command, which will train, convert and evaluate your model:
 ```bash
 cd train/
-python slurm_launcher.py --config xxx.json --output_dir xxx --mode 20b [--email xxx@xxx.com] [--num_nodes 4]
+python slurm_pipeline.py --config xxx.json --output_dir xxx --mode 35b [--email xxx@xxx.com] [--num_nodes 4] --tasks task1.txt task2.txt
 ```
-Use `--mode debug` to try your script before running it.
+If no tasks are given it will just train and convert.
+Don't forget to use `--mode debug` to try your script before running it.
+
+The script will print the path of your experiment so you can easily ``cd``. 
+In the experiment folder, once it has finished, you should have :
+- a folder with the same name as the experiment where you can find the checkpoints
+- a `datamix` folder containing all used datamixes
+- a `failed.out` where errors raised during training are written
+- a `completed.txt` showing that training completed sucessfully 
+- a `huggingface_checkpoints` folder where you will find the converted checkpoints
+- a folder for each job `job_xxx` where you will find the log, config, `command.sh` (command used to launch the job), the `launch.slurm` and datamix of that job
+- a `conversion` folder where you will find the log, `conversion.slurm` and a `completed.txt`
+- a `evaluation` folder where you will find a slurm for each checkpoints, a `results` folder with a subfolder per checkpoint and a json per ablation run in it. There is also a `slurm_logs` with logs of the evaluation for each task and checkpoint.
+
+### Train
+
+Here is an example of training command:
+```bash
+cd train/
+python slurm_launcher.py --config xxx.json --output_dir xxx --mode 35b [--email xxx@xxx.com] [--num_nodes 4]
+```
+Don't forget to use `--mode debug` to try your script before running it.
 
 ### Estimate training time for a 1b model
 
@@ -66,57 +86,3 @@ For example:
 cd conversion/
 sbatch convert.slurm $OpenLLM_OUTPUT/ablations/train/languages_ablations/datamix_dclm_dolmino_4n_20b
 ```
-
-## Evaluate
-
-###  Install
-
-You should create a new environment for evaluation.
-```bash
-module purge
-module load anaconda-py3/2024.06
-conda create -n eval-env python=3.10
-conda activate eval-env
-pip install lighteval[extended_tasks,math,multilingual,vllm]==0.8.1
-pip install hf-xet
-pip install matplotlib
-```
-
-Warning: in more recent versions of `lighteval`,
-"`pretrained=`" option has been renamed to "`model_name=`".
-
-### Run Evaluations
-
-#### Define the tasks you want to run: 
-- you can create a new .txt file 
-- or use one of the predefined (en.txt, fr.txt). 
-
-#### Load benchmarks in the cache:
-
-You can run this on prepost partition for example:
-
-```
-module purge
-module load arch/h100
-module load anaconda-py3/2024.06
-conda activate eval-env
-
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
-
-lighteval accelerate "pretrained=gpt2" "tasks/en.txt" --max-samples 1000
-lighteval accelerate "pretrained=gpt2" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks --max-samples 1000
-```
-
-#### Evaluate all the checkpoints of your experiment:
-```bash
-cd evaluation/
-sbatch evaluate_experiment.slurm $experiment_path $task_to_evaluate multilingual
-```
-where:
-- `$experiment_path` is the path to your experiments. It should have a `"huggingface_checkpoints"` folder in it. 
-- `$task_to_evaluate` is the name of your .txt file (with the extension)
-- add `multilingual` only if you need to evaluate multilingual tasks. It will activate lighteval args: `--custom-tasks lighteval.tasks.multilingual.tasks`
-
-#### Plotting the results...
-You can use the script `plot_results.py` to plot your results.

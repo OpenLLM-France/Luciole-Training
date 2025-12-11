@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import os
+import sys
 import re
 import logging
 import shutil
@@ -10,80 +11,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_slurm_script(
-    job_name,
-    email,
-    output_dir,
-    config,
-    arch,
-    num_nodes,
-    gpus_per_node,
-    mode,
-    fp8,
-    tensor_parallelism,
-    pipeline_parallelism,
-    seq_length,
-    batch_size,
-    context_parallelism,
-    virtual_pipeline_parallelism,
-    seed,
-    base_checkpoint,
-):
-    # Choix des paramètres en fonction du mode
-    if mode == "debug" or mode.startswith("benchmark"):
-        qos = "qos_gpu_h100-dev" if num_nodes <= 8 else "qos_gpu_h100-t3"
-        time = "01:00:00" if mode == "benchmark100" else "00:30:00"
-    elif mode == "20b" or mode == "35b":
-        qos = "qos_gpu_h100-t3"
-        time = "20:00:00"
-    else:
-        raise ValueError(f"Unkown mode {mode}, should be debug, benchmark, 20b or 35b.")
-
-    email_line = ""
-    if email:
-        email_line = f"""#SBATCH --mail-user={email}  # Où envoyer l'e-mail
-#SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL            # Événements déclencheurs (NONE, BEGIN, END, FAIL, ALL)"""
-
-    train_path = Path(__file__).resolve().parent
-
-    logger.info(f"Train script path: {train_path}/train.py")
-
-    args = f"{config} --arch {arch} --num_nodes {num_nodes} --name {job_name} --mode {mode} --output_dir {output_dir} --num_gpus_per_node {gpus_per_node}"
-    if fp8:
-        args += " --fp8"
-    if tensor_parallelism:
-        args += f" --tensor_parallelism {tensor_parallelism}"
-    if pipeline_parallelism:
-        args += f" --pipeline_parallelism {pipeline_parallelism}"
-    if seq_length:
-        args += f" --seq_length {seq_length}"
-    if batch_size:
-        args += f" --batch_size {batch_size}"
-    if context_parallelism:
-        args += f" --context_parallelism {context_parallelism}"
-    if virtual_pipeline_parallelism:
-        args += f" --virtual_pipeline_parallelism {virtual_pipeline_parallelism}"
-    if seed:
-        args += f" --seed {seed}"
-    if base_checkpoint:
-        args += f" --base_checkpoint {base_checkpoint}"
-
-    # Contenu du script SLURM
-    script = f"""#!/bin/bash
-#SBATCH --job-name={job_name}
+SLURM_TEMPLATE = """#!/bin/bash
+#SBATCH --job-name={name}
 #SBATCH --nodes={num_nodes}
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=64
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
-#SBATCH --output={output_dir}/log_%j.out 
+#SBATCH --output={output_dir}/job_%j/log.out 
+#SBATCH --error={output_dir}/job_%j/failed.out 
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
-#SBATCH --account=wuh@h100
+#SBATCH --account={account}
 #SBATCH --constraint=h100
 {email_line}
 
-echo "Job name: {job_name}"
+echo "Job name: {name}"
 echo "Qos: {qos}"
 echo "Time limit: {time}"
 echo "Mode: {mode}"
@@ -99,16 +42,22 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 
+# export NCCL_DEBUG=INFO
+# export NCCL_DEBUG_SUBSYS=ALL
+# export CEEMS_ENABLE_PERF_EVENTS=1
+# export CEEMS_ENABLE_PROFILING=1
+
 export TORCH_NCCL_AVOID_RECORD_STREAMS=1
 export NCCL_NVLS_ENABLE=0
 export NVTE_DP_AMAX_REDUCE_INTERVAL=0
 export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
-export CEEMS_ENABLE_PERF_EVENTS=1
-export CEEMS_ENABLE_PROFILING=1
 
 module purge
-module load arch/h100 nemo/2.1.0
+module load arch/h100 {nemo_version}
+
+# exec 1> >(tee -a {output_dir}/log.out >&1)
+# exec 2> >(tee -a {output_dir}/failed.out >&2)
 
 # Set environment variables for distributed training
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -118,170 +67,261 @@ GPUS_PER_NODE={gpus_per_node}  # Adjust based on your setup
 DISTRIBUTED_ARGS=" \
        --nproc_per_node $GPUS_PER_NODE \
        --nnodes $SLURM_NNODES \
-       --node_rank $SLURM_PROCID \
+       --node_rank $SLURM_NODEID \
        --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
        --rdzv_backend c10d \
        --max_restarts 0 \
        "
 
-echo "Arguments: {args}" 
-srun torchrun $DISTRIBUTED_ARGS {train_path}/train.py {args}
+echo "Arguments: {train_cmd}" 
+srun torchrun $DISTRIBUTED_ARGS {train_path}/train_model.py {train_cmd}
 """
+
+
+def create_slurm_script(slurm_args, train_args):
+    train_cmd = dict_to_cli(train_args)
+    # print(f"    with train args : {train_args}")
+    # print(f"    with slurm args : {slurm_args}")
+
+    script = SLURM_TEMPLATE.format(
+        **slurm_args,
+        **train_args,
+        train_cmd=train_cmd,
+        email_line=generate_email_line(slurm_args["email"], slurm_args["email_types"]),
+        train_path=Path(__file__).resolve().parent,
+    )
     return script
 
 
-def write_launch_slurm(slurm_path, slurm_content):
+def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL"):
+    email_line = ""
+    if email:
+        mail_type = mail_type.upper()
+        if mail_type == "ALL":
+            mail_type = "ARRAY_TASKS,ALL"
+        email_line = f"""#SBATCH --mail-user={email}
+#SBATCH --mail-type={mail_type}"""
+    return email_line
+
+
+def dict_to_cli(args_dict):
+    cli_parts = []
+    for k, v in args_dict.items():
+        if isinstance(v, bool):
+            if v:  # only include True flags
+                cli_parts.append(f"\\\n    --{k}")
+        elif isinstance(v, str):
+            cli_parts.append(f"\\\n    --{k} '{v}'")
+        elif v is not None:
+            cli_parts.append(f"\\\n    --{k} {v}")
+    return " ".join(cli_parts)
+
+
+def write_launch_slurm(
+    slurm_path, slurm_content, task="", slurm_array=None, dependency=None
+):
     with open(slurm_path, "w") as fout:
         fout.write(slurm_content)
-    logger.info(f"Generated slurm script : {slurm_path}")
+    command = ["sbatch"]
+    if slurm_array:
+        command += [f"--array=1-{slurm_array}%1"]
+    if dependency:
+        command += [f"--dependency={dependency}"]
+    command += [slurm_path]
     try:
-        result = subprocess.run(
-            ["sbatch", slurm_path], check=True, capture_output=True, text=True
-        )
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"Job submission failed: {e}")
+        logger.error(f"stderr: {e.stderr}")
         exit(1)
+    # except FileNotFoundError:
+    #     return 0
     match = re.search(r"Submitted batch job (\d+)", result.stdout)
     if match:
         job_id = int(match.group(1))
     else:
         raise ValueError("Failed to parse job ID from sbatch output.")
-    logger.info(f"Job submitted {job_id}")
+    logger.info(f"✅ Job submitted ({task}) with job id : {job_id}")
     return job_id
 
 
-def submit_job(**kwargs):
-    config = kwargs["config"]
-    if not os.path.exists(config):
-        raise RuntimeError(f"Config : {config} does not exist")
+def get_expe_name(slurm_args, train_args):
+    job_name_parts = []
+    name_prefix = slurm_args.get("name_prefix")
+    if name_prefix:
+        job_name_parts.append(name_prefix)
+    job_name_parts.extend([train_args["arch"], train_args["mode"]])
+    # Debug / benchmark mode
+    if train_args["mode"] in ["benchmark", "debug"]:
+        datamix_name = os.path.splitext(os.path.basename(train_args["datamix"]))[0]
+        job_name_parts.append(datamix_name)
+        if train_args["mode"] == "benchmark":
+            job_name_parts.append(f"{slurm_args['num_nodes']}n")
+            if train_args.get("performance_mode"):
+                job_name_parts.append("perf")
+        if train_args.get("fp8"):
+            job_name_parts.append("fp8")
+            if train_args.get("fp8_recipe"):
+                job_name_parts.append(train_args["fp8_recipe"])
+        if train_args.get("tensor_parallelism"):
+            job_name_parts.append(f"tp{train_args['tensor_parallelism']}")
+        if train_args.get("pipeline_parallelism"):
+            job_name_parts.append(f"pp{train_args['pipeline_parallelism']}")
+        if train_args.get("context_parallelism"):
+            job_name_parts.append(f"cp{train_args['context_parallelism']}")
+        if train_args.get("virtual_pipeline_parallelism"):
+            job_name_parts.append(f"vpp{train_args['virtual_pipeline_parallelism']}")
+        if train_args.get("micro_batch_size"):
+            job_name_parts.append(f"mbs{train_args['micro_batch_size']}")
 
-    config_name = os.path.splitext(os.path.basename(config))[0]
-    if kwargs.get("base_checkpoint"):
-        base_model_name = os.path.splitext(os.path.basename(kwargs["base_checkpoint"]))[
-            0
-        ]
-        model_part = f'{kwargs["arch"]}_from_{base_model_name}'
-    else:
-        model_part = kwargs["arch"]
-    job_name_parts = [
-        model_part,
-        config_name,
-        kwargs["mode"],
-    ]
-    if kwargs.get("seed"):
-        job_name_parts.append(f"s{kwargs['seed']}")
-    if kwargs["mode"].startswith("benchmark"):
-        job_name_parts.append(f"{kwargs['num_nodes']}n")
-    if kwargs.get("fp8"):
-        job_name_parts.append("fp8")
-    if kwargs.get("name_prefix"):
-        job_name_parts.insert(0, kwargs["name_prefix"])
-    if kwargs.get("tensor_parallelism"):
-        job_name_parts.append(f"tp{kwargs['tensor_parallelism']}")
-    if kwargs.get("pipeline_parallelism"):
-        job_name_parts.append(f"pp{kwargs['pipeline_parallelism']}")
-    if kwargs.get("context_parallelism"):
-        job_name_parts.append(f"cp{kwargs['context_parallelism']}")
-    if kwargs.get("virtual_pipeline_parallelism"):
-        job_name_parts.append(f"vpp{kwargs['virtual_pipeline_parallelism']}")
-    job_name = "_".join(job_name_parts)
+    expe_name = "_".join(job_name_parts).replace(".", "_")
+    return expe_name
 
-    xp_output_dir = os.path.join(kwargs["output_dir"], job_name)
 
-    if kwargs["mode"] != "debug" and os.path.exists(
-        os.path.join(xp_output_dir, "completed.txt")
+def submit_job(slurm_args, train_args):
+    xp_output_dir = train_args["output_dir"]
+    datamix = train_args["datamix"]
+
+    # Check compatibility
+    if not os.path.exists(datamix):
+        raise RuntimeError(f"Datamix : {datamix} does not exist")
+
+    if (
+        train_args["mode"] in ["phase2", "annealing"]
+        and train_args["base_checkpoint"] is None
     ):
-        logger.info(
-            f"Experiment {xp_output_dir} already exists, skipping job submission. If you want to force submission, remove 'completed.txt'"
+        raise ValueError(
+            f"You must specify --base_checkpoints when using mode {train_args['mode']}"
         )
-        return None, xp_output_dir
+    if train_args["base_checkpoint"] is not None and slurm_args["name_prefix"] is None:
+        raise ValueError("You must specify --name_prefix when using --base_checkpoint")
 
-    os.makedirs(xp_output_dir, exist_ok=True)
+    # SLURM args
+    slurm_array = slurm_args.pop("slurm_array")
+    dependency = slurm_args.pop("dependency")
 
-    args = {
-        **kwargs,
-        "job_name": job_name,
-        "config": config,
-        "output_dir": xp_output_dir,
-    }
-    args.pop("name_prefix")
-    slurm_script = create_slurm_script(**args)
-
-    logger.info(f"Experiment name : {job_name}")
-    logger.info(f"Experiment path : {xp_output_dir}")
+    slurm_script = create_slurm_script(slurm_args, train_args)
+    logger.info(f"🧪 Experiment name : {expe_name}")
+    logger.info(f"📂 Experiment path : {xp_output_dir}")
 
     sbatch_script_path = os.path.join(xp_output_dir, "launch.slurm")
 
-    shutil.copy2(config, xp_output_dir)
-    logger.info(f"Copied datamix file : {config} to {xp_output_dir}")
+    job_id = write_launch_slurm(
+        sbatch_script_path,
+        slurm_script,
+        task="train",
+        slurm_array=slurm_array,
+        dependency=dependency,
+    )
 
-    job_id = write_launch_slurm(sbatch_script_path, slurm_script)
+    sub_xp_output_dir = os.path.join(xp_output_dir, f"job_{job_id}")
+    os.makedirs(sub_xp_output_dir, exist_ok=True)
+    command = " ".join([os.path.basename(sys.executable)] + sys.argv)
+    command_path = os.path.join(sub_xp_output_dir, "command.sh")
+    with open(command_path, "w") as f:
+        f.write(command + "\n")
+    logger.info(f"📁 Run saved in : {sub_xp_output_dir}")
+    shutil.copy2(sbatch_script_path, sub_xp_output_dir)
+    shutil.copy2(datamix, sub_xp_output_dir)
+
     return job_id, xp_output_dir
 
 
-def create_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="../datamix/mock.json")
+def get_slurm_parser():
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
-        "--arch",
-        default="llama1b",
+        "--name_prefix",
+        default="",
         type=str,
-        choices=[
-            "llama",
-            "llama1b",
-            "llama3b",
-            "llama8b",
-            "llama70b",
-            "mamba1b",
-            "mixtral8x7",
-            "mambahybrid8b",
-        ],
+        help="Prefix to add to the experiment name.",
     )
-    parser.add_argument("--name_prefix", default="", type=str)
-    parser.add_argument("--email", default=None)
-    parser.add_argument("--output_dir", default="")
     parser.add_argument(
-        "--output_path",
-        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "ablations", "train"),
+        "--output_dir",
+        default=os.path.join(os.getenv("OpenLLM_OUTPUT"), "test_run"),
     )
-    parser.add_argument("--num_nodes", default=1, type=int)
-    parser.add_argument("--gpus_per_node", default=4, type=int)
-    parser.add_argument("--mode", default="debug", type=str)
-    parser.add_argument("--fp8", default=False, action="store_true")
-    parser.add_argument("--tensor_parallelism", "--tp", default=None, type=int)
-    parser.add_argument("--pipeline_parallelism", "--pp", default=None, type=int)
-    parser.add_argument("--context_parallelism", "--cp", default=None, type=int)
     parser.add_argument(
-        "--virtual_pipeline_parallelism", "--vpp", default=None, type=int
+        "--email", default=None, type=str, help="Email to send notifications to."
     )
-    parser.add_argument("--seq_length", default=None, type=int)
-    parser.add_argument("--batch_size", default=None, type=int)
-    parser.add_argument("--seed", default=None, type=int)
     parser.add_argument(
-        "--base_checkpoint",
+        "--email_types",
+        default="ALL",
+        help="Triggers used for emails (BEGIN, END, FAIL...)",
+    )
+    parser.add_argument(
+        "--num_nodes", default=1, type=int, help="Number of nodes to use."
+    )
+    parser.add_argument(
+        "--gpus_per_node", default=4, type=int, help="Number of GPUs per node to use."
+    )
+    parser.add_argument(
+        "--qos",
+        default="qos_gpu_h100-as",
+        choices=["qos_gpu_h100-as", "qos_gpu_h100-t3", "qos_gpu_h100-dev"],
+        help="If given, it will override the default qos.",
+    )
+    parser.add_argument(
+        "--account",
+        default="zwy@h100",
+        choices=["wuh@h100", "zwy@h100"],
+        help="If given, it will override the default account (wuh@h100).",
+    )
+    parser.add_argument(
+        "--slurm_array",
+        default=None,
+        type=int,
+        help="If given, it will submit the job as a slurm array job with the given number of tasks.",
+    )
+    parser.add_argument(
+        "--dependency",
         default=None,
         type=str,
-        help="The path to a nemo checkpoint to make continual learning",
+    )
+    parser.add_argument(
+        "--nemo_version",
+        default="nemo/2.3.1",
+        choices=["nemo/2.3.1", "nemo/2.4.0"],
+        type=str,
     )
     return parser
 
 
-def pre_submit(args):
-    if args.arch == "llama":  # backward compatibility
-        logger.warning(
-            "llama architecture is equal to llama1b, please switch to llama1b for more clarity"
-        )
-        args.arch = "llama1b"
-
-    args_dict = vars(args)
-    args_dict["output_dir"] = os.path.join(args.output_path, args.output_dir)
-    args_dict.pop("output_path")
-
-    job_id, xp_output_dir = submit_job(**args_dict)
-    return job_id, xp_output_dir
-
-
 if __name__ == "__main__":
-    parser = create_parser()
-    args = parser.parse_args()
-    pre_submit(args)
+    from train_model import get_parser as get_train_parser
+
+    train_parser = get_train_parser()
+    slurm_parser = get_slurm_parser()
+
+    # Parse each independently
+    train_args, _ = train_parser.parse_known_args()
+    slurm_args, _ = slurm_parser.parse_known_args()
+    slurm_args = vars(slurm_args)
+    train_args = vars(train_args)
+
+    # Generate expe name
+    expe_name = get_expe_name(slurm_args, train_args)
+    train_args["name"] = expe_name
+    print("Warning: Overriding train_args: name to", expe_name)
+
+    # Set experiment output_dir
+    output_dir = slurm_args.pop("output_dir")
+    train_args["output_dir"] = os.path.join(output_dir, expe_name)
+    os.makedirs(train_args["output_dir"], exist_ok=True)
+    print("Warning: Overriding train_args: output_dir to", train_args["output_dir"])
+
+    # Setup debug mode
+    if train_args["mode"] in ["benchmark", "debug"]:
+        if slurm_args["num_nodes"] <= 8:
+            slurm_args["qos"] = "qos_gpu_h100-dev"
+        train_args["time"] = "01:00:00"
+
+    # Print args
+    print("\n>> Launching with SLURM args:")
+    print(slurm_args)
+    print("\n>> Launching with train args:")
+    print(train_args)
+    print("\n")
+
+    args_overlap = set(slurm_args) & set(train_args)
+    assert not args_overlap, f"Overlapping keys found: {args_overlap}"
+
+    job_id, xp_output_dir = submit_job(slurm_args, train_args)

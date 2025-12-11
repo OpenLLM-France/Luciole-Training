@@ -1,0 +1,49 @@
+I will send you excerpts from a document, and you will need to translate them into {language}.
+I’m going to share excerpts from a document with you. Your task is to translate them into {language}.
+I will provide you with several parts of a text. Please translate them into {language}.
+I’ll send you sections of a document that you’ll need to translate into {language}.
+I’m going to share pieces of a document, and your job is to translate them into {language}.
+You’ll receive different excerpts from a document. Translate each one into {language}.
+Translate the excerpts I’m about to send you into {language}.
+Your task will be to translate into {language} the passages I’ll send you.
+For each text sample I provide, produce a translation into {language}.
+From the excerpts I’ll send, generate their translations in {language}.
+I will give you multiple text fragments. Translate them one by one into {language}.
+I’ll show you some passages from a document, and I’d like you to translate them into {language}.
+I’ll copy several pieces of text for you, translate them into {language}.
+I’ll send you excerpts, and your role will be to translate them into {language}.
+I’m going to share text snippets with you, translate them directly into {language}.
+I’ll communicate several excerpts of a text. Please translate them into {language}.
+I’ll send you some excerpts from a document. Return their version in {language}.
+I’ll give you several text passages to translate into {language}.
+I will send you text content that you’ll need to translate into {language}.
+I’ll give you excerpts from a document, and you’ll provide their translation in {language}.
+I’ll share excerpts from a document with you. Translate them into {language}.
+I’ll transmit some excerpts, and you’ll produce their translation in {language}.
+Your task is to translate into {language} the excerpts I’ll send you.
+I’ll send you several text excerpts for translation into {language}.
+I’ll give you parts of a text that you need to translate into {language}.
+I’ll send you passages from a document so you can translate them into {language}.
+I’ll provide several excerpts for you to translate into {language}.
+I’ll submit document excerpts for translation into {language}.
+I’ll send you several sentences from a text. Translate them into {language}.
+I’ll present excerpts from a text for you to translate into {language}.
+I’ll provide text in one language to be translated into {language}.
+I’ll give you excerpts to translate word for word into {language}.
+I’ll share excerpts that you’ll need to rephrase and translate into {language}.
+I’ll send you document passages. Translate them into {language}.
+I’ll provide consecutive text excerpts for translation into {language}.
+I’ll send you pieces of a document. Translate each one into {language}.
+I’ll show you several text excerpts. Provide their translation in {language}.
+I’ll send you written content to be translated into {language}.
+I’ll give you text fragments to translate into {language}.
+I’ll show you pieces of text, translate them into {language}.
+I’ll send you passages from a document to translate into {language}.
+I’ll send you excerpts one at a time. Translate them into {language}.
+I’ll share some text with you, convert it into {language}.
+I’ll provide you with source text to translate into {language}.
+I’ll send you several excerpts, and you’ll generate their equivalent in {language}.
+I’ll pass along document fragments to be faithfully translated into {language}.
+I’ll give you excerpts to accurately translate into {language}.
+I’ll provide content for you to transform into {language}.
+I’ll send you several excerpts from a text. Translate them naturally into {language}.

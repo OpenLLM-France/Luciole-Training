@@ -17,6 +17,6 @@ export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 
-echo $1
+echo $1 
 
-python -m torch.distributed.launch --nproc_per_node 1 convert_from_hf.py $1
+python -m torch.distributed.launch --nproc_per_node 1 hf_to_nemo.py --hf_model Lucie-7B-Instruct-v1.1

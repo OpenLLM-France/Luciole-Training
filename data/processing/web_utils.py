@@ -7,7 +7,6 @@ from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
 from datatrove.pipeline.filters import LambdaFilter
 import os
 import json
-from utils import MAIN_PATH
 
 FASTTEXT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
@@ -15,6 +14,10 @@ FASTTEXT_PATH = os.path.join(
 DECONT_PATH = os.path.join(
     os.getenv("OpenLLM_OUTPUT"),
     "data/raw_data/full_datasets/decontamination_index/data",
+)
+ROBOTSTXT_PATH = os.path.join(
+    os.getenv("OpenLLM_OUTPUT"),
+    "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge",
 )
 
 
@@ -70,6 +73,8 @@ def edu_score(
             )
             doc.metadata["edu_score_mean"] = edu_score_mean
             doc.metadata["edu_score"] = int(round(edu_score_mean))
+        else:
+            doc.metadata["edu_score"] = "unk"
         yield doc
 
 
@@ -97,6 +102,7 @@ def get_pii_formatter(language):
 
 
 map_language_to_iso = {
+    "eng_Latn": "en",
     "fra_Latn": "fr",
     "ita_Latn": "it",
     "spa_Latn": "es",
@@ -104,6 +110,7 @@ map_language_to_iso = {
     "nld_Latn": "nl",
     "por_Latn": "pt",
     "arb_Arab": "ar",
+    "eus": "eu",
 }
 map_iso_to_language = {v: k for k, v in map_language_to_iso.items()}
 
@@ -123,7 +130,6 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
                 save_labels_in_metadata=True,
                 filter_name="edu_score",
             ),
-            edu_score,
         ]
     else:
         edu_filters = []
@@ -131,6 +137,7 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
         print(
             f"Model not found at {model_url}. Skipping educational filters for {language}."
         )
+    edu_filters.append(edu_score)
     return edu_filters
 
 
@@ -161,14 +168,41 @@ def get_decontamination_filters(
     return filters
 
 
-def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=False):
+def get_robot_filter(output_path, robots_txt_path=ROBOTSTXT_PATH):
+    return RobotsTxtFilter(
+        robots_txt_path=robots_txt_path,
+        exclusion_writer=JsonlWriter(
+            f"{output_path}/removed/robots_txt",
+        ),
+    )
+
+
+def get_dedup_filter(output_path):
     def deduplicate_url(doc):
-        url = doc.metadata["url"]
+        url = doc.metadata.get("url", None)
+        if url is None:
+            return True
         for keyword in get_duplicated_urls():
             if url.startswith(keyword):
                 return False, f"duplicate_url:{keyword}"
         return True
 
+    return LambdaFilter(
+        deduplicate_url,
+        exclusion_writer=JsonlWriter(
+            f"{output_path}/removed/duplicated_url",
+        ),
+    )
+
+
+def get_web_pipeline(
+    language,
+    output_path,
+    do_edu=True,
+    do_pii=True,
+    do_decont=False,
+    robots_txt_path=ROBOTSTXT_PATH,
+):
     edu_filters = get_edu_filters(language) if do_edu else []
     pii_formatter = get_pii_formatter(language) if do_pii else []
     decontamination_filters = (
@@ -176,21 +210,8 @@ def get_web_pipeline(language, output_path, do_edu=True, do_pii=True, do_decont=
     )
 
     pipeline = [
-        LambdaFilter(
-            deduplicate_url,
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed/duplicated_url",
-            ),
-        ),
-        RobotsTxtFilter(
-            robots_txt_path=os.path.join(
-                MAIN_PATH,
-                "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge/robotstxt_dict.jsonl",
-            ),
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed/robots_txt",
-            ),
-        ),
+        get_dedup_filter(output_path),
+        get_robot_filter(output_path, robots_txt_path=robots_txt_path),
         *edu_filters,
         *pii_formatter,
         *decontamination_filters,

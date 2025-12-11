@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import glob
 import re
-from generate_token_stats import extract_token_lengths
+from extract_stats import extract_token_lengths
 import argparse
 
 

@@ -1,0 +1,328 @@
+Loading nemo/2.3.1
+  Loading requirement: gcc/11.4.1 cuda/12.6.3 nccl/2.26.2-1-cuda
+    cudnn/9.5.1.17-cuda openmpi/4.1.5-cuda intel-oneapi-mkl/2024.1
+    magma/2.9.0-cuda sox/14.4.2 ffmpeg/6.1.1 hdf5/1.12.0-mpi-cuda
+    libjpeg-turbo/2.1.3
+W1029 13:40:06.497000 1063832 site-packages/torch/distributed/run.py:766] 
+W1029 13:40:06.497000 1063832 site-packages/torch/distributed/run.py:766] *****************************************
+W1029 13:40:06.497000 1063832 site-packages/torch/distributed/run.py:766] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W1029 13:40:06.497000 1063832 site-packages/torch/distributed/run.py:766] *****************************************
+Supported flash-attn versions are >= 2.1.1, <= 2.7.4.post1. Found flash-attn 2.8.0.post2.
+Supported flash-attn versions are >= 2.1.1, <= 2.7.4.post1. Found flash-attn 2.8.0.post2.
+Supported flash-attn versions are >= 2.1.1, <= 2.7.4.post1. Found flash-attn 2.8.0.post2.
+Supported flash-attn versions are >= 2.1.1, <= 2.7.4.post1. Found flash-attn 2.8.0.post2.
+[NeMo I 2025-10-29 13:41:20 tokenizer_utils:130] Getting HuggingFace AutoTokenizer with pretrained_model_name: /lustre/fsn1/projects/rech/knb/ukq43aj/Models/Qwen2.5-7B-Instruct, vocab_file: None, merges_files: None, special_tokens_dict: {}, and use_fast: True
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+[NeMo I 2025-10-29 13:41:20 nemo_logger:160] Experiments will be logged at /lustre/fsn1/projects/rech/knb/ukq43aj/Models/Qwen2.5-7B-Instruct-en-fr-2/nemo_test/2025-10-29_13-41-20
+[NeMo W 2025-10-29 13:41:20 nemo_logger:188] "update_logger_directory" is True. Overwriting tensorboard logger "save_dir" to /lustre/fsn1/projects/rech/knb/ukq43aj/Models/Qwen2.5-7B-Instruct-en-fr-2/tb_logs
+[NeMo W 2025-10-29 13:41:20 nemo_logger:207] The Trainer already contains a ModelCheckpoint callback. This will be overwritten.
+[NeMo W 2025-10-29 13:41:20 nemo_logger:237] The checkpoint callback was told to monitor a validation value and trainer's max_steps was set to 434. Please ensure that max_steps will run for at least 1 epochs to ensure that checkpointing will not error out.
+[NeMo I 2025-10-29 13:41:20 megatron_strategy:426] Fixing mis-match between ddp-config & mcore-optimizer config
+[NeMo I 2025-10-29 13:41:20 megatron_init:443] Rank 0 has data parallel group : [0]
+[NeMo I 2025-10-29 13:41:20 megatron_init:449] Rank 0 has combined group of data parallel and context parallel : [0]
+[NeMo I 2025-10-29 13:41:20 megatron_init:454] All data parallel group ranks with context parallel combined: [[0], [1], [2], [3]]
+[NeMo I 2025-10-29 13:41:20 megatron_init:457] Ranks 0 has data parallel rank: 0
+[NeMo I 2025-10-29 13:41:20 megatron_init:465] Rank 0 has context parallel group: [0]
+[NeMo I 2025-10-29 13:41:20 megatron_init:468] All context parallel group ranks: [[0], [1], [2], [3]]
+[NeMo I 2025-10-29 13:41:20 megatron_init:469] Ranks 0 has context parallel rank: 0
+[NeMo I 2025-10-29 13:41:20 megatron_init:476] Rank 0 has model parallel group: [0, 1, 2, 3]
+[NeMo I 2025-10-29 13:41:20 megatron_init:477] All model parallel group ranks: [[0, 1, 2, 3]]
+[NeMo I 2025-10-29 13:41:20 megatron_init:486] Rank 0 has tensor model parallel group: [0, 1, 2, 3]
+[NeMo I 2025-10-29 13:41:20 megatron_init:490] All tensor model parallel group ranks: [[0, 1, 2, 3]]
+[NeMo I 2025-10-29 13:41:20 megatron_init:491] Rank 0 has tensor model parallel rank: 0
+[NeMo I 2025-10-29 13:41:20 megatron_init:518] Rank 0 has pipeline model parallel group: [0]
+[NeMo I 2025-10-29 13:41:20 megatron_init:530] Rank 0 has embedding group: [0]
+[NeMo I 2025-10-29 13:41:20 megatron_init:536] All pipeline model parallel group ranks: [[0], [1], [2], [3]]
+[NeMo I 2025-10-29 13:41:20 megatron_init:537] Rank 0 has pipeline model parallel rank 0
+[NeMo I 2025-10-29 13:41:20 megatron_init:538] All embedding group ranks: [[0], [1], [2], [3]]
+[NeMo I 2025-10-29 13:41:20 megatron_init:539] Rank 0 has embedding rank: 0
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 4 processes
+----------------------------------------------------------------------------------------------------
+
+[NeMo I 2025-10-29 13:41:24 base:343] Use preset vocab_size: 152064, original vocab_size: 151665, dummy tokens: 399.
+LOCAL_RANK: 2 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+[NeMo I 2025-10-29 13:41:24 megatron_strategy:438] Copying Trainer's 'max_steps' (434) to LR scheduler's 'max_steps'.
+[NeMo I 2025-10-29 13:41:24 num_microbatches_calculator:228] setting number of microbatches to constant 64
+LOCAL_RANK: 3 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+[NeMo I 2025-10-29 13:41:24 megatron_parallel:623]  > number of parameters on (tensor, pipeline) model parallel rank (0 ,0): 1904057344
+[NeMo I 2025-10-29 13:41:24 utils:532] Setting up DistributedDataParallel with config DistributedDataParallelConfig(grad_reduce_in_fp32=True, overlap_grad_reduce=False, overlap_param_gather=False, align_param_gather=False, use_distributed_optimizer=True, num_distributed_optimizer_instances=1, check_for_nan_in_grad=True, check_for_large_grads=False, bucket_size=None, pad_buckets_for_high_nccl_busbw=False, average_in_collective=False, fp8_param_gather=False, use_custom_fsdp=False, data_parallel_sharding_strategy='no_shard', gradient_reduce_div_fusion=True, suggested_communication_unit_size=None, preserve_fp32_weights=True, keep_fp8_transpose_cache_when_using_custom_fsdp=False)
+[NeMo I 2025-10-29 13:41:24 utils:553] Number of buckets for gradient all-reduce / reduce-scatter: 1
+    Params for bucket 1 (1904057344 elements, 1904057344 padded size):
+    	module.decoder.layers.27.mlp.linear_fc1.weight
+    	module.decoder.layers.23.self_attention.linear_qkv.bias
+    	module.decoder.layers.17.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.13.self_attention.linear_qkv.weight
+    	module.decoder.layers.10.self_attention.linear_qkv.bias
+    	module.decoder.layers.7.self_attention.linear_proj.weight
+    	module.decoder.layers.18.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.21.mlp.linear_fc2.weight
+    	module.decoder.layers.16.self_attention.linear_proj.weight
+    	module.decoder.layers.15.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.8.self_attention.linear_qkv.bias
+    	module.decoder.layers.0.self_attention.linear_qkv.weight
+    	module.decoder.layers.22.mlp.linear_fc1.weight
+    	module.decoder.layers.19.self_attention.linear_qkv.weight
+    	module.decoder.layers.16.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.9.mlp.linear_fc1.weight
+    	module.decoder.layers.6.mlp.linear_fc2.weight
+    	module.decoder.layers.5.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.2.self_attention.linear_proj.weight
+    	module.decoder.layers.24.self_attention.linear_proj.weight
+    	module.decoder.layers.21.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.14.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.11.self_attention.linear_proj.weight
+    	module.decoder.layers.7.mlp.linear_fc1.weight
+    	module.decoder.layers.3.self_attention.linear_qkv.bias
+    	module.decoder.layers.1.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.25.self_attention.linear_qkv.bias
+    	module.decoder.layers.15.self_attention.linear_qkv.weight
+    	module.decoder.layers.12.self_attention.linear_qkv.bias
+    	module.decoder.layers.6.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.1.mlp.linear_fc2.weight
+    	module.decoder.layers.26.mlp.linear_fc1.weight
+    	module.decoder.layers.23.mlp.linear_fc2.weight
+    	module.decoder.layers.20.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.10.mlp.linear_fc2.weight
+    	module.decoder.layers.2.mlp.linear_fc1.weight
+    	module.decoder.layers.0.mlp.linear_fc2.weight
+    	module.decoder.layers.24.mlp.linear_fc1.weight
+    	module.decoder.layers.21.self_attention.linear_qkv.weight
+    	module.decoder.layers.18.self_attention.linear_qkv.bias
+    	module.decoder.layers.11.mlp.linear_fc1.weight
+    	module.decoder.layers.8.mlp.linear_fc2.weight
+    	module.decoder.layers.4.self_attention.linear_proj.weight
+    	module.decoder.layers.0.mlp.linear_fc1.weight
+    	module.decoder.layers.0.self_attention.linear_proj.weight
+    	module.decoder.layers.26.self_attention.linear_proj.weight
+    	module.decoder.layers.27.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.23.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.16.self_attention.linear_qkv.bias
+    	module.decoder.layers.13.self_attention.linear_proj.weight
+    	module.decoder.layers.10.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.6.self_attention.linear_qkv.weight
+    	module.decoder.layers.5.self_attention.linear_qkv.bias
+    	module.decoder.layers.17.mlp.linear_fc1.weight
+    	module.decoder.layers.14.self_attention.linear_qkv.bias
+    	module.decoder.layers.8.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.3.mlp.linear_fc2.weight
+    	module.decoder.layers.25.mlp.linear_fc2.weight
+    	module.decoder.layers.22.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.19.self_attention.linear_proj.weight
+    	module.decoder.layers.12.mlp.linear_fc2.weight
+    	module.decoder.layers.9.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.4.mlp.linear_fc1.weight
+    	module.decoder.layers.1.self_attention.linear_qkv.weight
+    	module.decoder.layers.23.self_attention.linear_qkv.weight
+    	module.decoder.layers.20.self_attention.linear_qkv.bias
+    	module.decoder.layers.13.mlp.linear_fc1.weight
+    	module.decoder.layers.10.self_attention.linear_qkv.weight
+    	module.decoder.layers.7.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.3.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.25.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.18.mlp.linear_fc2.weight
+    	module.decoder.layers.15.self_attention.linear_proj.weight
+    	module.decoder.layers.12.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.8.self_attention.linear_qkv.weight
+    	module.decoder.layers.6.self_attention.linear_proj.weight
+    	module.decoder.layers.27.self_attention.linear_qkv.bias
+    	module.decoder.layers.19.mlp.linear_fc1.weight
+    	module.decoder.layers.16.mlp.linear_fc2.weight
+    	module.decoder.layers.5.mlp.linear_fc2.weight
+    	module.decoder.layers.2.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.18.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.24.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.21.self_attention.linear_proj.weight
+    	module.decoder.layers.14.mlp.linear_fc2.weight
+    	module.decoder.layers.11.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.3.self_attention.linear_qkv.weight
+    	module.decoder.layers.25.self_attention.linear_qkv.weight
+    	module.decoder.layers.22.self_attention.linear_qkv.bias
+    	module.decoder.layers.17.self_attention.linear_proj.weight
+    	module.decoder.layers.15.mlp.linear_fc1.weight
+    	module.decoder.layers.12.self_attention.linear_qkv.weight
+    	module.decoder.layers.9.self_attention.linear_qkv.bias
+    	module.decoder.layers.5.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.20.mlp.linear_fc2.weight
+    	module.decoder.layers.17.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.14.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.7.self_attention.linear_qkv.bias
+    	module.decoder.layers.2.self_attention.linear_qkv.bias
+    	module.decoder.layers.21.mlp.linear_fc1.weight
+    	module.decoder.layers.18.self_attention.linear_qkv.weight
+    	module.decoder.layers.4.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.1.self_attention.linear_proj.weight
+    	module.decoder.layers.27.mlp.linear_fc2.weight
+    	module.decoder.layers.26.mlp.linear_fc2.weight
+    	module.decoder.layers.26.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.23.self_attention.linear_proj.weight
+    	module.decoder.layers.20.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.16.self_attention.linear_qkv.weight
+    	module.decoder.layers.13.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.10.self_attention.linear_proj.weight
+    	module.decoder.layers.6.mlp.linear_fc1.weight
+    	module.decoder.layers.5.self_attention.linear_qkv.weight
+    	module.decoder.layers.24.self_attention.linear_qkv.bias
+    	module.decoder.layers.14.self_attention.linear_qkv.weight
+    	module.decoder.layers.11.self_attention.linear_qkv.bias
+    	module.decoder.layers.8.self_attention.linear_proj.weight
+    	module.decoder.layers.0.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.27.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.22.mlp.linear_fc2.weight
+    	module.decoder.layers.19.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.16.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.9.mlp.linear_fc2.weight
+    	module.decoder.layers.1.mlp.linear_fc1.weight
+    	module.decoder.layers.23.mlp.linear_fc1.weight
+    	module.decoder.layers.20.self_attention.linear_qkv.weight
+    	module.decoder.layers.17.self_attention.linear_qkv.bias
+    	module.decoder.layers.10.mlp.linear_fc1.weight
+    	module.decoder.layers.7.mlp.linear_fc2.weight
+    	module.decoder.layers.3.self_attention.linear_proj.weight
+    	module.decoder.layers.25.self_attention.linear_proj.weight
+    	module.decoder.layers.22.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.15.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.12.self_attention.linear_proj.weight
+    	module.decoder.layers.8.mlp.linear_fc1.weight
+    	module.decoder.layers.4.self_attention.linear_qkv.bias
+    	module.decoder.layers.27.self_attention.linear_qkv.weight
+    	module.decoder.layers.26.self_attention.linear_qkv.bias
+    	module.decoder.layers.13.self_attention.linear_qkv.bias
+    	module.decoder.layers.7.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.2.mlp.linear_fc2.weight
+    	module.decoder.layers.18.self_attention.linear_proj.weight
+    	module.decoder.layers.24.mlp.linear_fc2.weight
+    	module.decoder.layers.21.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.11.mlp.linear_fc2.weight
+    	module.decoder.layers.3.mlp.linear_fc1.weight
+    	module.decoder.layers.0.self_attention.linear_qkv.bias
+    	module.decoder.layers.25.mlp.linear_fc1.weight
+    	module.decoder.layers.22.self_attention.linear_qkv.weight
+    	module.decoder.layers.19.self_attention.linear_qkv.bias
+    	module.decoder.layers.12.mlp.linear_fc1.weight
+    	module.decoder.layers.9.self_attention.linear_qkv.weight
+    	module.decoder.layers.6.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.5.self_attention.linear_proj.weight
+    	module.decoder.layers.2.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.24.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.17.mlp.linear_fc2.weight
+    	module.decoder.layers.14.self_attention.linear_proj.weight
+    	module.decoder.layers.11.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.7.self_attention.linear_qkv.weight
+    	module.decoder.layers.18.mlp.linear_fc1.weight
+    	module.decoder.layers.15.self_attention.linear_qkv.bias
+    	module.decoder.layers.9.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.4.mlp.linear_fc2.weight
+    	module.decoder.layers.1.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.0.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.26.self_attention.linear_qkv.weight
+    	module.decoder.layers.23.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.20.self_attention.linear_proj.weight
+    	module.decoder.layers.16.mlp.linear_fc1.weight
+    	module.decoder.layers.13.mlp.linear_fc2.weight
+    	module.decoder.layers.10.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.5.mlp.linear_fc1.weight
+    	module.decoder.layers.2.self_attention.linear_qkv.weight
+    	module.decoder.final_layernorm.weight
+    	module.decoder.layers.24.self_attention.linear_qkv.weight
+    	module.decoder.layers.21.self_attention.linear_qkv.bias
+    	module.decoder.layers.14.mlp.linear_fc1.weight
+    	module.decoder.layers.11.self_attention.linear_qkv.weight
+    	module.decoder.layers.8.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.4.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.27.self_attention.linear_proj.weight
+    	module.decoder.layers.26.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.19.mlp.linear_fc2.weight
+    	module.decoder.layers.13.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.9.self_attention.linear_proj.weight
+    	module.decoder.layers.6.self_attention.linear_qkv.bias
+    	module.decoder.layers.20.mlp.linear_fc1.weight
+    	module.decoder.layers.17.self_attention.linear_qkv.weight
+    	module.decoder.layers.3.self_attention.linear_qkv.layer_norm_weight
+    	module.embedding.word_embeddings.weight
+    	module.output_layer.weight
+    	module.decoder.layers.25.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.22.self_attention.linear_proj.weight
+    	module.decoder.layers.19.mlp.linear_fc1.layer_norm_weight
+    	module.decoder.layers.15.mlp.linear_fc2.weight
+    	module.decoder.layers.12.self_attention.linear_qkv.layer_norm_weight
+    	module.decoder.layers.4.self_attention.linear_qkv.weight
+    	module.decoder.layers.1.self_attention.linear_qkv.bias
+[NeMo I 2025-10-29 13:41:24 utils:532] Setting up optimizer with config OptimizerConfig(optimizer='adam', lr=5e-05, min_lr=None, decoupled_lr=None, decoupled_min_lr=None, weight_decay=0.0, fp16=False, bf16=True, params_dtype=torch.bfloat16, use_precision_aware_optimizer=False, main_grads_dtype=torch.float32, main_params_dtype=torch.float32, exp_avg_dtype=torch.float32, exp_avg_sq_dtype=torch.float32, loss_scale=None, initial_loss_scale=4294967296, min_loss_scale=1.0, loss_scale_window=1000, hysteresis=2, adam_beta1=0.9, adam_beta2=0.999, adam_eps=1e-08, sgd_momentum=0.9, use_distributed_optimizer=True, overlap_param_gather_with_optimizer_step=False, optimizer_cpu_offload=False, optimizer_offload_fraction=0.0, use_torch_optimizer_for_cpu_offload=False, overlap_cpu_optimizer_d2h_h2d=False, pin_cpu_grads=True, pin_cpu_params=True, clip_grad=1.0, log_num_zeros_in_grad=False, barrier_with_L1_time=False, timers=None, config_logger_dir='')
+[NeMo I 2025-10-29 13:41:24 megatron_strategy:978] Doing selective restore from RestoreConfig(path='/linkhome/rech/genlor01/ukq43aj/.cache/nemo/models/Qwen2.5-7B-Instruct', adapter_path=None, load_model_state=True, load_optim_state=False, load_artifacts=True)
+[NeMo I 2025-10-29 13:41:24 pl:283] Using <megatron.core.dist_checkpointing.strategies.fully_parallel.FullyParallelLoadStrategyWrapper object at 0x149bd5013880> dist-ckpt load strategy.
+[NeMo I 2025-10-29 13:41:37 pl:305] Global Checkpoint Load : Rank : 0 : Start time : 1761741684.807s : Time spent in load_checkpoint: 12.447s
+[NeMo I 2025-10-29 13:41:37 megatron_strategy:983] Restoring model weights from RestoreConfig(path='/linkhome/rech/genlor01/ukq43aj/.cache/nemo/models/Qwen2.5-7B-Instruct', adapter_path=None, load_model_state=True, load_optim_state=False, load_artifacts=True)
+[NeMo I 2025-10-29 13:41:37 megatron_strategy:991] Finished restoring from RestoreConfig(path='/linkhome/rech/genlor01/ukq43aj/.cache/nemo/models/Qwen2.5-7B-Instruct', adapter_path=None, load_model_state=True, load_optim_state=False, load_artifacts=True), cleaning up.
+
+  | Name   | Type | Params | Mode 
+----------------------------------------
+0 | module | DDP  | 1.9 B  | train
+----------------------------------------
+1.9 B     Trainable params
+0         Non-trainable params
+1.9 B     Total params
+7,616.229 Total estimated model params size (MB)
+571       Modules in train mode
+0         Modules in eval mode
+[WARNING  | DotProductAttention]: flash-attn may provide important feature support or performance improvement. Please install flash-attn >= 2.1.1, <= 2.7.4.post1 by pip3 install flash-attn==<version>.
+[NeMo W 2025-10-29 13:42:15 nemo_logging:361] /lustre/fshomisc/sup/pub/miniforge/24.9.0/envs/nemo-2.3.1+py3.10.12/lib/python3.10/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:431: It is recommended to use `self.log('global_batch_size', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+    
+[NeMo W 2025-10-29 13:42:15 nemo_logging:361] /lustre/fshomisc/sup/pub/miniforge/24.9.0/envs/nemo-2.3.1+py3.10.12/lib/python3.10/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:431: It is recommended to use `self.log('val_loss', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+    
+[NeMo W 2025-10-29 13:43:31 rerun_state_machine:1264] Implicit initialization of Rerun State Machine!
+[NeMo W 2025-10-29 13:43:31 rerun_state_machine:239] RerunStateMachine initialized in mode disabled
+Training epoch 0, iteration 0/433 | lr: 1.923e-06 | global_batch_size: 64 | global_step: 0 | reduced_train_loss: 0.8119 | train_step_timing in s: 39.67
+Training epoch 0, iteration 1/433 | lr: 3.846e-06 | global_batch_size: 64 | global_step: 1 | reduced_train_loss: 0.7984 | train_step_timing in s: 35.67 | consumed_samples: 128
+Training epoch 0, iteration 2/433 | lr: 5.769e-06 | global_batch_size: 64 | global_step: 2 | reduced_train_loss: 0.7457 | train_step_timing in s: 35.72 | consumed_samples: 192
+Training epoch 0, iteration 3/433 | lr: 7.692e-06 | global_batch_size: 64 | global_step: 3 | reduced_train_loss: 0.7278 | train_step_timing in s: 35.63 | consumed_samples: 256
+Training epoch 0, iteration 4/433 | lr: 9.615e-06 | global_batch_size: 64 | global_step: 4 | reduced_train_loss: 0.6996 | train_step_timing in s: 35.75 | consumed_samples: 320
+Training epoch 0, iteration 5/433 | lr: 1.154e-05 | global_batch_size: 64 | global_step: 5 | reduced_train_loss: 0.7311 | train_step_timing in s: 41.74 | consumed_samples: 384
+Training epoch 0, iteration 6/433 | lr: 1.346e-05 | global_batch_size: 64 | global_step: 6 | reduced_train_loss: 0.7075 | train_step_timing in s: 50.63 | consumed_samples: 448
+Training epoch 0, iteration 7/433 | lr: 1.538e-05 | global_batch_size: 64 | global_step: 7 | reduced_train_loss: 0.679 | train_step_timing in s: 35.6 | consumed_samples: 512
+Training epoch 0, iteration 8/433 | lr: 1.731e-05 | global_batch_size: 64 | global_step: 8 | reduced_train_loss: 0.6419 | train_step_timing in s: 35.73 | consumed_samples: 576
+Training epoch 0, iteration 9/433 | lr: 1.923e-05 | global_batch_size: 64 | global_step: 9 | reduced_train_loss: 0.6511 | train_step_timing in s: 35.85 | consumed_samples: 640
+Training epoch 0, iteration 10/433 | lr: 2.115e-05 | global_batch_size: 64 | global_step: 10 | reduced_train_loss: 0.6094 | train_step_timing in s: 35.81 | consumed_samples: 704
+Training epoch 0, iteration 11/433 | lr: 2.308e-05 | global_batch_size: 64 | global_step: 11 | reduced_train_loss: 0.6286 | train_step_timing in s: 35.65 | consumed_samples: 768
+Training epoch 0, iteration 12/433 | lr: 2.5e-05 | global_batch_size: 64 | global_step: 12 | reduced_train_loss: 0.631 | train_step_timing in s: 35.62 | consumed_samples: 832
+Training epoch 0, iteration 13/433 | lr: 2.692e-05 | global_batch_size: 64 | global_step: 13 | reduced_train_loss: 0.5954 | train_step_timing in s: 35.79 | consumed_samples: 896
+Training epoch 0, iteration 14/433 | lr: 2.885e-05 | global_batch_size: 64 | global_step: 14 | reduced_train_loss: 0.5747 | train_step_timing in s: 35.87 | consumed_samples: 960
+Training epoch 0, iteration 15/433 | lr: 3.077e-05 | global_batch_size: 64 | global_step: 15 | reduced_train_loss: 0.5754 | train_step_timing in s: 35.76 | consumed_samples: 1024
+Training epoch 0, iteration 16/433 | lr: 3.269e-05 | global_batch_size: 64 | global_step: 16 | reduced_train_loss: 0.5669 | train_step_timing in s: 35.83 | consumed_samples: 1088
+Training epoch 0, iteration 17/433 | lr: 3.462e-05 | global_batch_size: 64 | global_step: 17 | reduced_train_loss: 0.5633 | train_step_timing in s: 35.73 | consumed_samples: 1152
+Training epoch 0, iteration 18/433 | lr: 3.654e-05 | global_batch_size: 64 | global_step: 18 | reduced_train_loss: 0.5346 | train_step_timing in s: 35.72 | consumed_samples: 1216
+Training epoch 0, iteration 19/433 | lr: 3.846e-05 | global_batch_size: 64 | global_step: 19 | reduced_train_loss: 0.5661 | train_step_timing in s: 35.8 | consumed_samples: 1280
+Training epoch 0, iteration 20/433 | lr: 4.038e-05 | global_batch_size: 64 | global_step: 20 | reduced_train_loss: 0.5417 | train_step_timing in s: 35.76 | consumed_samples: 1344
+Training epoch 0, iteration 21/433 | lr: 4.231e-05 | global_batch_size: 64 | global_step: 21 | reduced_train_loss: 0.5513 | train_step_timing in s: 35.68 | consumed_samples: 1408
+Training epoch 0, iteration 22/433 | lr: 4.423e-05 | global_batch_size: 64 | global_step: 22 | reduced_train_loss: 0.5307 | train_step_timing in s: 35.87 | consumed_samples: 1472
+Training epoch 0, iteration 23/433 | lr: 4.615e-05 | global_batch_size: 64 | global_step: 23 | reduced_train_loss: 0.5377 | train_step_timing in s: 41.78 | consumed_samples: 1536
+Training epoch 0, iteration 24/433 | lr: 4.808e-05 | global_batch_size: 64 | global_step: 24 | reduced_train_loss: 0.5398 | train_step_timing in s: 35.71 | consumed_samples: 1600
+Training epoch 0, iteration 25/433 | lr: 5e-05 | global_batch_size: 64 | global_step: 25 | reduced_train_loss: 0.5312 | train_step_timing in s: 50.47 | consumed_samples: 1664
+Training epoch 0, iteration 26/433 | lr: 5e-05 | global_batch_size: 64 | global_step: 26 | reduced_train_loss: 0.5507 | train_step_timing in s: 35.76 | consumed_samples: 1728
+Training epoch 0, iteration 27/433 | lr: 5e-05 | global_batch_size: 64 | global_step: 27 | reduced_train_loss: 0.548 | train_step_timing in s: 35.83 | consumed_samples: 1792
+Training epoch 0, iteration 28/433 | lr: 4.999e-05 | global_batch_size: 64 | global_step: 28 | reduced_train_loss: 0.5112 | train_step_timing in s: 35.82 | consumed_samples: 1856
+Training epoch 0, iteration 29/433 | lr: 4.999e-05 | global_batch_size: 64 | global_step: 29 | reduced_train_loss: 0.5177 | train_step_timing in s: 35.73 | consumed_samples: 1920
+[NeMo I 2025-10-29 14:06:22 pl:361] Using FullyParallelSaveStrategyWrapper(torch_dist, 1) dist-ckpt save strategy.
+[NeMo I 2025-10-29 14:06:22 pl:217] Global Checkpoint Save : Rank: 0 : Iteration: 30 : Start time: 1761743182.167s : Save duration: 0.589s
+[NeMo I 2025-10-29 14:06:44 model_checkpoint:632] Scheduled async checkpoint save for /lustre/fsn1/projects/rech/knb/ukq43aj/Models/Qwen2.5-7B-Instruct-en-fr-2/nemo_test/2025-10-29_13-41-20/checkpoints/model_name=0--val_loss=0.51-step=29-consumed_samples=1920.0-last.ckpt
+Training epoch 0, iteration 30/433 | lr: 4.998e-05 | global_batch_size: 64 | global_step: 30 | reduced_train_loss: 0.525 | train_step_timing in s: 134.5 | consumed_samples: 1984 | val_loss: 0.5109
+[NeMo I 2025-10-29 14:08:58 pl:220] Successfully saved checkpoint from iteration      30 to /lustre/fsn1/projects/rech/knb/ukq43aj/Models/Qwen2.5-7B-Instruct-en-fr-2/nemo_test/2025-10-29_13-41-20/checkpoints/model_name=0--val_loss=0.51-step=29-consumed_samples=1920.0-last.ckpt
+[NeMo I 2025-10-29 14:08:58 model_checkpoint:657] Async checkpoint save for step 30 (/lustre/fsn1/projects/rech/knb/ukq43aj/Models/Qwen2.5-7B-Instruct-en-fr-2/nemo_test/2025-10-29_13-41-20/checkpoints/model_name=0--val_loss=0.51-step=29-consumed_samples=1920.0-last.ckpt) finalized successfully.
+[NeMo I 2025-10-29 14:08:58 dist_ckpt_io:155] Async finalization time took 0.097 s
+Training epoch 0, iteration 31/433 | lr: 4.998e-05 | global_batch_size: 64 | global_step: 31 | reduced_train_loss: 0.531 | train_step_timing in s: 42.18 | consumed_samples: 2048 | val_loss: 0.5109
+Training epoch 0, iteration 32/433 | lr: 4.997e-05 | global_batch_size: 64 | global_step: 32 | reduced_train_loss: 0.5039 | train_step_timing in s: 36.84 | consumed_samples: 2112 | val_loss: 0.5109
+Training epoch 0, iteration 33/433 | lr: 4.996e-05 | global_batch_size: 64 | global_step: 33 | reduced_train_loss: 0.4942 | train_step_timing in s: 57.24 | consumed_samples: 2176 | val_loss: 0.5109
+Training epoch 0, iteration 34/433 | lr: 4.995e-05 | global_batch_size: 64 | global_step: 34 | reduced_train_loss: 0.5041 | train_step_timing in s: 41.83 | consumed_samples: 2240 | val_loss: 0.5109
+srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
+slurmstepd: error: *** JOB 1196646 ON jzxh329 CANCELLED AT 2025-10-29T14:43:55 ***
+slurmstepd: error: *** STEP 1196646.0 ON jzxh329 CANCELLED AT 2025-10-29T14:43:55 ***
+W1029 14:43:56.497000 1063832 site-packages/torch/distributed/elastic/agent/server/api.py:719] Received Signals.SIGTERM death signal, shutting down workers
+W1029 14:43:57.076000 1063832 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1063912 closing signal SIGTERM
+[rank: 0] Received SIGTERM: 15
+W1029 14:43:57.078000 1063832 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 1063913 closing signal SIGTERM
+[rank: 1] Received SIGTERM: 15

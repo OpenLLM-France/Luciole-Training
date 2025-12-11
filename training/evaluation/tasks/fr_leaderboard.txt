@@ -1,0 +1,4 @@
+# French leaderboard
+community|ifeval-fr|0
+community|gpqa-fr|0
+community|bac-fr|0

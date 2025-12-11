@@ -1,10 +1,9 @@
-import argparse
 import os
-import json
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
 import matplotlib.ticker as mtick
+from plot_utils import setup_data
+import argparse
 
 
 def create_config_name(entry):
@@ -38,16 +37,21 @@ def create_config_name(entry):
 
 
 def plot_training_and_gpu_hours(
-    df, plot_name="plot.png", plot_title="", output_folder=""
+    df, plot_name="plot.png", plot_title="", output_folder="", only_last_text=True
 ):
     # Find columns with only one unique value
+    if len(df) == 0:
+        print(f"Dataframe empty for {os.path.join(output_folder, plot_name)} ")
+        return
+
     constant_columns = df.loc[:, df.nunique() == 1]
 
     # Log the dropped columns and their constant values
     dropped_info = {
         col: constant_columns[col].iloc[0] for col in constant_columns.columns
     }
-    print(dropped_info)
+    dropped_info.pop("num_nodes", None)
+    dropped_info.pop("num_gpus", None)
 
     # Drop those columns from the DataFrame
     df = df.drop(columns=constant_columns.columns)
@@ -79,17 +83,31 @@ def plot_training_and_gpu_hours(
         sns.lineplot(data=df, x="num_gpus", y=y, hue="config", marker="o", ax=ax)
 
         for config_name, group in df.groupby("config"):
-            last_point = group.sort_values("num_gpus").iloc[-1]
-            ax.text(
-                last_point["num_gpus"] + 3,
-                last_point[y],
-                f"{last_point[y]:.2f}"
-                if last_point[y] < 1000
-                else f"{last_point[y]/1000:.0f}k",
-                fontsize=10,
-                va="center",
-                ha="left",
-            )
+            if only_last_text:
+                last_point = group.sort_values("num_gpus").iloc[-1]
+                ax.text(
+                    last_point["num_gpus"] + 3,
+                    last_point[y],
+                    f"{last_point[y]:.2f}"
+                    if last_point[y] < 1000
+                    else f"{last_point[y]/1000:.0f}k",
+                    fontsize=10,
+                    va="center",
+                    ha="left",
+                )
+            else:
+                last_points = group.sort_values("num_gpus")
+                for _, point in last_points.iterrows():
+                    ax.text(
+                        point["num_gpus"] + 5,
+                        point[y],
+                        f"{point[y]:.2f}"
+                        if point[y] < 1000
+                        else f"{point[y]/1000:.0f}k",
+                        fontsize=10,
+                        va="center",
+                        ha="left",
+                    )
 
         ax.set_title(title)
         ax.set_xlabel("Number of GPUs")
@@ -115,7 +133,7 @@ def plot_training_and_gpu_hours(
         labels,
         title="",
         loc="upper left",
-        bbox_to_anchor=(0.92, 0.5),
+        bbox_to_anchor=(0.92, 0.6),
         borderaxespad=0.0,
         fontsize="medium",
         title_fontsize="large",
@@ -125,8 +143,8 @@ def plot_training_and_gpu_hours(
     if dropped_info:
         info_str = "\n".join(f"- {k}: {v}" for k, v in dropped_info.items())
         legend_lines = len(labels)
-        legend_height = 0.03 * legend_lines  # adjust this scaling if needed
-        annotation_y = max(0.5 - legend_height - 0.05, 0.05)
+        legend_height = 0.033 * legend_lines  # adjust this scaling if needed
+        annotation_y = max(0.6 - legend_height - 0.05, 0.05)
         fig.text(
             0.92,
             annotation_y,
@@ -139,189 +157,30 @@ def plot_training_and_gpu_hours(
 
     # Final layout & save
     fig.suptitle(plot_title, fontsize=16)
-    output_path = f"{output_folder}/{plot_name}" if output_folder else plot_name
-    plt.savefig(output_path, bbox_inches="tight")
+    if plot_name:
+        output_path = f"{output_folder}/{plot_name}" if output_folder else plot_name
+        plt.savefig(output_path, bbox_inches="tight")
+    else:
+        plt.show()
     plt.close()
-
-
-def load_data(input_folder):
-    data = []
-    folders = os.listdir(input_folder)
-
-    for folder in folders:
-        xp_folder = os.path.join(input_folder, folder)
-        if not os.path.isfile(xp_folder):
-            files = os.listdir(xp_folder)
-            stat_files = [
-                f for f in files if f.startswith("stats_") and f.endswith(".json")
-            ]
-            if len(stat_files) > 0:
-                stat_file = os.path.join(xp_folder, stat_files[0])
-                with open(stat_file, "r") as f:
-                    json_data = json.load(f)
-                    data.append(json_data)
-    return data
-
-
-def model_to_size(model_name):
-    if model_name == "llama8b":
-        return 7.5
-    elif model_name == "llama1b":
-        return 1.1
-    elif model_name == "llama70b":
-        return 988 * 1
-    elif model_name == "mambahybrid8b":
-        return 7.3
-
-
-def convert_data(data):
-    records = []
-    for entry in data:
-        try:
-            batch = "batch_size" if "batch_size" in entry else "global_batch_size"
-            number_of_steps_per_trillion_tokens = 1e12 / (
-                entry[batch] * entry["seq_length"]
-            )
-            records.append(
-                {
-                    "num_nodes": entry["num_nodes"],
-                    "num_gpus": entry["num_nodes"] * 4,
-                    "mean_step_timing": entry["mean_step_timings"],
-                    "training_time": entry["mean_step_timings"]
-                    * number_of_steps_per_trillion_tokens
-                    / (3600 * 24),
-                    "consumed_gpu_hours": (
-                        entry["mean_step_timings"]
-                        * number_of_steps_per_trillion_tokens
-                        * entry["num_nodes"]
-                        * 4
-                        / 3600
-                    ),
-                    "arch": entry["arch"],
-                    "tp": entry["tensor_model_parallel_size"],
-                    "pp": entry["pipeline_model_parallel_size"],
-                    "precision": "fp8" if entry["fp8"] else "bf16",
-                    "seq_length": entry["seq_length"],
-                    "cp": entry["context_parallel_size"],
-                    "batch_size": entry[batch],
-                    "sequence_parallel": entry["sequence_parallel"],
-                    "model_size": entry.get("model_size", model_to_size(entry["arch"])),
-                }
-            )
-        except Exception as e:
-            raise RuntimeError(f"error on {entry}") from e
-
-    df = pd.DataFrame(records)
-    return df
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder")
-    parser.add_argument("--output_folder", default="/home/abert/abert/llm/plots")
+    parser.add_argument("--output_folder", default="plots")
     args = parser.parse_args()
 
     input_folder = args.input_folder
     output_folder = args.output_folder
     os.makedirs(output_folder, exist_ok=True)
 
-    data = load_data(input_folder)
-
-    df = convert_data(data)
-
+    df = setup_data(input_folder)
+    df = df.sort_values(by=["arch", "seq_length", "batch_size", "precision"])
     plot_training_and_gpu_hours(
-        df, plot_name="all.png", plot_title="", output_folder=output_folder
-    )
-
-    tp_df = df[
-        (df["arch"] == "llama8b")
-        & (df["pp"] == 1)
-        & (df["precision"] == "bf16")  # noqa E712
-        & (df["seq_length"] == 4096)
-        & (df["cp"] == 1)
-    ]
-    tp_df = tp_df.sort_values(by=["tp", "batch_size"])
-    plot_training_and_gpu_hours(
-        tp_df,
-        plot_name="tp.png",
-        plot_title="Impact of tensor parallelism on training",
+        df,
+        plot_name="all.png",
+        plot_title="",
         output_folder=output_folder,
+        only_last_text=False,
     )
-
-    seq_df = df[
-        (df["arch"] == "llama8b") & (df["tp"] == 1) & (df["precision"] == "bf16")
-    ]  # noqa E712
-    seq_df = seq_df.sort_values(by=["seq_length", "batch_size", "pp", "cp"])
-    plot_training_and_gpu_hours(
-        seq_df,
-        plot_name="seq_length.png",
-        plot_title="Impact of Seq Length on training",
-        output_folder=output_folder,
-    )
-
-    precision_batch_df = df[
-        (df["pp"] == 1) & (df["tp"] == 1) & (df["cp"] == 1) & (df["arch"] == "llama8b")
-    ]
-    precision_batch_df = precision_batch_df.sort_values(by=["precision", "batch_size"])
-
-    plot_training_and_gpu_hours(
-        precision_batch_df,
-        plot_name="batch_size_fp8.png",
-        plot_title="Impact of Precision and Batch_size on training",
-        output_folder=output_folder,
-    )
-
-    reduced_df = df[
-        (
-            (df["arch"] == "llama1b")
-            & (df["precision"] == "bf16")
-            & (df["batch_size"] == 1024)
-        )
-        | (
-            (df["arch"] == "llama3b")
-            & (df["precision"] == "fp8")
-            & (df["batch_size"] == 1024)
-        )
-        | (
-            (df["pp"] == 1)
-            & (df["tp"] == 1)
-            & (df["cp"] == 1)
-            & (df["arch"] == "llama8b")
-            & (df["batch_size"] == 1024)
-        )
-        | (
-            (df["pp"] == 4)
-            & (df["tp"] == 4)
-            & (df["cp"] == 2)
-            & (df["arch"] == "llama70b")
-            & (df["batch_size"] == 512)
-        )
-    ]
-
-    archs = [
-        "llama1b",
-        "llama3b",
-        ["llama1b", "llama3b"],
-        ["llama1b", "llama3b", "llama8b"],
-        "llama8b",
-        "llama70b",
-    ]
-    archs.append([a for a in archs if isinstance(a, str)])
-    os.makedirs(os.path.join(output_folder, "archs"), exist_ok=True)
-    for arch in archs:
-        if isinstance(arch, list):
-            arch_df = reduced_df[(reduced_df["arch"].isin(arch))]
-            arch = "_".join(arch)
-            print(arch_df)
-        else:
-            arch_df = df[(df["arch"] == arch)]
-        arch_df = arch_df.sort_values(by=["precision"])
-        # try:
-        plot_training_and_gpu_hours(
-            arch_df,
-            plot_name=f"{arch}.png",
-            plot_title="Impact of Architecture and FP8 on training",
-            output_folder=os.path.join(output_folder, "archs"),
-        )
-        # except:
-        #     pass

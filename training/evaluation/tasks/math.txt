@@ -1,0 +1,17 @@
+# GSM8K
+leaderboard|gsm8k|5
+
+# MATH
+lighteval|math:algebra|5
+lighteval|math:counting_and_probability|5
+lighteval|math:geometry|5
+lighteval|math:intermediate_algebra|5
+lighteval|math:number_theory|5
+lighteval|math:prealgebra|5
+lighteval|math:precalculus|5
+
+# MGSM
+# lighteval|mgsm:en|5
+# lighteval|mgsm:fr|5
+# lighteval|mgsm:es|5
+# lighteval|mgsm:de|5

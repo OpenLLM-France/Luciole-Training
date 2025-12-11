@@ -2,18 +2,21 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import os
 import pandas as pd
-import re
-import squarify
 import argparse
-import sys
 from matplotlib.ticker import FuncFormatter
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import math
+import numpy as np
+import matplotlib.colors as mcolors
+from matplotlib.cm import ScalarMappable
+from matplotlib.gridspec import GridSpec
+import json
 
 
 def format_tokens(tokens):
     if tokens >= 1e12:
-        return f"{tokens / 1e12:.1f} T"
+        return f"{tokens / 1e12:.2f} T"
     elif tokens >= 1e9:
         return f"{tokens / 1e9:.1f} B"
     elif tokens >= 1e6:
@@ -30,61 +33,105 @@ def format_tokens_ticks(x, pos):
     return format_tokens(x)
 
 
-def plot_treemap(df, column_name, output_file):
-    labels = [
-        f"{name}\n{format_tokens(tokens)}"
-        for name, tokens in zip(df[column_name], df["total_tokens"])
-    ]
+def plot_horizontal_bar(
+    df, column_name, output_file, num_columns=2, color_column="total_tokens"
+):
+    df = df.reset_index(drop=True)
+    min_tokens = min(df[df["total_tokens"] > 0]["total_tokens"])
+    total_tokens_all = df["total_tokens"].sum()
 
-    plt.figure(figsize=(10, 6))
-    squarify.plot(
-        sizes=df["total_tokens"],
-        label=labels,
-        pad=0.05,
-        alpha=0.7,
-        text_kwargs={"fontsize": 6, "color": "black"},
-        color=sb.color_palette("rocket", len(df)),
+    total = len(df)
+    rows_per_col = math.ceil(total / num_columns)
+    fig_height = max(6, rows_per_col * 0.4)
+    fig_width = 10 * num_columns + 2  # Extra space for colorbar/legend
+
+    fig = plt.figure(figsize=(fig_width, fig_height), constrained_layout=True)
+    spec = GridSpec(
+        nrows=1,
+        ncols=num_columns + 1,
+        figure=fig,
+        width_ratios=[1] * num_columns + [0.05],
     )
 
-    plt.axis("off")
-    plt.title(
-        f"Tokens per {column_name}\n Total tokens: {df['total_tokens'].sum() / 1e9:.1f} B"
+    axes = []
+    for i in range(num_columns):
+        if i == 0:
+            ax = fig.add_subplot(spec[0, i])
+        else:
+            ax = fig.add_subplot(spec[0, i], sharex=axes[0])
+        axes.append(ax)
+
+    legend_ax = fig.add_subplot(spec[0, -1])
+    legend_ax.axis("off")
+
+    # Color setup
+    if color_column == "total_tokens":
+        log_tokens = np.log10(df["total_tokens"].clip(lower=1))
+        norm = mcolors.Normalize(vmin=log_tokens.min(), vmax=log_tokens.max())
+        cmap = sb.color_palette("rocket", as_cmap=True)
+        colors = cmap(1 - norm(log_tokens))
+
+        sm = ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, cax=legend_ax, orientation="vertical")
+        cbar.set_label("log₁₀(Total Tokens)")
+
+    elif color_column in ["dataset", "group", "subset", "language", "web_data"]:
+        unique_categories = df[color_column].astype("category").cat.categories
+        palette = sb.color_palette("colorblind", len(unique_categories))
+
+        color_map = dict(zip(unique_categories, palette))
+        colors = df[color_column].map(color_map)
+
+        handles = [
+            Patch(color=color_map[cat], label=str(cat)) for cat in unique_categories
+        ]
+        legend_ax.legend(handles=handles, title=color_column.capitalize(), loc="center")
+
+    for i in range(num_columns):
+        start = i * rows_per_col
+        end = min(start + rows_per_col, total)
+        sub_df = df.iloc[start:end]
+        ax = axes[i]
+
+        ax.barh(
+            y=sub_df[column_name],
+            width=sub_df["total_tokens"],
+            color=colors[start:end],
+            alpha=0.7,
+        )
+        ax.set_xscale("log")
+        # ax.set_xlim(1e7, 1e13)
+        ax.xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
+        ax.set_ylabel(column_name.capitalize() if i == 0 else "")
+        ax.invert_yaxis()
+        for j, (tokens, label) in enumerate(
+            zip(sub_df["total_tokens"], sub_df[column_name])
+        ):
+            ax.text(
+                max(tokens * 0.95, 2 * min_tokens),
+                j,
+                f"{format_tokens(tokens)} ({tokens/total_tokens_all:.1%})"
+                if tokens > 0
+                else "",
+                va="center",
+                ha="right",
+                fontsize=8,
+            )
+
+        ax.set_title(f"{column_name.capitalize()}s {start + 1}-{end}")
+
+    fig.suptitle(
+        f"Tokens per {column_name}\nTotal tokens: {total_tokens_all / 1e9:.1f} B",
+        fontsize=14,
     )
-    plt.savefig(output_file, dpi=300, bbox_inches="tight")
-    plt.close()
 
-
-def plot_horizontal_bar(df, column_name, output_file):
-    df = df.sort_values("total_tokens", ascending=False)
-
-    num_bars = len(df)
-    # Set height: base height 6 + 0.3 per bar, adjust to taste
-    fig_height = max(6, num_bars * 0.3)
-
-    plt.figure(figsize=(10, fig_height))
-    colors = sb.color_palette("rocket", len(df))
-
-    plt.barh(y=df[column_name], width=df["total_tokens"], color=colors, alpha=0.7)
-
-    plt.xscale("log")
-    plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tokens_ticks))
-
-    plt.xlabel("Total tokens (log scale)")
-    plt.ylabel(column_name.capitalize())
-    plt.title(
-        f"Tokens per {column_name}\nTotal tokens: {df['total_tokens'].sum() / 1e9:.1f} B"
-    )
-    plt.gca().invert_yaxis()
-
-    for i, (tokens, label) in enumerate(zip(df["total_tokens"], df[column_name])):
-        plt.text(tokens * 1.1, i, format_tokens(tokens), va="center", fontsize=8)
-
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
+    fig.savefig(output_file, dpi=300)
     plt.close()
 
 
 def plot_box_plot_from_summary(df, column_name, output_file):
+    df = df[df["total_tokens"] > 0]
     df = df.sort_values("Q2_tokens", ascending=False).reset_index(drop=True)
 
     num_items = len(df)
@@ -180,15 +227,64 @@ def plot_box_plot_from_summary(df, column_name, output_file):
     plt.close()
 
 
-def extract_info(text):
-    pattern = r"((.*?)(?:_(?:.*))*)_(.*)"
-    match = re.match(pattern, text)
-    if match:
-        rest = match.group(1)
-        first = match.group(2)
-        lang = match.group(3)
-        return {"language": lang, "group": first, "dataset": rest}
-    return None
+def create_datamix_file(df, token_dir, output_dir):
+    df = df.copy()
+    df.loc[:, "name"] = df["name"] + "_text_document"
+    num_samples_per_dataset = df["total_tokens"] // args.seq_length
+    df.loc[:, "weight"] = num_samples_per_dataset
+    df = df[df["weight"] > 0]
+    num_samples_global = num_samples_per_dataset.sum()
+    max_steps = num_samples_global // args.batch_size
+    total_tokens_global = args.seq_length * args.batch_size * max_steps
+    out = {
+        "data_path": token_dir,
+        "total_tokens": int(total_tokens_global),
+        "train": df[["name", "weight"]]
+        .sort_values(by="name")
+        .to_dict(orient="records"),
+    }
+    with open(f"{output_dir}/datamix.json", "w") as f:
+        json.dump(out, f, indent=4)
+
+
+def map_language(x):
+    european_arab = ["ar", "nl", "de", "pt", "es", "it"]
+    if x in ["code", "math", "fr", "en", "aligned", "multi", "cot"]:
+        return x
+    elif x in european_arab:
+        return "euro/arab"
+    elif x in ["ca", "eu", "regional"]:
+        return "regional"
+    else:
+        raise ValueError(f"Unknown language: {x}")
+
+
+def is_web_dataset(name):
+    if "fineweb" in name:
+        return "web"
+    if "dclm" in name:
+        return "web"
+    if "culturax" in name:
+        return "web"
+    if "hplt2" in name:
+        return "web"
+    return "no_web"
+
+
+def patch_language_column(name, language):
+    if ("nemotron-post" in name) and ("think" in name or "stem" in name):
+        return "cot"
+    if "numina" in name:
+        return "math"
+    if "open-thoughts" in name:
+        return "cot"
+    if "stack-math-qa" in name:
+        return "math"
+    if "open-r1" in name:
+        return "cot"
+    if "open-code-reasoning" in name:
+        return "cot"
+    return language
 
 
 if __name__ == "__main__":
@@ -196,37 +292,87 @@ if __name__ == "__main__":
         description="Plot token treemaps by language and dataset."
     )
     parser.add_argument(
-        "--path",
+        "output_dir",
         type=str,
-        required=True,
-        help="Path to the token directory (it must contains stats/ ).",
+        default="chronicles/raw",
+        help="Path to the output directory. It must contains the repeats.csv file if you want to create a datamix.",
+    )
+    parser.add_argument(
+        "--stats_file",
+        type=str,
+        default="chronicles/all_stats_merged.csv",
+        help="Path to the all_stats.",
+    )
+    parser.add_argument(
+        "--token_dir",
+        type=str,
+        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
+        help="Path to the token directory.",
+    )
+    parser.add_argument(
+        "--seq_length",
+        type=int,
+        default=4096,
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=1024,
     )
     args = parser.parse_args()
+    stats_file = args.stats_file
+    output_dir = args.output_dir
+    repeats_file = os.path.join(output_dir, "repeats.csv")
+    token_dir = args.token_dir
 
-    stats_dir = os.path.join(args.path, "stats")
-    if not os.path.isdir(stats_dir):
-        print(
-            f"Error: The directory '{args.path}' does not contain a 'stats/' subdirectory."
-        )
-        sys.exit(1)  # exit with error code
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "figs"), exist_ok=True)
 
-    input_file = os.path.join(stats_dir, "all_stats_merged.csv")
-    if not os.path.isfile(input_file):
-        print(f"Error: The file '{input_file}' does not exist.")
-        sys.exit(1)
+    df = pd.read_csv(stats_file)
 
-    input_file = os.path.join(args.path, "stats/all_stats_merged.csv")
-    output_path = os.path.join(args.path, "figs")
-    os.makedirs(output_path, exist_ok=True)
+    df["language"] = df.apply(
+        lambda x: patch_language_column(x["name"], x["language"]), axis=1
+    )
 
-    df = pd.read_csv(input_file)
-    df = pd.concat([df, df["name"].apply(extract_info).apply(pd.Series)], axis=1)
+    if os.path.isfile(repeats_file):
+        repeats = pd.read_csv(repeats_file)
+        extra_keys = set(repeats["name"]) - set(df["name"])
+        if extra_keys:
+            raise ValueError(
+                f"Found keys in repeats not present in df: {sorted(extra_keys)}"
+            )
+        df = df.merge(repeats, on="name", how="left")
+        df["total_tokens"] = df["total_tokens"] * df["repeat"]
+        create_datamix_file(df, token_dir, output_dir)
+    else:
+        print(f"No repeats.csv file found in {output_dir}.")
 
+    assert (
+        not df["name"].duplicated().any()
+    ), f"Duplicate names in all_stats_merged.csv. Duplicates: {df[df['name'].duplicated()]['name'].tolist()}"
+
+    df["group"] = df.apply(
+        lambda row: f"{row['dataset']}_{row['subset']}"
+        if pd.notnull(row["subset"])
+        else row["dataset"],
+        axis=1,
+    )
+
+    # Apply the mapping
+    df["language"] = df["language"].apply(map_language)
+    df["web_data"] = df["language"] + "_" + df["name"].apply(is_web_dataset)
+    # Groupby
     language_df = (
         df.groupby("language")["total_tokens"]
         .sum()
         .reset_index()
         .sort_values("total_tokens", ascending=False)
+    )
+    web_df = (
+        df.groupby("web_data")
+        .agg(total_tokens=("total_tokens", "sum"), language=("language", "first"))
+        .reset_index()
+        .sort_values("web_data", ascending=False)
     )
     dataset_df = (
         df.groupby("dataset")["total_tokens"]
@@ -234,23 +380,38 @@ if __name__ == "__main__":
         .reset_index()
         .sort_values("total_tokens", ascending=False)
     )
-    df = df.sort_values(by=["dataset", "total_tokens"], ascending=False)
+    group_df = (
+        df.groupby("group")[["total_tokens"]]
+        .sum()
+        .reset_index()
+        .sort_values("total_tokens", ascending=False)
+    )
+    df = df.sort_values(
+        by=["dataset", "subset", "language"], ascending=[True, True, True]
+    )
 
-    # Treemap
-    plot_treemap(
-        language_df, "language", os.path.join(output_path, "treemap_language.png")
-    )
-    plot_treemap(
-        dataset_df, "dataset", os.path.join(output_path, "treemap_datasets.png")
-    )
-    plot_treemap(df, "name", os.path.join(output_path, "treemap_all.png"))
     # Horizontal bar
     plot_horizontal_bar(
-        language_df, "language", os.path.join(output_path, "bar_language.png")
+        language_df,
+        "language",
+        os.path.join(output_dir, "figs", "bar_language.png"),
+        color_column="language",
     )
     plot_horizontal_bar(
-        dataset_df, "dataset", os.path.join(output_path, "bar_datasets.png")
+        web_df,
+        "web_data",
+        os.path.join(output_dir, "figs", "bar_web.png"),
+        color_column="language",
     )
-    plot_horizontal_bar(df, "name", os.path.join(output_path, "bar_all.png"))
+    plot_horizontal_bar(
+        df,
+        "name",
+        os.path.join(output_dir, "figs", "bar_all.png"),
+        color_column="language",
+        num_columns=2,
+    )
+
     # Box plot
-    plot_box_plot_from_summary(df, "name", os.path.join(output_path, "boxplot_all.png"))
+    plot_box_plot_from_summary(
+        df, "name", os.path.join(output_dir, "figs", "boxplot_all.png")
+    )

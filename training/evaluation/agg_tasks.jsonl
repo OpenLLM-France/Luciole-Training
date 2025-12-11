@@ -13,5 +13,7 @@
 {"task": "leaderboard|winogrande|0", "metric":"acc","task_type":"NLU", "category": "qa", "num_classes": 2, "language": "en"}
 {"task": "lighteval|arc:easy|0", "metric":"acc", "task_type":"GK", "category": "mcq", "num_classes": 4, "language": "en"}
 {"task": "leaderboard|arc:challenge|0", "metric":"acc", "task_type":"GK", "category": "mcq", "num_classes": 4, "language": "en"}
-{"task": "lighteval|triviaqa|0", "metric":"qem", "task_type":"GK", "category": "qa", "num_classes": 4, "language": "en"}
-{"task": "helm|boolq|0", "metric":"pem", "task_type":"NLU", "category": "qa", "num_classes": 2, "language": "en"}
+{"task": "lighteval|triviaqa|0", "metric":"qem", "task_type":"GK", "category": "qa", "num_classes": null, "language": "en"}
+{"task": "helm|boolq|0", "metric":"pem", "task_type":"NLU", "category": "qa", "num_classes": null, "language": "en"}
+{"task": "helm|siqa|0|0", "metric":"pem", "task_type":"CS", "category": "mcq", "num_classes": null, "language": "en"}
+{"task": "helm|commonsenseqa|0|0", "metric":"pem", "task_type":"CS", "category": "mcq", "num_classes": null, "language": "en"}

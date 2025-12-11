@@ -4,7 +4,6 @@ from datatrove.pipeline.readers.warc_for_robots import WarcForRobotsReader, Robo
 from datatrove.pipeline.writers.jsonl import JsonlWriter
 from slugify import slugify
 
-# DUMP_TO_PROCESS = "CC-MAIN-2024-42"
 DUMP_TO_PROCESS = ".CC-MAIN-2025-26"
 
 if __name__ == "__main__":
