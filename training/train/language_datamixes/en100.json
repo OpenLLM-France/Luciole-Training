@@ -3,12 +3,8 @@
     "total_tokens": 100000000000,
     "train": [
         {
-            "name": "fineweb2_fr_text_document",
-            "weight": 25
-        },
-        {
             "name": "fineweb-350BT_grouped_en_text_document",
-            "weight": 75
+            "weight": 100
         }
     ]
 }

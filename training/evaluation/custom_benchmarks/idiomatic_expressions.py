@@ -18,7 +18,6 @@ SUBSETS = ["different", "word by word", "similar"]
 
 
 def process_line(line, use_context, use_instruction):
-    print(use_context, use_instruction)
     if use_instruction:
         question = (
             "Quelle est l'expression idiomatique parmi les 4 propositions suivantes?"

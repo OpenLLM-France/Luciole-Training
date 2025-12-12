@@ -76,6 +76,12 @@ def init_extra_args(custom_tasks, max_samples=-1):
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "ruler.py")
         extra_arg += f"--custom-tasks {custom_path} \\\n"
+    elif custom_tasks == "idiomatic_expressions":
+        current_dir = os.path.dirname(__file__)
+        custom_path = os.path.join(
+            current_dir, "custom_benchmarks", "idiomatic_expressions.py"
+        )
+        extra_arg += f"--custom-tasks {custom_path} \\\n"
     else:
         raise ValueError(f"Unknown custom_tasks: {custom_tasks}")
     # Max samples
@@ -384,7 +390,7 @@ def get_parser():
     parser.add_argument(
         "--custom_tasks",
         default=None,
-        choices=[None, "multilingual", "smollm3"],
+        choices=[None, "multilingual", "smollm3", "idiomatic_expressions", "ruler"],
     )
     parser.add_argument(
         "--max_samples",
