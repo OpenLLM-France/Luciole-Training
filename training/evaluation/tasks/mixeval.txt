@@ -1,0 +1,4 @@
+extended|mixeval_easy:freeform|0
+extended|mixeval_easy:multichoice|0
+extended|mixeval_hard:freeform|0
+extended|mixeval_hard:multichoice|0
