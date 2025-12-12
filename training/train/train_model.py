@@ -357,7 +357,7 @@ if __name__ == "__main__":
             f"Scheduler {args.scheduler} not supported in mode {args.mode}"
         )
     # Weight decay
-    recipe.optim.weight_decay = args.weight_decay
+    recipe.optim.config.weight_decay = args.weight_decay
     logger.info(f"Setting weight decay to {args.weight_decay}")
 
     # Resume from base_checkpoint
