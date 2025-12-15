@@ -65,6 +65,7 @@ from lighteval.tasks.templates.utils.formulation import (
 )
 from lighteval.utils.language import Language
 from lighteval.utils.utils import remove_reasoning_tags
+from lighteval.models.model_output import ModelResponse
 
 TASKS_TABLE = []
 TASKS_TABLE.extend(ML_TASKS_TABLE)
@@ -517,7 +518,7 @@ MAX_INPUT_TOKENS = 2048  # LightEval judges have max_model_len=8192 and require 
 
 
 class JudgeLLMMixEval(JudgeLLM):
-    def compute(self, sample_ids: list[str], responses: list, formatted_docs: list[Doc], **kwargs) -> dict[str, float]:
+    def compute(self, responses: list[ModelResponse], formatted_docs: list[Doc], **kwargs):
         """
         Compute the score of a generative task using a llm as a judge.
         The generative task can be multiturn with 2 turns max, in that case, we
@@ -545,7 +546,7 @@ class JudgeLLMMixEval(JudgeLLM):
         scores, messages, judgements = self.judge.evaluate_answer_batch(questions, predictions, options, golds)
 
         metrics = []
-        for i in range(len(sample_ids)):
+        for i in range(len(responses)):
             metrics.append(
                 {
                     f"judge_score_{self.short_judge_name}": scores[i],
