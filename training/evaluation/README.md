@@ -13,9 +13,16 @@ conda activate eval-env
 git clone git@github.com:OpenLLM-France/lighteval.git
 cd lighteval/
 pip install -e .[multilingual,vllm]
+pip install language_data langdetect syllapy
 pip install seaborn
 pip install python-slugify
+
+module load cuda/12.6.3
+pip install --user --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
+
+We also recommend to preload all the assets needed for evaluation (LM judges, nltk assets, ...)
+by running the script `preload_eval_assets.sh`.
 
 ## Run Evaluations
 
