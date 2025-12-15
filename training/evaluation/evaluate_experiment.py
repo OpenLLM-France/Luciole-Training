@@ -183,7 +183,7 @@ def get_checkpoints_and_revisions(
     experiment_path, hf_model=None, infer_ckpt_name=False
 ):
     if hf_model is not None:
-        checkpoints, revisions, ckpt_dir = get_hf_model(hf_model)
+        checkpoints, revisions, hf_dir = get_hf_model(hf_model)
     else:
         hf_dir = experiment_path / "huggingface_checkpoints"
         if infer_ckpt_name:
