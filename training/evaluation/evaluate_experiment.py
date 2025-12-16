@@ -2,6 +2,8 @@ import argparse
 import os
 import math
 import re
+import subprocess
+from pathlib import Path
 
 SBATCH_ARRAY_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=eval
@@ -97,8 +99,6 @@ def init_extra_args(custom_tasks, max_samples=-1):
 
 
 def get_hf_model(hf_model):
-    from pathlib import Path
-
     ckpt_dir = Path(".")
     if hf_model == "allenai/OLMo-2-0425-1B":
         revisions = [
@@ -218,6 +218,30 @@ def get_step(text):
     else:
         return None
 
+def override_max_length(ckpt_dir, ckpt, max_model_length):
+    new_ckpt_dir = ckpt_dir.as_posix() + f".max_length_{max_model_length}"
+    src_dir = os.path.join(ckpt_dir, ckpt)
+    assert os.path.isdir(src_dir), f"Source checkpoint directory does not exist: {src_dir}"
+    dst_dir = os.path.join(new_ckpt_dir, ckpt)
+    if not os.path.isdir(dst_dir):
+        os.makedirs(dst_dir, exist_ok=True)
+        for fn in os.listdir(src_dir):
+            if fn == "config.json":
+                # modify config file to set max_length
+                import json
+                with open(os.path.join(src_dir, fn), "r") as f:
+                    config = json.load(f)
+                assert "max_position_embeddings" in config, f"max_position_embeddings not in config of {src_dir}"
+                config["max_position_embeddings"] = max_model_length
+                with open(os.path.join(dst_dir, fn), "w") as f:
+                    json.dump(config, f, indent=2)
+            else:
+                # Make a symbolic link to other files, with relative path
+                os.symlink(
+                    os.path.relpath(os.path.join(src_dir, fn), dst_dir),
+                    os.path.join(dst_dir, fn),
+                )
+    return Path(new_ckpt_dir), ckpt
 
 def launch_evaluation(
     experiment_path,
@@ -240,8 +264,6 @@ def launch_evaluation(
     dry_run=False,
     infer_ckpt_name=False,
 ):
-    import subprocess
-    from pathlib import Path
 
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
@@ -270,36 +292,15 @@ def launch_evaluation(
 
     tasks = []
 
-    if max_model_length:
-        # Create new checkpoint directories with modified config files
-        new_ckpt_dir = ckpt_dir.as_posix() + f".max_length_{max_model_length}"
-        for d in checkpoints:
-            src_dir = os.path.join(ckpt_dir, d)
-            assert os.path.isdir(src_dir), f"Source checkpoint directory does not exist: {src_dir}"
-            dst_dir = os.path.join(new_ckpt_dir, d)
-            if not os.path.isdir(dst_dir):
-                os.makedirs(dst_dir, exist_ok=True)
-                for fn in os.listdir(src_dir):
-                    if fn == "config.json":
-                        # modify config file to set max_length
-                        import json
-                        with open(os.path.join(src_dir, fn), "r") as f:
-                            config = json.load(f)
-                        assert "max_position_embeddings" in config, f"max_position_embeddings not in config of {src_dir}"
-                        config["max_position_embeddings"] = max_model_length
-                        with open(os.path.join(dst_dir, fn), "w") as f:
-                            json.dump(config, f, indent=2)
-                    else:
-                        # Make a symbolic link to other files, with relative path
-                        os.symlink(
-                            os.path.relpath(os.path.join(src_dir, fn), dst_dir),
-                            os.path.join(dst_dir, fn),
-                        )
-        ckpt_dir = Path(new_ckpt_dir)
+    steps_done = []
 
     for ckpt, revision in zip(checkpoints, revisions):
+        final_ckpt_dir = ckpt_dir
+
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
+
+        step = None
 
         if min_step:
             step = get_step(ckpt)
@@ -313,9 +314,11 @@ def launch_evaluation(
                 # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
                 continue
 
-        if ckpt.endswith("-last") and multiple_of is None:
+        if ckpt.endswith("-last") and (multiple_of is None or step in steps_done):
             # print(f"Skipping last checkpoint: {ckpt}")
             continue
+
+        steps_done.append(step)
 
         if (
             (output_dir / "results" / ckpt).is_dir()
@@ -347,6 +350,7 @@ def launch_evaluation(
                 model_arg += f",max_model_length={max_model_length}"
             else:
                 model_arg += f",max_length={max_model_length}"
+            final_ckpt_dir, ckpt = override_max_length(ckpt_dir, ckpt, max_model_length)
 
         if gpus > 1:
             if command == "vllm":
@@ -356,7 +360,7 @@ def launch_evaluation(
         # Save the tuple representing a job array element
         tasks.append(
             {
-                "ckpt_dir": str(ckpt_dir.resolve()),
+                "ckpt_dir": str(final_ckpt_dir.resolve()),
                 "output_dir": str(
                     (output_dir if not revision else output_dir / revision).resolve()
                 ),
