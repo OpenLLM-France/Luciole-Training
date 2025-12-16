@@ -14,11 +14,6 @@ task_group_mapping = {
         ("helm|siqa|0", "em"),
         ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
         ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
-        ("helm|boolq:_average|0", "em_with_type_exact_match"),
-        ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
-        ("helm|siqa|0", "em"),
-        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
-        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("leaderboard|hellaswag|0", "acc"),
         ("leaderboard|winogrande|0", "acc"),
         ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
@@ -103,7 +98,7 @@ task_group_mapping = {
         ("custom|ruler_32768:_average|0", "ruler_match_all"),
         ("custom|ruler_65536:_average|0", "ruler_match_all"),
         ("custom|ruler_131072:_average|0", "ruler_match_all"),
-    ]
+    ],
 }
 
 
