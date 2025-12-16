@@ -52,6 +52,12 @@ task_group_mapping = {
         ("lighteval|global_mmlu_cs_fra_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_ca_fra_cf:_average|0", "acc_norm"),
     ],
+    "idiomatic_expressions": [
+        ("custom:idiomatic_expressions_fib_context:_average:0", "acc"),
+        ("custom:idiomatic_expressions_fib_context:different:0", "acc"),
+        ("custom:idiomatic_expressions_fib_context:similar:0", "acc"),
+        ("custom:idiomatic_expressions_fib_context:word_by_word:0", "acc"),
+     ],
     "mmlu": [
         ("custom|mmlu_pro_cf|0", "acc_norm"),
         ("custom|mmlu_cf:_average|0", "acc_norm"),
