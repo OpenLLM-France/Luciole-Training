@@ -53,6 +53,8 @@ mkdir -p "$OUTPUT_DIR"
 
 cd "$CKPT_DIR"
 
+{extra_env_vars}
+
 VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
     "$MODEL_ARG" \\
     "$TASK_TO_EVALUATE" \\
@@ -221,6 +223,7 @@ def launch_evaluation(
     evaluation_dir="evaluation",
     command="vllm",
     max_samples=-1,
+    max_model_length=None,
     dependency=None,
     lighteval_kwargs="",
     force=False,
@@ -259,7 +262,36 @@ def launch_evaluation(
     extra_args = init_extra_args(custom_tasks, max_samples)
     extra_args += lighteval_kwargs
 
+    extra_env_vars = ""
+
     tasks = []
+
+    if max_model_length:
+        # Create new checkpoint directories with modified config files
+        new_ckpt_dir = ckpt_dir.as_posix() + f".max_length_{max_model_length}"
+        for d in checkpoints:
+            src_dir = os.path.join(ckpt_dir, d)
+            assert os.path.isdir(src_dir), f"Source checkpoint directory does not exist: {src_dir}"
+            dst_dir = os.path.join(new_ckpt_dir, d)
+            if not os.path.isdir(dst_dir):
+                os.makedirs(dst_dir, exist_ok=True)
+                for fn in os.listdir(src_dir):
+                    if fn == "config.json":
+                        # modify config file to set max_length
+                        import json
+                        with open(os.path.join(src_dir, fn), "r") as f:
+                            config = json.load(f)
+                        assert "max_position_embeddings" in config, f"max_position_embeddings not in config of {src_dir}"
+                        config["max_position_embeddings"] = max_model_length
+                        with open(os.path.join(dst_dir, fn), "w") as f:
+                            json.dump(config, f, indent=2)
+                    else:
+                        # Make a symbolic link to other files, with relative path
+                        os.symlink(
+                            os.path.relpath(os.path.join(src_dir, fn), dst_dir),
+                            os.path.join(dst_dir, fn),
+                        )
+        ckpt_dir = Path(new_ckpt_dir)
 
     for ckpt, revision in zip(checkpoints, revisions):
         if isinstance(ckpt, Path):
@@ -306,6 +338,16 @@ def launch_evaluation(
             model_arg += ",batch_size=1"
         if revision:
             model_arg += f",revision={revision}"
+        if max_model_length:
+            if command == "vllm":
+                model_arg += f",max_model_length={max_model_length}"
+            else:
+                model_arg += f",max_length={max_model_length}"
+
+        if gpus > 1:
+            if command == "vllm":
+                model_arg += f",data_parallel_size={gpus}"
+                extra_env_vars += f"export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
 
         # Save the tuple representing a job array element
         tasks.append(
@@ -343,6 +385,7 @@ def launch_evaluation(
         max_index=len(tasks) - 1,
         task_list=task_list_path,
         extra_args=extra_args,
+        extra_env_vars=extra_env_vars,
     )
 
     array_filename = job_dir / "job_array_eval.slurm"
@@ -397,6 +440,12 @@ def get_parser():
         type=int,
         default=-1,
         help="Maximum number of samples to evaluate.",
+    )
+    parser.add_argument(
+        "--max_model_length",
+        type=int,
+        default=None,
+        help="Forced maximum model context length.",
     )
     parser.add_argument(
         "--evaluation_dir",
@@ -460,6 +509,7 @@ if __name__ == "__main__":
         custom_tasks=args.custom_tasks,
         command=args.command,
         max_samples=args.max_samples,
+        max_model_length=args.max_model_length,
         dependency=args.dependency,
         lighteval_kwargs=args.lighteval_kwargs,
         force=args.force,
