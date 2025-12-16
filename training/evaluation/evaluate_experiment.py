@@ -139,7 +139,7 @@ def get_hf_model(hf_model):
             "HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints" for i in range(1, 20)
         ] + ["HuggingFaceTB/SmolLM2-1.7B"]
         revisions = [f"step-{i*250000}" for i in range(1, 20)] + ["main"]
-    elif hf_model == "almanach/Gaperon-1125-24B":
+    elif hf_model == "Gaperon-1125-24B":
         checkpoints = [
             "step-024000_tokens-0100B-phase1",
             "step-060000_tokens-0251B-phase1",
@@ -158,7 +158,7 @@ def get_hf_model(hf_model):
         ckpt_dir = Path(
             "/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-24B"
         )
-    elif hf_model == "almanach/Gaperon-1125-8B":
+    elif hf_model == "Gaperon-1125-8B":
         checkpoints = [
             "step-0334000_tokens-0700B-phase1",
             "step-0382000_tokens-0801B-phase1",
