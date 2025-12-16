@@ -109,32 +109,48 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
 
 
 def launch_evaluation(
-    experiment_path, multiple_of=1, dependency_job_id=None, force=False
+    experiment_path, multiple_of=1, dependency_job_id=None, force=False, eval_type="pretrain"
 ):
     import evaluate_experiment
 
     job_ids = []
 
-    COMMANDS = [
-        dict(
-            task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
-        ),
-        dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command="vllm"),
-        dict(
-            task_to_evaluate="tasks/fr.txt",
-            multiple_of=multiple_of,
-            command="vllm",
-            custom_tasks="multilingual",
-            max_samples=1000,
-        ),
-        dict(
-            task_to_evaluate="tasks/multilingual.txt",
-            multiple_of=multiple_of,
-            command="vllm",
-            custom_tasks="multilingual",
-            max_samples=1000,
-        ),
-    ]
+
+    if eval_type == "pretrain":
+        COMMANDS = [
+            dict(
+                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
+            ),
+            dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command="vllm"),
+            dict(
+                task_to_evaluate="tasks/fr.txt",
+                multiple_of=multiple_of,
+                command="vllm",
+                custom_tasks="multilingual",
+                max_samples=1000,
+            ),
+            dict(
+                task_to_evaluate="tasks/multilingual.txt",
+                multiple_of=multiple_of,
+                command="vllm",
+                custom_tasks="multilingual",
+                max_samples=1000,
+            ),
+        ]
+    elif eval_type == "ruler":
+        COMMANDS = [
+            dict(
+                task_to_evaluate=f"tasks/ruler_{length}.txt",
+                multiple_of=multiple_of,
+                command="vllm",
+                custom_tasks="ruler",
+                max_model_length=length,
+                gpus=2 if length > 32768 else 1,
+                
+            ) for length in [4096, 8192, 16384, 32768, 65536, 131072]
+        ]
+    else:
+        raise NotImplementedError(f"Unknown eval_type: {eval_type}")
     for command in COMMANDS:
         job_id = evaluate_experiment.launch_evaluation(
             experiment_path=experiment_path,
@@ -236,6 +252,13 @@ if __name__ == "__main__":
         help="Convert and evaluate only checkpoints that are multiple of this value",
     )
     parser.add_argument(
+        "--eval_type",
+        type=str,
+        default="pretrain",
+        choices=["pretrain", "finetune", "ruler"],
+        help="Type of evaluation to perform.",
+    )
+    parser.add_argument(
         "--email",
         type=str,
         default="",
@@ -261,6 +284,7 @@ if __name__ == "__main__":
         args.multiple_of,
         dependency_job_id=conversion_job_id,
         force=args.force,
+        eval_type=args.eval_type,
     )
 
     # Plot

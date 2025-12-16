@@ -96,6 +96,14 @@ task_group_mapping = {
         ("lighteval|flores200:fra_Latn-eng_Latn|0", "bleu_4"),
         ("lighteval|flores200:eng_Latn-fra_Latn|0", "bleu_4"),
     ],
+    "ruler": [
+        ("custom|ruler_4096:_average|0", "ruler_match_all"),
+        ("custom|ruler_8192:_average|0", "ruler_match_all"),
+        ("custom|ruler_16384:_average|0", "ruler_match_all"),
+        ("custom|ruler_32768:_average|0", "ruler_match_all"),
+        ("custom|ruler_65536:_average|0", "ruler_match_all"),
+        ("custom|ruler_131072:_average|0", "ruler_match_all"),
+    ]
 }
 
 
@@ -455,7 +463,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_path",
         type=str,
-        default="out/",
+        default=None,
         help="Output path where your plot are storred",
     )
     parser.add_argument(
