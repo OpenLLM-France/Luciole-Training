@@ -19,7 +19,7 @@ TASKS_TABLE = []
 SUBSETS = ["different", "word by word", "similar"]
 
 
-def get_choices_and_gold_from_line(line, use_context=False):
+def get_choices_and_gold_from_line(line, use_context):
     if use_context:
         sentence_context = line["French with context"]
     else:
@@ -86,7 +86,7 @@ TASKS_TABLE.extend(
 
 
 #### Idiomatic Expressions Fill in the blank tasks
-def prompt(line, task_name: str = None, use_context: bool = False) -> Doc:
+def prompt(line, task_name: str, use_context: bool) -> Doc:
     choices, gold_idx = get_choices_and_gold_from_line(line, use_context)
     return Doc(
         task_name=task_name,
@@ -100,7 +100,7 @@ TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
             name=f"idiomatic_expressions_fib{'_context' if use_context else ''}:{subset.lower().replace(' ', '_')}",
-            prompt_function=prompt,
+            prompt_function=partial(prompt, use_context=use_context),
             suite=["custom"],
             hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
             hf_subset=subset,
