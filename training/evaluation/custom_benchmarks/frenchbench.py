@@ -34,7 +34,7 @@ def prompt(line, task_name: str = None, task_type: str = None) -> Doc:
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name="frenchbench_grammar",
+            name="french_bench_grammar",
             prompt_function=partial(prompt, task_type="grammar"),
             suite=["custom"],
             hf_repo="manu/french-bench-grammar-vocab-reading",
