@@ -9,10 +9,10 @@ TASKS_TABLE = []
 
 def prompt(line, task_name: str = None, task_type: str = None) -> Doc:
     choices = [
-        line["question"].replace("< ...>", line["answerA"]),
-        line["question"].replace("< ...>", line["answerB"]),
-        line["question"].replace("< ...>", line["answerC"]),
-        line["question"].replace("< ...>", line["answerD"]),
+        line["question"].replace("<...>", line["answerA"]),
+        line["question"].replace("<...>", line["answerB"]),
+        line["question"].replace("<...>", line["answerC"]),
+        line["question"].replace("<...>", line["answerD"]),
     ]
     gold_idx = LETTER_INDICES.index(line["answer"])
 
