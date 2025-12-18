@@ -98,12 +98,12 @@ task_group_mapping = {
         ("lighteval|flores200:eng_Latn-fra_Latn|0", "bleu_4"),
     ],
     "ruler": [
-        ("custom|ruler_4096:_average|0", "ruler_match_all"),
-        ("custom|ruler_8192:_average|0", "ruler_match_all"),
-        ("custom|ruler_16384:_average|0", "ruler_match_all"),
-        ("custom|ruler_32768:_average|0", "ruler_match_all"),
-        ("custom|ruler_65536:_average|0", "ruler_match_all"),
-        ("custom|ruler_131072:_average|0", "ruler_match_all"),
+        ("custom|ruler_4096:_average|0", "ruler_match"),
+        ("custom|ruler_8192:_average|0", "ruler_match"),
+        ("custom|ruler_16384:_average|0", "ruler_match"),
+        ("custom|ruler_32768:_average|0", "ruler_match"),
+        ("custom|ruler_65536:_average|0", "ruler_match"),
+        ("custom|ruler_131072:_average|0", "ruler_match"),
     ],
 }
 
