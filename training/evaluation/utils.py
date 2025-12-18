@@ -32,12 +32,12 @@ def get_training_tokens_and_model_size(file_path):
     elif "Gaperon-1125-8B" in str(file_path):
         # tokens = 4000
         match = re.search(r"_tokens-([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else None
+        tokens = float(match.group(1)) if match else 4000
         model_size = 8.0
     elif "Gaperon-1125-24B" in str(file_path):
         # tokens = 2000
         match = re.search(r"_tokens-([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else None
+        tokens = float(match.group(1)) if match else 2000
         model_size = 24.0
     elif "EuroLLM-1.7B" in str(file_path):
         tokens = 4000
