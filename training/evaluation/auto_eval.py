@@ -46,7 +46,7 @@ module purge
 module load anaconda-py3/2024.06
 conda activate eval-env
 
-python plot_results.py {compared_models} --group all en fr multilingual --output_path {experiment_path}/figs --dpi 150
+python plot_results.py {compared_models} --group all {plot_groups} --output_path {experiment_path}/figs --dpi 150
 
 # Variables
 TO="{email}"
@@ -115,29 +115,64 @@ def launch_evaluation(
 
     job_ids = []
 
+    COMMANDS_PRETRAIN = [
+        dict(
+            task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
+        ),
+        dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command="vllm"),
+        dict(
+            task_to_evaluate="tasks/fr.txt",
+            multiple_of=multiple_of,
+            command="vllm",
+            custom_tasks="multilingual",
+            max_samples=1000,
+        ),
+        dict(
+            task_to_evaluate="tasks/multilingual.txt",
+            multiple_of=multiple_of,
+            command="vllm",
+            custom_tasks="multilingual",
+            max_samples=1000,
+        ),
+    ]
 
     if eval_type == "pretrain":
+        COMMANDS = COMMANDS_PRETRAIN
+        
+    elif eval_type == "finetune":
         COMMANDS = [
             dict(
-                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
-            ),
-            dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command="vllm"),
-            dict(
-                task_to_evaluate="tasks/fr.txt",
+                task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
                 command="vllm",
-                custom_tasks="multilingual",
                 max_samples=1000,
-            ),
+            )
+            for task in ["mixeval", "ifbench", "ifeval", "ifeval_fr", "gsm_plus"]
+        ] + [
             dict(
-                task_to_evaluate="tasks/multilingual.txt",
+                task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
                 command="vllm",
-                custom_tasks="multilingual",
+                max_model_length=32000,
+                max_samples=1000,
+            )
+            for task in ["live_code_bench", "gpqa", "aime"]
+        ] + [
+            dict(
+                task_to_evaluate="tasks/mmlu_pro.txt",
+                multiple_of=multiple_of,
+                command="vllm",
+                custom_tasks="smollm3",
                 max_samples=1000,
             ),
-        ]
-    elif eval_type == "ruler":
+        ] + COMMANDS_PRETRAIN
+    elif eval_type.startswith("ruler"):
+
+        lengths = [4096, 8192, 16384, 32768, 65536, 131072]
+        if eval_type.startswith("ruler_"):
+            length_str = eval_type.split("_")[1]
+            lengths = [int(length_str)]
+
         COMMANDS = [
             dict(
                 task_to_evaluate=f"tasks/ruler_{length}.txt",
@@ -147,7 +182,7 @@ def launch_evaluation(
                 max_model_length=length,
                 gpus=2 if length > 32768 else 1,
                 
-            ) for length in [4096, 8192, 16384, 32768, 65536, 131072]
+            ) for length in lengths
         ]
     else:
         raise NotImplementedError(f"Unknown eval_type: {eval_type}")
@@ -168,7 +203,7 @@ def launch_evaluation(
     return ",".join(job_ids) if job_ids else None
 
 
-def launch_plot(experiment_path, email="", dependency_job_id=None):
+def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pretrain"):
     print(f"Launching plot for {experiment_path}")
     job_dir = Path(experiment_path) / "evaluation"
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -210,10 +245,16 @@ def launch_plot(experiment_path, email="", dependency_job_id=None):
     if experiment_path not in compared_models:
         compared_models = [experiment_path] + compared_models
 
+    if eval_type.startswith("ruler"):
+        plot_groups = "ruler"
+    else:
+        plot_groups = "en fr multilingual"
+
     job_script = SBATCH_PLOT_TEMPLATE.format(
         log_dir=job_dir / "slurm_logs",
         experiment_path=experiment_path,
         compared_models=" ".join(compared_models),
+        plot_groups=plot_groups,
         email=email,
     )
 
@@ -255,7 +296,7 @@ if __name__ == "__main__":
         "--eval_type",
         type=str,
         default="pretrain",
-        choices=["pretrain", "finetune", "ruler"],
+        choices=["pretrain", "finetune", "ruler", "ruler_4096"],
         help="Type of evaluation to perform.",
     )
     parser.add_argument(
@@ -289,5 +330,5 @@ if __name__ == "__main__":
 
     # Plot
     launch_plot(
-        args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email
+        args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email, eval_type=args.eval_type
     )
