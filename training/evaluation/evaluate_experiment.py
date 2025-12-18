@@ -329,12 +329,16 @@ def launch_evaluation(
             continue
 
         model_arg = f"model_name={ckpt},dtype=bfloat16"
+        max_num_batched_tokens = 4096
+        if max_model_length:
+            max_num_batched_tokens = max_model_length
         if "nemotronh" in ckpt:
             model_arg += ",trust_remote_code=True"
-            if command == "vllm":
-                model_arg += ",max_num_batched_tokens=4096,max_num_seqs=1"
-            else:
-                model_arg += ",batch_size=1"
+            # This was needed with vllm 0.10.1 (and having a batch size of 1 caused super long eval times)
+            # if command == "vllm":
+            #     model_arg += f",max_num_batched_tokens={max_num_batched_tokens},max_num_seqs=1"
+            # else:
+            #     model_arg += ",batch_size=1"
         elif "Teuken" in ckpt:
             model_arg += ",trust_remote_code=True"
         elif (
