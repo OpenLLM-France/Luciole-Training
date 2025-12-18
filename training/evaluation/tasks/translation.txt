@@ -1,0 +1,2 @@
+lighteval|flores200:fra_Latn-eng_Latn|0
+lighteval|flores200:eng_Latn-fra_Latn|0
