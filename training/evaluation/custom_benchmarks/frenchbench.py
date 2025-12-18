@@ -8,11 +8,16 @@ TASKS_TABLE = []
 
 
 def prompt(line, task_name: str = None, task_type: str = None) -> Doc:
+    def replace_sequential(text, replacements):
+        for r in replacements:
+            text = text.replace("<...>", r, 1)
+        return text
+
     choices = [
-        line["question"].replace("<...>", line["answerA"]),
-        line["question"].replace("<...>", line["answerB"]),
-        line["question"].replace("<...>", line["answerC"]),
-        line["question"].replace("<...>", line["answerD"]),
+        replace_sequential(line["question"], line["answerA"].split(" / ")),
+        replace_sequential(line["question"], line["answerB"].split(" / ")),
+        replace_sequential(line["question"], line["answerC"].split(" / ")),
+        replace_sequential(line["question"], line["answerD"].split(" / ")),
     ]
     gold_idx = LETTER_INDICES.index(line["answer"])
 
@@ -34,7 +39,7 @@ def prompt(line, task_name: str = None, task_type: str = None) -> Doc:
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name="french_bench_grammar",
+            name="frenchbench_grammar_v2",
             prompt_function=partial(prompt, task_type="grammar"),
             suite=["custom"],
             hf_repo="manu/french-bench-grammar-vocab-reading",
@@ -50,7 +55,7 @@ TASKS_TABLE.extend(
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name="french_bench_vocab",
+            name="frenchbench_vocab_v2",
             prompt_function=partial(prompt, task_type="vocab"),
             suite=["custom"],
             hf_repo="manu/french-bench-grammar-vocab-reading",

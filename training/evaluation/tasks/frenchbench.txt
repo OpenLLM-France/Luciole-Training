@@ -1,2 +1,2 @@
-custom|frenchbench_grammar|0
-custom|frenchbench_vocab|0
+custom|frenchbench_grammar_v2|0
+custom|frenchbench_vocab_v2|0
