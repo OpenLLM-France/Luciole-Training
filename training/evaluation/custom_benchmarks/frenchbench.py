@@ -50,7 +50,7 @@ TASKS_TABLE.extend(
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name="frenchbench_vocab",
+            name="french_bench_vocab",
             prompt_function=partial(prompt, task_type="vocab"),
             suite=["custom"],
             hf_repo="manu/french-bench-grammar-vocab-reading",
