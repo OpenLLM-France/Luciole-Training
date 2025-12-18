@@ -76,22 +76,13 @@ def init_extra_args(custom_tasks, max_samples=-1):
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(current_dir, "custom_benchmarks", "smollm3_evals.py")
         extra_arg += f"--custom-tasks {custom_path} \\\n"
-    elif custom_tasks == "ruler":
-        current_dir = os.path.dirname(__file__)
-        custom_path = os.path.join(current_dir, "custom_benchmarks", "ruler.py")
-        extra_arg += f"--custom-tasks {custom_path} \\\n"
-    elif custom_tasks == "idiomatic_expressions":
+    else:
         current_dir = os.path.dirname(__file__)
         custom_path = os.path.join(
-            current_dir, "custom_benchmarks", "idiomatic_expressions.py"
+            current_dir, "custom_benchmarks", f"{custom_tasks}.py"
         )
+        print(f"> Using custom tasks from: {custom_path}")
         extra_arg += f"--custom-tasks {custom_path} \\\n"
-    elif custom_tasks == "frenchbench":
-        current_dir = os.path.dirname(__file__)
-        custom_path = os.path.join(current_dir, "custom_benchmarks", "frenchbench.py")
-        extra_arg += f"--custom-tasks {custom_path} \\\n"
-    else:
-        raise ValueError(f"Unknown custom_tasks: {custom_tasks}")
     # Max samples
     if max_samples > 0:
         extra_arg += f"--max-samples {max_samples} \\\n"
@@ -218,10 +209,13 @@ def get_step(text):
     else:
         return None
 
+
 def override_max_length(ckpt_dir, ckpt, max_model_length):
     new_ckpt_dir = ckpt_dir.as_posix() + f".max_length_{max_model_length}"
     src_dir = os.path.join(ckpt_dir, ckpt)
-    assert os.path.isdir(src_dir), f"Source checkpoint directory does not exist: {src_dir}"
+    assert os.path.isdir(
+        src_dir
+    ), f"Source checkpoint directory does not exist: {src_dir}"
     dst_dir = os.path.join(new_ckpt_dir, ckpt)
     if not os.path.isdir(dst_dir):
         os.makedirs(dst_dir, exist_ok=True)
@@ -229,9 +223,12 @@ def override_max_length(ckpt_dir, ckpt, max_model_length):
             if fn == "config.json":
                 # modify config file to set max_length
                 import json
+
                 with open(os.path.join(src_dir, fn), "r") as f:
                     config = json.load(f)
-                assert "max_position_embeddings" in config, f"max_position_embeddings not in config of {src_dir}"
+                assert (
+                    "max_position_embeddings" in config
+                ), f"max_position_embeddings not in config of {src_dir}"
                 config["max_position_embeddings"] = max_model_length
                 with open(os.path.join(dst_dir, fn), "w") as f:
                     json.dump(config, f, indent=2)
@@ -242,6 +239,7 @@ def override_max_length(ckpt_dir, ckpt, max_model_length):
                     os.path.join(dst_dir, fn),
                 )
     return Path(new_ckpt_dir), ckpt
+
 
 def launch_evaluation(
     experiment_path,
@@ -264,7 +262,6 @@ def launch_evaluation(
     dry_run=False,
     infer_ckpt_name=False,
 ):
-
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
     print(f"\n# Experiment path: {experiment_path}")
@@ -329,9 +326,9 @@ def launch_evaluation(
             continue
 
         model_arg = f"model_name={ckpt},dtype=bfloat16"
-        max_num_batched_tokens = 4096
-        if max_model_length:
-            max_num_batched_tokens = max_model_length
+        # max_num_batched_tokens = 4096
+        # if max_model_length:
+        #     max_num_batched_tokens = max_model_length
         if "nemotronh" in ckpt:
             model_arg += ",trust_remote_code=True"
             # This was needed with vllm 0.10.1 (and having a batch size of 1 caused super long eval times)
@@ -359,7 +356,7 @@ def launch_evaluation(
         if gpus > 1:
             if command == "vllm":
                 model_arg += f",data_parallel_size={gpus}"
-                extra_env_vars += f"export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
+                extra_env_vars += "export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
 
         # Save the tuple representing a job array element
         tasks.append(
@@ -445,14 +442,6 @@ def get_parser():
     parser.add_argument(
         "--custom_tasks",
         default=None,
-        choices=[
-            None,
-            "multilingual",
-            "smollm3",
-            "idiomatic_expressions",
-            "ruler",
-            "frenchbench",
-        ],
     )
     parser.add_argument(
         "--max_samples",
