@@ -52,7 +52,7 @@ task_group_mapping = {
         ("custom:idiomatic_expressions_fib_context:different:0", "acc"),
         ("custom:idiomatic_expressions_fib_context:similar:0", "acc"),
         ("custom:idiomatic_expressions_fib_context:word_by_word:0", "acc"),
-     ],
+    ],
     "mmlu": [
         ("custom|mmlu_pro_cf|0", "acc_norm"),
         ("custom|mmlu_cf:_average|0", "acc_norm"),
@@ -493,10 +493,23 @@ if __name__ == "__main__":
         help="If set, only show the last checkpoint.",
     )
     parser.add_argument("--dpi", type=int, default=300)
+    parser.add_argument("--save_csv", action="store_true")
 
     args = parser.parse_args()
 
     df = process_experiments(args)
-
     print(df)
-    plot_experiments(df, args, max_subplot=15)
+
+    if args.save_csv:
+        list_of_tasks_to_plot = [
+            task for g in args.group for task in task_group_mapping.get(g, [])
+        ]
+        mask = df[["task", "metric"]].apply(tuple, axis=1).isin(list_of_tasks_to_plot)
+        df = df[mask]
+        df["score"] = df["score"].apply(lambda x: x[-1] if isinstance(x, list) else x)
+        df["FLOPs"] = df["FLOPs"].apply(lambda x: x[-1] if isinstance(x, list) else x)
+        df["tokens"] = df["tokens"].apply(lambda x: x[-1] if isinstance(x, list) else x)
+        df.to_csv(os.path.join(args.output_path, "results.csv"), index=False)
+
+    else:
+        plot_experiments(df, args, max_subplot=15)
