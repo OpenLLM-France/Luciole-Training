@@ -45,6 +45,26 @@ python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_languag
     --email xxx
 ```
 
+```bash
+python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
+    --name_prefix fr1_en99 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
+    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/training/train/language_datamixes/fr1_en99.json \
+    --time 20:00:00 \
+    --qos qos_gpu_h100-t3 \
+    --account wuh@h100 \
+    --email xxx
+```
+
+```bash
+python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
+    --name_prefix fr33_en66 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
+    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/training/train/language_datamixes/fr33_en66.json \
+    --time 20:00:00 \
+    --qos qos_gpu_h100-t3 \
+    --account wuh@h100 \
+    --email xxx
+```
+
 # Convert
 
 ```bash
@@ -84,6 +104,10 @@ conda activate eval-env
 ```
 
 ```bash
-experiment_path=... # can be a list of models
-python plot_results.py $experiment_path --group all ... --output_path $output_path/figs --dpi 150
+main_dir=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/ablations_language # can be a list of models
+experiment_path=$main_dir/en100_llama1b_phase1 \
+    other_experiment_path_to_add
+python plot_results.py $experiment_path --group xxx --output_path $main_dir/figs
 ``` 
+
+add `--save_csv` if you want a csv format.
