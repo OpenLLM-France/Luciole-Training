@@ -1,7 +1,4 @@
-custom|include_basque|0
-custom|include_dutch|0
 custom|include_french|0
-custom|include_german|0
-custom|include_italian|0
-custom|include_portuguese|0
-custom|include_spanish|0
+custom|include_french_all_mcq_cf|0
+custom|include_french_non-agnostic_mcq_cf|0
+custom|include_french_agnostic_mcq_cf|0

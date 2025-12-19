@@ -113,7 +113,7 @@ def custom_filter(line, subset, regional_feature):
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name=f"include_{language.lower()}_mcq_{formulation.name.lower()}:{subset.lower().replace(' & ', '_').replace(' ', '_')}_{regional_feature.replace(' ', '_')}",
+            name=f"include_{language.lower()}_{regional_feature.replace(' ', '_')}_mcq_{formulation.name.lower()}:{subset.lower().replace(' & ', '_').replace(' ', '_')}",
             prompt_function=get_mcq_prompt_function(
                 Language.FRENCH,
                 process_line,
