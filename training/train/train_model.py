@@ -108,6 +108,7 @@ def get_parser():
     )
     parser.add_argument("--max_lr", type=float, default=None)
     parser.add_argument("--weight_decay", type=float, default=0.1)
+    parser.add_argument("--rotary_base", type=float, default=10000)
     parser.add_argument("--no_load_optim_state", default=False, action="store_true")
     return parser
 
@@ -208,6 +209,13 @@ if __name__ == "__main__":
     )
     logger.info(f"Micro batch size: {micro_batch_size}")
 
+    if args.mode in ["benchmark", "debug"]:
+        index_mapping_dir = os.path.join(
+            "/lustre/fsn1/projects/rech/qgz/commun/", "index_mapping_cache"
+        )
+    else:
+        index_mapping_dir = os.path.join(args.output_dir, "index_mapping")
+
     data_args = dict(
         num_workers=8,
         pin_memory=True,
@@ -217,7 +225,7 @@ if __name__ == "__main__":
         micro_batch_size=micro_batch_size,
         seq_length=seq_length,
         seed=args.seed,
-        index_mapping_dir=os.path.join(args.output_dir, "index_mapping"),
+        index_mapping_dir=index_mapping_dir,
     )
     tokenizer = get_tokenizer(tokenizer_name=tokenizer_name, use_fast=True)
     recipe.data = run.Config(PreTrainingDataModule, tokenizer=tokenizer, **data_args)
@@ -227,12 +235,14 @@ if __name__ == "__main__":
     recipe.model.config.seq_length = recipe.data.seq_length
     if args.arch.startswith("llama") and args.base_checkpoint is None:
         recipe.model.config.old_context_len = recipe.data.seq_length
+    if hasattr(recipe.model.config, "rotary_base"):
+        recipe.model.config.rotary_base = args.rotary_base
 
     ### TRAINER SETUP
     if args.mode == "debug":
         max_steps = 2
     elif args.mode == "benchmark":
-        max_steps = 25
+        max_steps = 12
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
     recipe.trainer.limit_val_batches = 0.0

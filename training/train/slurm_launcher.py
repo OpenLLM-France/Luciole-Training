@@ -279,7 +279,7 @@ def get_slurm_parser():
     parser.add_argument(
         "--nemo_version",
         default="nemo/2.3.1",
-        choices=["nemo/2.3.1", "nemo/2.4.0"],
+        choices=["nemo/2.3.1", "nemo/2.4.0", "nemo/2.5.2"],
         type=str,
     )
     return parser
