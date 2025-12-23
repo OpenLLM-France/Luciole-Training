@@ -22,7 +22,7 @@ def convert_checkpoint(input_path, output_path, arch):
     importer.init()
     importer.apply(output_path)
     with open(os.path.join(output_path, "context", "tokenizer_name.txt"), "w") as f:
-        f.write(input_path.replace("hf://", ""))
+        f.write("OpenLLM-BPI/tokenizer_128k-arab-regional_v2")
     logger.info(f"Model converted to {output_path}")
 
 
