@@ -1,6 +1,6 @@
 {
     "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
-    "total_tokens": 495926116352,
+    "total_tokens": 50000000000,
     "train": [
         {
             "name": "aya_dataset_ar_text_document",
