@@ -107,6 +107,7 @@ def get_parser():
         type=str,
     )
     parser.add_argument("--max_lr", type=float, default=None)
+    parser.add_argument("--min_lr", type=float, default=None)
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--rotary_base", type=float, default=10000)
     parser.add_argument("--no_load_optim_state", default=False, action="store_true")
@@ -342,7 +343,10 @@ if __name__ == "__main__":
         warmup = 0
     # Scheduler setup
     if args.scheduler == "wsd":
-        min_lr = max_lr if args.mode != "annealing" else 0
+        if args.min_lr:
+            min_lr = args.min_lr
+        else:
+            min_lr = max_lr if args.mode != "annealing" else 0
         recipe.optim.lr_scheduler = run.Config(
             WarmupAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
         )
