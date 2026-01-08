@@ -153,10 +153,19 @@ def launch_evaluation(
                 task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
                 command="vllm",
-                max_model_length=32000,
+                max_model_length=32768,
                 max_samples=1000,
             )
-            for task in ["live_code_bench", "gpqa", "aime"]
+            for task in ["aime"]
+        ] + [
+            dict(
+                task_to_evaluate=f"tasks/{task}.txt",
+                multiple_of=multiple_of,
+                command="vllm",
+                max_model_length=65536,
+                max_samples=1000,
+            )
+            for task in ["live_code_bench", "gpqa"]
         ] + [
             dict(
                 task_to_evaluate="tasks/mmlu_pro.txt",
