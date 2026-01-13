@@ -271,99 +271,186 @@ def plot_list_of_tasks(
     dpi=300,
     max_subplot=15,
 ):
-    list_of_tasks_to_plot = [
-        task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
-    ]
-    n_tasks = len(list_of_tasks_to_plot)
-    if not isinstance(max_subplot, int) or n_tasks > max_subplot:
-        print("Splitting results in different figures...")
-        for i, chunk_list in enumerate(
-            [
-                list_of_tasks_to_plot[i : i + max_subplot]
-                for i in range(0, n_tasks, max_subplot)
-            ]
-            if isinstance(max_subplot, int)
-            else [
-                list_of_tasks_to_plot[sum(max_subplot[:i]) : sum(max_subplot[: i + 1])]
-                for i in range(len(max_subplot))
-            ]
-        ):
-            if output_file:
-                base, ext = os.path.splitext(output_file)
-                chunk_output_file = f"{base}_part{i}{ext}"
-            else:
-                chunk_output_file = None
-            plot_list_of_tasks(
-                df,
-                chunk_list,
-                chunk_output_file,
-                title,
-                xlog,
-                fit,
-                flops,
-                apply_phase_style,
-                max_tokens,
-                last_checkpoint_only,
-                dpi,
-                max_subplot,
-            )
-        return
+    
+    if all([metric=="ruler_match" for _, metric in list_of_tasks_to_plot]):
 
-    num_tasks = len(list_of_tasks_to_plot)
-    num_plots = num_tasks + 1  # +1 for the legend
+        def full_expe_name(expe_name, tokens):
+            return f"{expe_name} ({int(tokens)}B training tokens)"
 
-    cols = math.ceil(math.sqrt(num_plots))
-    rows = math.ceil(num_plots / cols)
+        # Ruler
+        df_filtered = df[df["metric"] == "ruler_match"]
+        data = {}
+        details = {}
+        all_context_lengths = set()
+        for task, _ in list_of_tasks_to_plot:
+            # Extract the context_length from the task : 'custom|ruler_4096:_average|0' -> 4096
+            context_length = int(task.split("ruler_")[1].split(":")[0])
+            task_prefix = task.split(":")[0]
+            subtasks = set([t for t in df["task"] if t.startswith(task_prefix) and t != task])
+            all_context_lengths.add(context_length)
+            df_task = df_filtered[df_filtered["task"] == task]
+            for _, row in df_task.iterrows():
+                expe_name = row["expe_name"]
+                for tokens, score in zip(row["tokens"], row["score"]):
+                    expe_name_with_tokens = full_expe_name(expe_name, tokens)
+                    if expe_name_with_tokens not in data:
+                        data[expe_name_with_tokens] = {"context_length": [], "score": []}
+                    data[expe_name_with_tokens]["context_length"].append(context_length)
+                    data[expe_name_with_tokens]["score"].append(score)
+            for subtask in subtasks:
+                df_subtask = df_filtered[df_filtered["task"] == subtask]
+                subtask = subtask.split(":")[1].split("|")[0]
+                details[subtask] = details.get(subtask, {})
+                for _, row in df_subtask.iterrows():
+                    expe_name = row["expe_name"]
+                    for tokens, score in zip(row["tokens"], row["score"]):
+                        expe_name_with_tokens = full_expe_name(expe_name, tokens)
+                        if expe_name_with_tokens not in details[subtask]:
+                            details[subtask][expe_name_with_tokens] = {
+                                "context_length": [],
+                                "score": [],
+                            }
+                        details[subtask][expe_name_with_tokens]["context_length"].append(context_length)
+                        details[subtask][expe_name_with_tokens]["score"].append(score)
+        details["average"] = data
 
-    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
-    if rows * cols == 1:
-        axes = [axes]  # wrap single Axes in a list
-    else:
-        axes = axes.flatten()
-    color_map = assign_colors(
-        df, apply_phase_style=apply_phase_style
-    )  # Global color map
-    style_map = assign_styles(df, apply_phase_style=apply_phase_style)
+        n_subtasks = len(details)
+        cols = math.ceil(math.sqrt(n_subtasks))
+        rows = math.ceil(n_subtasks / cols)
+        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+        axes = axes.flatten() if n_subtasks > 1 else [axes]
+        legend_dict = {}
+        for i, (ax, subtask) in enumerate(zip(axes, sorted(details.keys()))):
+            data = details[subtask]
+            for expe_name_with_tokens, values in data.items():
+                sorted_indices = np.argsort(values["context_length"])
+                values["context_length"] = np.array(values["context_length"])[sorted_indices]
+                values["score"] = np.array(values["score"])[sorted_indices]
+                ax.plot(
+                    values["context_length"],
+                    values["score"],
+                    marker="+",
+                    markersize=10,
+                    markeredgewidth=2,
+                    label=expe_name_with_tokens,
+                )
+            if i >= len(details) - 4:
+                ax.set_xlabel("Context Length")
+            ax.set_xscale("log", base=2)
+            ax.set_xticks(sorted(all_context_lengths), labels=[str(cl) for cl in sorted(all_context_lengths)])
+            ax.set_ylabel("Ruler Match Score")
+            ax.set_title(subtask)
+            # ax.legend(title="Experiment name", loc="best")
+            handles, labels = ax.get_legend_handles_labels()
+            for handle, label in zip(handles, labels):
+                legend_dict[label] = handle
 
-    # Keep track of labels added to the legend
-    legend_dict = {}
-
-    for i, (task, metric) in enumerate(list_of_tasks_to_plot):
-        plot_task(
-            axes[i],
-            df,
-            task,
-            metric,
-            color_map=color_map,
-            style_map=style_map,
-            xlog=xlog,
-            fit=fit,
-            flops=flops,
-            max_tokens=max_tokens,
-            last_checkpoint_only=last_checkpoint_only,
+        for ax in axes[len(details) :]:
+            ax.axis("off")
+        ax = axes[-1]
+        for handle in legend_dict.values():
+            handle.set_alpha(1.0)
+        ax.legend(
+            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
         )
 
-        handles, labels = axes[i].get_legend_handles_labels()
-        for handle, label in zip(handles, labels):
-            legend_dict[label] = handle
 
-    # Dedicated subplot for legend
-    legend_ax = axes[-1]
-    legend_ax.axis("off")
-    # Set legend handle alpha to 1.0
-    for handle in legend_dict.values():
-        handle.set_alpha(1.0)
+    else:
 
-    legend_ax.legend(
-        legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
-    )
+        list_of_tasks_to_plot = [
+            task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
+        ]
+        n_tasks = len(list_of_tasks_to_plot)
+        if not isinstance(max_subplot, int) or n_tasks > max_subplot:
+            print("Splitting results in different figures...")
+            for i, chunk_list in enumerate(
+                [
+                    list_of_tasks_to_plot[i : i + max_subplot]
+                    for i in range(0, n_tasks, max_subplot)
+                ]
+                if isinstance(max_subplot, int)
+                else [
+                    list_of_tasks_to_plot[sum(max_subplot[:i]) : sum(max_subplot[: i + 1])]
+                    for i in range(len(max_subplot))
+                ]
+            ):
+                if output_file:
+                    base, ext = os.path.splitext(output_file)
+                    chunk_output_file = f"{base}_part{i}{ext}"
+                else:
+                    chunk_output_file = None
+                plot_list_of_tasks(
+                    df,
+                    chunk_list,
+                    chunk_output_file,
+                    title,
+                    xlog,
+                    fit,
+                    flops,
+                    apply_phase_style,
+                    max_tokens,
+                    last_checkpoint_only,
+                    dpi,
+                    max_subplot,
+                )
+            return
+        
+        num_tasks = len(list_of_tasks_to_plot)
+        num_plots = num_tasks + 1  # +1 for the legend
 
-    # Hide any unused subplots
-    for j in range(len(list_of_tasks_to_plot), len(axes) - 1):
-        fig.delaxes(axes[j])
+        cols = math.ceil(math.sqrt(num_plots))
+        rows = math.ceil(num_plots / cols)
 
-    if title is not None:
-        fig.suptitle(title)
+        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+        if rows * cols == 1:
+            axes = [axes]  # wrap single Axes in a list
+        else:
+            axes = axes.flatten()
+        color_map = assign_colors(
+            df, apply_phase_style=apply_phase_style
+        )  # Global color map
+        style_map = assign_styles(df, apply_phase_style=apply_phase_style)
+
+        # Keep track of labels added to the legend
+        legend_dict = {}
+
+        for i, (task, metric) in enumerate(list_of_tasks_to_plot):
+            plot_task(
+                axes[i],
+                df,
+                task,
+                metric,
+                color_map=color_map,
+                style_map=style_map,
+                xlog=xlog,
+                fit=fit,
+                flops=flops,
+                max_tokens=max_tokens,
+                last_checkpoint_only=last_checkpoint_only,
+            )
+
+            handles, labels = axes[i].get_legend_handles_labels()
+            for handle, label in zip(handles, labels):
+                legend_dict[label] = handle
+
+        # Dedicated subplot for legend
+        legend_ax = axes[-1]
+        legend_ax.axis("off")
+        # Set legend handle alpha to 1.0
+        for handle in legend_dict.values():
+            handle.set_alpha(1.0)
+
+        legend_ax.legend(
+            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
+        )
+
+        # Hide any unused subplots
+        for j in range(len(list_of_tasks_to_plot), len(axes) - 1):
+            fig.delaxes(axes[j])
+
+        if title is not None:
+            fig.suptitle(title)
+
     plt.tight_layout()
     if output_file:
         plt.savefig(output_file, dpi=dpi)
