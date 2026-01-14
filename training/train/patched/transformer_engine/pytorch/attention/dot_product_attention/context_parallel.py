@@ -826,10 +826,10 @@ class AttnFuncWithCPAndKVP2P(torch.autograd.Function):
                                     causal=True,
                                     **fa_forward_kwargs,
                                 )
-                                print(">>> flash_attn_fwd:")
-                                print(flash_attn_fwd)
-                                print(">>> fa_outputs:")
-                                print(len(fa_outputs))
+                                # print(">>> flash_attn_fwd:")
+                                # print(flash_attn_fwd)
+                                # print(">>> fa_outputs:")
+                                # print(len(fa_outputs))
                                 if (not fa_utils.v2_7_0_plus) and (not use_flash_attn_3):
                                     out_per_step[i] = fa_outputs[4]
                                     softmax_lse_per_step[i] = fa_outputs[5]

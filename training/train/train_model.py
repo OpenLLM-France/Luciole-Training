@@ -111,10 +111,20 @@ def get_parser():
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--rotary_base", type=float, default=10000)
     parser.add_argument("--no_load_optim_state", default=False, action="store_true")
+    parser.add_argument(
+        "--cp_patch",
+        action="store_true",
+        help="If set, it will apply the context parallelism patch.",
+    )
     return parser
 
 
 if __name__ == "__main__":
+    parser = get_parser()
+    args = parser.parse_args()
+
+    if args.cp_patch:
+        import cp_patch  # noqa: F401
     import ast
     import logging
     import math
@@ -157,9 +167,6 @@ if __name__ == "__main__":
     # from nemo.collections.llm.recipes.precision.mixed_precision import bf16_with_fp8_mixed
     # from .callbacks import PytorchProfilerCallback
     # from nemo.lightning.pytorch.callbacks.megatron_comm_overlap import MegatronCommOverlapCallback
-
-    parser = get_parser()
-    args = parser.parse_args()
 
     torch.set_float32_matmul_precision("high")
 
