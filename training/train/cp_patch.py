@@ -1,0 +1,11 @@
+# mon_patch.py
+import transformer_engine.pytorch.attention.dot_product_attention.context_parallel as cp_module
+import patched.transformer_engine.pytorch.attention.dot_product_attention.context_parallel as cp_module_patched
+
+# from transformer_engine.pytorch.attention.dot_product_attention.utils import FlashAttentionUtils as fa_utils
+# fa_utils.set_flash_attention_version()
+
+cp_module.get_fa_args = cp_module_patched.get_fa_args
+cp_module.AttnFuncWithCPAndKVP2P = cp_module_patched.AttnFuncWithCPAndKVP2P
+cp_module.AttnFuncWithCPAndKVAllGather = cp_module_patched.AttnFuncWithCPAndKVAllGather
+cp_module.AttnFuncWithCPAndQKVOA2A = cp_module_patched.AttnFuncWithCPAndQKVOA2A

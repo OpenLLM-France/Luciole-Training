@@ -10,3 +10,5 @@ repos:
         args:
         - --fix
     -   id: ruff-format
+        exclude: |
+            ^training/train/patched/
