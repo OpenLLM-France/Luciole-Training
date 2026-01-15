@@ -505,9 +505,15 @@ def process_experiments(args):
     # Read and aggregate all results
     all_results = []
 
-    for path in args.experiment_path:
+    if args.legend:
+        assert len(args.legend) == len(args.experiment_path), "Length of legend must match number of experiment paths."
+
+    for iexpe, path in enumerate(args.experiment_path):
         # Step 1: read experiment results
         df = read_experiment_results(path, evaluation_dir=args.evaluation_dir)
+
+        if args.legend:
+            df["expe_name"] = args.legend[iexpe].replace("_", " ")
 
         if df is None or df.empty:
             print(f"No results found in {path}, skipping...")
@@ -578,6 +584,13 @@ if __name__ == "__main__":
         "--last_checkpoint_only",
         action="store_true",
         help="If set, only show the last checkpoint.",
+    )
+    parser.add_argument(
+        "--legend",
+        type=str,
+        nargs="*",
+        default=[],
+        help="List of experiment names to include in the legend.",
     )
     parser.add_argument("--dpi", type=int, default=300)
     parser.add_argument("--save_csv", action="store_true")
