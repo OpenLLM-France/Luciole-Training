@@ -65,11 +65,19 @@ def get_training_tokens_and_model_size(file_path):
     elif "Lucie-7B" in str(file_path):
         match = re.search(r"step([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
+        if "extension" in str(file_path):
+            steps += 753851
         tokens = steps * 4096 * 1024 / 10**9
         model_size = 7.0
     elif "CroissantLLMBase" in str(file_path):
         tokens = 3000
         model_size = 1.3
+    elif "Llama-3.2-1B" in str(file_path):
+        model_size = 1.23
+        tokens = 9000
+    elif "Mistral-Small-3.1-24B" in str(file_path):
+        model_size = 24.0
+        tokens = 8000
     elif (
         ("luciol" in str(file_path))
         or ("llama1b" in str(file_path))
