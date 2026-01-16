@@ -128,6 +128,9 @@ main_patterns=(
     kurakurai_scholar*
     paradocs*
     pleias*
+    fineweb-hq*
+    fineweb-350BT_grouped*
+    longmino*
 )
 link_files \
     "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_training_v2" \

@@ -716,7 +716,16 @@ datasets:
   - name: fineweb-hq_quality-50_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
     regex: .*/quality_0\.50.*\.jsonl\.gz$
-
+  # Fineweb_sample
+  - name: fineweb-350BT_part1_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_sample350BT/data
+    regex: .*/0000[0-9]\.jsonl\.gz$|.*/0001[0-9]\.jsonl\.gz$
+  - name: fineweb-350BT_part2_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_sample350BT/data
+    regex: .*/0002[0-9]\.jsonl\.gz$|.*/0003[0-9]\.jsonl\.gz$
+  - name: fineweb-350BT_part3_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_sample350BT/data
+    regex: .*/0004[0-9]\.jsonl\.gz$
   # MISC
   - name: numina-math_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/numina_math/data
@@ -738,3 +747,17 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_w_editorials_decontaminated
   - name: open-r1-codeforces-solutions-w-editorials-py-decontaminated_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_r1_codeforces/data/solutions_w_editorials_py_decontaminated
+  # Longmino
+  - name: longmino_olmocr-2e13_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data
+    regex: .*/olmocr_science_pdfs.*_2e13.*/.*\.jsonl\.gz$
+  - name: longmino_olmocr-2e14_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data
+    regex: .*/olmocr_science_pdfs.*_2e14.*/.*\.jsonl\.gz$
+  - name: longmino_olmocr-2e15_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data
+    regex: .*/olmocr_science_pdfs.*_2e15.*/.*\.jsonl\.gz$
+  - name: longmino_lc-synth-cwe_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data/lc_synth-cwe_s2pdf
+  - name: longmino_lc-synth-rex_en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data/lc_synth-rex_s2pdf
