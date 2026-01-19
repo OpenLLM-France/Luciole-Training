@@ -65,7 +65,14 @@ def get_parser():
     parser.add_argument(
         "--mode",
         default="debug",
-        choices=["debug", "benchmark", "phase1", "phase2", "annealing"],
+        choices=[
+            "debug",
+            "benchmark",
+            "phase1",
+            "phase2",
+            "annealing",
+            "context_extension",
+        ],
         type=str,
     )
     parser.add_argument(
@@ -116,6 +123,11 @@ def get_parser():
         action="store_true",
         help="If set, it will apply the context parallelism patch.",
     )
+    parser.add_argument(
+        "--dry_run",
+        action="store_true",
+        help="If set, it will perform a dry run without training.",
+    )
     return parser
 
 
@@ -145,7 +157,10 @@ if __name__ == "__main__":
     from nemo.lightning.pytorch.callbacks import (
         GarbageCollectionCallback,
     )  # , SpikeDetection
-    from nemo.lightning.pytorch.optim import WarmupAnnealingScheduler
+    from nemo.lightning.pytorch.optim import (
+        WarmupAnnealingScheduler,
+        CosineAnnealingScheduler,
+    )
 
     from callbacks import (
         ProgressiveIntervalCheckpoint,
@@ -199,7 +214,7 @@ if __name__ == "__main__":
     )
     seq_length = args.seq_length if args.seq_length else recipe.data.seq_length
     tokens_per_batch = seq_length * global_batch_size
-    if args.scheduler == "cosine" and args.mode == "phase2":
+    if args.mode == "phase2" and args.scheduler == "cosine":
         max_steps = math.floor(2 * 1e12 / tokens_per_batch)  # 2T horizon for phase 2
         max_steps_phase2 = math.floor(total_tokens / tokens_per_batch)
     else:
@@ -348,9 +363,11 @@ if __name__ == "__main__":
         warmup = 2000
     elif args.mode in ["phase2", "annealing"]:
         warmup = 0
+    elif args.mode == "context_extension":
+        warmup = 200
     # Scheduler setup
     if args.scheduler == "wsd":
-        if args.min_lr:
+        if args.min_lr is not None:
             min_lr = args.min_lr
         else:
             min_lr = max_lr if args.mode != "annealing" else 0
@@ -361,10 +378,15 @@ if __name__ == "__main__":
             f"Setting WarmupAnnealingScheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
         )
     elif args.scheduler == "cosine":
-        recipe.optim.lr_scheduler.warmup_steps = 0
-        recipe.optim.lr_scheduler.min_lr = max_lr * 0.1
+        if args.min_lr is not None:
+            min_lr = args.min_lr
+        else:
+            min_lr = max_lr * 0.1
+        recipe.optim.lr_scheduler = run.Config(
+            CosineAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
+        )
         logger.info(
-            f"Setting Cosine Scheduler with max_steps: {max_steps} (2T tokens), warmup: {warmup}"
+            f"Setting Cosine Scheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
         )
         if args.mode == "phase2":
             recipe.trainer.callbacks.append(
@@ -410,6 +432,10 @@ if __name__ == "__main__":
         args,
         recipe,
     )
+
+    if args.dry_run:
+        logger.info("Dry run mode, exiting...")
+        sys.exit(0)
 
     recipe_obj = fiddle.build(recipe)
     recipe_obj()
