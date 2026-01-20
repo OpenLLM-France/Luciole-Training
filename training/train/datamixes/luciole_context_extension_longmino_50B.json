@@ -252,7 +252,7 @@
         },
         {
             "name": "hal-cea_full-filtered_fr_text_document",
-            "weight": 782803.0
+            "weight": 5871023.0
         },
         {
             "name": "hplt2_fr_text_document",
@@ -272,23 +272,23 @@
         },
         {
             "name": "longmino_lc-synth-cwe_en_text_document",
-            "weight": 6586823.0
+            "weight": 5389219.0
         },
         {
             "name": "longmino_lc-synth-rex_en_text_document",
-            "weight": 19185017.0
+            "weight": 15696832.0
         },
         {
             "name": "longmino_olmocr-2e13_en_text_document",
-            "weight": 7527999.0
+            "weight": 6159272.0
         },
         {
             "name": "longmino_olmocr-2e14_en_text_document",
-            "weight": 7052349.0
+            "weight": 5770103.0
         },
         {
             "name": "longmino_olmocr-2e15_en_text_document",
-            "weight": 21564040.0
+            "weight": 17643305.0
         },
         {
             "name": "nemotron-posttraining-chat_en_text_document",
@@ -308,7 +308,7 @@
         },
         {
             "name": "nemotron-posttraining-fr-think-translated_fr_text_document",
-            "weight": 1577542.0
+            "weight": 5521397.0
         },
         {
             "name": "nemotron-posttraining-it-think_it_text_document",
