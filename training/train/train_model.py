@@ -383,7 +383,10 @@ if __name__ == "__main__":
         else:
             min_lr = max_lr * 0.1
         recipe.optim.lr_scheduler = run.Config(
-            CosineAnnealingScheduler, warmup_steps=warmup, min_lr=min_lr
+            CosineAnnealingScheduler,
+            warmup_steps=warmup,
+            min_lr=min_lr,
+            constant_steps=0,
         )
         logger.info(
             f"Setting Cosine Scheduler with max_steps: {max_steps}, warmup: {warmup}, max_lr: {max_lr}, min_lr: {min_lr}"
