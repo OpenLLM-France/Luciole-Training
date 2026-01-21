@@ -106,26 +106,26 @@ task_group_mapping = {
         ("custom|ruler_131072:_average|0", "ruler_match"),
     ],
     "finetune": [
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
         ("custom|mmlu_pro_cf|0", "acc_norm"),
-        # ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+
         ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
         ("community|gpqa-fr|0", "acc"),
-
-        ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
-
+        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("lighteval|gsm_plus|0", "extractive_match"),
         ("lighteval|aime25|0", "pass@k_with_k&n"),
 
-        ("extended|mixeval_easy:_average|0", "judge_score_flow"),
-        ("extended|mixeval_hard:_average|0", "judge_score_flow"),
-
-        # ("extended|ifeval|0", "inst_level_loose_acc"),
+        ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
         ("extended|ifeval|0", "prompt_level_loose_acc"),
-        # ("community|ifeval-fr|0", "inst_level_loose_acc"),
-        ("community|ifeval-fr|0", "prompt_level_loose_acc"),
-        
+        ("community|ifeval-fr|0", "prompt_level_loose_acc"),        
         ("extended|ifbench_test|0", "prompt_level_loose_acc"),
         ("extended|ifbench_multiturn|1", "prompt_level_loose_acc"),        
+
+        ("extended|mixeval_easy:_average|0", "judge_score_flow"),
+        ("extended|mixeval_hard:_average|0", "judge_score_flow"),
     ]
 }
 
@@ -310,7 +310,7 @@ def plot_list_of_tasks(
     max_tokens=None,
     last_checkpoint_only=False,
     dpi=300,
-    max_subplot=15,
+    max_subplot=19,
 ):
     
     if all([metric=="ruler_match" for _, metric in list_of_tasks_to_plot]):
@@ -499,7 +499,7 @@ def plot_list_of_tasks(
         print(f"Saved figure to {output_file}")
 
 
-def plot_experiments(df, args, max_subplot=15):
+def plot_experiments(df, args, max_subplot=19):
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
@@ -656,4 +656,4 @@ if __name__ == "__main__":
         df.to_csv(os.path.join(args.output_path, "results.csv"), index=False)
 
     else:
-        plot_experiments(df, args, max_subplot=15)
+        plot_experiments(df, args, max_subplot=19)
