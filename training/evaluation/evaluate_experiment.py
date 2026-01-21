@@ -124,6 +124,10 @@ def get_hf_model(hf_model):
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "OpenLLM-France/Lucie-7B":
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
+        revisions = [
+            "step0753851",
+            "extension_step0001220",
+        ]
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "HuggingFaceTB/SmolLM2-1.7B":
         checkpoints = [
@@ -305,14 +309,14 @@ def launch_evaluation(
                 # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}")
                 continue
 
-        if multiple_of:
+        if multiple_of and multiple_of != 1:
             step = get_step(ckpt)
             if (step + 1) % multiple_of != 0:
                 # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
                 continue
 
-        if ckpt.endswith("-last") and (multiple_of is None or step in steps_done):
-            # print(f"Skipping last checkpoint: {ckpt}")
+        if ckpt.endswith("-last"): # and (multiple_of is None or step in steps_done):
+            print(f"Skipping last checkpoint: {ckpt}")
             continue
 
         steps_done.append(step)
@@ -346,7 +350,7 @@ def launch_evaluation(
             model_arg += ",batch_size=1"
         if revision:
             model_arg += f",revision={revision}"
-        if max_model_length:
+        if max_model_length and not hf_model: # Not implemented for HF models
             if command == "vllm":
                 model_arg += f",max_model_length={max_model_length}"
             else:
@@ -355,7 +359,7 @@ def launch_evaluation(
 
         if gpus > 1:
             if command == "vllm":
-                model_arg += f",data_parallel_size={gpus}"
+                model_arg += f",pipeline_parallel_size={gpus}"
                 extra_env_vars += "export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
 
         # Save the tuple representing a job array element
