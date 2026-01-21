@@ -201,7 +201,7 @@ def launch_evaluation(
                 command="vllm",
                 custom_tasks="ruler",
                 max_model_length=length,
-                gpus=1, # NOCOMMIT 2 if length > 32768 else 1,
+                gpus=2 if length > 32768 else 1,
                 
             ) for length in lengths
         ]
@@ -277,7 +277,7 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
                 f"{base}/pretrain/compared_models/Gaperon-1125-24B",
             ]
         else:
-            compared_models = ""
+            compared_models = []
     if experiment_path not in compared_models:
         compared_models = [experiment_path] + compared_models
 
