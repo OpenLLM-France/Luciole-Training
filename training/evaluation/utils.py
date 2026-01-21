@@ -65,9 +65,12 @@ def get_training_tokens_and_model_size(file_path):
     elif "Lucie-7B" in str(file_path):
         match = re.search(r"step([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
-        if "extension" in str(file_path):
-            steps += 753851
-        tokens = steps * 4096 * 1024 / 10**9
+        if steps:
+            if "extension" in str(file_path):
+                steps += 753851
+            tokens = steps * 4096 * 1024 / 10**9
+        else:
+            tokens = 3000
         model_size = 7.0
     elif "CroissantLLMBase" in str(file_path):
         tokens = 3000
@@ -77,6 +80,9 @@ def get_training_tokens_and_model_size(file_path):
         tokens = 9000
     elif "Mistral-Small-3.1-24B" in str(file_path):
         model_size = 24.0
+        tokens = 8000
+    elif "Ministral-3-8B" in str(file_path):
+        model_size = 8.0
         tokens = 8000
     elif (
         ("luciol" in str(file_path))
@@ -92,11 +98,11 @@ def get_training_tokens_and_model_size(file_path):
                 raise ValueError(f"Could not extract steps from file path: {file_path}")
         if "llama1b" in str(file_path):
             model_size = 1.235290112
-        elif "nemotron1b" in str(file_path):
+        elif "1b" in str(file_path):
             model_size = 1.319309312
-        elif "nemotronh8b" in str(file_path):
+        elif "8b" in str(file_path):
             model_size = 8.075686912
-        elif "nemotron23b" in str(file_path):
+        elif "23b" in str(file_path):
             model_size = 23.216467968
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
@@ -128,7 +134,25 @@ def read_json_file(file_path):
     df["max_samples"] = str(data["config_general"]["max_samples"])
 
     # Filter out metrics ending in "_stderr"
-    df = df[~df["metric"].str.endswith("_stderr")]
+    # df = df[~df["metric"].str.endswith("_stderr")]
+
+    # mark whether the row is stderr or score
+    df["value_type"] = df["metric"].str.endswith("_stderr")
+
+    # normalize metric name (remove _stderr suffix)
+    df["metric_base"] = df["metric"].str.replace("_stderr$", "", regex=True)
+
+    # pivot score vs stderr into columns
+    df = (
+        df.pivot_table(
+            index=["metric_base", "task", "max_samples"],
+            columns="value_type",
+            values="score",
+            aggfunc="first"
+        )
+        .reset_index()
+        .rename(columns={False: "score", True: "stderr", "metric_base": "metric"})
+    )
 
     # Get training flops
     tokens, num_parameters = get_training_tokens_and_model_size(file_path)
@@ -237,6 +261,7 @@ def process_group(group, window=1):
     tokens = group["tokens"].to_numpy()
     flops = group["FLOPs"].to_numpy()
     scores = group["score"].to_numpy()
+    stderr = group["stderr"].to_numpy()
 
     if window < 2 or len(scores) < window:
         scores = scores
@@ -252,6 +277,7 @@ def process_group(group, window=1):
                 "tokens": tokens.tolist(),
                 "FLOPs": flops.tolist(),
                 "score": scores.tolist(),
+                "stderr": stderr.tolist(),
             }
         ]
     )

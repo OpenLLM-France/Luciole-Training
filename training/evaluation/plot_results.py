@@ -105,6 +105,28 @@ task_group_mapping = {
         ("custom|ruler_65536:_average|0", "ruler_match"),
         ("custom|ruler_131072:_average|0", "ruler_match"),
     ],
+    "finetune": [
+        ("custom|mmlu_pro_cf|0", "acc_norm"),
+        # ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+        ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
+        ("community|gpqa-fr|0", "acc"),
+
+        ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
+
+        ("lighteval|gsm_plus|0", "extractive_match"),
+        ("lighteval|aime25|0", "pass@k_with_k&n"),
+
+        ("extended|mixeval_easy:_average|0", "judge_score_flow"),
+        ("extended|mixeval_hard:_average|0", "judge_score_flow"),
+
+        # ("extended|ifeval|0", "inst_level_loose_acc"),
+        ("extended|ifeval|0", "prompt_level_loose_acc"),
+        # ("community|ifeval-fr|0", "inst_level_loose_acc"),
+        ("community|ifeval-fr|0", "prompt_level_loose_acc"),
+        
+        ("extended|ifbench_test|0", "prompt_level_loose_acc"),
+        ("extended|ifbench_multiturn|1", "prompt_level_loose_acc"),        
+    ]
 }
 
 
@@ -174,6 +196,7 @@ def plot_task(
             row["tokens"] = tokens[:cutoff]
             row["FLOPs"] = row["FLOPs"][:cutoff]
             row["score"] = row["score"][:cutoff]
+            row["stderr"] = row["stderr"][:cutoff]
             return row
 
         df = df.apply(truncate_row, axis=1, max_tokens=max_tokens)
@@ -184,11 +207,22 @@ def plot_task(
         random = 1.0 / num_classes
         ax.axhline(y=random, color="grey", linestyle="--", label="random")
 
-    for _, row in df.iterrows():
+    use_bars = max([len(s) for s in df["score"]]) == 1
+
+    for i, (_, row) in enumerate(df.iterrows()):
         color = color_map[row["expe_name"]]
         linestyle = style_map[row["expe_name"]]
 
-        if fit:
+        if use_bars:
+            ax.bar(
+                i,
+                row["score"],
+                color=color,
+                label=row["expe_name"],
+                yerr=row["stderr"] if "stderr" in row else None,
+                capsize=5,
+            )
+        elif fit:
             ax.plot(
                 row[xaxis_column],
                 row["score"],
@@ -249,13 +283,20 @@ def plot_task(
                     label=row["expe_name"] if last_checkpoint_only else None,
                 )
 
-    ax.set_xlabel("FLOPs" if flops else "B tokens")
+    if use_bars:
+        ax.set_xticks([])
+    else:
+        ax.set_xlabel("FLOPs" if flops else "B tokens")
+        if xlog:
+            ax.set_xscale("log")
     ax.set_ylabel(metric)
-    ax.set_title(task)
+    ax.set_title(format_task_for_title(task))
 
-    if xlog:
-        ax.set_xscale("log")
-
+def format_task_for_title(task):
+    f = task.split("|")
+    if len(f) == 3:
+        return f[1]
+    return task
 
 def plot_list_of_tasks(
     df,
@@ -351,7 +392,7 @@ def plot_list_of_tasks(
         for handle in legend_dict.values():
             handle.set_alpha(1.0)
         ax.legend(
-            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
+            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center",
         )
 
 
@@ -438,10 +479,11 @@ def plot_list_of_tasks(
         legend_ax.axis("off")
         # Set legend handle alpha to 1.0
         for handle in legend_dict.values():
-            handle.set_alpha(1.0)
+            if hasattr(handle, "set_alpha"):
+                handle.set_alpha(1.0)
 
         legend_ax.legend(
-            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center"
+            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center", fontsize=12,
         )
 
         # Hide any unused subplots
@@ -601,12 +643,14 @@ if __name__ == "__main__":
     print(df)
 
     if args.save_csv:
-        list_of_tasks_to_plot = [
-            task for g in args.group for task in task_group_mapping.get(g, [])
-        ]
-        mask = df[["task", "metric"]].apply(tuple, axis=1).isin(list_of_tasks_to_plot)
-        df = df[mask]
+        if args.group != ["all"]:
+            list_of_tasks_to_plot = [
+                task for g in args.group for task in task_group_mapping.get(g, [])
+            ]
+            mask = df[["task", "metric"]].apply(tuple, axis=1).isin(list_of_tasks_to_plot)
+            df = df[mask]
         df["score"] = df["score"].apply(lambda x: x[-1] if isinstance(x, list) else x)
+        df["stderr"] = df["stderr"].apply(lambda x: x[-1] if isinstance(x, list) else x)
         df["FLOPs"] = df["FLOPs"].apply(lambda x: x[-1] if isinstance(x, list) else x)
         df["tokens"] = df["tokens"].apply(lambda x: x[-1] if isinstance(x, list) else x)
         df.to_csv(os.path.join(args.output_path, "results.csv"), index=False)
