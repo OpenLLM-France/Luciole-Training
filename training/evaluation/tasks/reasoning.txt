@@ -1,0 +1,4 @@
+leaderboard|hellaswag|0
+leaderboard|winogrande|0
+lighteval|mlmm_hellaswag_fra_cf|0
+lighteval|mlmm_arc_fra_cf:challenge|0

@@ -15,6 +15,7 @@ SBATCH_CONV_TEMPLATE = """#!/bin/bash
 #SBATCH --qos=qos_gpu_h100-dev
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
+#SBATCH --mail-type=FAIL
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
@@ -37,6 +38,7 @@ SBATCH_PLOT_TEMPLATE = """#!/bin/bash
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account=qgz@cpu
 #SBATCH --partition=prepost
+#SBATCH --mail-type=FAIL
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
@@ -109,7 +111,7 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
 
 
 def launch_evaluation(
-    experiment_path, multiple_of=1, dependency_job_id=None, force=False, eval_type="pretrain"
+    experiment_path, multiple_of=1, hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain"
 ):
     import evaluate_experiment
 
@@ -165,7 +167,7 @@ def launch_evaluation(
                 max_model_length=65536,
                 max_samples=1000,
             )
-            for task in ["live_code_bench", "gpqa"]
+            for task in ["live_code_bench", "gpqa", "gpqa-fr"]
         ] + [
             dict(
                 task_to_evaluate="tasks/mmlu_pro.txt",
@@ -174,7 +176,17 @@ def launch_evaluation(
                 custom_tasks="smollm3",
                 max_samples=1000,
             ),
-        ] + COMMANDS_PRETRAIN
+            dict(
+                task_to_evaluate="tasks/reasoning.txt",
+                multiple_of=multiple_of,
+                command="vllm",
+                custom_tasks="multilingual",
+                max_samples=1000,
+            ),
+            dict(
+                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
+            ),
+        ]
     elif eval_type.startswith("ruler"):
 
         lengths = [4096, 8192, 16384, 32768, 65536, 131072]
@@ -189,7 +201,7 @@ def launch_evaluation(
                 command="vllm",
                 custom_tasks="ruler",
                 max_model_length=length,
-                gpus=2 if length > 32768 else 1,
+                gpus=1, # NOCOMMIT 2 if length > 32768 else 1,
                 
             ) for length in lengths
         ]
@@ -199,6 +211,7 @@ def launch_evaluation(
         job_id = evaluate_experiment.launch_evaluation(
             experiment_path=experiment_path,
             **command,
+            hf_model=hf_model,
             dependency=dependency_job_id,
             force=force,
             infer_ckpt_name=True,
@@ -219,45 +232,61 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
 
     base = os.environ["OpenLLM_OUTPUT"]
 
-    if "1b" in experiment_path:
+    if eval_type == "finetune":
+
         compared_models = [
-            f"{base}/pretrain/luciole_serie/luciole_nemotron1b",
-            f"{base}/pretrain/luciole_serie/luciole_nemotron1b_phase2",
-            f"{base}/pretrain/luciole_serie/luciole_variant_nemotron1b_phase2",
-            f"{base}/pretrain/compared_models/OLMo-2-0425-1B",
-            f"{base}/pretrain/compared_models/EuroLLM-1.7B",
-            f"{base}/pretrain/compared_models/Gaperon-1125-1B",
-            f"{base}/pretrain/compared_models/CroissantLLMBase",
+            f"{base}/finetune/sftmix_8b_lrablations.eval",
+            f"{base}/finetune/compared_models/Lucie-7B-Instruct-v1.1",
+            f"{base}/finetune/compared_models/SmolLM3-3B",
+            # f"{base}/finetune/compared_models/EuroLLM-7B-Instruct-0613",
+            # f"{base}/finetune/compared_models/Gaperon-1125-7B-Instruct",
+            # f"{base}/finetune/compared_models/Apertus-7B-Instruct-2509",
+            # f"{base}/finetune/compared_models/salamandra-7b-instruct",
         ]
-    elif "8b" in experiment_path:
-        compared_models = [
-            f"{base}/pretrain/luciole_serie/luciole_nemotronh8b_phase1",
-            f"{base}/pretrain/luciole_serie/luciole_nemotronh8b_phase2",
-            f"{base}/pretrain/compared_models/OLMo-2-1124-7B",
-            f"{base}/pretrain/compared_models/EuroLLM-9B",
-            f"{base}/pretrain/compared_models/Gaperon-1125-8B",
-            f"{base}/pretrain/compared_models/Apertus-8B-2509",
-            f"{base}/pretrain/compared_models/salamandra-7b",
-            f"{base}/pretrain/compared_models/Lucie-7B",
-        ]
-    elif "23b" in experiment_path:
-        compared_models = [
-            f"{base}/pretrain/luciole_serie/luciolr_nemotron23b_phase1",
-            f"{base}/pretrain/luciole_serie/luciolr_lower_nemotron23b_phase1",
-            f"{base}/pretrain/luciole_serie/luciole_nemotron23b_phase2",
-            f"{base}/pretrain/compared_models/OLMo-2-0325-13B",
-            f"{base}/pretrain/compared_models/OLMo-2-0325-32B",
-            f"{base}/pretrain/compared_models/Gaperon-1125-24B",
-        ]
-    else:
-        compared_models = ""
+
+    else: # pretrain
+        if "1b" in experiment_path:
+            compared_models = [
+                f"{base}/pretrain/luciole_serie/luciole_nemotron1b",
+                f"{base}/pretrain/luciole_serie/luciole_variant_nemotron1b_phase2",
+                f"{base}/pretrain/luciole_serie/luciole_nemotron1b_annealin",
+                f"{base}/pretrain/luciole_serie/luciole_32k_nemotron1b_annealing",
+                f"{base}/pretrain/compared_models/OLMo-2-0425-1B",
+                f"{base}/pretrain/compared_models/EuroLLM-1.7B",
+                f"{base}/pretrain/compared_models/Gaperon-1125-1B",
+                f"{base}/pretrain/compared_models/CroissantLLMBase",
+            ]
+        elif "8b" in experiment_path:
+            compared_models = [
+                f"{base}/pretrain/luciole_serie/luciole_nemotronh8b_phase1",
+                f"{base}/pretrain/luciole_serie/luciole_nemotronh8b_phase2",
+                f"{base}/pretrain/compared_models/OLMo-2-1124-7B",
+                f"{base}/pretrain/compared_models/EuroLLM-9B",
+                f"{base}/pretrain/compared_models/Gaperon-1125-8B",
+                f"{base}/pretrain/compared_models/Apertus-8B-2509",
+                f"{base}/pretrain/compared_models/salamandra-7b",
+                f"{base}/pretrain/compared_models/Lucie-7B",
+            ]
+        elif "23b" in experiment_path:
+            compared_models = [
+                f"{base}/pretrain/luciole_serie/luciolr_nemotron23b_phase1",
+                f"{base}/pretrain/luciole_serie/luciolr_lower_nemotron23b_phase1",
+                f"{base}/pretrain/luciole_serie/luciole_nemotron23b_phase2",
+                f"{base}/pretrain/compared_models/OLMo-2-0325-13B",
+                f"{base}/pretrain/compared_models/OLMo-2-0325-32B",
+                f"{base}/pretrain/compared_models/Gaperon-1125-24B",
+            ]
+        else:
+            compared_models = ""
     if experiment_path not in compared_models:
         compared_models = [experiment_path] + compared_models
 
     if eval_type.startswith("ruler"):
         plot_groups = "ruler"
-    else:
+    elif eval_type == "pretrain":
         plot_groups = "en fr multilingual"
+    elif eval_type == "finetune":
+        plot_groups = "finetune"
 
     job_script = SBATCH_PLOT_TEMPLATE.format(
         log_dir=job_dir / "slurm_logs",
@@ -273,7 +302,7 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
 
     command = ["sbatch", str(job_filename)]
     if dependency_job_id:
-        command.insert(1, f"--dependency=afterok:{dependency_job_id}")
+        command.insert(1, f"--dependency=afterany:{dependency_job_id}")
 
     subprocess.run(
         command,
@@ -288,6 +317,11 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Path to an experiment",
+    )
+    parser.add_argument(
+        "--hf_model",
+        default=None,
+        help="Use Hugging Face models.",
     )
     parser.add_argument(
         "--arch",
@@ -322,16 +356,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Launch conversion job
-    conversion_job_id = launch_conversion(
-        args.experiment_path,
-        args.arch,
-        args.multiple_of,
-    )
+    if not args.hf_model:
+        conversion_job_id = launch_conversion(
+            args.experiment_path,
+            args.arch,
+            args.multiple_of,
+        )
+    else:
+        conversion_job_id = None
 
     # Launch evaluation job
     evaluation_job_id = launch_evaluation(
         args.experiment_path,
         args.multiple_of,
+        hf_model=args.hf_model,
         dependency_job_id=conversion_job_id,
         force=args.force,
         eval_type=args.eval_type,
