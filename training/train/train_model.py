@@ -9,7 +9,6 @@ def setup_parallelism(
     tensor_parallelism=None,
     pipeline_parallelism=None,
     context_parallelism=None,
-    # sequence_parallelism=None,
 ):
     # Set custom values
     if tensor_parallelism:
@@ -25,6 +24,9 @@ def setup_parallelism(
     ):
         logger.warning("TP=1, setting sequence_parallel to False")
         recipe.trainer.strategy.sequence_parallel = False
+    else:
+        logger.warning("TP>1 and seq_length>4096, setting sequence_parallel to True")
+        recipe.trainer.strategy.sequence_parallel = True
     # Assert
     assert not (
         recipe.data.seq_length <= 4096
@@ -325,7 +327,7 @@ if __name__ == "__main__":
 
     # Custom checkpointing method
     every_n_train_steps = (
-        30 if args.mode in ["debug", "benchmark"] else min(max_steps, 10_000)
+        10 if args.mode in ["debug", "benchmark"] else min(max_steps, 10)
     )
     intervals = (
         {}
