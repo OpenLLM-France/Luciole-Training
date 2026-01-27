@@ -24,20 +24,18 @@ def get_training_tokens_and_model_size(file_path):
         model_size = 32.234_279_936
     elif "Apertus-8B-2509" in str(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else None
+        tokens = float(match.group(1)) if match else 15000
         model_size = 8.0
     elif "Gaperon-1125-1B" in str(file_path):
         tokens = 3000
         model_size = 1.0
     elif "Gaperon-1125-8B" in str(file_path):
-        # tokens = 4000
         match = re.search(r"_tokens-([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else 4000
+        tokens = float(match.group(1)) if match else 4110
         model_size = 8.0
     elif "Gaperon-1125-24B" in str(file_path):
-        # tokens = 2000
         match = re.search(r"_tokens-([0-9.]+)B", str(file_path))
-        tokens = float(match.group(1)) if match else 2000
+        tokens = float(match.group(1)) if match else 2059
         model_size = 24.0
     elif "EuroLLM-1.7B" in str(file_path):
         tokens = 4000
@@ -45,6 +43,9 @@ def get_training_tokens_and_model_size(file_path):
     elif "EuroLLM-9B" in str(file_path):
         tokens = 4000
         model_size = 9.0
+    elif "EuroLLM-22B" in str(file_path):
+        tokens = 4000
+        model_size = 22.0
     elif "salamandra-7b" in str(file_path):
         tokens = 12_875
         model_size = 7.768_117_248
@@ -70,20 +71,38 @@ def get_training_tokens_and_model_size(file_path):
                 steps += 753851
             tokens = steps * 4096 * 1024 / 10**9
         else:
-            tokens = 3000
+            tokens = 3131.7
         model_size = 7.0
     elif "CroissantLLMBase" in str(file_path):
         tokens = 3000
         model_size = 1.3
+    elif "Llama-2-7b" in str(file_path):
+        model_size = 6.9
+        tokens = 2000
     elif "Llama-3.2-1B" in str(file_path):
         model_size = 1.23
         tokens = 9000
-    elif "Mistral-Small-3.1-24B" in str(file_path):
+    elif "Llama-3.1-8B" in str(file_path):
+        model_size = 8.0
+        tokens = 15000
+    elif "Mistral-Small" in str(file_path) and "24B" in str(file_path):
         model_size = 24.0
         tokens = 8000
-    elif "Ministral-3-8B" in str(file_path):
-        model_size = 8.0
+    elif "Mistral-7B" in str(file_path):
+        model_size = 7
         tokens = 8000
+    elif "Ministral-3" in str(file_path):
+        match = re.search(r"Ministral-3-([0-9.]+)B", str(file_path))
+        model_size = int(match.group(1))
+        tokens = 8000
+    elif "Qwen3-" in str(file_path):
+        match = re.search(r"Qwen3-([0-9.]+)B", str(file_path))
+        model_size = float(match.group(1))
+        tokens = 36000
+    elif "Qwen2-" in str(file_path):
+        match = re.search(r"Qwen2-([0-9.]+)B", str(file_path))
+        model_size = float(match.group(1))
+        tokens = 7000
     elif (
         ("luciol" in str(file_path))
         or ("llama1b" in str(file_path))
@@ -108,12 +127,12 @@ def get_training_tokens_and_model_size(file_path):
             raise ValueError(f"Unknown model size for model in: {file_path}")
         if "phase2" in str(file_path):
             steps += 715786
-        if "annealin" in str(file_path):
+        if "_32k_" in str(file_path):
+            steps += 715786 + 382456 + 118237
+        elif "_65k_" in str(file_path):
+            steps += 715786 + 382456 + 118237 + 11919
+        elif "annealin" in str(file_path):
             steps += 715786 + 382456
-            if "_32k_" in str(file_path):
-                steps += 118237
-            elif "_65k_" in str(file_path):
-                steps += 118237 + 11919
         tokens = steps * 4096 * 1024 / 10**9
     else:
         raise ValueError(f"Unknown model in file path: {file_path}")
@@ -156,6 +175,8 @@ def read_json_file(file_path):
 
     # Get training flops
     tokens, num_parameters = get_training_tokens_and_model_size(file_path)
+    if not tokens:
+        print(f"WARNING: Could not determine training tokens for {file_path}")
     df["tokens"] = tokens
     df["model_size"] = num_parameters
     df["FLOPs"] = df["model_size"] * df["tokens"] * 6 * 1e18
@@ -167,21 +188,30 @@ def read_json_file(file_path):
     return df
 
 
-def read_experiment_results(main_dir, evaluation_dir="evaluation"):
+def read_experiment_results(main_dir, evaluation_dir="evaluation", expe_name=None, split_per_tokens=False):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
-    expe_name = main_dir.name
+
+    assert main_dir.is_dir(), f"{main_dir} is not an existing directory"
+
+    if expe_name is None:
+        expe_name = main_dir.name
 
     dataframes = [
         read_json_file(f)
         for f in main_dir.rglob("results_*.json")
-        if evaluation_dir in f.parts
+        if evaluation_dir in f.parts and "deprecated" not in str(f)
     ]
     if not dataframes:
         print(f"No valid JSON result files found in {main_dir}")
         return
     df = pd.concat(dataframes, ignore_index=True)
-    df["expe_name"] = expe_name
+    if split_per_tokens:
+        df["expe_name"] = df["tokens"].apply(
+            lambda t: f"{expe_name} ({int(t)}B training tokens)"
+        )
+    else:
+        df["expe_name"] = expe_name
 
     # Remove duplicates
     len_before_dup = len(df)
