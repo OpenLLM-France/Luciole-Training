@@ -91,50 +91,50 @@ def init_extra_args(custom_tasks, max_samples=-1):
 
 def get_hf_model(hf_model):
     ckpt_dir = Path(".")
-    if hf_model == "allenai/OLMo-2-0425-1B":
+    if hf_model == "OLMo-2-0425-1B": # allenai/
         revisions = [
             f"stage1-step{i*100000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "allenai/OLMo-2-1124-7B":
+    elif hf_model == "OLMo-2-1124-7B": # allenai/
         revisions = [
             f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B"
             for i in range(1, 18)
             if i != 2
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "allenai/OLMo-2-1124-13B":
+    elif hf_model == "OLMo-2-1124-13B": # allenai/
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "allenai/OLMo-2-0325-32B":
+    elif hf_model == "OLMo-2-0325-32B": # allenai/
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B"
             for i in range(1, 19)
             if i != 14
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "swiss-ai/Apertus-8B-2509":
+    elif hf_model == "Apertus-8B-2509": # swiss-ai/
         revisions = (
             [f"step{i*50000}-tokens{i*210}B" for i in range(1, 21)]
             + [f"step{i*238000 + 1194000}-tokens{i*1000 + 5014}B" for i in range(3)]
             + [f"step{i*100000 + 1800000}-tokens{i*840 + 8072}B" for i in range(9)]
         )
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "OpenLLM-France/Lucie-7B":
+    elif hf_model == "Lucie-7B": # OpenLLM-France/
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
         revisions = [
             "step0753851",
             "extension_step0001220",
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "HuggingFaceTB/SmolLM2-1.7B":
+    elif hf_model == "SmolLM2-1.7B": # HuggingFaceTB/
         checkpoints = [
             "HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints" for i in range(1, 20)
         ] + ["HuggingFaceTB/SmolLM2-1.7B"]
         revisions = [f"step-{i*250000}" for i in range(1, 20)] + ["main"]
-    elif hf_model == "Gaperon-1125-24B":
+    elif hf_model == "Gaperon-1125-24B": # almanach/
         checkpoints = [
             "step-024000_tokens-0100B-phase1",
             "step-060000_tokens-0251B-phase1",
@@ -153,7 +153,7 @@ def get_hf_model(hf_model):
         ckpt_dir = Path(
             "/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-24B"
         )
-    elif hf_model == "Gaperon-1125-8B":
+    elif hf_model == "Gaperon-1125-8B": # almanach/
         checkpoints = [
             "step-0334000_tokens-0700B-phase1",
             "step-0382000_tokens-0801B-phase1",
@@ -306,13 +306,13 @@ def launch_evaluation(
         if min_step:
             step = get_step(ckpt)
             if (step + 1) < min_step:
-                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}")
+                print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}")
                 continue
 
         if multiple_of and multiple_of != 1:
             step = get_step(ckpt)
             if (step + 1) % multiple_of != 0:
-                # print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
+                print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
                 continue
 
         if ckpt.endswith("-last"): # and (multiple_of is None or step in steps_done):
@@ -324,9 +324,9 @@ def launch_evaluation(
         if (
             (output_dir / "results" / ckpt).is_dir()
             if not revision
-            else (output_dir / revision / "results").is_dir()
+            else ((output_dir / revision / "results").is_dir())
         ) and not force:
-            # print(f"Skipping existing results for checkpoint: {ckpt}")
+            print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
 
         model_arg = f"model_name={ckpt},dtype=bfloat16"
@@ -340,7 +340,7 @@ def launch_evaluation(
             #     model_arg += f",max_num_batched_tokens={max_num_batched_tokens},max_num_seqs=1"
             # else:
             #     model_arg += ",batch_size=1"
-        elif "Teuken" in ckpt:
+        elif "Teuken" in ckpt or "Qwen-14B" in ckpt:
             model_arg += ",trust_remote_code=True"
         elif (
             "Gaperon" in ckpt_dir.name
@@ -394,7 +394,7 @@ def launch_evaluation(
         account="wuh" if gpu == "h100" else "qgz",
         gpus=gpus,
         cpus=gpus * (24 if gpu == "h100" else 8),
-        dependency=f"#SBATCH --dependency=afterok:{dependency}" if dependency else "",
+        dependency=f"#SBATCH --dependency=afterany:{dependency}" if dependency else "",
         max_index=len(tasks) - 1,
         task_list=task_list_path,
         extra_args=extra_args,
@@ -439,7 +439,7 @@ def get_parser():
     parser.add_argument(
         "--command",
         type=str,
-        default="accelerate",
+        default="vllm",
         choices=["vllm", "accelerate"],
         help="",
     )
