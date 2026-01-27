@@ -9,7 +9,6 @@ from datasets import load_dataset_builder
 import sys
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter, LambdaFilter
-import dataclasses
 import json
 import pyarrow as pa
 
@@ -84,7 +83,7 @@ def filter_kwargs_for_class(cls, kwargs):
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
     if debug:
-        pipeline[0].limit = 10
+        pipeline[0].limit = 100
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
     # Executor arguments
@@ -193,20 +192,25 @@ def _custom_adapter_for_hf(
     language=None,
     language_key=None,
     conversation_key=None,
-    remove_keys=[],
+    remove_keys=None,  # Change default from [] to None
 ):
-    data = {key: val for key, val in dataclasses.asdict(document).items() if val}
-    metadata = data.pop("metadata")
+    if remove_keys is None:
+        remove_keys = []
+
+    metadata = document.metadata
     id = metadata.pop(id_key, document.id) if id_key else document.id
     if language_key:
         language = metadata.pop(language_key, language)
     conversation = metadata.pop(conversation_key, None) if conversation_key else None
     text = document.text
-    remove_keys.append("file_path")
-    for key in remove_keys:
+
+    # Create a new list instead of modifying the input
+    keys_to_remove = remove_keys + ["file_path"]
+    for key in keys_to_remove:
         metadata.pop(key, None)
+
     data = {
-        "source": source,
+        "source": source if source is not None else metadata.get("source", ""),
         "id": id,
         "language": language,
         "text": text,
