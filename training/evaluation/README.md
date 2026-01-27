@@ -3,7 +3,7 @@
 
 ##  Install
 
-You should create a new environment for evaluation and clone our fork of lighteval.
+You should create a new environment for evaluation and clone [our fork of lighteval](https://github.com/OpenLLM-France/lighteval).
 ```bash
 module purge
 module load anaconda-py3/2024.06
@@ -17,40 +17,34 @@ pip install language_data langdetect syllapy
 pip install seaborn
 pip install python-slugify
 
-module load cuda/12.6.3
-pip install --user --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
+module load cuda/12.8.0 # or CUDA version used to compile torch (see `python -c "import torch; print(torch.version.cuda)"`)
+pip install --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
+Note that this last command takes a long time to compile the package.
+When executed from a Jean-Zay front-end node, it may fail due to lack of memory. In that case, we recommend to run it on a compute node:
+```bash
+srun -p compil_h100 -c 24 --hint=nomultithread --pty -A ... bash
+```
+(and then re-run the above `pip install` command).
 
 We also recommend to preload all the assets needed for evaluation (LM judges, nltk assets, ...)
-by running the script `preload_eval_assets.sh`.
+by running the script [`preload_eval_assets.sh`](./preload_eval_assets.sh):
+```bash
+cd .../training/evaluation/
+bash preload_eval_assets.sh
+```
 
 ## Run Evaluations
 
-### Define the tasks you want to run: 
+### Define the tasks you want to run
 - you can create a new .txt file in `tasks/` folder
 - or use one of the predefined (`tasks/en.txt`, `tasks/fr.txt`). 
 
-### Load benchmarks in the cache:
+### Load benchmarks in the cache
 
 Evaluations are run on h100 partition, so you have to prepare the cache first.
-You can run this on prepost partition for example:
-
-```bash
-module purge
-module load arch/h100
-module load anaconda-py3/2024.06
-conda activate eval-env
-
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
-
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/en.txt"
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/gsm8k.txt"
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/fr.txt" --custom-tasks lighteval.tasks.multilingual.tasks
-lighteval accelerate "model_name=Qwen/Qwen3-0.6B" "tasks/multilingual.txt" --custom-tasks lighteval.tasks.multilingual.tasks
-```
-
-Don't forget to load qwen model in the cache: `hf download Qwen/Qwen3-0.6B`
+To preload all the datasets used in the benchmarks, you can run [`preload_eval_datasets.sh`](./preload_eval_datasets.sh)
+on a front-end node, or on prepost partition.
 
 ### Evaluate all the checkpoints of your experiment:
 
