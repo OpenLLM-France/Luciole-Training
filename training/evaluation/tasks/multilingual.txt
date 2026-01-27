@@ -8,13 +8,13 @@ lighteval|global_mmlu_all_por_cf|0
 lighteval|global_mmlu_all_ara_cf|0
 
 # belebele
-# lighteval|belebele_fra_Latn_cf|0
-lighteval|belebele_ita_Latn_cf|0
-lighteval|belebele_spa_Latn_cf|0
-lighteval|belebele_deu_Latn_cf|0
-lighteval|belebele_nld_Latn_cf|0
-lighteval|belebele_por_Latn_cf|0
-lighteval|belebele_arb_Arab_cf|0
+# # lighteval|belebele_fra_Latn_cf|0
+# lighteval|belebele_ita_Latn_cf|0
+# lighteval|belebele_spa_Latn_cf|0
+# lighteval|belebele_deu_Latn_cf|0
+# lighteval|belebele_nld_Latn_cf|0
+# lighteval|belebele_por_Latn_cf|0
+# lighteval|belebele_arb_Arab_cf|0
 
 # hellaswag
 # lighteval|mlmm_hellaswag_fra_cf|0

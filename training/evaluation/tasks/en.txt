@@ -10,7 +10,7 @@ lighteval|arc:easy|0
 lighteval|triviaqa|0
 
 # Reading Comprehension
-helm|boolq|0
+# helm|boolq|0
 
 # Common Sense
 helm|siqa|0
