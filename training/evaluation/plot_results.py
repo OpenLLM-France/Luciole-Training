@@ -9,7 +9,7 @@ import pandas as pd
 
 task_group_mapping = {
     "en": [
-        ("helm|boolq:_average|0", "em_with_type_exact_match"),
+        # ("helm|boolq:_average|0", "em_with_type_exact_match"),
         ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
         ("helm|siqa|0", "em"),
         ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
@@ -20,6 +20,7 @@ task_group_mapping = {
         ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
         ("lighteval|piqa|0", "acc_with_logprob_normalization"),
         ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
+        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
     ],
     "smollm": [
         ("custom|piqa_cf|0", "acc_norm"),
@@ -63,33 +64,33 @@ task_group_mapping = {
         ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
     ],
     "fr": [
-        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),
-        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"), # f1_fra ?
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"), # f1_fra ?
         ("lighteval|xcodah_fra_cf|0", "acc_norm"),
         ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
         ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
         ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+        # ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
     ],
     "multilingual": [
-        ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm_token"),
         ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_ara_cf:_average|0", "acc_norm"),
-        ("lighteval|belebele_deu_Latn_cf|0", "acc_norm"),
-        ("lighteval|belebele_spa_Latn_cf|0", "acc_norm"),
-        ("lighteval|belebele_ita_Latn_cf|0", "acc_norm"),
-        ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
-        ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
         ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
-        ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
         ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
+        # ("lighteval|belebele_deu_Latn_cf|0", "acc_norm"),
+        # ("lighteval|belebele_spa_Latn_cf|0", "acc_norm"),
+        # ("lighteval|belebele_ita_Latn_cf|0", "acc_norm"),
+        # ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
+        # ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
+        # ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
     ],
     "translation": [
         ("lighteval|flores200:fra_Latn-eng_Latn|0", "bleu"),
@@ -144,7 +145,7 @@ def assign_colors(df, apply_phase_style=True):
         if (
             not apply_phase_style
             or name.split("_phase")[0] != previous_name.split("_phase")[0]
-        ):
+        ) and (name.split(" (")[0] != previous_name.split(" (")[0]):
             i += 1
         previous_name = name
         color_map[name] = colors[i % len(colors)]
@@ -179,7 +180,7 @@ def plot_task(
     fit=False,
     flops=False,
     max_tokens=None,
-    last_checkpoint_only=False,
+    checkpoint_index=None,
 ):
     # print(f"Plotting {task} - {metric} with {len(df)} lines")
 
@@ -200,6 +201,20 @@ def plot_task(
             return row
 
         df = df.apply(truncate_row, axis=1, max_tokens=max_tokens)
+
+    if checkpoint_index is not None:
+
+        def select_checkpoint(row, checkpoint_index):
+            try:
+                row["tokens"] = [row["tokens"][checkpoint_index]]
+                row["FLOPs"] = [row["FLOPs"][checkpoint_index]]
+                row["score"] = [row["score"][checkpoint_index]]
+                row["stderr"] = [row["stderr"][checkpoint_index]]
+            except IndexError:
+                raise RuntimeError(f"Checkpoint index {checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})")
+            return row
+
+        df = df.apply(select_checkpoint, axis=1, checkpoint_index=checkpoint_index)
 
     # Access random
     if task in df_info["task"].values:
@@ -264,15 +279,14 @@ def plot_task(
                     label=row["expe_name"],
                 )
             else:
-                if not last_checkpoint_only:
-                    ax.plot(
-                        row[xaxis_column],
-                        row["score"],
-                        alpha=1,
-                        color=color,
-                        linestyle=linestyle,
-                        label=row["expe_name"],
-                    )
+                ax.plot(
+                    row[xaxis_column],
+                    row["score"],
+                    alpha=1,
+                    color=color,
+                    linestyle=linestyle,
+                    label=row["expe_name"],
+                )
                 ax.plot(
                     row[xaxis_column][-1],
                     row["score"][-1],
@@ -280,7 +294,6 @@ def plot_task(
                     color=color,
                     markersize=10,
                     markeredgewidth=2,
-                    label=row["expe_name"] if last_checkpoint_only else None,
                 )
 
     if use_bars:
@@ -308,7 +321,8 @@ def plot_list_of_tasks(
     flops=False,
     apply_phase_style=True,
     max_tokens=None,
-    last_checkpoint_only=False,
+    checkpoint_index=None,
+    details=False,
     dpi=300,
     max_subplot=19,
 ):
@@ -316,12 +330,14 @@ def plot_list_of_tasks(
     if all([metric=="ruler_match" for _, metric in list_of_tasks_to_plot]):
 
         def full_expe_name(expe_name, tokens):
-            return f"{expe_name} ({int(tokens)}B training tokens)"
+            if "B training tokens" not in expe_name:
+                return f"{expe_name} ({int(tokens)}B training tokens)"
+            return expe_name
 
         # Ruler
         df_filtered = df[df["metric"] == "ruler_match"]
         data = {}
-        details = {}
+        all_data = {}
         all_context_lengths = set()
         for task, _ in list_of_tasks_to_plot:
             # Extract the context_length from the task : 'custom|ruler_4096:_average|0' -> 4096
@@ -341,28 +357,32 @@ def plot_list_of_tasks(
             for subtask in subtasks:
                 df_subtask = df_filtered[df_filtered["task"] == subtask]
                 subtask = subtask.split(":")[1].split("|")[0]
-                details[subtask] = details.get(subtask, {})
+                all_data[subtask] = all_data.get(subtask, {})
                 for _, row in df_subtask.iterrows():
                     expe_name = row["expe_name"]
                     for tokens, score in zip(row["tokens"], row["score"]):
                         expe_name_with_tokens = full_expe_name(expe_name, tokens)
-                        if expe_name_with_tokens not in details[subtask]:
-                            details[subtask][expe_name_with_tokens] = {
+                        if expe_name_with_tokens not in all_data[subtask]:
+                            all_data[subtask][expe_name_with_tokens] = {
                                 "context_length": [],
                                 "score": [],
                             }
-                        details[subtask][expe_name_with_tokens]["context_length"].append(context_length)
-                        details[subtask][expe_name_with_tokens]["score"].append(score)
-        details["average"] = data
+                        all_data[subtask][expe_name_with_tokens]["context_length"].append(context_length)
+                        all_data[subtask][expe_name_with_tokens]["score"].append(score)
+        
+        if details:
+            all_data["average"] = data
+        else:
+            all_data = {"average": data}
 
-        n_subtasks = len(details)
+        n_subtasks = len(all_data) + 1
         cols = math.ceil(math.sqrt(n_subtasks))
         rows = math.ceil(n_subtasks / cols)
         fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
         axes = axes.flatten() if n_subtasks > 1 else [axes]
         legend_dict = {}
-        for i, (ax, subtask) in enumerate(zip(axes, sorted(details.keys()))):
-            data = details[subtask]
+        for i, (ax, subtask) in enumerate(zip(axes, sorted(all_data.keys()))):
+            data = all_data[subtask]
             for expe_name_with_tokens, values in data.items():
                 sorted_indices = np.argsort(values["context_length"])
                 values["context_length"] = np.array(values["context_length"])[sorted_indices]
@@ -375,8 +395,8 @@ def plot_list_of_tasks(
                     markeredgewidth=2,
                     label=expe_name_with_tokens,
                 )
-            if i >= len(details) - 4:
-                ax.set_xlabel("Context Length")
+            # if i >= len(all_data) - 4:
+            ax.set_xlabel("Context Length")
             ax.set_xscale("log", base=2)
             ax.set_xticks(sorted(all_context_lengths), labels=[str(cl) for cl in sorted(all_context_lengths)])
             ax.set_ylabel("Ruler Match Score")
@@ -386,7 +406,7 @@ def plot_list_of_tasks(
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
-        for ax in axes[len(details) :]:
+        for ax in axes[len(all_data) :]:
             ax.axis("off")
         ax = axes[-1]
         for handle in legend_dict.values():
@@ -423,16 +443,17 @@ def plot_list_of_tasks(
                 plot_list_of_tasks(
                     df,
                     chunk_list,
-                    chunk_output_file,
-                    title,
-                    xlog,
-                    fit,
-                    flops,
-                    apply_phase_style,
-                    max_tokens,
-                    last_checkpoint_only,
-                    dpi,
-                    max_subplot,
+                    output_file=chunk_output_file,
+                    title=title,
+                    xlog=xlog,
+                    fit=fit,
+                    flops=flops,
+                    apply_phase_style=apply_phase_style,
+                    max_tokens=max_tokens,
+                    checkpoint_index=checkpoint_index,
+                    details=details,
+                    dpi=dpi,
+                    max_subplot=max_subplot,
                 )
             return
         
@@ -467,7 +488,7 @@ def plot_list_of_tasks(
                 fit=fit,
                 flops=flops,
                 max_tokens=max_tokens,
-                last_checkpoint_only=last_checkpoint_only,
+                checkpoint_index=checkpoint_index,
             )
 
             handles, labels = axes[i].get_legend_handles_labels()
@@ -535,7 +556,8 @@ def plot_experiments(df, args, max_subplot=19):
             max_tokens=args.max_tokens,
             max_subplot=max_subplot,
             apply_phase_style=args.apply_phase_style,
-            last_checkpoint_only=args.last_checkpoint_only,
+            checkpoint_index=args.checkpoint_index,
+            details=args.details,
             dpi=args.dpi,
         )
 
@@ -552,10 +574,9 @@ def process_experiments(args):
 
     for iexpe, path in enumerate(args.experiment_path):
         # Step 1: read experiment results
-        df = read_experiment_results(path, evaluation_dir=args.evaluation_dir)
-
-        if args.legend:
-            df["expe_name"] = args.legend[iexpe].replace("_", " ")
+        df = read_experiment_results(path, evaluation_dir=args.evaluation_dir,
+            expe_name = args.legend[iexpe].replace("_", " ") if args.legend else None
+        )
 
         if df is None or df.empty:
             print(f"No results found in {path}, skipping...")
@@ -623,9 +644,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--apply_phase_style", action="store_true")
     parser.add_argument(
-        "--last_checkpoint_only",
-        action="store_true",
-        help="If set, only show the last checkpoint.",
+        "--checkpoint_index", type=int, default=None, help="If set, only show the specified checkpoint index (ex: 0, -1)."
     )
     parser.add_argument(
         "--legend",
@@ -634,8 +653,14 @@ if __name__ == "__main__":
         default=[],
         help="List of experiment names to include in the legend.",
     )
+    parser.add_argument(
+        "--details",
+        default=False,
+        action="store_true",
+        help="If set, show detailed plots for the RULER benchmark (--group ruler).",
+    )
     parser.add_argument("--dpi", type=int, default=300)
-    parser.add_argument("--save_csv", action="store_true")
+    parser.add_argument("--save_csv", action="store_true", help="If set, save the processed results to a CSV file instead of plotting.")
 
     args = parser.parse_args()
 
