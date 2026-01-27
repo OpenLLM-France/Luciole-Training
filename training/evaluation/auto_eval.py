@@ -111,7 +111,7 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
 
 
 def launch_evaluation(
-    experiment_path, multiple_of=1, hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain"
+    experiment_path, multiple_of=1, command="vllm", hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain"
 ):
     import evaluate_experiment
 
@@ -119,23 +119,30 @@ def launch_evaluation(
 
     COMMANDS_PRETRAIN = [
         dict(
-            task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
+            task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
         ),
-        dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command="vllm"),
+        dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command=command),
         dict(
             task_to_evaluate="tasks/fr.txt",
             multiple_of=multiple_of,
-            command="vllm",
+            command=command,
             custom_tasks="multilingual",
             max_samples=1000,
         ),
         dict(
             task_to_evaluate="tasks/multilingual.txt",
             multiple_of=multiple_of,
-            command="vllm",
+            command=command,
             custom_tasks="multilingual",
             max_samples=1000,
         ),
+        dict(
+            task_to_evaluate="tasks/mmlu_pro.txt",
+            multiple_of=multiple_of,
+            command=command,
+            custom_tasks="smollm3",
+            # max_samples=1000,
+        ),        
     ]
 
     if eval_type == "pretrain":
@@ -146,7 +153,7 @@ def launch_evaluation(
             dict(
                 task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
-                command="vllm",
+                command=command,
                 max_samples=1000,
             )
             for task in ["mixeval", "ifbench", "ifeval", "ifeval_fr", "gsm_plus"]
@@ -154,7 +161,7 @@ def launch_evaluation(
             dict(
                 task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
-                command="vllm",
+                command=command,
                 max_model_length=32768,
                 max_samples=1000,
             )
@@ -163,7 +170,7 @@ def launch_evaluation(
             dict(
                 task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
-                command="vllm",
+                command=command,
                 max_model_length=65536,
                 max_samples=1000,
             )
@@ -172,19 +179,19 @@ def launch_evaluation(
             dict(
                 task_to_evaluate="tasks/mmlu_pro.txt",
                 multiple_of=multiple_of,
-                command="vllm",
+                command=command,
                 custom_tasks="smollm3",
                 max_samples=1000,
             ),
             dict(
                 task_to_evaluate="tasks/reasoning.txt",
                 multiple_of=multiple_of,
-                command="vllm",
+                command=command,
                 custom_tasks="multilingual",
                 max_samples=1000,
             ),
             dict(
-                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command="vllm"
+                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
             ),
         ]
     elif eval_type.startswith("ruler"):
@@ -198,7 +205,7 @@ def launch_evaluation(
             dict(
                 task_to_evaluate=f"tasks/ruler_{length}.txt",
                 multiple_of=multiple_of,
-                command="vllm",
+                command=command,
                 custom_tasks="ruler",
                 max_model_length=length,
                 gpus=2 if length > 32768 else 1,
@@ -220,7 +227,7 @@ def launch_evaluation(
             job_ids.append(job_id)
 
     print(
-        f"Launching evaluation for {experiment_path} with job ids: {','.join(job_ids)}"
+        f"Launching evaluation for {experiment_path} with job ids: {' '.join(job_ids)}"
     )
     return ",".join(job_ids) if job_ids else None
 
@@ -235,9 +242,9 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
     if eval_type == "finetune":
 
         compared_models = [
-            f"{base}/finetune/sftmix_8b_lrablations.eval",
             f"{base}/finetune/compared_models/Lucie-7B-Instruct-v1.1",
             f"{base}/finetune/compared_models/SmolLM3-3B",
+            f"{base}/finetune/compared_models/Ministral-3-8B-Instruct-2512",
             # f"{base}/finetune/compared_models/EuroLLM-7B-Instruct-0613",
             # f"{base}/finetune/compared_models/Gaperon-1125-7B-Instruct",
             # f"{base}/finetune/compared_models/Apertus-7B-Instruct-2509",
@@ -339,8 +346,15 @@ if __name__ == "__main__":
         "--eval_type",
         type=str,
         default="pretrain",
-        choices=["pretrain", "finetune", "ruler", "ruler_4096"],
+        choices=["pretrain", "finetune", "ruler", "ruler_4096", "ruler_8192", "ruler_16384", "ruler_32768", "ruler_65536"],
         help="Type of evaluation to perform.",
+    )
+    parser.add_argument(
+        "--command",
+        type=str,
+        default="vllm",
+        choices=["vllm", "accelerate"],
+        help="Command to use for evaluation.",
     )
     parser.add_argument(
         "--email",
@@ -370,12 +384,14 @@ if __name__ == "__main__":
         args.experiment_path,
         args.multiple_of,
         hf_model=args.hf_model,
+        command=args.command,
         dependency_job_id=conversion_job_id,
         force=args.force,
         eval_type=args.eval_type,
     )
 
-    # Plot
-    launch_plot(
-        args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email, eval_type=args.eval_type
-    )
+    if not args.hf_model:
+        # Plot
+        launch_plot(
+            args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email, eval_type=args.eval_type
+        )
