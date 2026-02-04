@@ -13,9 +13,9 @@ bash run_all_tasks.sh $OpenLLM_OUTPUT/pretrain/Lucie-7B --hf_model OpenLLM-Franc
 ## Ablation
 
 cd train/
-python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix ablation01_luciole --mode phase1 --num_nodes 16 --arch llama1b --email ogouvert@linagora.com --config ../../data/tokenization/run/chronicles/ablation_1/phase1/datamix.json 
-python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix ablation01-2_luciole --mode phase1 --num_nodes 16 --arch llama1b --email ogouvert@linagora.com --config ../../data/tokenization/run/chronicles/ablation_1.2/datamix.json 
-python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix ablation02_luciole --mode phase1 --num_nodes 16 --arch llama1b --email ogouvert@linagora.com --config ../../data/tokenization/run/chronicles/ablation_2/datamix.json 
+python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix ablation01_luciole --mode phase1 --num_nodes 16 --arch llama1b --email ogouvert@linagora.com --config ../../data/tokenization/chronicles/ablation_1/phase1/datamix.json 
+python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix ablation01-2_luciole --mode phase1 --num_nodes 16 --arch llama1b --email ogouvert@linagora.com --config ../../data/tokenization/chronicles/ablation_1.2/datamix.json 
+python slurm_launcher.py --output_path $OpenLLM_OUTPUT/pretrain --name_prefix ablation02_luciole --mode phase1 --num_nodes 16 --arch llama1b --email ogouvert@linagora.com --config ../../data/tokenization/chronicles/ablation_2/datamix.json 
 
 cd conversion/
 sbatch convert.slurm $OpenLLM_OUTPUT/pretrain/ablation01_luciole_llama1b --no_completion

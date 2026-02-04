@@ -16,8 +16,8 @@
 
 ## Phase 1
 
-[Repeeat](../../../data/tokenization/run/chronicles/phase_1/repeats.csv)
-[Datamix](../../../data/tokenization/run/chronicles/phase_1/datamix.json)
+[Repeeat](../../../data/tokenization/chronicles/phase_1/repeats.csv)
+[Datamix](../../../data/tokenization/chronicles/phase_1/datamix.json)
 
 ## Phase 2
 

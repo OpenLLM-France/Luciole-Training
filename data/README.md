@@ -75,7 +75,7 @@ dataset_groups:
         path: fineweb2/data/fra_Latn/clusters/cluster_size-5-100
 ```
 
-2. Run tokenzation by using the script `run/run_tokenization.py`
+2. Run tokenzation by using the script `tokenization/run_tokenization.py`
 ```bash
 run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
 ```
@@ -125,5 +125,5 @@ huggingface-cli download $dataset_name --repo-type dataset --include algebraic-s
 
 Load a tokenizer:
 ```bash
-huggingface-cli download OpenLLM-BPI/tokenizer_128k-arab-regional --repo-type model
+huggingface-cli download OpenLLM-BPI/tokenizer_128k-arab-regional_v2 --repo-type model
 ```
