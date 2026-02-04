@@ -99,6 +99,10 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"Qwen3-([0-9.]+)B", str(file_path))
         model_size = float(match.group(1))
         tokens = 36000
+    elif "Qwen2.5-" in str(file_path):
+        match = re.search(r"Qwen2.5-([0-9.]+)B", str(file_path))
+        model_size = float(match.group(1))
+        tokens = 18000
     elif "Qwen2-" in str(file_path):
         match = re.search(r"Qwen2-([0-9.]+)B", str(file_path))
         model_size = float(match.group(1))
@@ -129,7 +133,7 @@ def get_training_tokens_and_model_size(file_path):
             steps += 715786
         if "_32k_" in str(file_path):
             steps += 715786 + 382456 + 118237
-        elif "_65k_" in str(file_path):
+        elif "_65k_" in str(file_path) or "_131k_" in str(file_path):
             steps += 715786 + 382456 + 118237 + 11919
         elif "annealin" in str(file_path):
             steps += 715786 + 382456
