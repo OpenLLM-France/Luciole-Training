@@ -24,7 +24,7 @@ export HF_HUB_OFFLINE=1
 module purge
 module load arch/h100 nemo/2.4.0
 
-torchrun --nproc_per_node=1 ../conversion/convert_experiment.py {experiment_path} --arch {arch} --multiple_of {multiple_of}
+torchrun --nproc_per_node=1 ../pretrain/conversion/convert_experiment.py {experiment_path} --arch {arch} --multiple_of {multiple_of}
 """
 
 SBATCH_PLOT_TEMPLATE = """#!/bin/bash
