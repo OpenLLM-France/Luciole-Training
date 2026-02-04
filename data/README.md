@@ -100,7 +100,7 @@ python visualize_token_stats.py
 
 ```
 
-4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../training/README.md).
+4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../pretrain/README.md).
 
 ## Tips... 
 

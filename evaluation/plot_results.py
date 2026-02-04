@@ -348,7 +348,15 @@ def plot_list_of_tasks(
             df_task = df_filtered[df_filtered["task"] == task]
             for _, row in df_task.iterrows():
                 expe_name = row["expe_name"]
-                for tokens, score in zip(row["tokens"], row["score"]):
+                row_tokens = row["tokens"]
+                row_score = row["score"]
+                if checkpoint_index is not None:
+                    try:
+                        row_tokens = [row["tokens"][checkpoint_index]]
+                        row_score = [row["score"][checkpoint_index]]
+                    except IndexError:
+                        raise RuntimeError(f"Checkpoint index {checkpoint_index} out of range for {expe_name} ({len(row['tokens'])} values for task={task})")
+                for tokens, score in zip(row_tokens, row_score):
                     expe_name_with_tokens = full_expe_name(expe_name, tokens)
                     if expe_name_with_tokens not in data:
                         data[expe_name_with_tokens] = {"context_length": [], "score": []}
@@ -613,7 +621,7 @@ if __name__ == "__main__":
         "--group",
         type=str,
         nargs="+",
-        choices=["all"] + list(task_group_mapping.keys()),
+        choices=["all", "agg"] + list(task_group_mapping.keys()),
         default=["all"],
         help="List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want.",
     )

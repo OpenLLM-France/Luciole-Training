@@ -18,12 +18,12 @@ def convert_checkpoint_folder(input_path, output_path, arch, multiple_of=None, l
         desc=f"Converting {os.path.basename(input_path)}",
     ):
         checkpoint_path = os.path.join(input_path, "checkpoints", checkpoint)
-        checkpoint_output_path = os.path.join(output_path, checkpoint).replace("=", "_").replace("-last", "")
+        checkpoint_output_path = os.path.join(output_path, checkpoint).replace("=", "_") # .replace("-last", "")
         # print("Output to", checkpoint_output_path)
         if os.path.isfile(checkpoint_path):
             print("\nSkipping file", checkpoint)
             continue
-        if checkpoint.endswith("-last") and multiple_of is None and not last:
+        if checkpoint.endswith("-last") and not last: # and multiple_of is None
             print("\nSkipping last", checkpoint)
             continue
         if os.path.isfile(checkpoint_path + "-unfinished"):

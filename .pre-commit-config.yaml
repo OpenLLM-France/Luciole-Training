@@ -11,4 +11,4 @@ repos:
         - --fix
     -   id: ruff-format
         exclude: |
-            ^training/train/patched/
+            ^pretrain/train/patched/

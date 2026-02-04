@@ -10,6 +10,7 @@
 #SBATCH --qos=qos_gpu_h100-dev
 #SBATCH --account=wuh@h100
 #SBATCH --constraint=h100
+#SBATCH --mail-type=FAIL
 
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
@@ -20,4 +21,4 @@ module load arch/h100 nemo/2.4.0
 
 echo "$@"
 
-torchrun --nproc_per_node=1 convert_experiment.py "$@"
+torchrun --nproc_per_node=1 --rdzv_endpoint=localhost:29501 convert_experiment.py "$@"

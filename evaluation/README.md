@@ -30,7 +30,7 @@ srun -p compil_h100 -c 24 --hint=nomultithread --pty -A ... bash
 We also recommend to preload all the assets needed for evaluation (LM judges, nltk assets, ...)
 by running the script [`preload_eval_assets.sh`](./preload_eval_assets.sh):
 ```bash
-cd .../training/evaluation/
+cd .../evaluation/
 bash preload_eval_assets.sh
 ```
 

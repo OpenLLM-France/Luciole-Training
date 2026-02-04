@@ -19,8 +19,11 @@ def normalize_within_range(value, lower_bound, higher_bound):
 def calculate_agg_score(df):
     df_info = read_info()
 
+    df_no_max_samples = df.copy()
+    df_no_max_samples["max_samples"] = "None"
+
     all_results = []  # List to collect DataFrames
-    for (expe_name, tokens, FLOPs, max_samples), df_group in df.groupby(
+    for (expe_name, tokens, FLOPs, max_samples), df_group in df_no_max_samples.groupby(
         ["expe_name", "tokens", "FLOPs", "max_samples"]
     ):
         df_group = df_info.merge(df_group, on=["task", "metric"], how="left")
