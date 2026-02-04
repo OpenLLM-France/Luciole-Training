@@ -111,45 +111,45 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
 
 
 def launch_evaluation(
-    experiment_path, multiple_of=1, command="vllm", hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain"
+    experiment_path, multiple_of=1, command="vllm", hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain", infer_ckpt_name=True
 ):
     import evaluate_experiment
 
     job_ids = []
 
-    COMMANDS_PRETRAIN = [
-        dict(
-            task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
-        ),
-        dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command=command),
-        dict(
-            task_to_evaluate="tasks/fr.txt",
-            multiple_of=multiple_of,
-            command=command,
-            custom_tasks="multilingual",
-            max_samples=1000,
-        ),
-        dict(
-            task_to_evaluate="tasks/multilingual.txt",
-            multiple_of=multiple_of,
-            command=command,
-            custom_tasks="multilingual",
-            max_samples=1000,
-        ),
-        dict(
-            task_to_evaluate="tasks/mmlu_pro.txt",
-            multiple_of=multiple_of,
-            command=command,
-            custom_tasks="smollm3",
-            # max_samples=1000,
-        ),        
-    ]
+    COMMANDS = []
 
-    if eval_type == "pretrain":
-        COMMANDS = COMMANDS_PRETRAIN
+    if eval_type in ["pretrain", "context_extension"]:
+        COMMANDS += [
+            dict(
+                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
+            ),
+            dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command=command),
+            dict(
+                task_to_evaluate="tasks/fr.txt",
+                multiple_of=multiple_of,
+                command=command,
+                custom_tasks="multilingual",
+                max_samples=1000,
+            ),
+            dict(
+                task_to_evaluate="tasks/multilingual.txt",
+                multiple_of=multiple_of,
+                command=command,
+                custom_tasks="multilingual",
+                max_samples=1000,
+            ),
+            dict(
+                task_to_evaluate="tasks/mmlu_pro.txt",
+                multiple_of=multiple_of,
+                command=command,
+                custom_tasks="smollm3",
+                # max_samples=1000,
+            ),        
+        ]
         
-    elif eval_type == "finetune":
-        COMMANDS = [
+    if eval_type == "finetune":
+        COMMANDS += [
             dict(
                 task_to_evaluate=f"tasks/{task}.txt",
                 multiple_of=multiple_of,
@@ -194,14 +194,15 @@ def launch_evaluation(
                 task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
             ),
         ]
-    elif eval_type.startswith("ruler"):
+
+    if eval_type.startswith("ruler") or eval_type == "context_extension":
 
         lengths = [4096, 8192, 16384, 32768, 65536, 131072]
         if eval_type.startswith("ruler_"):
             length_str = eval_type.split("_")[1]
             lengths = [int(length_str)]
 
-        COMMANDS = [
+        COMMANDS += [
             dict(
                 task_to_evaluate=f"tasks/ruler_{length}.txt",
                 multiple_of=multiple_of,
@@ -212,8 +213,10 @@ def launch_evaluation(
                 
             ) for length in lengths
         ]
-    else:
+
+    if not COMMANDS:
         raise NotImplementedError(f"Unknown eval_type: {eval_type}")
+
     for command in COMMANDS:
         job_id = evaluate_experiment.launch_evaluation(
             experiment_path=experiment_path,
@@ -221,7 +224,7 @@ def launch_evaluation(
             hf_model=hf_model,
             dependency=dependency_job_id,
             force=force,
-            infer_ckpt_name=True,
+            infer_ckpt_name=infer_ckpt_name,
         )
         if job_id is not None:
             job_ids.append(job_id)
@@ -257,7 +260,7 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
                 f"{base}/pretrain/luciole_serie/luciole_nemotron1b",
                 f"{base}/pretrain/luciole_serie/luciole_variant_nemotron1b_phase2",
                 f"{base}/pretrain/luciole_serie/luciole_nemotron1b_annealin",
-                f"{base}/pretrain/luciole_serie/luciole_32k_nemotron1b_annealing",
+                f"{base}/pretrain/luciole_serie/luciole_32k_nemotron1b_context_extension",
                 f"{base}/pretrain/compared_models/OLMo-2-0425-1B",
                 f"{base}/pretrain/compared_models/EuroLLM-1.7B",
                 f"{base}/pretrain/compared_models/Gaperon-1125-1B",
@@ -288,12 +291,15 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
     if experiment_path not in compared_models:
         compared_models = [experiment_path] + compared_models
 
+    plot_groups = "all"
     if eval_type.startswith("ruler"):
         plot_groups = "ruler"
     elif eval_type == "pretrain":
         plot_groups = "en fr multilingual"
     elif eval_type == "finetune":
         plot_groups = "finetune"
+    elif eval_type == "context_extension":
+        plot_groups = "ruler en fr multilingual"
 
     job_script = SBATCH_PLOT_TEMPLATE.format(
         log_dir=job_dir / "slurm_logs",
@@ -346,7 +352,7 @@ if __name__ == "__main__":
         "--eval_type",
         type=str,
         default="pretrain",
-        choices=["pretrain", "finetune", "ruler", "ruler_4096", "ruler_8192", "ruler_16384", "ruler_32768", "ruler_65536"],
+        choices=["pretrain", "finetune", "ruler", "ruler_4096", "ruler_8192", "ruler_16384", "ruler_32768", "ruler_65536", "ruler_131072", "context_extension"],
         help="Type of evaluation to perform.",
     )
     parser.add_argument(
@@ -369,8 +375,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    has_original_checkpoints = (Path(args.experiment_path) / args.experiment_path.split("/")[-1] / "checkpoints").is_dir()
+    launch_conversion_needed = not args.hf_model and has_original_checkpoints
+
     # Launch conversion job
-    if not args.hf_model:
+    if launch_conversion_needed:
         conversion_job_id = launch_conversion(
             args.experiment_path,
             args.arch,
@@ -388,6 +397,7 @@ if __name__ == "__main__":
         dependency_job_id=conversion_job_id,
         force=args.force,
         eval_type=args.eval_type,
+        infer_ckpt_name=launch_conversion_needed
     )
 
     if not args.hf_model:
