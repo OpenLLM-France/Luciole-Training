@@ -108,9 +108,10 @@ def get_training_tokens_and_model_size(file_path):
         model_size = float(match.group(1))
         tokens = 7000
     elif (
-        ("luciol" in str(file_path))
-        or ("llama1b" in str(file_path))
-        or ("ablation" in str(file_path))
+        ("luciol" in str(file_path).lower())
+        or ("llama1b" in str(file_path).lower())
+        or ("ablation" in str(file_path).lower())
+        or ("nemotron" in str(file_path).lower())
     ):
         match = re.search(r"step_([0-9.]+)", str(file_path))
         steps = float(match.group(1)) if match else None
@@ -119,13 +120,13 @@ def get_training_tokens_and_model_size(file_path):
             steps = float(match.group(1)) if match else None
             if steps is None:
                 raise ValueError(f"Could not extract steps from file path: {file_path}")
-        if "llama1b" in str(file_path):
+        if "llama1b" in str(file_path).lower():
             model_size = 1.235290112
-        elif "1b" in str(file_path):
+        elif "1b" in str(file_path).lower():
             model_size = 1.319309312
-        elif "8b" in str(file_path):
+        elif "8b" in str(file_path).lower():
             model_size = 8.075686912
-        elif "23b" in str(file_path):
+        elif "23b" in str(file_path).lower():
             model_size = 23.216467968
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
