@@ -5,6 +5,9 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from datatrove.pipeline.filters import ExtremeTokenizerFilter, LambdaFilter
 from functools import partial
+from datatrove.pipeline.readers import JsonlReader
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
 
 mapping = {
     "monographies": "PleIAs/French-PD-Books",
@@ -45,100 +48,94 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     hf_name = mapping[args.name]
-
-    # Collect data and filter OCR by scores
     output_path = os.path.join(DATA_PATH, "gallica", args.name)
-    pipeline = [
-        ParquetReader(
-            f"hf://datasets/{hf_name}",
-            glob_pattern="*.parquet",
-            text_key="complete_text",
-        ),
-        ExtremeTokenizerFilter(
-            tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-            max_token_per_char=0.38,
-            normalize_digits=False,
-            mode="CHUNKS",
-            min_length=1000,
-            max_length=2000,
-            separator=("\n", ". ", ", ", " "),
-            replace_span="\n\n[...]\n\n",
-            removed_spans_in_metadata=False,  # FOR DEBUGGING only
-            exclusion_writer=JsonlWriter(f"{output_path}/removed/extreme_tokenizer"),
-        ),
-        LambdaFilter(
-            lambda doc: len(doc.text.split()) > 50,
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed/too_short_doc",
+
+    if not args.push_only:
+        pipeline = [
+            ParquetReader(
+                f"hf://datasets/{hf_name}",
+                glob_pattern="*.parquet",
+                text_key="complete_text",
             ),
-        ),
-        PrefixFormatter(
-            date_keys=[],
-            additionnal_formatting=partial(additionnal_formatting, name=args.name),
-            prefix_pipeline={
-                "author": "Auteur",
-                "title": "Titre",
-                "date": "Date",
-            },
-        ),
-        JsonlWriter(
-            f"{output_path}/data",
-            output_filename="${rank}.jsonl.gz",
-        ),
-    ]
-    add_sampler_filter(pipeline, args.sample_rate)
-
-    main_processing_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{output_path}/logs",
-        job_name=args.name,
-    )
-    # main_processing_executor.run()
-
-    ############
-    # Push to Hub
-    ############
-    from datatrove.pipeline.readers import JsonlReader
-    from datatrove.pipeline.writers import HuggingFaceDatasetWriter
-    from utils import _custom_adapter_for_hf, HF_SCHEMA
-    from functools import partial
-
-    pipeline = [
-        JsonlReader(
-            f"{output_path}/data",
-        ),
-        HuggingFaceDatasetWriter(
-            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
-            + ("-debug" if args.debug else ""),
-            private=True,
-            local_working_dir=f"{output_path}/data_hf",
-            output_filename=f"data/gallica/{args.name}/fr/" + "${rank}.parquet",
-            adapter=partial(
-                _custom_adapter_for_hf,
-                source=f"gallica_{args.name}",
-                id_key=None,
-                language="fr",
-                language_key=None,
-                conversation_key=None,
-                remove_keys=["token_counts", "char_counts", "token_per_chars"],
+            ExtremeTokenizerFilter(
+                tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
+                max_token_per_char=0.38,
+                normalize_digits=False,
+                mode="CHUNKS",
+                min_length=1000,
+                max_length=2000,
+                separator=("\n", ". ", ", ", " "),
+                replace_span="\n\n[...]\n\n",
+                removed_spans_in_metadata=False,  # FOR DEBUGGING only
+                exclusion_writer=JsonlWriter(
+                    f"{output_path}/removed/extreme_tokenizer"
+                ),
             ),
-            cleanup=True,
-            expand_metadata=False,
-            schema=HF_SCHEMA,
-        ),
-    ]
+            LambdaFilter(
+                lambda doc: len(doc.text.split()) > 50,
+                exclusion_writer=JsonlWriter(
+                    f"{output_path}/removed/too_short_doc",
+                ),
+            ),
+            PrefixFormatter(
+                date_keys=[],
+                additionnal_formatting=partial(additionnal_formatting, name=args.name),
+                prefix_pipeline={
+                    "author": "Auteur",
+                    "title": "Titre",
+                    "date": "Date",
+                },
+            ),
+            JsonlWriter(
+                f"{output_path}/data",
+                output_filename="${rank}.jsonl.gz",
+            ),
+        ]
+        add_sampler_filter(pipeline, args.sample_rate)
 
-    hf_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{output_path}/logs_hf",
-        job_name="hf",
-        tasks=5,
-        skip_completed=not args.force,
-        depends=None if args.push_only else main_processing_executor,
-    )
+        main_processing_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{output_path}/logs",
+            job_name=args.name,
+        )
+        main_processing_executor.run()
 
-    hf_executor.run()
+    else:
+        pipeline = [
+            JsonlReader(
+                f"{output_path}/data",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{output_path}/data_hf",
+                output_filename=f"data/gallica/{args.name}/fr/" + "${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source=f"gallica_{args.name}",
+                    id_key=None,
+                    language="fr",
+                    language_key=None,
+                    conversation_key=None,
+                    remove_keys=["token_counts", "char_counts", "token_per_chars"],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{output_path}/logs_hf",
+            job_name="hf",
+            tasks=5,
+            skip_completed=not args.force,
+        )
+
+        hf_executor.run()

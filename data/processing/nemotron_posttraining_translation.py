@@ -11,6 +11,8 @@ from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from nemotron_posttraining import convert_messages
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
 
 
 def prepare_data(
@@ -187,125 +189,152 @@ def sort_chunk_files(files: list[str]) -> list[str]:
 
 if __name__ == "__main__":
     parser = create_parser()
-    parser.add_argument(
-        "--subset",
-        type=str,
-        default="multilingual_fr",
-        help="Subset to process",
-        choices=[
-            "multilingual_fr",
-            "multilingual_es",
-            "multilingual_it",
-            "multilingual_de",
-        ],
-    )
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-32B")
     parser.add_argument("--tp", type=int, default=2)
     args = parse_args(parser)
     DATA_PATH = args.data_path
+    subset = "multilingual_fr"
 
     dataset_name = "nemotron_posttraining_translation"
-    output_path = os.path.join(DATA_PATH, dataset_name, args.subset)
+    output_path = os.path.join(DATA_PATH, dataset_name, subset)
 
-    chat_template = """{%- for message in messages %}
-        {{- '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n' }}
-    {%- endfor %}
-    {{- '<|im_start|>assistant\n' }}
-    {{- '<think>\n\n</think>\n\n' }}"""
+    if not args.push_only:
+        chat_template = """{%- for message in messages %}
+            {{- '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n' }}
+        {%- endfor %}
+        {{- '<|im_start|>assistant\n' }}
+        {{- '<think>\n\n</think>\n\n' }}"""
 
-    config: InferenceConfig = InferenceConfig(
-        server_type="vllm",
-        model_name_or_path=args.model_name,
-        # temperature=0.6,
-        tp=args.tp,
-        model_max_context=32768,
-        max_concurrent_requests=500,
-        max_concurrent_tasks=500,
-        metric_interval=120,
-        chat_template=chat_template,
-    )
+        config: InferenceConfig = InferenceConfig(
+            server_type="vllm",
+            model_name_or_path=args.model_name,
+            # temperature=0.6,
+            tp=args.tp,
+            model_max_context=32768,
+            max_concurrent_requests=500,
+            max_concurrent_tasks=500,
+            metric_interval=120,
+            chat_template=chat_template,
+        )
 
-    def postprocess_fn(self, document):
-        document.text = document.metadata["inference_results"][-1].text
-        return document
+        def postprocess_fn(self, document):
+            document.text = document.metadata["inference_results"][-1].text
+            return document
 
-    pipeline = [
-        JsonlReader(
-            f"/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/{args.subset}/data",
-        ),
-        partial(
-            prepare_data,
-            min_size=1000,
-            model_name=args.model_name,
-        ),
-        InferenceRunner(
-            query_builder=simple_query_builder,
-            config=config,
-            records_per_chunk=500,
-            checkpoints_local_dir=f"{output_path}/checkpoints",
-            output_writer=JsonlWriter(
-                f"{output_path}/data",
-                output_filename="${rank}_chunk_${chunk_index}.jsonl",
+        pipeline = [
+            JsonlReader(
+                f"/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/{subset}/data",
             ),
-            postprocess_fn=partial(postprocess_fn),
-        ),
-    ]
-    add_sampler_filter(pipeline, args.sample_rate)
-
-    inference_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{output_path}/logs",
-        job_name=dataset_name,
-        tasks=16,
-        time="05:00:00",
-        qos="qos_gpu_h100-t3",
-        partition="gpu_p6",
-        cpus_per_task=32,
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
-        sbatch_args={
-            "account": "wuh@h100",
-            "constraint": "h100",
-            "gres": f"gpu:{args.tp}",
-            "nodes": 1,
-            "hint": "nomultithread",
-        },
-    )
-    # inference_executor.run()
-
-    # Postprocess
-    pipeline = [
-        JsonlReader(f"{output_path}/data", order_files=partial(sort_chunk_files)),
-        MergeTranslation(
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed_merged",
-                output_filename="${rank}.jsonl",
+            partial(
+                prepare_data,
+                min_size=1000,
+                model_name=args.model_name,
             ),
-        ),
-        clean_doc,
-        partial(
-            convert_messages,
-            keep_thinking=True,
-            language="en"
-            if not args.subset.startswith("multilingual")
-            else args.subset.split("_")[-1],
-        ),
-        JsonlWriter(f"{output_path}/data_cleaned", max_file_size=3_221_225_472),
-    ]
+            InferenceRunner(
+                query_builder=simple_query_builder,
+                config=config,
+                records_per_chunk=500,
+                checkpoints_local_dir=f"{output_path}/checkpoints",
+                output_writer=JsonlWriter(
+                    f"{output_path}/data",
+                    output_filename="${rank}_chunk_${chunk_index}.jsonl",
+                ),
+                postprocess_fn=partial(postprocess_fn),
+            ),
+        ]
+        add_sampler_filter(pipeline, args.sample_rate)
 
-    final_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=False,
-        logging_dir=f"{output_path}/logs_cleaned",
-        job_name=dataset_name,
-        tasks=1,
-        time="10:00:00",
-        partition="cpu_p1",
-        cpus_per_task=2,
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
-        # depends=inference_executor,
-    )
+        inference_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{output_path}/logs",
+            job_name=dataset_name,
+            tasks=16,
+            time="05:00:00",
+            qos="qos_gpu_h100-t3",
+            partition="gpu_p6",
+            cpus_per_task=32,
+            env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+            sbatch_args={
+                "account": "wuh@h100",
+                "constraint": "h100",
+                "gres": f"gpu:{args.tp}",
+                "nodes": 1,
+                "hint": "nomultithread",
+            },
+        )
+        # inference_executor.run()
 
-    final_executor.run()
+        # Postprocess
+        pipeline = [
+            JsonlReader(f"{output_path}/data", order_files=partial(sort_chunk_files)),
+            MergeTranslation(
+                exclusion_writer=JsonlWriter(
+                    f"{output_path}/removed_merged",
+                    output_filename="${rank}.jsonl",
+                ),
+            ),
+            clean_doc,
+            partial(
+                convert_messages,
+                keep_thinking=True,
+                language="en"
+                if not subset.startswith("multilingual")
+                else subset.split("_")[-1],
+            ),
+            JsonlWriter(f"{output_path}/data_cleaned", max_file_size=3_221_225_472),
+        ]
+
+        final_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=False,
+            logging_dir=f"{output_path}/logs_cleaned",
+            job_name=dataset_name,
+            tasks=1,
+            time="10:00:00",
+            partition="cpu_p1",
+            cpus_per_task=2,
+            env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
+            # depends=inference_executor,
+        )
+        final_executor.run()
+
+    else:
+        pipeline = [
+            JsonlReader(
+                f"{output_path}/data_cleaned",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{output_path}/data_hf",
+                output_filename="data/nemotron_postraining/translation/fr/${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source="nemotron_postraining/translation",
+                    id_key=None,
+                    language="fr",
+                    language_key=None,
+                    conversation_key="messages",
+                    remove_keys=[],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{output_path}/logs_hf",
+            job_name="hf_nemotron",
+            tasks=5,
+            workers=1,
+        )
+
+        hf_executor.run()

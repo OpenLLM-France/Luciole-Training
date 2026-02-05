@@ -6,6 +6,9 @@ from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.data import DocumentsPipeline
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
+from functools import partial
 
 
 def get_age(field, default=None):
@@ -70,7 +73,7 @@ def clean_text(text):
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
-        "language",
+        "--language",
         type=str,
         default="en",
     )
@@ -86,28 +89,70 @@ if __name__ == "__main__":
     )
     args = parse_args(parser)
 
-    language = args.language
-    input_folder = os.path.join(args.root_path, language)
+    if not args.push_only:
+        language = args.language
+        input_folder = os.path.join(args.root_path, language)
 
-    pipeline = [
-        JsonlReader(input_folder),
-        LambdaFilter(
-            lambda doc: filter_gutenberg(doc.metadata, doc.metadata["language"]),
-        ),
-        clean_text_pipeline,
-        JsonlWriter(
-            os.path.join(args.output_path, "data", language),
-            output_filename="data_${rank}.jsonl.gz",
-        ),
-    ]
-    add_sampler_filter(pipeline, args.sample_rate)
+        pipeline = [
+            JsonlReader(input_folder),
+            LambdaFilter(
+                lambda doc: filter_gutenberg(doc.metadata, doc.metadata["language"]),
+            ),
+            clean_text_pipeline,
+            JsonlWriter(
+                os.path.join(args.output_path, "data", language),
+                output_filename="data_${rank}.jsonl.gz",
+            ),
+        ]
+        add_sampler_filter(pipeline, args.sample_rate)
 
-    main_processing_executor = create_executor(
-        pipeline,
-        local=args.local,
-        logging_dir=os.path.join(args.output_path, "logs", language),
-        job_name="gutenberg",
-        tasks=len(os.listdir(input_folder)),
-    )
+        main_processing_executor = create_executor(
+            pipeline,
+            local=args.local,
+            logging_dir=os.path.join(args.output_path, "logs", language),
+            job_name="gutenberg",
+            tasks=len(os.listdir(input_folder)),
+        )
 
-    main_processing_executor.run()
+        main_processing_executor.run()
+
+    else:
+        DATA_PATH = args.data_path
+
+        pipeline = [
+            JsonlReader(
+                f"{DATA_PATH}/gutenberg_linagora/data",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{DATA_PATH}/gutenberg/data_hf",
+                output_filename="data/gutenberg/${language}/${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source="gutenberg",
+                    id_key=None,
+                    language=None,
+                    language_key="language",
+                    conversation_key=None,
+                    remove_keys=[],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/gutenberg/logs_hf",
+            job_name="hf_gutenberg",
+            tasks=5,
+            workers=1,
+            skip_completed=not args.force,
+        )
+
+        hf_executor.run()

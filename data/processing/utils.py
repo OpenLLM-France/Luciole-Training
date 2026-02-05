@@ -197,7 +197,7 @@ def _custom_adapter_for_hf(
     if remove_keys is None:
         remove_keys = []
 
-    metadata = document.metadata
+    metadata = document.metadata.copy()
     id = metadata.pop(id_key, document.id) if id_key else document.id
     if language_key:
         language = metadata.pop(language_key, language)

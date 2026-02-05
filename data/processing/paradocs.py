@@ -6,6 +6,10 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.base import PipelineStep
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.writers.disk_base import DiskWriter
+from datatrove.pipeline.readers import JsonlReader
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
+from functools import partial
 
 
 def merge_document(
@@ -141,43 +145,81 @@ if __name__ == "__main__":
     src_language, tgt_language = args.languages.split("-")
     DATA_PATH = args.data_path
 
-    pipeline = [
-        HuggingFaceDatasetReader(
-            "jhu-clsp/paradocs",
-            {
-                "name": f"{args.languages}-strict",
-                "split": "train",
-                "trust_remote_code": True,
-            },
-            streaming=True,
-            text_key="src",
-        ),
-        merge_document,
-        ParadocsProcessing(
-            src_language=src_language,
-            tgt_language=tgt_language,
-            revert_prob=args.revert,
-        ),
-        apply_template,
-        JsonlWriter(
-            f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data",
-            output_filename="${collection}/${rank}.jsonl.gz",
-        ),
-    ]
+    if not args.push_only:
+        pipeline = [
+            HuggingFaceDatasetReader(
+                "jhu-clsp/paradocs",
+                {
+                    "name": f"{args.languages}-strict",
+                    "split": "train",
+                    "trust_remote_code": True,
+                },
+                streaming=True,
+                text_key="src",
+            ),
+            merge_document,
+            ParadocsProcessing(
+                src_language=src_language,
+                tgt_language=tgt_language,
+                revert_prob=args.revert,
+            ),
+            apply_template,
+            JsonlWriter(
+                f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data",
+                output_filename="${collection}/${rank}.jsonl.gz",
+            ),
+        ]
 
-    filter_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/logs",
-        job_name="paradocs",
-        tasks=20,
-        partition="prepost",
-        time="20:00:00",
-        cpu_per_task=4,
-    )
+        filter_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/logs",
+            job_name="paradocs",
+            tasks=20,
+            partition="prepost",
+            time="20:00:00",
+            cpu_per_task=4,
+        )
 
-    filter_executor.run()
+    elif args.revert == 0.5 and args.geometric_param == 1.0 / 3:
+        pipeline = [
+            JsonlReader(
+                f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data_hf",
+                output_filename=f"data/paradocs/{args.languages}/" + "${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source="paradocs",
+                    id_key=None,
+                    language=args.languages,
+                    language_key=None,
+                    conversation_key="conversation",
+                    remove_keys=[],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/logs_hf",
+            job_name="hf_paradocs",
+            tasks=10,
+            skip_completed=not args.force,
+        )
+
+        hf_executor.run()
+
 
 # python paradocs.py --languages en-fr --revert 0.5
 # python paradocs.py --languages en-es --revert 0.5

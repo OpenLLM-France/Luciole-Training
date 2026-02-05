@@ -15,6 +15,9 @@ from datatrove.pipeline.filters import (
 )
 from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
+from functools import partial
 
 
 def slugify_metadata(
@@ -93,115 +96,113 @@ if __name__ == "__main__":
     ### FILTER CommonCorpus
     for open_type, collections in DATASETS.items():
         for collection in collections:
-            pipeline = [
-                JsonlReader(
-                    f"{DATA_PATH}/common_corpus/data/open-{open_type}/{collection}"
-                ),
-                LanguageFilter(
-                    keep_top_pairs_threshold=1,
-                    languages=FT176_LANGUAGES,
-                    language_threshold=0.5,
-                    exclusion_writer=JsonlWriter(
-                        f"{DATA_PATH}/common_corpus_filtered/removed/{collection}/ft176",
+            if not args.push_only:
+                pipeline = [
+                    JsonlReader(
+                        f"{DATA_PATH}/common_corpus/data/open-{open_type}/{collection}"
                     ),
-                ),
-                ExtremeTokenizerFilter(
-                    tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
-                    max_token_per_char=0.38,
-                    normalize_digits=False,
-                    mode="CHUNKS",
-                    min_length=1000,
-                    max_length=2000,
-                    separator=("\n", ". ", ", ", " "),
-                    replace_span="\n\n[...]\n\n",
-                    removed_spans_in_metadata=False,
-                    exclusion_writer=JsonlWriter(
-                        f"{DATA_PATH}/common_corpus_filtered/removed/{collection}/extreme_tokenizer"
+                    LanguageFilter(
+                        keep_top_pairs_threshold=1,
+                        languages=FT176_LANGUAGES,
+                        language_threshold=0.5,
+                        exclusion_writer=JsonlWriter(
+                            f"{DATA_PATH}/common_corpus_filtered/removed/{collection}/ft176",
+                        ),
                     ),
-                ),
-                LambdaFilter(
-                    lambda doc: len(doc.text.split()) > 50,
-                    exclusion_writer=JsonlWriter(
-                        f"{DATA_PATH}/common_corpus_filtered/removed/{collection}/too_short_doc",
+                    ExtremeTokenizerFilter(
+                        tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
+                        max_token_per_char=0.38,
+                        normalize_digits=False,
+                        mode="CHUNKS",
+                        min_length=1000,
+                        max_length=2000,
+                        separator=("\n", ". ", ", ", " "),
+                        replace_span="\n\n[...]\n\n",
+                        removed_spans_in_metadata=False,
+                        exclusion_writer=JsonlWriter(
+                            f"{DATA_PATH}/common_corpus_filtered/removed/{collection}/extreme_tokenizer"
+                        ),
                     ),
-                ),
-                PIIFormatter(remove_ips=False),
-                PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"),
-                PrefixFormatter(
-                    infer_date_format=True,
-                    additionnal_formatting=additionnal_formatting,
-                    prefix_pipeline={
-                        "year": "Year",
-                    },
-                ),
-                JsonlWriter(
-                    f"{DATA_PATH}/common_corpus_filtered/data/{open_type}/{collection}",
-                    output_filename="${language}_${rank}.jsonl.gz",
-                ),
-            ]
-            add_sampler_filter(pipeline, args.sample_rate)
+                    LambdaFilter(
+                        lambda doc: len(doc.text.split()) > 50,
+                        exclusion_writer=JsonlWriter(
+                            f"{DATA_PATH}/common_corpus_filtered/removed/{collection}/too_short_doc",
+                        ),
+                    ),
+                    PIIFormatter(remove_ips=False),
+                    PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"),
+                    PrefixFormatter(
+                        infer_date_format=True,
+                        additionnal_formatting=additionnal_formatting,
+                        prefix_pipeline={
+                            "year": "Year",
+                        },
+                    ),
+                    JsonlWriter(
+                        f"{DATA_PATH}/common_corpus_filtered/data/{open_type}/{collection}",
+                        output_filename="${language}_${rank}.jsonl.gz",
+                    ),
+                ]
+                add_sampler_filter(pipeline, args.sample_rate)
 
-            if collection in ["us-pd-books", "english-pd", "german-pd"]:
-                tasks = 50
+                if collection in ["us-pd-books", "english-pd", "german-pd"]:
+                    tasks = 50
+                else:
+                    tasks = 10
+                filter_executor = create_executor(
+                    pipeline,
+                    local=args.local,
+                    debug=args.debug,
+                    logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs/{collection}",
+                    job_name=collection,
+                    partition="prepost",
+                    cpus_per_task=2,
+                    tasks=tasks,
+                    time="20:00:00",
+                )
+                filter_executor.run()
+
             else:
-                tasks = 10
-            filter_executor = create_executor(
-                pipeline,
-                local=args.local,
-                debug=args.debug,
-                logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs/{collection}",
-                job_name=collection,
-                partition="prepost",
-                cpus_per_task=2,
-                tasks=tasks,
-                time="20:00:00",
-            )
-
-            ############
-            # Push to Hub
-            ############
-            from datatrove.pipeline.readers import JsonlReader
-            from datatrove.pipeline.writers import HuggingFaceDatasetWriter
-            from utils import _custom_adapter_for_hf, HF_SCHEMA
-            from functools import partial
-
-            pipeline = [
-                JsonlReader(
-                    f"{DATA_PATH}/common_corpus_filtered/data/{open_type}/{collection}"
-                ),
-                HuggingFaceDatasetWriter(
-                    dataset="OpenLLM-BPI/Luciole-Training-Dataset"
-                    + ("-debug" if args.debug else ""),
-                    private=True,
-                    local_working_dir=f"{DATA_PATH}/common_corpus_filtered/data_hf/{open_type}/{collection}",
-                    output_filename=f"data/common_corpus/open-{open_type}/{collection}/"
-                    + "${language}/${rank}.parquet",
-                    adapter=partial(
-                        _custom_adapter_for_hf,
-                        source=f"common_corpus/open-{open_type}/{collection}",
-                        id_key=None,
-                        language=None,
-                        language_key="language",
-                        conversation_key=None,
-                        remove_keys=["token_counts", "char_counts", "token_per_chars"],
+                pipeline = [
+                    JsonlReader(
+                        f"{DATA_PATH}/common_corpus_filtered/data/{open_type}/{collection}"
                     ),
-                    cleanup=True,
-                    expand_metadata=False,
-                    schema=HF_SCHEMA,
-                ),
-            ]
+                    HuggingFaceDatasetWriter(
+                        dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                        + ("-debug" if args.debug else ""),
+                        private=True,
+                        local_working_dir=f"{DATA_PATH}/common_corpus_filtered/data_hf/{open_type}/{collection}",
+                        output_filename=f"data/common_corpus/open-{open_type}/{collection}/"
+                        + "${language}/${rank}.parquet",
+                        adapter=partial(
+                            _custom_adapter_for_hf,
+                            source=f"common_corpus/open-{open_type}/{collection}",
+                            id_key=None,
+                            language=None,
+                            language_key="language",
+                            conversation_key=None,
+                            remove_keys=[
+                                "token_counts",
+                                "char_counts",
+                                "token_per_chars",
+                            ],
+                        ),
+                        cleanup=True,
+                        expand_metadata=False,
+                        schema=HF_SCHEMA,
+                    ),
+                ]
 
-            hf_executor = create_executor(
-                pipeline,
-                local=args.local,
-                debug=args.debug,
-                logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_hf/{open_type}/{collection}",
-                job_name="hf_cc",
-                tasks=5,
-                workers=1,
-                time="20:00:00",
-                skip_completed=not args.force,
-                depends=None if args.push_only else filter_executor,
-            )
+                hf_executor = create_executor(
+                    pipeline,
+                    local=args.local,
+                    debug=args.debug,
+                    logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_hf/{open_type}/{collection}",
+                    job_name="hf_cc",
+                    tasks=5,
+                    workers=1,
+                    time="20:00:00",
+                    skip_completed=not args.force,
+                )
 
-            hf_executor.run()
+                hf_executor.run()
