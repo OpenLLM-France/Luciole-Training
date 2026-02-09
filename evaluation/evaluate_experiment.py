@@ -391,7 +391,7 @@ def launch_evaluation(
         command=command,
         log_dir=log_dir,
         gpu=gpu,
-        account="zwy" if gpu == "h100" else "qgz",
+        account="whu" if gpu == "h100" else "qgz",
         gpus=gpus,
         cpus=gpus * (24 if gpu == "h100" else 8),
         dependency=f"#SBATCH --dependency=afterany:{dependency}" if dependency else "",
