@@ -21,4 +21,8 @@ module load arch/h100 nemo/2.4.0
 
 echo "$@"
 
-torchrun --nproc_per_node=1 --rdzv_endpoint=localhost:29501 convert_experiment.py "$@"
+# Get a random available port
+export MASTER_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
+echo "Using port: $MASTER_PORT"
+
+torchrun --nproc_per_node=1 --rdzv_endpoint=localhost:$MASTER_PORT convert_experiment.py "$@"
