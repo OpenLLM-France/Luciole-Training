@@ -214,37 +214,6 @@ def get_step(text):
         return None
 
 
-def override_max_length(ckpt_dir, ckpt, max_model_length):
-    new_ckpt_dir = ckpt_dir.as_posix() + f".max_length_{max_model_length}"
-    src_dir = os.path.join(ckpt_dir, ckpt)
-    assert os.path.isdir(
-        src_dir
-    ), f"Source checkpoint directory does not exist: {src_dir}"
-    dst_dir = os.path.join(new_ckpt_dir, ckpt)
-    if not os.path.isdir(dst_dir):
-        os.makedirs(dst_dir, exist_ok=True)
-        for fn in os.listdir(src_dir):
-            if fn == "config.json":
-                # modify config file to set max_length
-                import json
-
-                with open(os.path.join(src_dir, fn), "r") as f:
-                    config = json.load(f)
-                assert (
-                    "max_position_embeddings" in config
-                ), f"max_position_embeddings not in config of {src_dir}"
-                config["max_position_embeddings"] = max_model_length
-                with open(os.path.join(dst_dir, fn), "w") as f:
-                    json.dump(config, f, indent=2)
-            else:
-                # Make a symbolic link to other files, with relative path
-                os.symlink(
-                    os.path.relpath(os.path.join(src_dir, fn), dst_dir),
-                    os.path.join(dst_dir, fn),
-                )
-    return Path(new_ckpt_dir), ckpt
-
-
 def launch_evaluation(
     experiment_path,
     task_to_evaluate,
@@ -296,7 +265,6 @@ def launch_evaluation(
     steps_done = []
 
     for ckpt, revision in zip(checkpoints, revisions):
-        final_ckpt_dir = ckpt_dir
 
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
@@ -350,12 +318,11 @@ def launch_evaluation(
             model_arg += ",batch_size=1"
         if revision:
             model_arg += f",revision={revision}"
-        if max_model_length and not hf_model: # Not implemented for HF models
+        if max_model_length:
             if command == "vllm":
                 model_arg += f",max_model_length={max_model_length}"
             else:
                 model_arg += f",max_length={max_model_length}"
-            final_ckpt_dir, ckpt = override_max_length(ckpt_dir, ckpt, max_model_length)
 
         if gpus > 1:
             if command == "vllm":
@@ -370,7 +337,7 @@ def launch_evaluation(
         # Save the tuple representing a job array element
         tasks.append(
             {
-                "ckpt_dir": str(final_ckpt_dir.resolve()),
+                "ckpt_dir": str(ckpt_dir.resolve()),
                 "output_dir": str(
                     (output_dir if not revision else output_dir / revision).resolve()
                 ),
