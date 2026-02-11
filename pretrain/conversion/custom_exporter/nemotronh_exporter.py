@@ -43,7 +43,7 @@ class CustomHFNemotronHExporter(HFNemotronHExporter):
             SSMConfig: The model configuration object.
         """
         # print("Load the model")
-        # source = io.load_context(str(self), subpath="model.config")
+        source = io.load_context(str(self), subpath="model.config")
 
         from .configuration_nemotron_h import NemotronHConfig as HFNemotronConfig
 
@@ -52,4 +52,5 @@ class CustomHFNemotronHExporter(HFNemotronHExporter):
             vocab_size=self.tokenizer.vocab_size,
             bos_token_id=self.tokenizer.bos_id,
             eos_token_id=self.tokenizer.eos_id,
+            max_position_embeddings=source.seq_length,
         )
