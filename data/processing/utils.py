@@ -79,6 +79,9 @@ def filter_kwargs_for_class(cls, kwargs):
     accepted_keys = set(sig.parameters) - {"self"}
     return {k: v for k, v in kwargs.items() if k in accepted_keys}
 
+DATA_FOLDER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SET_ENV_SCRIPT_PATH = os.path.join(DATA_FOLDER, "set_env.sh")
+assert os.path.isfile(SET_ENV_SCRIPT_PATH), f"set_env.sh not found at {SET_ENV_SCRIPT_PATH}"
 
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
@@ -99,7 +102,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         partition = kwargs.pop("partition", "prepost")
         cpus_per_task = kwargs.pop("cpus_per_task", 1)
         env_command = kwargs.pop(
-            "env_command", "source ~/OpenLLM-BPI-Training/data/set_env.sh"
+            "env_command", f"source {SET_ENV_SCRIPT_PATH}"
         )
         sbatch_args = kwargs.pop(
             "sbatch_args", {"account": "qgz@cpu", "hint": "nomultithread"}
