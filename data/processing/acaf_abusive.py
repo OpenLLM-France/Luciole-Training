@@ -56,7 +56,8 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            "/lustre/fsn1/projects/rech/qgz/uzq54wg/edu_french",
+            # "/lustre/fsn1/projects/rech/qgz/uzq54wg/test.jsonl",
+            "/lustre/fsn1/projects/rech/qgz/uhm96nw/mixtral_data_generation/edu_french",
             glob_pattern="acaf_sensabusives_prompts.*.jsonl",
             text_key="question",
         ),
@@ -65,7 +66,7 @@ if __name__ == "__main__":
             query_builder=simple_query_builder,
             config=config,
             records_per_chunk=500,
-            checkpoints_local_dir="/checkpoints",
+            checkpoints_local_dir=f"{DATA_PATH}/acaf_abusive/checkpoints",
             output_writer=JsonlWriter(
                 f"{DATA_PATH}/acaf_abusive/data",
                 output_filename="${rank}_chunk_${chunk_index}.jsonl",
@@ -92,9 +93,10 @@ if __name__ == "__main__":
             "nodes": 1,
             "hint": "nomultithread",
         },
+        skip_completed=not args.force,
     )
     inference_executor.run()
 
+# Example commands:
 # python acaf_abusive.py --model_name Qwen/Qwen3-0.6B --debug --local
-# python acaf_abusive.py --model_name /lustre/fsmisc/dataset/HuggingFace_Models/mistralai/Mistral-7B-v0.3 --tp 1 --debug
-# python acaf_abusive.py --model_name /lustre/fsmisc/dataset/HuggingFace_Models/mistralai/Mixtral-8x22B-Instruct-v0.1 --tp 4 --debug
+# python acaf_abusive.py --model_name /lustre/fsmisc/dataset/HuggingFace_Models/mistralai/Mixtral-8x22B-Instruct-v0.1 --tp 4 --debug --local --force
