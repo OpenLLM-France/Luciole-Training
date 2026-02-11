@@ -359,7 +359,12 @@ def launch_evaluation(
 
         if gpus > 1:
             if command == "vllm":
-                model_arg += f",pipeline_parallel_size={gpus}"
+                if gpus > 3:
+                    gpu_pipeline_parallel_size = gpus // 2
+                    gpu_data_parallel_size = gpus // gpu_pipeline_parallel_size
+                    model_arg += f",pipeline_parallel_size={gpu_pipeline_parallel_size},data_parallel_size={gpu_data_parallel_size}"
+                else:
+                    model_arg += f",pipeline_parallel_size={gpus}"
                 extra_env_vars += "export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
 
         # Save the tuple representing a job array element
