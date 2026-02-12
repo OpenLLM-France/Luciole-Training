@@ -3,6 +3,7 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
+from functools import partial
 
 
 def simple_query_builder(runner, document):
@@ -26,9 +27,10 @@ Text:
     }
 
 
-def preproc(data, rank, world_size):
+def preproc(data, rank, world_size, model_name):
     for doc in data:
         doc.text = doc.text.strip() + " : " + doc.metadata["answer"]
+        doc.metadata["model_name"] = model_name
         yield doc
 
 
@@ -58,10 +60,10 @@ if __name__ == "__main__":
         JsonlReader(
             # "/lustre/fsn1/projects/rech/qgz/uzq54wg/test.jsonl",
             "/lustre/fsn1/projects/rech/qgz/uhm96nw/mixtral_data_generation/edu_french",
-            glob_pattern="acaf_sensabusives_prompts.*.jsonl",
+            glob_pattern="acaf_sensabusives_prompts*.jsonl",
             text_key="question",
         ),
-        preproc,
+        partial(preproc, model_name=args.model_name),
         InferenceRunner(
             query_builder=simple_query_builder,
             config=config,
@@ -97,6 +99,8 @@ if __name__ == "__main__":
     )
     inference_executor.run()
 
-# Example commands:
-# python acaf_abusive.py --model_name Qwen/Qwen3-0.6B --debug --local
+# Example commands for debug in interactive mode:
+# python acaf_abusive.py --model_name Qwen/Qwen3-0.6B --debug --local --force
 # python acaf_abusive.py --model_name /lustre/fsmisc/dataset/HuggingFace_Models/mistralai/Mixtral-8x22B-Instruct-v0.1 --tp 4 --debug --local --force
+# Run on full dataset with slurm on JZ (increase tasks if needed but keep it fix after):
+# python acaf_abusive.py --model_name /lustre/fsmisc/dataset/HuggingFace_Models/mistralai/Mixtral-8x22B-Instruct-v0.1 --tp 4
