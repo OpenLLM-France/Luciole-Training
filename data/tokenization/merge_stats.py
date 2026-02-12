@@ -50,7 +50,7 @@ if __name__ == "__main__":
     merged_df = pd.concat(
         [merged_df, merged_df["name"].apply(extract_info).apply(pd.Series)], axis=1
     )
-    merged_df = merged_df.sort_values(["language", "dataset"], ascending=True)
+    merged_df = merged_df.sort_values(["name"], ascending=True)
 
     output_paths = [os.path.join(token_dir, "stats/all_stats_merged.csv")]
     if args.add_output_path:
