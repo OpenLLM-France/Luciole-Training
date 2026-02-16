@@ -1,17 +1,28 @@
+# Evaluation
 
-# Evaluate
+Benchmark evaluation of pretrained and fine-tuned models using [OpenLLM-France's lighteval fork](https://github.com/OpenLLM-France/lighteval).
 
-## Environment variables
+## Scripts
 
-Set the SLURM account environment variables for your project:
+| Script | Description |
+|--------|-------------|
+| `evaluate_experiment.py` | Evaluate all checkpoints of an experiment (submits SLURM array job) |
+| `auto_eval.py` | Full pipeline: convert → evaluate → plot (with SLURM job chaining) |
+| `plot_results.py` | Plot and compare evaluation results across models |
+| `agg_score.py` | Aggregate evaluation scores |
+| `run_all_tasks.sh` | Run all benchmark suites for an experiment |
+
+## Prerequisites
+
+Set environment variables:
 ```bash
-export SLURM_ACCOUNT_GPU="your_account@h100"  # for GPU evaluation jobs
-export SLURM_ACCOUNT_CPU="your_account@cpu"   # for CPU jobs (plotting)
+export SLURM_ACCOUNT_GPU="your_account@h100"
+export SLURM_ACCOUNT_CPU="your_account@cpu"
 ```
 
-##  Install
+## Install
 
-You should create a new environment for evaluation and clone [our fork of lighteval](https://github.com/OpenLLM-France/lighteval).
+Create a dedicated environment and install [our lighteval fork](https://github.com/OpenLLM-France/lighteval):
 ```bash
 module purge
 module load anaconda-py3/2024.06
@@ -21,114 +32,121 @@ conda activate eval-env
 git clone git@github.com:OpenLLM-France/lighteval.git
 cd lighteval/
 pip install -e .[multilingual,vllm]
-pip install language_data langdetect syllapy
-pip install seaborn
-pip install python-slugify
+pip install language_data langdetect syllapy seaborn python-slugify
 
-module load cuda/12.8.0 # or CUDA version used to compile torch (see `python -c "import torch; print(torch.version.cuda)"`)
+module load cuda/12.8.0
 pip install --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
-Note that this last command takes a long time to compile the package.
-When executed from a Jean-Zay front-end node, it may fail due to lack of memory. In that case, we recommend to run it on a compute node:
-```bash
-srun -p compil_h100 -c 24 --hint=nomultithread --pty -A ... bash
-```
-(and then re-run the above `pip install` command).
 
-We also recommend to preload all the assets needed for evaluation (LM judges, nltk assets, ...)
-by running the script [`preload_eval_assets.sh`](./preload_eval_assets.sh):
+> **Note:** The `mamba-ssm` compilation can fail on front-end nodes due to memory. Use a compute node instead:
+> ```bash
+> srun -p compil_h100 -c 24 --hint=nomultithread --pty -A $SLURM_ACCOUNT_CPU bash
+> ```
+
+### Preload assets and datasets
+
+Evaluations run on H100 partition (no internet). Pre-cache everything first:
 ```bash
-cd .../evaluation/
-bash preload_eval_assets.sh
+bash preload_eval_assets.sh     # LM judges, nltk assets
+bash preload_eval_datasets.sh   # Benchmark datasets
+bash preload_hf_models.sh       # Baseline models for comparison
 ```
 
 ## Run Evaluations
 
-### Define the tasks you want to run
-- you can create a new .txt file in `tasks/` folder
-- or use one of the predefined (`tasks/en.txt`, `tasks/fr.txt`). 
+### Task files
 
-### Load benchmarks in the cache
+Task files in `tasks/` define which benchmarks to run:
 
-Evaluations are run on h100 partition, so you have to prepare the cache first.
-To preload all the datasets used in the benchmarks, you can run [`preload_eval_datasets.sh`](./preload_eval_datasets.sh)
-on a front-end node, or on prepost partition.
+| File | Content |
+|------|---------|
+| `tasks/en.txt` | English benchmarks |
+| `tasks/fr.txt` | French benchmarks |
+| `tasks/multilingual.txt` | Multilingual benchmarks |
+| `tasks/mmlu.txt` | MMLU |
+| `tasks/gsm8k.txt` | GSM8K math |
+| `tasks/ruler_*.txt` | RULER long-context benchmarks |
 
-### Evaluate all the checkpoints of your experiment:
+You can create custom task files — one lighteval task per line.
+
+### Evaluate all checkpoints of an experiment
 
 ```bash
-python evaluate_experiment.py $experiment_path $task_to_evaluate --custom_tasks multilingual ...
+python evaluate_experiment.py $experiment_path tasks/en.txt
+
+# With multilingual tasks
+python evaluate_experiment.py $experiment_path tasks/fr.txt --custom_tasks multilingual
+
+# Limit to specific checkpoint intervals
+python evaluate_experiment.py $experiment_path tasks/en.txt --multiple_of 5000
+
+# Limit number of samples per task
+python evaluate_experiment.py $experiment_path tasks/fr.txt --custom_tasks multilingual --max_samples 1000
 ```
 
-where:
-- `$experiment_path` is the path to your experiments. It should have a `"huggingface_checkpoints"` folder in it. 
-- `$task_to_evaluate` is the name of your .txt file (with the extension)
-- add `--custom_tasks multilingual` if you need to evaluate multilingual tasks. It will activate lighteval args: `--custom-tasks lighteval.tasks.multilingual.tasks`
+The experiment path must contain a `huggingface_checkpoints/` folder.
 
-You can also use the bash script `run_all_tasks.sh` to run all the benchmarks of an experiment.
+### Run all benchmarks at once
 
-For example if you want to evaluate the nemotron 23b checkpoints:
-```bash 
-bash run_all_tasks.sh /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciolr_nemotron23b_phase1/ --multiple_of 5000 --gpus 2
+```bash
+bash run_all_tasks.sh $experiment_path --multiple_of 5000 --gpus 2
 ```
 
-### Evaluation of HF models
+### Evaluate HuggingFace models
 
-First you can download models with the bash script `preload_hf_model.sh` (or complete it to add new models).
-It will load the model and some of their checkpoints (if available).
+Download baseline models first:
+```bash
+bash preload_hf_models.sh
+```
 
-Then evaluate them with the same python script `evaluate_experiment.py` by using the argument `--hf_model` to specify the name of the hf repo. The evaluations will be saved in `$experiment_path`.
+Then evaluate:
+```bash
+python evaluate_experiment.py $experiment_path tasks/en.txt --hf_model OpenLLM-BPI/Luciole-7B
+```
 
-## Plotting the results...
+Results are saved in `$experiment_path/evaluation/`.
 
-You can use the script `plot_results.py` to plot your results.
+### Full auto-evaluation pipeline
 
-For example, if you want to plot the evaluation of:
+`auto_eval.py` chains conversion → evaluation → plotting in a single command:
 
-- nemotron 1b:
+```bash
+python auto_eval.py $experiment_path --arch nemotronh --eval_type pretrain --email user@example.com
+```
+
+Evaluation types: `pretrain`, `finetune`, `ruler`, `context_extension`.
+
+## Plotting Results
+
+Compare models on evaluation benchmarks:
+
+```bash
+# Basic comparison
+python plot_results.py $model1 $model2 $model3 --group all --output_path ./figs
+
+# With FLOPS on x-axis
+python plot_results.py $model1 $model2 --group all --output_path ./figs --flops
+
+# Limit samples
+python plot_results.py $model1 $model2 --group all --output_path ./figs --flops --max_samples 1000
+```
+
+Plot groups: `all`, `en`, `fr`, `multilingual`, `ruler`, `finetune`.
+
+### Example: Compare Luciole 1B against baselines
 
 ```bash
 models="\
 $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b \
 $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2 \
-$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B \
 $OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-0425-1B \
-$OpenLLM_OUTPUT/pretrain/compared_models/CroissantLLMBase \
 $OpenLLM_OUTPUT/pretrain/compared_models/EuroLLM-1.7B \
 "
 
-python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2/figs --flops 
-python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2/figs --flops --max_samples 1000
+python plot_results.py $models --group all \
+    --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2/figs --flops
 ```
 
-- nemotron-h 8b:
+## RULER (Long-Context Evaluation)
 
-```bash
-models="\
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1 \
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b \
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2 \
-$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B \
-$OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-1124-7B \
-$OpenLLM_OUTPUT/pretrain/compared_models/CroissantLLMBase \
-"
-
-python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1/figs --flops 
-python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1/figs --flops --max_samples 1000
-```
-
-- nemotron 23b:
-
-```bash
-models="\
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciolr_nemotron23b_phase1 \
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotronh8b_phase1 \
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b \
-$OpenLLM_OUTPUT/pretrain/luciole_serie/luciole_nemotron1b_phase2 \
-$OpenLLM_OUTPUT/pretrain/compared_models/Lucie-7B \
-$OpenLLM_OUTPUT/pretrain/compared_models/OLMo-2-1124-7B \
-"
-
-python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciolr_nemotron23b_phase1/figs --flops
-python plot_results.py $models --group all --output_path $OpenLLM_OUTPUT/pretrain/luciole_serie/luciolr_nemotron23b_phase1/figs --flops --max_samples 1000
-```
+See [ruler/README.md](ruler/README.md) for RULER benchmark setup and usage.

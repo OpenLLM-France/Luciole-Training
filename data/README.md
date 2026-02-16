@@ -1,24 +1,51 @@
 # Data
 
-All about preprocessing datasets.
+Data preparation pipeline: preprocessing raw datasets, tokenizing them, and computing statistics for datamix creation.
 
-## Processing Datasets
+## Directory Structure
 
-### Environment setup
+```
+data/
+├── processing/              # 50+ dataset-specific preprocessing scripts
+│   ├── utils.py             # Shared utilities (create_executor, create_parser, ...)
+│   ├── web_utils.py         # Web data pipeline (deduplication, PII, robots.txt, ...)
+│   ├── fineweb2.py          # FineWeb-2 dataset
+│   ├── starcoder_data.py    # StarCoder code dataset
+│   ├── gallica.py           # French Gallica library dataset
+│   ├── dclm.py              # DCLM dataset
+│   └── ...                  # One script per dataset source
+├── tokenization/            # Tokenization and statistics
+│   ├── run_tokenization.py  # Main tokenization script (submits one SLURM job per dataset)
+│   ├── merge_stats.py       # Merge per-file statistics
+│   ├── create_datamix.py    # Generate datamix JSON from statistics
+│   └── ...
+├── synthetic_generation/    # Generate synthetic training data with LLMs
+│   ├── README.md
+│   └── wrap/                # Batch generation launcher
+├── tools/                   # Data analysis utilities
+│   ├── summary_stats.py     # Compute summary statistics on datasets
+│   ├── fasttext_stats.py    # FastText-based quality scoring
+│   └── starcoder_language_stats.py  # Language detection for code
+├── set_env.sh               # Environment variables setup
+└── requirements.txt         # Python dependencies
+```
 
-#### Create environment 
+## Environment Setup
+
+### 1. Create environment
+
 ```bash
 module purge
-module load arch/h100 
+module load arch/h100
 module load anaconda-py3/2024.06
 module load cuda/12.4.1
 conda create -n datatrove-env python=3.10
 conda activate datatrove-env
 pip install -r requirements.txt
-# pip install lighteval[extended_tasks,math,multilingual]
 ```
 
-#### Clone datatrove
+### 2. Clone datatrove (custom fork)
+
 ```bash
 git clone https://github.com/linagora-labs/datatrove.git
 cd datatrove
@@ -28,52 +55,53 @@ pip install vllm
 pip install --no-build-isolation flash-attn
 ```
 
-You can add a hostname in `set_env.sh` and set your `$OpenLLM_OUTPUT` variable. Then you can use `source set_env.sh`.
+### 3. Set environment variables
 
-You should also set the SLURM account environment variables for your project:
 ```bash
-export SLURM_ACCOUNT_GPU="your_account@h100"  # for GPU jobs
-export SLURM_ACCOUNT_CPU="your_account@cpu"   # for CPU jobs
-```
-
-### Run Processing
-
-#### Locally
-
-For example, to process FineWeb-2, on your local machine:
-```
 source set_env.sh
+```
+
+This sets `$OpenLLM_OUTPUT`, `$HF_HOME`, and activates `datatrove-env`.
+
+You should also configure your SLURM accounts:
+```bash
+export SLURM_ACCOUNT_GPU="your_account@h100"
+export SLURM_ACCOUNT_CPU="your_account@cpu"
+```
+
+## Processing Datasets
+
+Each dataset has its own script in `processing/`. All scripts follow the same pattern using the shared `utils.py` utilities:
+
+```bash
+source set_env.sh
+
+# Test locally (first 1000 samples)
 python processing/fineweb2 --local
-```
-It will load only the first 1000 samples of the fineweb2 data
 
-#### On Jeanzay
-
-Similarly on Jean Zay, you can use:
-```bash
-source set_env.sh
+# Run on SLURM (full dataset)
 python processing/fineweb2
+
+# Run for ablation (5% sample)
+python processing/fineweb2 --ablation
 ```
 
-#### ... for ablation
+### Adding a new dataset
 
-For ablation, use the ablation argument. You can add the code line:
-```python
-from utils import add_sampler_filter
-pipeline = add_sampler_filter(pipeline) if args.ablation else pipeline
-```
-to add sampling step (it only processes 5\% of the full dataset) after reading the data.  
+Create a new script in `processing/` following the existing patterns. The key utilities from `utils.py` are:
+- `create_parser()` — Standard argument parser with `--local`, `--debug`, `--ablation`, `--jz` flags
+- `parse_args(parser)` — Parse arguments and set `data_path` from `$OpenLLM_OUTPUT`
+- `create_executor(pipeline, ...)` — Create a local or SLURM executor for the processing pipeline
+- `add_sampler_filter(pipeline, rate)` — Add a sampling step for ablations (5% by default)
 
 ## Tokenization
 
-You have some preprocessed datasets in `$OpenLLM_OUTPUT/data/raw_datasets` or in `$OpenLLM_OUTPUT/data/raw_datasets_ablation` and you want to tokenize them...
+Once datasets are preprocessed in `$OpenLLM_OUTPUT/data/raw_datasets/`:
 
-1. Specify the datasets you want to tokenize in `datasets_to_tokenize.yaml` (you can duplicate and rename this file if you want). There should have two entries for each dataset:
-- path: the relative path of the dataset (for example in `$OpenLLM_OUTPUT/data/raw_datasets(_ablation)`)
-- name: the associated name of the dataset after tokenization
+### 1. Configure datasets to tokenize
 
-For example:
-```
+Create a YAML file (e.g. `tokenization/datasets_to_tokenize.yaml`):
+```yaml
 dataset_groups:
   - root_path: <<OpenLLM_OUTPUT>>/data/raw_data/data_for_ablation
     datasets:
@@ -81,55 +109,49 @@ dataset_groups:
         path: fineweb2/data/fra_Latn/clusters/cluster_size-5-100
 ```
 
-2. Run tokenzation by using the script `tokenization/run_tokenization.py`
-```bash
-run_tokenization.py YAML_FILE OUTPUT_DIR --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
-```
-It will create one sbatch per dataset.
+### 2. Run tokenization
 
-3. Run statistics: 
+```bash
+python tokenization/run_tokenization.py YAML_FILE OUTPUT_DIR \
+    --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
+```
+This submits one SLURM job per dataset.
+
+### 3. Compute statistics
+
 ```bash
 sbatch run_statistics.slurm OUTPUT_DIR
-```
-where `OUTPUT_DIR` is the absolute path of your tokenized datasets.
-It will create a folder `stats` in the tokenized data folder, with the statistics of each tokens file.
-
-Then add your datasets in `link_datasets.sh`
-and run it to create symbolic links in a common folder.
-Then
-```bash
 python merge_stats.py OUTPUT_DIR
-```
-and to visualize
-```bash
 python visualize_token_stats.py
-
 ```
 
-4. Next step is in [`../ablations`](../ablations/README.md) or in [`../training`](../pretrain/README.md).
+### 4. Create a datamix
 
-## Tips... 
-
-### Pre-download a dataset or a tokenizer from HuggingFace
-
-Set a common HF cache dir
 ```bash
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+python tokenization/create_datamix.py OUTPUT_DIR/datamix_output \
+    --token_dir OUTPUT_DIR --seq_length 4096
 ```
 
-Load a dataset with huggingface-cli:
+### 5. Next steps
+
+- [Pretraining](../pretrain/README.md) — use the datamix for training
+- [Ablations](../ablations/README.md) — run controlled experiments
+
+## Pre-downloading from HuggingFace
+
+Set a shared HF cache:
 ```bash
-dataset_name=open-web-math/open-web-math
-huggingface-cli download $dataset_name --repo-type dataset 
+export HF_HOME=$HF_HOME  # or set explicitly
 ```
 
-To load a specific subset you can use incluse and/or exclude
+Download datasets or models:
 ```bash
-dataset_name=EleutherAI/proof-pile-2
-huggingface-cli download $dataset_name --repo-type dataset --include algebraic-stack/*
-```
+# Dataset
+huggingface-cli download open-web-math/open-web-math --repo-type dataset
 
-Load a tokenizer:
-```bash
+# Subset only
+huggingface-cli download EleutherAI/proof-pile-2 --repo-type dataset --include algebraic-stack/*
+
+# Tokenizer
 huggingface-cli download OpenLLM-BPI/tokenizer_128k-arab-regional_v2 --repo-type model
 ```
