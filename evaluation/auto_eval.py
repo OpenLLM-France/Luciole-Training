@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 from argparse import ArgumentParser
 import os
+import re
 
 SBATCH_CONV_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=convert
@@ -202,6 +203,17 @@ def launch_evaluation(
             length_str = eval_type.split("_")[1]
             lengths = [int(length_str)]
 
+        # Catch the model size from the experiment path "24B" -> 24
+        matcher = re.search(r"(\d+)B", experiment_path)
+        if matcher:
+            model_size = int(matcher.group(1))
+        else:
+            matcher = re.search(r"(\d+)b", experiment_path)
+            if matcher:
+                model_size = int(matcher.group(1))
+            else:
+                model_size = 8
+
         COMMANDS += [
             dict(
                 task_to_evaluate=f"tasks/ruler_{length}.txt",
@@ -209,7 +221,7 @@ def launch_evaluation(
                 command=command,
                 custom_tasks="ruler",
                 max_model_length=length,
-                gpus=2 if length > 32768 else 1,
+                gpus=4 if (length > 65536 and model_size > 12) else (2 if length > 32768 else 1),
                 
             ) for length in lengths
         ]
