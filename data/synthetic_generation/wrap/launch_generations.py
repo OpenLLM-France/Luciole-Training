@@ -90,6 +90,7 @@ def launch_generation(
 
     weights_str = ("--weights " + " ".join(map(str, weights))) if weights else ""
     account_gpu = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
+    gpu = account_gpu.split("@")[-1]
 
     slurm_content = f"""#!/bin/bash
 #SBATCH --job-name=generate_{output_name}
@@ -101,10 +102,10 @@ def launch_generation(
 {qos_lines}
 #SBATCH --hint=nomultithread 
 #SBATCH --account={account_gpu}
-#SBATCH --constraint=h100
+#SBATCH --constraint={gpu}
 {email_line}
 
-module load arch/h100 
+module load arch/{gpu} 
 module load anaconda-py3/2024.06
 module load cuda/12.4.1
 conda activate distilabel-env

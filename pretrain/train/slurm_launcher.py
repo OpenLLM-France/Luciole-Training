@@ -23,7 +23,7 @@ SLURM_TEMPLATE = """#!/bin/bash
 #SBATCH --hint=nomultithread 
 #SBATCH --qos={qos}
 #SBATCH --account={account}
-#SBATCH --constraint=h100
+#SBATCH --constraint={gpu}
 {email_line}
 
 echo "Job name: {name}"
@@ -54,7 +54,7 @@ export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
 
 module purge
-module load arch/h100 {nemo_version}
+module load arch/{gpu} {nemo_version}
 
 # exec 1> >(tee -a {output_dir}/log.out >&1)
 # exec 2> >(tee -a {output_dir}/failed.out >&2)
@@ -83,12 +83,15 @@ def create_slurm_script(slurm_args, train_args):
     # print(f"    with train args : {train_args}")
     # print(f"    with slurm args : {slurm_args}")
 
+    gpu = slurm_args["account"].split("@")[-1]
+
     script = SLURM_TEMPLATE.format(
         **slurm_args,
         **train_args,
         train_cmd=train_cmd,
         email_line=generate_email_line(slurm_args["email"], slurm_args["email_types"]),
         train_path=Path(__file__).resolve().parent,
+        gpu=gpu,
     )
     return script
 
@@ -256,8 +259,8 @@ def get_slurm_parser():
     parser.add_argument(
         "--qos",
         default="qos_gpu_h100-as",
-        choices=["qos_gpu_h100-as", "qos_gpu_h100-t3", "qos_gpu_h100-dev"],
-        help="If given, it will override the default qos.",
+        # choices=["qos_gpu_h100-as", "qos_gpu_h100-t3", "qos_gpu_h100-dev"],
+        help="If given, it will override the default qos (qos_gpu_h100-as, qos_gpu_h100-t3, qos_gpu_h100-dev, ...).",
     )
     parser.add_argument(
         "--account",

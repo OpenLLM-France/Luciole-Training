@@ -13,9 +13,9 @@ SBATCH_CONV_TEMPLATE = """#!/bin/bash
 #SBATCH --cpus-per-task=32
 #SBATCH --time=02:00:00
 #SBATCH --hint=nomultithread
-#SBATCH --qos=qos_gpu_h100-dev
+#SBATCH --qos=qos_gpu_{gpu}-dev
 #SBATCH --account={account_gpu}
-#SBATCH --constraint=h100
+#SBATCH --constraint={gpu}
 #SBATCH --mail-type=FAIL
 
 export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
@@ -23,7 +23,7 @@ export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
 export HF_HUB_OFFLINE=1
 
 module purge
-module load arch/h100 nemo/2.4.0
+module load arch/{gpu} nemo/2.4.0
 
 torchrun --nproc_per_node=1 ../pretrain/conversion/convert_experiment.py {experiment_path} --arch {arch} --multiple_of {multiple_of}
 """
@@ -93,12 +93,16 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
     job_dir = Path(experiment_path) / "conversion"
     job_dir.mkdir(parents=True, exist_ok=True)
 
+    account_gpu=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
+    gpu = account_gpu.split("@")[1]
+
     job_script = SBATCH_CONV_TEMPLATE.format(
         log_dir=job_dir / "slurm_logs",
         experiment_path=experiment_path,
         arch=arch,
         multiple_of=multiple_of,
-        account_gpu=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
+        account_gpu=account_gpu,
+        gpu=gpu,
     )
 
     job_filename = job_dir / "conversion_job.slurm"

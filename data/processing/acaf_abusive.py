@@ -80,6 +80,9 @@ if __name__ == "__main__":
         ),
     ]
 
+    account = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
+    gpu = account.split("@")[-1]
+
     inference_executor = create_executor(
         pipeline,
         local=args.local,
@@ -88,13 +91,13 @@ if __name__ == "__main__":
         job_name="acaf_abusive",
         tasks=1,
         time="05:00:00",
-        qos="qos_gpu_h100-t3",
+        qos=f"qos_gpu_{gpu}-t3",
         partition="gpu_p6",
         cpus_per_task=32,
         env_command=f"source {_DATA_DIR}/set_env_inference.sh",
         sbatch_args={
-            "account": os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
-            "constraint": "h100",
+            "account": account,
+            "constraint": gpu,
             "gres": f"gpu:{args.tp}",
             "nodes": 1,
             "hint": "nomultithread",
