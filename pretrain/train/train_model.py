@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     if args.mode in ["benchmark", "debug"]:
         index_mapping_dir = os.path.join(
-            "/lustre/fsn1/projects/rech/qgz/commun/", "index_mapping_cache"
+            os.environ.get("OpenLLM_OUTPUT", ""), "index_mapping_cache"
         )
     else:
         index_mapping_dir = os.path.join(args.output_dir, "index_mapping")

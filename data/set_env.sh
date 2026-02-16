@@ -18,4 +18,8 @@ fi
 
 export DATA=$OpenLLM_OUTPUT/datasets
 
+# SLURM accounts (override these for your project)
+export SLURM_ACCOUNT_GPU=${SLURM_ACCOUNT_GPU:-"wuh@h100"}
+export SLURM_ACCOUNT_CPU=${SLURM_ACCOUNT_CPU:-"qgz@cpu"}
+
 conda activate datatrove-env

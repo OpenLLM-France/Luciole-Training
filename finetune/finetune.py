@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_every", default="4m", type=to_nb_tokens)
     parser.add_argument(
         "--output_dir",
-        default=f"/lustre/fsn1/projects/rech/qgz/{os.environ['USER']}/nemo_test",
+        default=os.path.join(os.environ.get("SCRATCH", "/tmp"), "nemo_test"),
     )
     parser.add_argument("--batch_size", default=4, type=int)
     parser.add_argument("--seq_length", default=100, type=int)
@@ -263,7 +263,7 @@ if __name__ == "__main__":
                 end_step=max_steps,
                 warmup_steps=0,
                 active_steps=max_steps,
-                trace_dir=f"/lustre/fsn1/projects/rech/qgz/{os.environ['USER']}/Training_OpenLLM/torch",
+                trace_dir=os.path.join(os.environ.get("SCRATCH", "/tmp"), "Training_OpenLLM/torch"),
                 profiler_kwargs={
                     'with_stack': True,
                     'profile_memory': True,

@@ -413,7 +413,7 @@ if __name__ == "__main__":
         base_checkpoint=None,
         performance_mode=False,
         qos=None,
-        account="zwy@h100",
+        account=os.environ.get("SLURM_ACCOUNT_GPU", "zwy@h100"),
     )
 
     job_list, job_folder_list = launch_jobs(base_config, args.mode)

@@ -30,8 +30,8 @@ module load nccl/2.27.3-1-cuda
 module load git
 conda activate eval-env
 
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
 export HF_HUB_OFFLINE=1
 
 # ------------------------------
@@ -363,7 +363,7 @@ def launch_evaluation(
         command=command,
         log_dir=log_dir,
         gpu=gpu,
-        account="wuh" if gpu == "h100" else "qgz",
+        account=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100").split("@")[0] if gpu == "h100" else os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu").split("@")[0],
         gpus=gpus,
         cpus=gpus * (24 if gpu == "h100" else 8),
         dependency=f"#SBATCH --dependency=afterany:{dependency}" if dependency else "",

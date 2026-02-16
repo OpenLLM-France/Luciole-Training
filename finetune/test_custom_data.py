@@ -1,3 +1,5 @@
+import os
+
 from nemo_patch.data.fine_tuning import FineTuningDataModule
 from nemo_patch.data.packed_sequence import PackedSequenceSpecs
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_tokenizer
@@ -33,7 +35,7 @@ elif not chat and packing:
     data.prepare_data()
 elif chat and packing:
     data = FineTuningDataModule(
-        dataset_root="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/sft_mix_test3",
+        dataset_root=os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "data/instruct_data/sft_mix_test3"),
         micro_batch_size=1,
         tokenizer=tokenizer,
         seq_length=seq_length,

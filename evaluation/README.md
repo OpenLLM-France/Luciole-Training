@@ -1,6 +1,14 @@
 
 # Evaluate
 
+## Environment variables
+
+Set the SLURM account environment variables for your project:
+```bash
+export SLURM_ACCOUNT_GPU="your_account@h100"  # for GPU evaluation jobs
+export SLURM_ACCOUNT_CPU="your_account@cpu"   # for CPU jobs (plotting)
+```
+
 ##  Install
 
 You should create a new environment for evaluation and clone [our fork of lighteval](https://github.com/OpenLLM-France/lighteval).

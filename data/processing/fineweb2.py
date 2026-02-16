@@ -1,3 +1,5 @@
+import os
+
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -64,7 +66,7 @@ if __name__ == "__main__":
     if not args.push_only:
         pipeline = [
             ParquetReader(
-                f"/lustre/fsmisc/dataset/HuggingFace/HuggingFaceFW/fineweb-2/data/{language}/train"
+                os.path.join(os.environ.get("HF_DATASETS_MIRROR", "/lustre/fsmisc/dataset/HuggingFace"), f"HuggingFaceFW/fineweb-2/data/{language}/train")
                 if args.jz
                 else f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
             ),

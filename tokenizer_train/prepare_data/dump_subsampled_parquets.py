@@ -156,7 +156,7 @@ def main(
     if slurm:
         main_processing_executor = SlurmPipelineExecutor(
             pipeline=pipeline,
-            sbatch_args={"account": "qgz@cpu"},
+            sbatch_args={"account": os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu")},
             tasks=tasks,
             cpus_per_task=2,
             time="05:00:00",

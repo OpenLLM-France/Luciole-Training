@@ -49,8 +49,8 @@ if __name__ == "__main__":
     subfolder = "1_high_stars_count"
     subfolder = "1_low_stars_count"
 
-    data_path = f"/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_datasets_ablation/starcoder/{subfolder}"
-    output_path = f"/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_datasets_ablation/starcoder/language_stats/{subfolder}"
+    data_path = os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), f"data/raw_datasets_ablation/starcoder/{subfolder}")
+    output_path = os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), f"data/raw_datasets_ablation/starcoder/language_stats/{subfolder}")
 
     compute = SlurmPipelineExecutor(
         pipeline=[
@@ -60,7 +60,7 @@ if __name__ == "__main__":
                 groups_to_compute=["summary"],
             ),
         ],
-        sbatch_args={"account": "qgz@cpu"},
+        sbatch_args={"account": os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu")},
         tasks=TOTAL_TASKS,
         cpus_per_task=2,
         time="05:00:00",
@@ -81,7 +81,7 @@ if __name__ == "__main__":
                 remove_input=False,
             ),
         ],
-        sbatch_args={"account": "qgz@cpu"},
+        sbatch_args={"account": os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu")},
         tasks=TOTAL_TASKS,
         cpus_per_task=2,
         time="01:00:00",

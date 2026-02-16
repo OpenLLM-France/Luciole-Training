@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_name",
         type=str,
-        default="/lustre/fsmisc/dataset/HuggingFace_Models/mistralai/Mixtral-8x22B-Instruct-v0.1",
+        default=os.path.join(os.environ.get("HF_MODELS_CACHE", "/lustre/fsmisc/dataset/HuggingFace_Models"), "mistralai/Mixtral-8x22B-Instruct-v0.1"),
     )
     parser.add_argument("--tp", type=int, default=1)
     args = parse_args(parser)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         cpus_per_task=32,
         env_command=f"source {_DATA_DIR}/set_env_inference.sh",
         sbatch_args={
-            "account": "wuh@h100",
+            "account": os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
             "constraint": "h100",
             "gres": f"gpu:{args.tp}",
             "nodes": 1,

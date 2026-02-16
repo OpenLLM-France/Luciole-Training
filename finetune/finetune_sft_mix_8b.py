@@ -22,11 +22,11 @@ def finetune_recipe(**kwargs):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--resume_path", type=str, default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last")    
+    parser.add_argument("--resume_path", type=str, default=os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last"))
     parser.add_argument("--data_path", type=str, default=f"{os.environ['SCRATCH']}/sft_mix")
     parser.add_argument(
         "--output_dir",
-        default=f"{os.environ['qgz_ALL_CCFRSCRATCH']}/OpenLLM-BPI-output/finetune",
+        default=os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "finetune"),
     )
     parser.add_argument("--name", default="sftmix_test_8b", type=str)
     parser.add_argument("--num_nodes", default=4, type=int)
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--seq_length", default=4096, type=int)
     parser.add_argument(
         "--tokenizer_name",
-        default="/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_tokenizer_instruct_new/",
+        default=os.path.join(os.environ.get("SCRATCH", "/tmp"), "luciole_tokenizer_instruct_new"),
         type=str,
     )
     args = parser.parse_args()

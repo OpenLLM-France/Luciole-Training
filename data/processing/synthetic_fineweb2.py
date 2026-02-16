@@ -1,3 +1,5 @@
+import os
+
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -41,7 +43,7 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_with_urls",
+            os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_with_urls"),
         ),
         *get_web_pipeline(
             "fr",

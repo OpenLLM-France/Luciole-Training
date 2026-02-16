@@ -105,7 +105,7 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
             "env_command", f"source {SET_ENV_SCRIPT_PATH}"
         )
         sbatch_args = kwargs.pop(
-            "sbatch_args", {"account": "qgz@cpu", "hint": "nomultithread"}
+            "sbatch_args", {"account": os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu"), "hint": "nomultithread"}
         )
         slurm_kwargs = filter_kwargs_for_class(SlurmPipelineExecutor, kwargs)
         main_processing_executor = SlurmPipelineExecutor(

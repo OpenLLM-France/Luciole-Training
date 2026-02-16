@@ -20,7 +20,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--root_data_path",
         type=str,
-        default="/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
+        default=os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "data/tokenized_data/tokens_lucie2"),
         help="Path to the root data folder",
     )
     parser.add_argument(

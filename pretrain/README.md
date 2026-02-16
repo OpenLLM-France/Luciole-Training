@@ -1,8 +1,10 @@
 # Training
 
-Add in your `.bashprofile`: 
+Add in your `.bashprofile`:
 ```bash
 export OpenLLM_OUTPUT=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output
+export SLURM_ACCOUNT_GPU="your_account@h100"  # for GPU training jobs
+export SLURM_ACCOUNT_CPU="your_account@cpu"   # for CPU jobs
 ```
 
 ## Create a datamix

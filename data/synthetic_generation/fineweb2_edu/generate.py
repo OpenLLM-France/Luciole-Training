@@ -39,7 +39,7 @@ if __name__ == "__main__":
     argparser.add_argument(
         "--model_name",
         type=str,
-        default="/lustre/fsmisc/dataset/HuggingFace_Models/meta-llama/Llama-3.1-8B-Instruct",
+        default=os.path.join(os.environ.get("HF_MODELS_CACHE", "/lustre/fsmisc/dataset/HuggingFace_Models"), "meta-llama/Llama-3.1-8B-Instruct"),
         help="Model you want to use. It can be on HF or local.",
     )
     argparser.add_argument(

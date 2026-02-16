@@ -30,6 +30,12 @@ pip install --no-build-isolation flash-attn
 
 You can add a hostname in `set_env.sh` and set your `$OpenLLM_OUTPUT` variable. Then you can use `source set_env.sh`.
 
+You should also set the SLURM account environment variables for your project:
+```bash
+export SLURM_ACCOUNT_GPU="your_account@h100"  # for GPU jobs
+export SLURM_ACCOUNT_CPU="your_account@cpu"   # for CPU jobs
+```
+
 ### Run Processing
 
 #### Locally

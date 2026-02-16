@@ -35,9 +35,9 @@ echo "Output dir: {output_dir}"
 
 cwd=$(pwd)
 
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
 
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_OFFLINE=1
@@ -261,9 +261,8 @@ def get_slurm_parser():
     )
     parser.add_argument(
         "--account",
-        default="zwy@h100",
-        choices=["wuh@h100", "zwy@h100"],
-        help="If given, it will override the default account (wuh@h100).",
+        default=os.environ.get("SLURM_ACCOUNT_GPU", "zwy@h100"),
+        help="SLURM account to use (default from $SLURM_ACCOUNT_GPU env var).",
     )
     parser.add_argument(
         "--slurm_array",

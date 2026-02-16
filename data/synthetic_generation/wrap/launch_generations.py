@@ -89,6 +89,7 @@ def launch_generation(
 #SBATCH --qos=qos_gpu_h100-t3"""
 
     weights_str = ("--weights " + " ".join(map(str, weights))) if weights else ""
+    account_gpu = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
 
     slurm_content = f"""#!/bin/bash
 #SBATCH --job-name=generate_{output_name}
@@ -99,7 +100,7 @@ def launch_generation(
 #SBATCH --cpus-per-task=64  
 {qos_lines}
 #SBATCH --hint=nomultithread 
-#SBATCH --account=wuh@h100
+#SBATCH --account={account_gpu}
 #SBATCH --constraint=h100
 {email_line}
 
@@ -108,8 +109,8 @@ module load anaconda-py3/2024.06
 module load cuda/12.4.1
 conda activate distilabel-env
 
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
 
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
@@ -161,7 +162,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--model_name",
-        default="/lustre/fsmisc/dataset/HuggingFace_Models/Qwen/Qwen3-8B",
+        default=os.path.join(os.environ.get("HF_MODELS_CACHE", "/lustre/fsmisc/dataset/HuggingFace_Models"), "Qwen/Qwen3-8B"),
         help="Model name or path.",
     )
     parser.add_argument(

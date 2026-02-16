@@ -14,12 +14,12 @@ SBATCH_CONV_TEMPLATE = """#!/bin/bash
 #SBATCH --time=02:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_h100-dev
-#SBATCH --account=wuh@h100
+#SBATCH --account={account_gpu}
 #SBATCH --constraint=h100
 #SBATCH --mail-type=FAIL
 
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
 export HF_HUB_OFFLINE=1
 
 module purge
@@ -37,12 +37,12 @@ SBATCH_PLOT_TEMPLATE = """#!/bin/bash
 #SBATCH --time=02:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_cpu-dev
-#SBATCH --account=qgz@cpu
+#SBATCH --account={account_cpu}
 #SBATCH --partition=prepost
 #SBATCH --mail-type=FAIL
 
-export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
-export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
 export HF_HUB_OFFLINE=1
 
 module purge
@@ -98,6 +98,7 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
         experiment_path=experiment_path,
         arch=arch,
         multiple_of=multiple_of,
+        account_gpu=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
     )
 
     job_filename = job_dir / "conversion_job.slurm"
@@ -319,6 +320,7 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
         compared_models=" ".join(compared_models),
         plot_groups=plot_groups,
         email=email,
+        account_cpu=os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu"),
     )
 
     job_filename = job_dir / "plot_job.slurm"
