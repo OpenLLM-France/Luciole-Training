@@ -1,6 +1,8 @@
 import argparse
 import os
 
+_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.filters.sampler_filter import SamplerFilter
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
@@ -60,7 +62,7 @@ if __name__ == "__main__":
         time="05:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+        env_command=f"source {_DATA_DIR}/set_env.sh",
         job_name="summary-stats",
         logging_dir=os.path.join(
             output_path, f"summary_stats_{args.sample_rate}/logs_compute"
@@ -87,7 +89,7 @@ if __name__ == "__main__":
         time="01:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+        env_command=f"source {_DATA_DIR}/set_env.sh",
         logging_dir=os.path.join(
             output_path, f"summary_stats_{args.sample_rate}/logs_merge"
         ),

@@ -3,6 +3,9 @@ from datatrove.io import DataFolderLike
 from datatrove.pipeline.stats.base import BaseStats
 from datatrove.pipeline.stats.config import DEFAULT_TOP_K_CONFIG, GROUP, TopKConfig
 import os
+
+_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 from datatrove.executor.slurm import SlurmPipelineExecutor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.stats import StatsMerger
@@ -63,7 +66,7 @@ if __name__ == "__main__":
         time="05:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+        env_command=f"source {_DATA_DIR}/set_env.sh",
         job_name="summary-stats",
         logging_dir=os.path.join(output_path, "summary_stats/logs_compute"),
     )
@@ -84,7 +87,7 @@ if __name__ == "__main__":
         time="01:00:00",
         qos="qos_cpu-t3",
         partition="prepost",
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh",
+        env_command=f"source {_DATA_DIR}/set_env.sh",
         logging_dir=os.path.join(output_path, "summary_stats/logs_merge"),
         job_name="merging-stats",
         depends=compute,

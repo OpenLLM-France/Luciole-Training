@@ -7,6 +7,9 @@ from functools import partial
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
 from typing import Any
 import os
+
+_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
@@ -255,7 +258,7 @@ if __name__ == "__main__":
             qos="qos_gpu_h100-t3",
             partition="gpu_p6",
             cpus_per_task=32,
-            env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+            env_command=f"source {_DATA_DIR}/set_env_inference.sh",
             sbatch_args={
                 "account": "wuh@h100",
                 "constraint": "h100",
@@ -296,7 +299,7 @@ if __name__ == "__main__":
             time="10:00:00",
             partition="cpu_p1",
             cpus_per_task=2,
-            env_command="source ~/OpenLLM-BPI-Training/data/set_env.sh\nexport HF_HUB_OFFLINE=1",
+            env_command=f"source {_DATA_DIR}/set_env.sh\nexport HF_HUB_OFFLINE=1",
             # depends=inference_executor,
         )
         final_executor.run()

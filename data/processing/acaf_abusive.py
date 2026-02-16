@@ -1,4 +1,8 @@
+import os
+
 from utils import create_parser, parse_args, create_executor
+
+_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -85,7 +89,7 @@ if __name__ == "__main__":
         qos="qos_gpu_h100-t3",
         partition="gpu_p6",
         cpus_per_task=32,
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+        env_command=f"source {_DATA_DIR}/set_env_inference.sh",
         sbatch_args={
             "account": "wuh@h100",
             "constraint": "h100",
