@@ -230,7 +230,6 @@ def launch_evaluation(
     min_step=None,
     multiple_of=None,
     last_checkpoint_only=False,
-    gpu="h100",
     gpus=1,
     dry_run=False,
     infer_ckpt_name=False,
@@ -359,11 +358,14 @@ def launch_evaluation(
 
     print(f"Prepared {len(tasks)} tasks for array job.")
 
+    account = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
+    gpu = account.split("@")[1]
+
     array_script = SBATCH_ARRAY_TEMPLATE.format(
         command=command,
         log_dir=log_dir,
         gpu=gpu,
-        account=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100").split("@")[0] if gpu == "h100" else os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu").split("@")[0],
+        account=account,
         gpus=gpus,
         cpus=gpus * (24 if gpu == "h100" else 8),
         dependency=f"#SBATCH --dependency=afterany:{dependency}" if dependency else "",
@@ -468,13 +470,6 @@ def get_parser():
         "--last_checkpoint_only",
         action="store_true",
         help="If set, only evaluate the last checkpoint.",
-    )
-    parser.add_argument(
-        "--gpu",
-        type=str,
-        default="h100",
-        choices=["h100", "a100"],
-        help="GPU type to request.",
     )
     parser.add_argument("--gpus", type=int, default=1, help="Number of gpus to use.")
     parser.add_argument(
