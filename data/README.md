@@ -15,9 +15,9 @@ data/
 │   │   ├── gallica.py           # French Gallica library dataset
 │   │   ├── dclm.py              # DCLM dataset
 │   │   └── ...                  # One script per dataset source
-│   ├── postraining              # # All datasets used during posttraining
-│   │   ├── utils.py             # Shared utilities (create_executor, create_parser, ...)
-│   │   └── ...                  # One script per dataset source
+│   └── postraining              # # All datasets used during posttraining
+│       ├── utils.py             # Shared utilities (create_executor, create_parser, ...)
+│       └── ...                  # One script per dataset source
 ├── tokenization/            # Tokenization and statistics
 │   ├── run_tokenization.py  # Main tokenization script (submits one SLURM job per dataset)
 │   ├── merge_stats.py       # Merge per-file statistics
@@ -145,7 +145,7 @@ python tokenization/create_datamix.py OUTPUT_DIR/datamix_output \
 
 Set a shared HF cache:
 ```bash
-export HF_HOME=$HF_HOME  # or set explicitly
+export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 ```
 
 Download datasets or models:
