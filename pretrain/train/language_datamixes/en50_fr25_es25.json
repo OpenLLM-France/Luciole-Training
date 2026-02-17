@@ -1,0 +1,18 @@
+{
+    "data_path": "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_lucie2",
+    "total_tokens": 100000000000,
+    "train": [
+        {
+            "name": "fineweb2_fr_text_document",
+            "weight": 25
+        },
+        {
+            "name": "fineweb2_es_text_document",
+            "weight": 25
+        },
+        {
+            "name": "fineweb-350BT_grouped_en_text_document",
+            "weight": 50
+        }
+    ]
+}

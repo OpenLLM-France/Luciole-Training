@@ -10,6 +10,12 @@
 dir_to_archive="$1"
 output_path="$2"
 
+# Check arguments
+if [[ -z "$dir_to_archive" || -z "$output_path" ]]; then
+    echo "Error: missing arguments"
+    exit 1
+fi
+
 # Check if the output path ends with .tar
 if [[ "$output_path" != *.tar ]]; then
     echo "Error: output_path must end with .tar"
@@ -19,6 +25,18 @@ fi
 # Check if the directory to archive exists
 if [[ ! -d "$dir_to_archive" ]]; then
     echo "Error: directory '$dir_to_archive' does not exist"
+    exit 1
+fi
+
+# Skip if archive already exists
+if [[ -f "$output_path" ]]; then
+    echo "Archive already exists at $output_path — skipping."
+    exit 0
+fi
+
+# Optional: skip if unfinished archive exists
+if [[ -f "$output_path.unfinished" ]]; then
+    echo "Unfinished archive exists at $output_path.unfinished — skipping."
     exit 1
 fi
 

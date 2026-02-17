@@ -37,10 +37,8 @@ This repository covers the full LLM lifecycle: data preparation, tokenizer train
 | `tokenizer_train/` | Train and evaluate custom BPE tokenizers | [tokenizer_train/README.md](tokenizer_train/README.md) |
 | `pretrain/train/` | Distributed pretraining via NeMo + SLURM | [pretrain/README.md](pretrain/README.md) |
 | `pretrain/conversion/` | Convert NeMo checkpoints to HuggingFace format | [pretrain/conversion/README.md](pretrain/conversion/README.md) |
-| `pretrain/upload/` | Upload models to HuggingFace Hub | — |
 | `finetune/` | SFT and RL fine-tuning with NeMo | [finetune/README.md](finetune/README.md) |
 | `evaluation/` | Benchmark evaluation with lighteval | [evaluation/README.md](evaluation/README.md) |
-| `ablations/` | Controlled experiments (mirrors pretrain → eval pipeline) | [ablations/README.md](ablations/README.md) |
 
 ## Quickstart
 
@@ -121,8 +119,6 @@ pre-commit run --all-files
 ruff check . --fix
 ruff format .
 ```
-
-`pretrain/train/patched/` is excluded from formatting.
 
 ## License
 

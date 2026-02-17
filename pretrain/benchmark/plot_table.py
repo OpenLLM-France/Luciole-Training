@@ -159,11 +159,15 @@ if __name__ == "__main__":
         "trainer.plugins.grad_reduce_in_fp32",
         "data.tokens_per_batch",
         "trainer.callbacks",
+        "model.config.__fn_or_cls__",
+        "resume.restore_config.path",
     ]
     df = df.drop(columns=columns_to_remove, errors="ignore")
 
     # Simplify column names (keep only last component, e.g., "trainer.devices" → "devices")
+    print(df.columns)
     df.columns = [col.rsplit(".", 1)[-1] for col in df.columns]
+    df = df.loc[:, ~df.columns.duplicated()]
 
     # Reorder columns for readability: metadata first, then computed values
     cols = ["start_time", "job_id", "job_gpu_hours", "arch"] + [

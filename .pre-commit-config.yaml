@@ -10,5 +10,3 @@ repos:
         args:
         - --fix
     -   id: ruff-format
-        exclude: |
-            ^pretrain/train/patched/
