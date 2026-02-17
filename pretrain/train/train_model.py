@@ -121,11 +121,6 @@ def get_parser():
     parser.add_argument("--rotary_base", type=float, default=10000)
     parser.add_argument("--no_load_optim_state", default=False, action="store_true")
     parser.add_argument(
-        "--cp_patch",
-        action="store_true",
-        help="If set, it will apply the context parallelism patch.",
-    )
-    parser.add_argument(
         "--dry_run",
         action="store_true",
         help="If set, it will perform a dry run without training.",
@@ -137,8 +132,6 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
-    if args.cp_patch:
-        import cp_patch  # noqa: F401
     import ast
     import logging
     import math
