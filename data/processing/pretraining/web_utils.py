@@ -206,7 +206,7 @@ class LanguageCodes:
         )
 
 
-def get_duplicated_urls(path="duplicated_urls.json"):
+def get_duplicated_urls(path="assets/duplicated_urls.json"):
     wiki_languages = [
         "ar",
         "br",

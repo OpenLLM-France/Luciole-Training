@@ -7,13 +7,17 @@ Data preparation pipeline: preprocessing raw datasets, tokenizing them, and comp
 ```
 data/
 ├── processing/              # 50+ dataset-specific preprocessing scripts
-│   ├── utils.py             # Shared utilities (create_executor, create_parser, ...)
-│   ├── web_utils.py         # Web data pipeline (deduplication, PII, robots.txt, ...)
-│   ├── fineweb2.py          # FineWeb-2 dataset
-│   ├── starcoder_data.py    # StarCoder code dataset
-│   ├── gallica.py           # French Gallica library dataset
-│   ├── dclm.py              # DCLM dataset
-│   └── ...                  # One script per dataset source
+│   ├── pretraining              # All datasets used during pretraining
+│   │   ├── utils.py             # Shared utilities (create_executor, create_parser, ...)
+│   │   ├── web_utils.py         # Web data pipeline (deduplication, PII, robots.txt, ...)
+│   │   ├── fineweb2.py          # FineWeb-2 dataset
+│   │   ├── starcoder_data.py    # StarCoder code dataset
+│   │   ├── gallica.py           # French Gallica library dataset
+│   │   ├── dclm.py              # DCLM dataset
+│   │   └── ...                  # One script per dataset source
+│   ├── postraining              # # All datasets used during posttraining
+│   │   ├── utils.py             # Shared utilities (create_executor, create_parser, ...)
+│   │   └── ...                  # One script per dataset source
 ├── tokenization/            # Tokenization and statistics
 │   ├── run_tokenization.py  # Main tokenization script (submits one SLURM job per dataset)
 │   ├── merge_stats.py       # Merge per-file statistics
