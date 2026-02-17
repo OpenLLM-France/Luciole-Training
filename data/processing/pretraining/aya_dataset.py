@@ -1,6 +1,7 @@
 import os
 
 from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -8,7 +9,6 @@ from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.filters import LambdaFilter
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
-from utils import _custom_adapter_for_hf, HF_SCHEMA
 from functools import partial
 
 
@@ -56,6 +56,7 @@ if __name__ == "__main__":
             logging_dir=os.path.join(output_path, "logs"),
             job_name=dataset_name,
             tasks=50,
+            skip_completed=not args.force,
         )
         main_processing_executor.run()
 
@@ -65,7 +66,6 @@ if __name__ == "__main__":
             from web_utils import LanguageCodes
 
             for doc in data:
-                doc.metadata.pop("targets")
                 doc.metadata["language"] = LanguageCodes.iso3_to_iso1(
                     doc.metadata.pop("language_code"), fallback=True
                 )
@@ -86,10 +86,11 @@ if __name__ == "__main__":
                     _custom_adapter_for_hf,
                     source="aya_dataset",
                     id_key=None,
+                    reset_id=True,
                     language=None,
                     language_key="language",
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_keys=["targets", "dataset"],
                 ),
                 cleanup=True,
                 expand_metadata=False,
@@ -104,6 +105,7 @@ if __name__ == "__main__":
             logging_dir=f"{output_path}/logs_hf",
             job_name="hf_aya",
             tasks=1,
+            skip_completed=not args.force,
         )
 
         hf_executor.run()

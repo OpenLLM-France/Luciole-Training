@@ -43,7 +43,10 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_with_urls"),
+            os.path.join(
+                os.environ.get("OpenLLM_OUTPUT", ""),
+                "data/raw_data/full_datasets/synthetic_fineweb2_fr_extract_knowledge_with_urls",
+            ),
         ),
         *get_web_pipeline(
             "fr",

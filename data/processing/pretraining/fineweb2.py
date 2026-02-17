@@ -66,7 +66,12 @@ if __name__ == "__main__":
     if not args.push_only:
         pipeline = [
             ParquetReader(
-                os.path.join(os.environ.get("HF_DATASETS_MIRROR", "/lustre/fsmisc/dataset/HuggingFace"), f"HuggingFaceFW/fineweb-2/data/{language}/train")
+                os.path.join(
+                    os.environ.get(
+                        "HF_DATASETS_MIRROR", "/lustre/fsmisc/dataset/HuggingFace"
+                    ),
+                    f"HuggingFaceFW/fineweb-2/data/{language}/train",
+                )
                 if args.jz
                 else f"hf://datasets/HuggingFaceFW/fineweb-2/data/{language}/train",
             ),

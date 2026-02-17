@@ -5,23 +5,39 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
-import re
 import random
 
-def append_input_output(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+
+def append_input_output(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
     for document in data:
         if random.random() < 0.5:
             answer = document.metadata["A"]
             problem_name = random.choice(["Problem:", "Question:", "Prompt:", ""])
             solution_name = random.choice(["Answer:", "Solution:", "Final Answer:"])
-            document.text = (problem_name + "\n"+ document.text + "\n" + solution_name + "\n" + answer).strip()
+            document.text = (
+                problem_name
+                + "\n"
+                + document.text
+                + "\n"
+                + solution_name
+                + "\n"
+                + answer
+            ).strip()
         else:
             problem_name, answer_name = random.choice(
-                [("User:", "Assistant:"),
-                 ("user", "assistant"),
-                 ("", "")
-                ])
-            document.text = (problem_name + "\n"+ document.text + "\n" + answer_name + "\n" + document.metadata["A"]).strip()
+                [("User:", "Assistant:"), ("user", "assistant"), ("", "")]
+            )
+            document.text = (
+                problem_name
+                + "\n"
+                + document.text
+                + "\n"
+                + answer_name
+                + "\n"
+                + document.metadata["A"]
+            ).strip()
 
         document.metadata.pop("A")
         yield document

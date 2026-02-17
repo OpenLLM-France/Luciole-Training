@@ -8,14 +8,14 @@ from datatrove.pipeline.inference.run_inference import InferenceConfig, Inferenc
 from typing import Any
 import os
 
-_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 from datatrove.pipeline.base import PipelineStep
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from datatrove.data import Document
 from nemotron_posttraining import convert_messages
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
 from utils import _custom_adapter_for_hf, HF_SCHEMA
+
+_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def prepare_data(
@@ -226,7 +226,10 @@ if __name__ == "__main__":
 
         pipeline = [
             JsonlReader(
-                os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), f"data/raw_data/full_datasets/nemotron_posttraining/{subset}/data"),
+                os.path.join(
+                    os.environ.get("OpenLLM_OUTPUT", ""),
+                    f"data/raw_data/full_datasets/nemotron_posttraining/{subset}/data",
+                ),
             ),
             partial(
                 prepare_data,

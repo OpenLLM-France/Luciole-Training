@@ -1,13 +1,12 @@
 import os
 
 from utils import create_parser, parse_args, create_executor
-
-_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
 from functools import partial
+
+_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def simple_query_builder(runner, document):
@@ -43,7 +42,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_name",
         type=str,
-        default=os.path.join(os.environ.get("HF_MODELS_CACHE", "/lustre/fsmisc/dataset/HuggingFace_Models"), "mistralai/Mixtral-8x22B-Instruct-v0.1"),
+        default=os.path.join(
+            os.environ.get(
+                "HF_MODELS_CACHE", "/lustre/fsmisc/dataset/HuggingFace_Models"
+            ),
+            "mistralai/Mixtral-8x22B-Instruct-v0.1",
+        ),
     )
     parser.add_argument("--tp", type=int, default=1)
     args = parse_args(parser)

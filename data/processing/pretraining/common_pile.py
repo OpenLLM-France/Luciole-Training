@@ -161,6 +161,7 @@ if __name__ == "__main__":
                         language_key=None,
                         conversation_key=None,
                         remove_keys=[],
+                        remove_prefix=True,
                     ),
                     cleanup=True,
                     expand_metadata=False,

@@ -79,9 +79,15 @@ def filter_kwargs_for_class(cls, kwargs):
     accepted_keys = set(sig.parameters) - {"self"}
     return {k: v for k, v in kwargs.items() if k in accepted_keys}
 
-DATA_FOLDER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+DATA_FOLDER = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 SET_ENV_SCRIPT_PATH = os.path.join(DATA_FOLDER, "set_env.sh")
-assert os.path.isfile(SET_ENV_SCRIPT_PATH), f"set_env.sh not found at {SET_ENV_SCRIPT_PATH}"
+assert os.path.isfile(
+    SET_ENV_SCRIPT_PATH
+), f"set_env.sh not found at {SET_ENV_SCRIPT_PATH}"
+
 
 def create_executor(pipeline, local=False, debug=False, **kwargs):
     # Debug mode
@@ -101,11 +107,13 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
         qos = kwargs.pop("qos", "qos_cpu-t3")
         partition = kwargs.pop("partition", "prepost")
         cpus_per_task = kwargs.pop("cpus_per_task", 1)
-        env_command = kwargs.pop(
-            "env_command", f"source {SET_ENV_SCRIPT_PATH}"
-        )
+        env_command = kwargs.pop("env_command", f"source {SET_ENV_SCRIPT_PATH}")
         sbatch_args = kwargs.pop(
-            "sbatch_args", {"account": os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu"), "hint": "nomultithread"}
+            "sbatch_args",
+            {
+                "account": os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu"),
+                "hint": "nomultithread",
+            },
         )
         slurm_kwargs = filter_kwargs_for_class(SlurmPipelineExecutor, kwargs)
         main_processing_executor = SlurmPipelineExecutor(
@@ -190,33 +198,48 @@ def parse_args(parser):
 def _custom_adapter_for_hf(
     self,
     document,
-    source,
+    source=None,
+    source_key=None,
     id_key=None,
+    reset_id=False,
     language=None,
     language_key=None,
     conversation_key=None,
-    remove_keys=None,  # Change default from [] to None
+    remove_keys=[],
+    remove_prefix=False,
 ):
-    if remove_keys is None:
-        remove_keys = []
-
     metadata = document.metadata.copy()
-    id = metadata.pop(id_key, document.id) if id_key else document.id
-    if language_key:
-        language = metadata.pop(language_key, language)
-    conversation = metadata.pop(conversation_key, None) if conversation_key else None
-    text = document.text
+    # ID
+    if reset_id:
+        import uuid
 
-    # Create a new list instead of modifying the input
-    keys_to_remove = remove_keys + ["file_path"]
+        id = str(uuid.uuid4())
+    else:
+        id = metadata.pop(id_key, document.id) if id_key else document.id
+    # Mandatory metadata fields
+    language = metadata.pop(language_key, language) if language_key else language
+    assert (
+        language is not None
+    ), "Language must be provided either through metadata or as a default value"
+    source = metadata.pop(source_key, source) if source_key else source
+    assert (
+        source is not None
+    ), "Source must be provided either through metadata or as a default value"
+    conversation = metadata.pop(conversation_key, None) if conversation_key else None
+    # Remove prefix from text if needed
+    if remove_prefix:
+        prefix = document.metadata["prefix"]
+        document.text = document.text[len(prefix) :]
+    # Clean metadata
+    keys_to_remove = remove_keys + ["file_path", "pii_email", "pii_ip", "pii_phone"]
     for key in keys_to_remove:
         metadata.pop(key, None)
 
     data = {
-        "source": source if source is not None else metadata.get("source", ""),
+        "source": source,
         "id": id,
         "language": language,
-        "text": text,
+        "text": document.text,
         "messages": conversation,
         "metadata": json.dumps(metadata),
     }

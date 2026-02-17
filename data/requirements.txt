@@ -6,4 +6,4 @@ sentencepiece
 squarify
 seaborn
 phonenumbers
-datasets<=4.0.0
+datasets<4.0.0

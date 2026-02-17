@@ -16,7 +16,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_to_parquet",
         type=str,
-        default=os.environ.get("VIKIDIA_PATH", "/lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Vikidia/20250615/parquet"),
+        default=os.environ.get(
+            "VIKIDIA_PATH",
+            "/lustre/fsn1/projects/rech/qgz/commun/datasets/raw/Vikidia/20250615/parquet",
+        ),
     )
     args = parse_args(parser)
     DATA_PATH = args.data_path

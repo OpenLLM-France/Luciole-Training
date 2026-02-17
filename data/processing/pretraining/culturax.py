@@ -64,9 +64,9 @@ if __name__ == "__main__":
             language: str = "fr",
         ):
             for doc in data:
-                prefix = doc.metadata.pop("prefix", "")
-                doc.text = doc.text[len(prefix) :]
                 doc.metadata["language"] = language
+                doc.metadata["edu_score_int"] = doc.metadata.pop("edu_score")
+                doc.metadata["edu_score"] = doc.metadata.pop("edu_score_mean")
                 yield doc
 
         pipeline = [
@@ -79,7 +79,7 @@ if __name__ == "__main__":
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/culturax/{language}/data_hf",
-                output_filename="data/culturax/${language}/score_${edu_score}/${rank}.parquet",
+                output_filename="data/culturax/${language}/score_${edu_score_int}/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
                     source=None,
@@ -87,7 +87,8 @@ if __name__ == "__main__":
                     language=language,
                     language_key=None,
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_keys=["timestamp", "prefix"],
+                    remove_prefix=True,
                 ),
                 cleanup=True,
                 expand_metadata=False,

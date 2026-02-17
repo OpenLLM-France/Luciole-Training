@@ -72,3 +72,5 @@ if __name__ == "__main__":
         )
 
         filter_executor.run()
+
+        # Push to Hub

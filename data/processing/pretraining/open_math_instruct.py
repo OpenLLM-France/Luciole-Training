@@ -6,11 +6,15 @@ from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
 
-def append_input_output(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+
+def append_input_output(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
     for document in data:
         answer = document.metadata["generated_solution"]
         document.text = (document.text + "\n" + answer).strip()
         yield document
+
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -24,7 +28,7 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            input_path, #"nvidia/OpenMathInstruct-1", #"hf://datasets/nvidia/OpenMathInstruct-1"
+            input_path,  # "nvidia/OpenMathInstruct-1", #"hf://datasets/nvidia/OpenMathInstruct-1"
             text_key="question",
         ),
         append_input_output,

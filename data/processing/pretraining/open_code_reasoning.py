@@ -8,6 +8,7 @@ from datatrove.data import DocumentsPipeline
 import re
 import random
 
+
 def split_thinking(output):
     # get text in between <think> and </think> tags, and the remaining text
     think_pattern = r"<think>(.*?)</think>"
@@ -15,21 +16,42 @@ def split_thinking(output):
     remaining_text = re.sub(think_pattern, "", output, flags=re.DOTALL).strip()
     return thoughts, remaining_text
 
-def append_input_output(data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+
+def append_input_output(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
     for document in data:
         if random.random() < 0.5:
             thoughts, answer = split_thinking(document.metadata["output"])
             problem_name = random.choice(["Problem:", "Question:", "Prompt:", ""])
             thoughts_name = random.choice(["Thoughts:", "Reasoning:", "Thinking:"])
             solution_name = random.choice(["Answer:", "Solution:", "Final Answer:"])
-            document.text = (problem_name + "\n"+ document.text + "\n" + thoughts_name + "\n" + thoughts + "\n" + solution_name + "\n" + answer).strip()
+            document.text = (
+                problem_name
+                + "\n"
+                + document.text
+                + "\n"
+                + thoughts_name
+                + "\n"
+                + thoughts
+                + "\n"
+                + solution_name
+                + "\n"
+                + answer
+            ).strip()
         else:
             problem_name, answer_name = random.choice(
-                [("User:", "Assistant:"),
-                 ("user", "assistant"),
-                 ("", "")
-                ])
-            document.text = (problem_name + "\n"+ document.text + "\n" + answer_name + "\n" + document.metadata["output"]).strip()
+                [("User:", "Assistant:"), ("user", "assistant"), ("", "")]
+            )
+            document.text = (
+                problem_name
+                + "\n"
+                + document.text
+                + "\n"
+                + answer_name
+                + "\n"
+                + document.metadata["output"]
+            ).strip()
 
         document.metadata.pop("output")
         yield document

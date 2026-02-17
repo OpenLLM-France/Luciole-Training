@@ -18,7 +18,12 @@ if __name__ == "__main__":
     if not args.push_only:
         pipeline = [
             WarcForRobotsReader(
-                os.path.join(os.environ.get("COMMONCRAWL_PATH", "/lustre/fsmisc/dataset/CommonCrawl"), f"{DUMP_TO_PROCESS}/segments/"),
+                os.path.join(
+                    os.environ.get(
+                        "COMMONCRAWL_PATH", "/lustre/fsmisc/dataset/CommonCrawl"
+                    ),
+                    f"{DUMP_TO_PROCESS}/segments/",
+                ),
                 glob_pattern="*/robotstxt/*",  # we want the robotstxt files
                 default_metadata={"dump": DUMP_TO_PROCESS},
             ),

@@ -21,10 +21,7 @@ pretrain/
 │   ├── recipes/             # Model architecture recipes
 │   └── datamixes/           # Training data mixture configs
 ├── conversion/     # Checkpoint conversion (see conversion/README.md)
-├── datamix/        # Datamix creation tools
-├── benchmark/      # Performance benchmarking
-├── upload/         # Upload models to HuggingFace Hub
-└── chronicles/     # Training logs and history
+└── benchmark/      # Performance benchmarking
 ```
 
 ## Install
