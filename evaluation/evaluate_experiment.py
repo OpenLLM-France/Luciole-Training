@@ -15,7 +15,7 @@ SBATCH_ARRAY_TEMPLATE = """#!/bin/bash
 #SBATCH --time=20:00:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_gpu_{gpu}-t3
-#SBATCH --account={account}@{gpu}
+#SBATCH --account={account}
 #SBATCH --constraint={gpu}
 #SBATCH --array=0-{max_index}
 #SBATCH --mail-type=FAIL
@@ -81,7 +81,7 @@ def init_extra_args(custom_tasks, max_samples=-1):
         custom_path = os.path.join(
             current_dir, "custom_benchmarks", f"{custom_tasks}.py"
         )
-        print(f"> Using custom tasks from: {custom_path}")
+        # print(f"> Using custom tasks from: {custom_path}")
         extra_arg += f"--custom-tasks {custom_path} \\\n"
     # Max samples
     if max_samples > 0:
@@ -236,8 +236,9 @@ def launch_evaluation(
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
-    print(f"\n# Experiment path: {experiment_path}")
-    print(f"# Task to evaluate: {task_to_evaluate}")
+    if not dry_run:
+        print(f"\n# Experiment path: {experiment_path}")
+        print(f"# Task to evaluate: {task_to_evaluate}")
 
     checkpoints, revisions, ckpt_dir = get_checkpoints_and_revisions(
         experiment_path, hf_model, infer_ckpt_name
@@ -283,7 +284,8 @@ def launch_evaluation(
                 continue
 
         if ckpt.endswith("-last"): # and (multiple_of is None or step in steps_done):
-            print(f"Skipping last checkpoint: {ckpt}")
+            if not dry_run:
+                print(f"Skipping last checkpoint: {ckpt}")
             continue
 
         steps_done.append(step)
@@ -293,7 +295,8 @@ def launch_evaluation(
             if not revision
             else ((output_dir / revision / "results").is_dir())
         ) and not force:
-            print(f"Skipping existing results for checkpoint: {ckpt}")
+            if not dry_run:
+                print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
 
         model_arg = f"model_name={ckpt},dtype=bfloat16"
@@ -340,7 +343,8 @@ def launch_evaluation(
         )
 
     if len(tasks) == 0:
-        print("No tasks to run... Skipping")
+        if not dry_run:
+            print("No tasks to run... Skipping")
         return
 
     # Write list to JSON so Slurm script can read it
@@ -350,7 +354,8 @@ def launch_evaluation(
     with open(task_list_path, "w") as f:
         json.dump(tasks, f, indent=2)
 
-    print(f"Prepared {len(tasks)} tasks for array job.")
+    if not dry_run:
+        print(f"Prepared {len(tasks)} tasks for array job.")
 
     account = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
     gpu = account.split("@")[1]
@@ -374,7 +379,7 @@ def launch_evaluation(
         f.write(array_script)
 
     if dry_run:
-        print("sbatch", str(array_filename))
+        print("sbatch", str(array_filename), f"# ({len(tasks)} tasks)")
     else:
         print("Submitting array:", array_filename)
         result = subprocess.run(
