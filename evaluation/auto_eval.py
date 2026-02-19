@@ -161,13 +161,6 @@ def launch_evaluation(
                 max_samples=1000,
             ),
             dict(
-                task_to_evaluate="tasks/translation.txt",
-                multiple_of=multiple_of,
-                command=command,
-                custom_tasks="multilingual",
-                max_samples=1000,
-            ),
-            dict(
                 task_to_evaluate="tasks/mmlu_pro.txt",
                 multiple_of=multiple_of,
                 command=command,
