@@ -31,7 +31,7 @@ conda activate eval-env
 
 git clone git@github.com:OpenLLM-France/lighteval.git
 cd lighteval/
-pip install -e .[multilingual,vllm]
+pip install -e .[multilingual,vllm,translation]
 pip install language_data langdetect syllapy seaborn python-slugify
 
 module load cuda/12.8.0
