@@ -168,6 +168,10 @@ def read_json_file(file_path):
         .reset_index(name="score")
         .rename(columns={"level_0": "metric", "level_1": "task"})
     )
+
+    # Multiply the values of the "score" column by 1/100 when the value of the "metric" column is "comet" or "comet_stderr"
+    df.loc[df["metric"].isin(["comet", "comet_stderr"]), "score"] *= 1 / 100
+
     df["max_samples"] = str(data["config_general"]["max_samples"])
 
     # Filter out metrics ending in "_stderr"

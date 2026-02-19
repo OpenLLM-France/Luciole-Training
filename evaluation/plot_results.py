@@ -2,25 +2,25 @@ import os
 import math
 import argparse
 from utils import process_results, read_experiment_results
-from agg_score import calculate_agg_score, read_info
+from agg_score import calculate_agg_score, get_info
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 task_group_mapping = {
     "en": [
-        # ("helm|boolq:_average|0", "em_with_type_exact_match"),
+        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
+        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
+        ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
+        ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
+        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
         ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
         ("helm|siqa|0", "em"),
-        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
         ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("leaderboard|hellaswag|0", "acc"),
         ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
-        ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
         ("lighteval|piqa|0", "acc_with_logprob_normalization"),
-        ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
-        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+        # ("helm|boolq:_average|0", "em_with_type_exact_match"),
     ],
     "smollm": [
         ("custom|piqa_cf|0", "acc_norm"),
@@ -64,21 +64,17 @@ task_group_mapping = {
         ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
     ],
     "fr": [
-        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"), # f1_fra ?
-        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"), # f1_fra ?
+        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),  # f1_fra ?
+        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),  # f1_fra ?
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
         ("lighteval|xcodah_fra_cf|0", "acc_norm"),
         ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
         ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        # ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
     ],
     "multilingual": [
-        ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm_token"),
         ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
@@ -91,12 +87,20 @@ task_group_mapping = {
         # ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
         # ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
         # ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm_token"),
     ],
     "translation": [
-        ("lighteval|flores200:fra_Latn-eng_Latn|0", "bleu"),
-        ("lighteval|flores200:eng_Latn-fra_Latn|0", "bleu"),
-        ("lighteval|flores200:fra_Latn-eng_Latn|0", "bleu_4"),
-        ("lighteval|flores200:eng_Latn-fra_Latn|0", "bleu_4"),
+        # ("lighteval|flores200:fra_Latn-eng_Latn|5", "bleu"),
+        ("lighteval|flores200:fra_Latn-eng_Latn|5", "bleu_4"),
+        ("lighteval|flores200:fra_Latn-eng_Latn|5", "comet"),
+        ("lighteval|flores200:fra_Latn-eng_Latn|5", "metricx"),
+        # ("lighteval|flores200:eng_Latn-fra_Latn|5", "bleu"),
+        ("lighteval|flores200:eng_Latn-fra_Latn|5", "bleu_4"),
+        ("lighteval|flores200:eng_Latn-fra_Latn|5", "comet"),
+        ("lighteval|flores200:eng_Latn-fra_Latn|5", "metricx"),
     ],
     "ruler": [
         ("custom|ruler_4096:_average|0", "ruler_match"),
@@ -112,22 +116,19 @@ task_group_mapping = {
         ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
         ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
         ("custom|mmlu_pro_cf|0", "acc_norm"),
-
         ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
         ("community|gpqa-fr|0", "acc"),
         ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("lighteval|gsm_plus|0", "extractive_match"),
         ("lighteval|aime25|0", "pass@k_with_k&n"),
-
         ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
         ("extended|ifeval|0", "prompt_level_loose_acc"),
-        ("community|ifeval-fr|0", "prompt_level_loose_acc"),        
+        ("community|ifeval-fr|0", "prompt_level_loose_acc"),
         ("extended|ifbench_test|0", "prompt_level_loose_acc"),
-        ("extended|ifbench_multiturn|1", "prompt_level_loose_acc"),        
-
+        ("extended|ifbench_multiturn|1", "prompt_level_loose_acc"),
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
-    ]
+    ],
 }
 
 
@@ -166,9 +167,6 @@ def assign_styles(df, apply_phase_style=True):
     return style_map
 
 
-df_info = read_info()
-
-
 def plot_task(
     ax,
     df,
@@ -178,13 +176,15 @@ def plot_task(
     style_map,
     xlog=False,
     fit=False,
-    flops=False,
+    unit="T_tokens",
+    use_dots=False,
     max_tokens=None,
     checkpoint_index=None,
 ):
     # print(f"Plotting {task} - {metric} with {len(df)} lines")
 
-    xaxis_column = "FLOPs" if flops else "tokens"
+    xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
+    xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
     df = df[(df["task"] == task) & (df["metric"] == metric)]
     if max_tokens:
 
@@ -211,16 +211,22 @@ def plot_task(
                 row["score"] = [row["score"][checkpoint_index]]
                 row["stderr"] = [row["stderr"][checkpoint_index]]
             except IndexError:
-                raise RuntimeError(f"Checkpoint index {checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})")
+                raise RuntimeError(
+                    f"Checkpoint index {checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})"
+                )
             return row
 
         df = df.apply(select_checkpoint, axis=1, checkpoint_index=checkpoint_index)
 
     # Access random
-    if task in df_info["task"].values:
-        num_classes = df_info.loc[df_info["task"] == task, "num_classes"].iloc[0]
+    df_info = get_info()
+    task_no_fewshot = "|".join(task.split("|")[:-1])
+    if task_no_fewshot in df_info["task"].values:
+        num_classes = df_info.loc[
+            df_info["task"] == task_no_fewshot, "num_classes"
+        ].iloc[0]
         random = 1.0 / num_classes
-        ax.axhline(y=random, color="grey", linestyle="--", label="random")
+        ax.axhline(y=random, color="grey", linestyle=":", label="random")
 
     use_bars = max([len(s) for s in df["score"]]) == 1
 
@@ -228,10 +234,13 @@ def plot_task(
         color = color_map[row["expe_name"]]
         linestyle = style_map[row["expe_name"]]
 
+        X = np.array(row[xaxis_column]) * xscale
+        Y = np.array(row["score"])
+
         if use_bars:
             ax.bar(
                 i,
-                row["score"],
+                Y,
                 color=color,
                 label=row["expe_name"],
                 yerr=row["stderr"] if "stderr" in row else None,
@@ -239,15 +248,15 @@ def plot_task(
             )
         elif fit:
             ax.plot(
-                row[xaxis_column],
-                row["score"],
+                X,
+                Y,
                 alpha=np.clip(1 - row["r2"], 0.2, 0.8),
                 linestyle=":",
                 color=color,
             )
 
             # Plot regression line
-            xaxis = np.linspace(min(row[xaxis_column]), max(row[xaxis_column]), 100)
+            xaxis = np.linspace(min(X), max(X), 100)
             y_pred = row["intercept"] + row["slope"] * np.log(xaxis)
             ax.plot(
                 xaxis,
@@ -268,48 +277,95 @@ def plot_task(
                 va="center",
             )
         else:
-            if len(row["score"]) == 1:
-                ax.plot(
-                    row[xaxis_column],
-                    row["score"],
-                    marker="+",
-                    color=color,
-                    markersize=10,  # larger than usual
-                    markeredgewidth=2,
-                    label=row["expe_name"],
-                )
+            if len(Y) == 1:
+                if use_dots:
+                    ax.plot(
+                        X,
+                        Y,
+                        marker="+",
+                        color=color,
+                        markersize=10,  # larger than usual
+                        markeredgewidth=2,
+                        linewidth=2,
+                        label=row["expe_name"],
+                    )
+                else:
+                    # Horizontal line
+                    ax.axhline(
+                        y=Y,
+                        color=color,
+                        linestyle="--",
+                        linewidth=2,
+                        label=row["expe_name"]
+                        + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
+                    )
             else:
                 ax.plot(
-                    row[xaxis_column],
-                    row["score"],
+                    X,
+                    Y,
+                    marker="o",
                     alpha=1,
                     color=color,
                     linestyle=linestyle,
                     label=row["expe_name"],
                 )
-                ax.plot(
-                    row[xaxis_column][-1],
-                    row["score"][-1],
-                    marker="+",
-                    color=color,
-                    markersize=10,
-                    markeredgewidth=2,
-                )
+                # # Spot the last point
+                # ax.plot(
+                #     X[-1],
+                #     Y[-1],
+                #     marker="+",
+                #     color=color,
+                #     markersize=10,
+                #     markeredgewidth=2,
+                # )
 
     if use_bars:
         ax.set_xticks([])
     else:
-        ax.set_xlabel("FLOPs" if flops else "B tokens")
+        ax.set_xlabel(unit.replace("_", " "))
         if xlog:
             ax.set_xscale("log")
-    ax.set_ylabel(metric)
+    ax.set_ylabel(format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
+
+
+def format_metric_for_title(metric):
+    return metric.replace("exact_match_", "em_").split("_")[0].upper()
+
 
 def format_task_for_title(task):
     f = task.split("|")
     if len(f) == 3:
-        return f[1]
+        task = f[1]
+    if task.endswith("_cf"):
+        task = task[:-3]
+    task = (
+        task.replace("_all_", "_")
+        .replace("mmlu", "MMLU")
+        .replace("arc", "ARC")
+        .replace("hellaswag", "HellaSwag")
+        .replace("winogrande", "Winogrande")
+        .replace("gsm8k", "GSM8K")
+        .replace("boolq", "BoolQ")
+        .replace("commonsenseqa", "CommonsenseQA")
+        .replace("belebele", "Belebele")
+        .replace("siqa", "SIQA")
+        .replace("openbookqa", "OpenBookQA")
+        .replace("piqa", "PIQA")
+        .replace("triviaqa", "TriviaQA")
+        .replace("mintaka", "Mintaka")
+        .replace("fquadv2", "FQuADv2")
+        .replace("xcodah", "XCODAH")
+        .replace("xcsqa", "XCSQA")
+        .replace("xnli", "XNLI")
+        .replace("mlmm", "MLMM")
+        .replace("flores200", "FLORES")
+        .replace("_Latn", "")
+        .replace("_", " ")
+        .replace(":", " ")
+    )
     return task
+
 
 def plot_list_of_tasks(
     df,
@@ -318,7 +374,8 @@ def plot_list_of_tasks(
     title=None,
     xlog=False,
     fit=False,
-    flops=False,
+    unit="T_tokens",
+    use_dots=False,
     apply_phase_style=True,
     max_tokens=None,
     checkpoint_index=None,
@@ -326,8 +383,7 @@ def plot_list_of_tasks(
     dpi=300,
     max_subplot=19,
 ):
-    
-    if all([metric=="ruler_match" for _, metric in list_of_tasks_to_plot]):
+    if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
 
         def full_expe_name(expe_name, tokens):
             if "B training tokens" not in expe_name:
@@ -343,7 +399,9 @@ def plot_list_of_tasks(
             # Extract the context_length from the task : 'custom|ruler_4096:_average|0' -> 4096
             context_length = int(task.split("ruler_")[1].split(":")[0])
             task_prefix = task.split(":")[0]
-            subtasks = set([t for t in df["task"] if t.startswith(task_prefix) and t != task])
+            subtasks = set(
+                [t for t in df["task"] if t.startswith(task_prefix) and t != task]
+            )
             all_context_lengths.add(context_length)
             df_task = df_filtered[df_filtered["task"] == task]
             for _, row in df_task.iterrows():
@@ -355,11 +413,16 @@ def plot_list_of_tasks(
                         row_tokens = [row["tokens"][checkpoint_index]]
                         row_score = [row["score"][checkpoint_index]]
                     except IndexError:
-                        raise RuntimeError(f"Checkpoint index {checkpoint_index} out of range for {expe_name} ({len(row['tokens'])} values for task={task})")
+                        raise RuntimeError(
+                            f"Checkpoint index {checkpoint_index} out of range for {expe_name} ({len(row['tokens'])} values for task={task})"
+                        )
                 for tokens, score in zip(row_tokens, row_score):
                     expe_name_with_tokens = full_expe_name(expe_name, tokens)
                     if expe_name_with_tokens not in data:
-                        data[expe_name_with_tokens] = {"context_length": [], "score": []}
+                        data[expe_name_with_tokens] = {
+                            "context_length": [],
+                            "score": [],
+                        }
                     data[expe_name_with_tokens]["context_length"].append(context_length)
                     data[expe_name_with_tokens]["score"].append(score)
             for subtask in subtasks:
@@ -375,9 +438,11 @@ def plot_list_of_tasks(
                                 "context_length": [],
                                 "score": [],
                             }
-                        all_data[subtask][expe_name_with_tokens]["context_length"].append(context_length)
+                        all_data[subtask][expe_name_with_tokens][
+                            "context_length"
+                        ].append(context_length)
                         all_data[subtask][expe_name_with_tokens]["score"].append(score)
-        
+
         if details:
             all_data["average"] = data
         else:
@@ -393,7 +458,9 @@ def plot_list_of_tasks(
             data = all_data[subtask]
             for expe_name_with_tokens, values in data.items():
                 sorted_indices = np.argsort(values["context_length"])
-                values["context_length"] = np.array(values["context_length"])[sorted_indices]
+                values["context_length"] = np.array(values["context_length"])[
+                    sorted_indices
+                ]
                 values["score"] = np.array(values["score"])[sorted_indices]
                 ax.plot(
                     values["context_length"],
@@ -406,7 +473,10 @@ def plot_list_of_tasks(
             # if i >= len(all_data) - 4:
             ax.set_xlabel("Context Length")
             ax.set_xscale("log", base=2)
-            ax.set_xticks(sorted(all_context_lengths), labels=[str(cl) for cl in sorted(all_context_lengths)])
+            ax.set_xticks(
+                sorted(all_context_lengths),
+                labels=[str(cl) for cl in sorted(all_context_lengths)],
+            )
             ax.set_ylabel("Ruler Match Score")
             ax.set_title(subtask)
             # ax.legend(title="Experiment name", loc="best")
@@ -420,14 +490,17 @@ def plot_list_of_tasks(
         for handle in legend_dict.values():
             handle.set_alpha(1.0)
         ax.legend(
-            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center",
+            legend_dict.values(),
+            legend_dict.keys(),
+            title="Experiment name",
+            loc="center",
         )
 
-
     else:
-
         list_of_tasks_to_plot = [
-            task for task in list_of_tasks_to_plot if task[0] in set(df["task"].unique())
+            task
+            for task in list_of_tasks_to_plot
+            if task[0] in set(df["task"].unique())
         ]
         n_tasks = len(list_of_tasks_to_plot)
         if not isinstance(max_subplot, int) or n_tasks > max_subplot:
@@ -439,7 +512,9 @@ def plot_list_of_tasks(
                 ]
                 if isinstance(max_subplot, int)
                 else [
-                    list_of_tasks_to_plot[sum(max_subplot[:i]) : sum(max_subplot[: i + 1])]
+                    list_of_tasks_to_plot[
+                        sum(max_subplot[:i]) : sum(max_subplot[: i + 1])
+                    ]
                     for i in range(len(max_subplot))
                 ]
             ):
@@ -455,7 +530,8 @@ def plot_list_of_tasks(
                     title=title,
                     xlog=xlog,
                     fit=fit,
-                    flops=flops,
+                    unit=unit,
+                    use_dots=use_dots,
                     apply_phase_style=apply_phase_style,
                     max_tokens=max_tokens,
                     checkpoint_index=checkpoint_index,
@@ -464,7 +540,7 @@ def plot_list_of_tasks(
                     max_subplot=max_subplot,
                 )
             return
-        
+
         num_tasks = len(list_of_tasks_to_plot)
         num_plots = num_tasks + 1  # +1 for the legend
 
@@ -494,7 +570,8 @@ def plot_list_of_tasks(
                 style_map=style_map,
                 xlog=xlog,
                 fit=fit,
-                flops=flops,
+                unit=unit,
+                use_dots=use_dots,
                 max_tokens=max_tokens,
                 checkpoint_index=checkpoint_index,
             )
@@ -512,7 +589,11 @@ def plot_list_of_tasks(
                 handle.set_alpha(1.0)
 
         legend_ax.legend(
-            legend_dict.values(), legend_dict.keys(), title="Experiment name", loc="center", fontsize=12,
+            legend_dict.values(),
+            legend_dict.keys(),
+            title="Experiment name",
+            loc="center",
+            fontsize=12,
         )
 
         # Hide any unused subplots
@@ -546,10 +627,17 @@ def plot_experiments(df, args, max_subplot=19):
                 if (task[0] != "all")
                 and not ("mmlu" in task[0] and "average" not in task[0])
             ]
+        elif g == "agg":
+            # Take all the row that have metric == "agg"
+            list_of_tasks_to_plot = list(
+                df[df["metric"] == "agg"][["task", "metric"]]
+                .drop_duplicates()
+                .itertuples(index=False, name=None)
+            )
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
 
-        filename = f'{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.flops else ""}.png'
+        filename = f'{args.filename_prefix}{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.unit == "FLOPs" else ""}{args.filename_suffix}.png'
 
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None
@@ -560,7 +648,8 @@ def plot_experiments(df, args, max_subplot=19):
             output_file,
             xlog=args.xlog,
             fit=args.fit,
-            flops=args.flops,
+            unit=args.unit,
+            use_dots=args.use_dots,
             max_tokens=args.max_tokens,
             max_subplot=max_subplot,
             apply_phase_style=args.apply_phase_style,
@@ -578,12 +667,16 @@ def process_experiments(args):
     all_results = []
 
     if args.legend:
-        assert len(args.legend) == len(args.experiment_path), "Length of legend must match number of experiment paths."
+        assert len(args.legend) == len(
+            args.experiment_path
+        ), "Length of legend must match number of experiment paths."
 
     for iexpe, path in enumerate(args.experiment_path):
         # Step 1: read experiment results
-        df = read_experiment_results(path, evaluation_dir=args.evaluation_dir,
-            expe_name = args.legend[iexpe].replace("_", " ") if args.legend else None
+        df = read_experiment_results(
+            path,
+            evaluation_dir=args.evaluation_dir,
+            expe_name=args.legend[iexpe].replace("_", " ") if args.legend else None,
         )
 
         if df is None or df.empty:
@@ -632,6 +725,18 @@ if __name__ == "__main__":
         help="Output path where your plot are storred",
     )
     parser.add_argument(
+        "--filename_prefix",
+        type=str,
+        default="",
+        help="Prefix for the output filename.",
+    )
+    parser.add_argument(
+        "--filename_suffix",
+        type=str,
+        default="",
+        help="Suffix for the output filename.",
+    )
+    parser.add_argument(
         "--evaluation_dir",
         type=str,
         default="evaluation",
@@ -639,7 +744,15 @@ if __name__ == "__main__":
     parser.add_argument("--xlog", action="store_true", help="Use log scale for x-axis")
     parser.add_argument("--fit", action="store_true", help="Fit a linear regression")
     parser.add_argument(
-        "--flops", action="store_true", help="Use FLOPs instead of tokens"
+        "--unit",
+        choices=["B_tokens", "T_tokens", "FLOPs"],
+        default="T_tokens",
+        help="Unit for x-axis.",
+    )
+    parser.add_argument(
+        "--use_dots",
+        action="store_true",
+        help="Use dots to represent data points when there is only one point for the curve (otherwise, a horizontal line will be used)",
     )
     parser.add_argument(
         "--window",
@@ -652,7 +765,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--apply_phase_style", action="store_true")
     parser.add_argument(
-        "--checkpoint_index", type=int, default=None, help="If set, only show the specified checkpoint index (ex: 0, -1)."
+        "--checkpoint_index",
+        type=int,
+        default=None,
+        help="If set, only show the specified checkpoint index (ex: 0, -1).",
     )
     parser.add_argument(
         "--legend",
@@ -668,7 +784,11 @@ if __name__ == "__main__":
         help="If set, show detailed plots for the RULER benchmark (--group ruler).",
     )
     parser.add_argument("--dpi", type=int, default=300)
-    parser.add_argument("--save_csv", action="store_true", help="If set, save the processed results to a CSV file instead of plotting.")
+    parser.add_argument(
+        "--save_csv",
+        action="store_true",
+        help="If set, save the processed results to a CSV file instead of plotting.",
+    )
 
     args = parser.parse_args()
 
@@ -680,7 +800,9 @@ if __name__ == "__main__":
             list_of_tasks_to_plot = [
                 task for g in args.group for task in task_group_mapping.get(g, [])
             ]
-            mask = df[["task", "metric"]].apply(tuple, axis=1).isin(list_of_tasks_to_plot)
+            mask = (
+                df[["task", "metric"]].apply(tuple, axis=1).isin(list_of_tasks_to_plot)
+            )
             df = df[mask]
         df["score"] = df["score"].apply(lambda x: x[-1] if isinstance(x, list) else x)
         df["stderr"] = df["stderr"].apply(lambda x: x[-1] if isinstance(x, list) else x)
