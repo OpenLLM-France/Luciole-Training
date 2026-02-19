@@ -25,7 +25,7 @@ export HF_HUB_OFFLINE=1
 module purge
 module load arch/{gpu} nemo/2.4.0
 
-torchrun --nproc_per_node=1 ../pretrain/conversion/convert_experiment.py {experiment_path} --arch {arch} --multiple_of {multiple_of}
+torchrun --nproc_per_node=1 {source_path}/pretrain/conversion/convert_experiment.py {experiment_path} --arch {arch} --multiple_of {multiple_of}
 """
 
 SBATCH_PLOT_TEMPLATE = """#!/bin/bash
@@ -86,7 +86,7 @@ eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS "$TO"
 """
 
 
-def launch_conversion(experiment_path, arch, multiple_of=1):
+def launch_conversion(experiment_path, arch, multiple_of=1, dry_run=False):
     print(
         f"Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
     )
@@ -103,6 +103,7 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
         multiple_of=multiple_of,
         account_gpu=account_gpu,
         gpu=gpu,
+        source_path=Path(__file__).parent.parent.resolve(),
     )
 
     job_filename = job_dir / "conversion_job.slurm"
@@ -110,6 +111,10 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
         f.write(job_script)
 
     command = ["sbatch", "--parsable", str(job_filename)]
+
+    if dry_run:
+        print(" ".join(command))
+        return None
 
     result = subprocess.run(command, check=True, capture_output=True, text=True)
     job_id = result.stdout.strip()
@@ -126,7 +131,7 @@ def launch_evaluation(
     eval_type="pretrain",
     infer_ckpt_name=True,
     last_checkpoint_only=False,
-    dry_run=False
+    dry_run=False,
 ):
     import evaluate_experiment
 
@@ -445,12 +450,15 @@ if __name__ == "__main__":
     launch_conversion_needed = not args.hf_model and has_original_checkpoints
 
     # Launch conversion job
-    if launch_conversion_needed and not args.dry_run:
+    if launch_conversion_needed:
         conversion_job_id = launch_conversion(
             args.experiment_path,
             args.arch,
             args.multiple_of,
+            dry_run=args.dry_run,
         )
+        if args.dry_run:
+            print("#" * 80)
     else:
         conversion_job_id = None
 
