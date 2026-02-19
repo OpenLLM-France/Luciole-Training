@@ -111,15 +111,7 @@ def get_training_tokens_and_model_size(file_path):
         ("luciol" in str(file_path).lower())
         or ("llama1b" in str(file_path).lower())
         or ("ablation" in str(file_path).lower())
-        or ("nemotron" in str(file_path).lower())
     ):
-        match = re.search(r"step_([0-9.]+)", str(file_path))
-        steps = float(match.group(1)) if match else None
-        if steps is None:
-            match = re.search(r"_([0-9.]+)-last", str(file_path))
-            steps = float(match.group(1)) if match else None
-            if steps is None:
-                raise ValueError(f"Could not extract steps from file path: {file_path}")
         if "llama1b" in str(file_path).lower():
             model_size = 1.235290112
         elif "1b" in str(file_path).lower():
@@ -130,20 +122,35 @@ def get_training_tokens_and_model_size(file_path):
             model_size = 23.216467968
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
-        
-        steps_phase1 = 715787
-        steps_phase2 = 358930
-        steps_phase3_annealing = 118238 if model_size < 23 else 71526
-        steps_extension = 5960 if model_size < 23 else 11920
 
-        if "phase2" in str(file_path):
-            steps += steps_phase1
-        if "_32k_" in str(file_path) or "_131k_v4_" in str(file_path):
-            steps += steps_phase1 + steps_phase2 + steps_phase3_annealing
-        elif "_65k_" in str(file_path) or "_131k_" in str(file_path):
-            steps += steps_phase1 + steps_phase2 + steps_phase3_annealing + steps_extension
-        elif "annealin" in str(file_path):
-            steps += steps_phase1 + steps_phase2
+        match = re.search(r"totalstep([0-9.]+)", str(file_path))
+        if match:
+            steps = float(match.group(1))
+        else:
+            match = re.search(r"step_([0-9.]+)", str(file_path))
+            steps = float(match.group(1)) if match else None
+            if steps is None:
+                raise ValueError(f"Could not extract steps from file path: {file_path}")
+
+            steps_phase1 = 715787
+            steps_phase2 = 358930
+            steps_phase3_annealing = 118238 if model_size < 23 else 71526
+            steps_extension = 5960 if model_size < 23 else 11920
+
+            if "phase2" in str(file_path):
+                steps += steps_phase1
+            if "_32k_" in str(file_path) or "_131k_v4_" in str(file_path):
+                steps += steps_phase1 + steps_phase2 + steps_phase3_annealing
+            elif "_65k_" in str(file_path) or "_131k_" in str(file_path):
+                steps += (
+                    steps_phase1
+                    + steps_phase2
+                    + steps_phase3_annealing
+                    + steps_extension
+                )
+            elif "annealin" in str(file_path):
+                steps += steps_phase1 + steps_phase2
+
         tokens = steps * 4096 * 1024 / 10**9
     else:
         raise ValueError(f"Unknown model in file path: {file_path}")
@@ -178,7 +185,7 @@ def read_json_file(file_path):
             index=["metric_base", "task", "max_samples"],
             columns="value_type",
             values="score",
-            aggfunc="first"
+            aggfunc="first",
         )
         .reset_index()
         .rename(columns={False: "score", True: "stderr", "metric_base": "metric"})
@@ -199,7 +206,9 @@ def read_json_file(file_path):
     return df
 
 
-def read_experiment_results(main_dir, evaluation_dir="evaluation", expe_name=None, split_per_tokens=False):
+def read_experiment_results(
+    main_dir, evaluation_dir="evaluation", expe_name=None, split_per_tokens=False
+):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
 
