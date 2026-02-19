@@ -93,7 +93,7 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
     job_dir = Path(experiment_path) / "conversion"
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    account_gpu=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
+    account_gpu = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
     gpu = account_gpu.split("@")[1]
 
     job_script = SBATCH_CONV_TEMPLATE.format(
@@ -117,7 +117,14 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
 
 
 def launch_evaluation(
-    experiment_path, multiple_of=1, command="vllm", hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain", infer_ckpt_name=True
+    experiment_path,
+    multiple_of=1,
+    command="vllm",
+    hf_model=None,
+    dependency_job_id=None,
+    force=False,
+    eval_type="pretrain",
+    infer_ckpt_name=True,
 ):
     import evaluate_experiment
 
@@ -128,9 +135,15 @@ def launch_evaluation(
     if eval_type in ["pretrain", "context_extension"]:
         COMMANDS += [
             dict(
-                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
+                task_to_evaluate="tasks/gsm8k.txt",
+                multiple_of=multiple_of,
+                command=command,
             ),
-            dict(task_to_evaluate="tasks/en.txt", multiple_of=multiple_of, command=command),
+            dict(
+                task_to_evaluate="tasks/en.txt",
+                multiple_of=multiple_of,
+                command=command,
+            ),
             dict(
                 task_to_evaluate="tasks/fr.txt",
                 multiple_of=multiple_of,
@@ -151,58 +164,64 @@ def launch_evaluation(
                 command=command,
                 custom_tasks="smollm3",
                 # max_samples=1000,
-            ),        
+            ),
         ]
-        
+
     if eval_type == "finetune":
-        COMMANDS += [
-            dict(
-                task_to_evaluate=f"tasks/{task}.txt",
-                multiple_of=multiple_of,
-                command=command,
-                max_samples=1000,
-            )
-            for task in ["mixeval", "ifbench", "ifeval", "ifeval_fr", "gsm_plus"]
-        ] + [
-            dict(
-                task_to_evaluate=f"tasks/{task}.txt",
-                multiple_of=multiple_of,
-                command=command,
-                max_model_length=32768,
-                max_samples=1000,
-            )
-            for task in ["aime"]
-        ] + [
-            dict(
-                task_to_evaluate=f"tasks/{task}.txt",
-                multiple_of=multiple_of,
-                command=command,
-                max_model_length=65536,
-                max_samples=1000,
-            )
-            for task in ["live_code_bench", "gpqa", "gpqa-fr"]
-        ] + [
-            dict(
-                task_to_evaluate="tasks/mmlu_pro.txt",
-                multiple_of=multiple_of,
-                command=command,
-                custom_tasks="smollm3",
-                max_samples=1000,
-            ),
-            dict(
-                task_to_evaluate="tasks/reasoning.txt",
-                multiple_of=multiple_of,
-                command=command,
-                custom_tasks="multilingual",
-                max_samples=1000,
-            ),
-            dict(
-                task_to_evaluate="tasks/gsm8k.txt", multiple_of=multiple_of, command=command
-            ),
-        ]
+        COMMANDS += (
+            [
+                dict(
+                    task_to_evaluate=f"tasks/{task}.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    max_samples=1000,
+                )
+                for task in ["mixeval", "ifbench", "ifeval", "ifeval_fr", "gsm_plus"]
+            ]
+            + [
+                dict(
+                    task_to_evaluate=f"tasks/{task}.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    max_model_length=32768,
+                    max_samples=1000,
+                )
+                for task in ["aime"]
+            ]
+            + [
+                dict(
+                    task_to_evaluate=f"tasks/{task}.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    max_model_length=65536,
+                    max_samples=1000,
+                )
+                for task in ["live_code_bench", "gpqa", "gpqa-fr"]
+            ]
+            + [
+                dict(
+                    task_to_evaluate="tasks/mmlu_pro.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    custom_tasks="smollm3",
+                    max_samples=1000,
+                ),
+                dict(
+                    task_to_evaluate="tasks/reasoning.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    custom_tasks="multilingual",
+                    max_samples=1000,
+                ),
+                dict(
+                    task_to_evaluate="tasks/gsm8k.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                ),
+            ]
+        )
 
     if eval_type.startswith("ruler") or eval_type == "context_extension":
-
         lengths = [4096, 8192, 16384, 32768, 65536, 131072]
         if eval_type.startswith("ruler_"):
             length_str = eval_type.split("_")[1]
@@ -226,9 +245,11 @@ def launch_evaluation(
                 command=command,
                 custom_tasks="ruler",
                 max_model_length=length,
-                gpus=4 if (length > 65536 and model_size > 12) else (2 if length > 32768 else 1),
-                
-            ) for length in lengths
+                gpus=4
+                if (length > 65536 and model_size > 12)
+                else (2 if length > 32768 else 1),
+            )
+            for length in lengths
         ]
 
     if not COMMANDS:
@@ -252,7 +273,9 @@ def launch_evaluation(
     return ",".join(job_ids) if job_ids else None
 
 
-def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pretrain"):
+def launch_plot(
+    experiment_path, email="", dependency_job_id=None, eval_type="pretrain"
+):
     print(f"Launching plot for {experiment_path}")
     job_dir = Path(experiment_path) / "evaluation"
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -260,7 +283,6 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
     base = os.environ["OpenLLM_OUTPUT"]
 
     if eval_type == "finetune":
-
         compared_models = [
             f"{base}/finetune/compared_models/Lucie-7B-Instruct-v1.1",
             f"{base}/finetune/compared_models/SmolLM3-3B",
@@ -271,7 +293,7 @@ def launch_plot(experiment_path, email="", dependency_job_id=None, eval_type="pr
             # f"{base}/finetune/compared_models/salamandra-7b-instruct",
         ]
 
-    else: # pretrain
+    else:  # pretrain
         if "1b" in experiment_path:
             compared_models = [
                 f"{base}/pretrain/luciole_serie/luciole_nemotron1b",
@@ -370,7 +392,18 @@ if __name__ == "__main__":
         "--eval_type",
         type=str,
         default="pretrain",
-        choices=["pretrain", "finetune", "ruler", "ruler_4096", "ruler_8192", "ruler_16384", "ruler_32768", "ruler_65536", "ruler_131072", "context_extension"],
+        choices=[
+            "pretrain",
+            "finetune",
+            "ruler",
+            "ruler_4096",
+            "ruler_8192",
+            "ruler_16384",
+            "ruler_32768",
+            "ruler_65536",
+            "ruler_131072",
+            "context_extension",
+        ],
         help="Type of evaluation to perform.",
     )
     parser.add_argument(
@@ -393,7 +426,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    has_original_checkpoints = (Path(args.experiment_path) / args.experiment_path.split("/")[-1] / "checkpoints").is_dir()
+    has_original_checkpoints = (
+        Path(args.experiment_path) / args.experiment_path.split("/")[-1] / "checkpoints"
+    ).is_dir()
     launch_conversion_needed = not args.hf_model and has_original_checkpoints
 
     # Launch conversion job
@@ -415,11 +450,14 @@ if __name__ == "__main__":
         dependency_job_id=conversion_job_id,
         force=args.force,
         eval_type=args.eval_type,
-        infer_ckpt_name=launch_conversion_needed
+        infer_ckpt_name=launch_conversion_needed,
     )
 
     if not args.hf_model:
         # Plot
         launch_plot(
-            args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email, eval_type=args.eval_type
+            args.experiment_path,
+            dependency_job_id=evaluation_job_id,
+            email=args.email,
+            eval_type=args.eval_type,
         )
