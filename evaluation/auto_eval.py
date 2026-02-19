@@ -117,7 +117,7 @@ def launch_conversion(experiment_path, arch, multiple_of=1):
 
 
 def launch_evaluation(
-    experiment_path, multiple_of=1, command="vllm", hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain", infer_ckpt_name=True
+    experiment_path, multiple_of=1, command="vllm", hf_model=None, dependency_job_id=None, force=False, eval_type="pretrain", infer_ckpt_name=True, last_checkpoint_only=False, dry_run=False
 ):
     import evaluate_experiment
 
@@ -140,6 +140,13 @@ def launch_evaluation(
             ),
             dict(
                 task_to_evaluate="tasks/multilingual.txt",
+                multiple_of=multiple_of,
+                command=command,
+                custom_tasks="multilingual",
+                max_samples=1000,
+            ),
+            dict(
+                task_to_evaluate="tasks/translation.txt",
                 multiple_of=multiple_of,
                 command=command,
                 custom_tasks="multilingual",
@@ -242,13 +249,16 @@ def launch_evaluation(
             dependency=dependency_job_id,
             force=force,
             infer_ckpt_name=infer_ckpt_name,
+            last_checkpoint_only=last_checkpoint_only,
+            dry_run=dry_run,
         )
         if job_id is not None:
             job_ids.append(job_id)
 
-    print(
-        f"Launching evaluation for {experiment_path} with job ids: {' '.join(job_ids)}"
-    )
+    if job_ids:
+        print(
+            f"Launching evaluation for {experiment_path} with job ids: {' '.join(job_ids)}"
+        )
     return ",".join(job_ids) if job_ids else None
 
 
@@ -391,13 +401,21 @@ if __name__ == "__main__":
         action="store_true",
         help="If set, force re-evaluation even if results exist.",
     )
+    parser.add_argument(
+        "--last_checkpoint_only",
+        action="store_true",
+        help="If set, only evaluate the last checkpoint.",
+    )
+    parser.add_argument(
+        "--dry_run", action="store_true", help="If set, do not submit jobs."
+    )
     args = parser.parse_args()
 
     has_original_checkpoints = (Path(args.experiment_path) / args.experiment_path.split("/")[-1] / "checkpoints").is_dir()
     launch_conversion_needed = not args.hf_model and has_original_checkpoints
 
     # Launch conversion job
-    if launch_conversion_needed:
+    if launch_conversion_needed and not args.dry_run:
         conversion_job_id = launch_conversion(
             args.experiment_path,
             args.arch,
@@ -415,10 +433,12 @@ if __name__ == "__main__":
         dependency_job_id=conversion_job_id,
         force=args.force,
         eval_type=args.eval_type,
-        infer_ckpt_name=launch_conversion_needed
+        infer_ckpt_name=launch_conversion_needed,
+        last_checkpoint_only=args.last_checkpoint_only,
+        dry_run=args.dry_run,
     )
 
-    if not args.hf_model:
+    if not args.hf_model and evaluation_job_id:
         # Plot
         launch_plot(
             args.experiment_path, dependency_job_id=evaluation_job_id, email=args.email, eval_type=args.eval_type
