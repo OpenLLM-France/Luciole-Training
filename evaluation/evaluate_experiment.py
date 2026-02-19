@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 SBATCH_ARRAY_TEMPLATE = """#!/bin/bash
-#SBATCH --job-name=eval
+#SBATCH --job-name=eval_{task_name}
 #SBATCH --output={log_dir}/eval_log_%x_%A_%a.out
 #SBATCH --gres=gpu:{gpus}
 #SBATCH --nodes=1
@@ -91,50 +91,50 @@ def init_extra_args(custom_tasks, max_samples=-1):
 
 def get_hf_model(hf_model):
     ckpt_dir = Path(".")
-    if hf_model == "OLMo-2-0425-1B": # allenai/
+    if hf_model == "OLMo-2-0425-1B":  # allenai/
         revisions = [
             f"stage1-step{i*100000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "OLMo-2-1124-7B": # allenai/
+    elif hf_model == "OLMo-2-1124-7B":  # allenai/
         revisions = [
             f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B"
             for i in range(1, 18)
             if i != 2
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "OLMo-2-1124-13B": # allenai/
+    elif hf_model == "OLMo-2-1124-13B":  # allenai/
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "OLMo-2-0325-32B": # allenai/
+    elif hf_model == "OLMo-2-0325-32B":  # allenai/
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B"
             for i in range(1, 19)
             if i != 14
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "Apertus-8B-2509": # swiss-ai/
+    elif hf_model == "Apertus-8B-2509":  # swiss-ai/
         revisions = (
             [f"step{i*50000}-tokens{i*210}B" for i in range(1, 21)]
             + [f"step{i*238000 + 1194000}-tokens{i*1000 + 5014}B" for i in range(3)]
             + [f"step{i*100000 + 1800000}-tokens{i*840 + 8072}B" for i in range(9)]
         )
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "Lucie-7B": # OpenLLM-France/
+    elif hf_model == "Lucie-7B":  # OpenLLM-France/
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
         revisions = [
             "step0753851",
             "extension_step0001220",
         ]
         checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "SmolLM2-1.7B": # HuggingFaceTB/
+    elif hf_model == "SmolLM2-1.7B":  # HuggingFaceTB/
         checkpoints = [
             "HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints" for i in range(1, 20)
         ] + ["HuggingFaceTB/SmolLM2-1.7B"]
         revisions = [f"step-{i*250000}" for i in range(1, 20)] + ["main"]
-    elif hf_model == "Gaperon-1125-24B": # almanach/
+    elif hf_model == "Gaperon-1125-24B":  # almanach/
         checkpoints = [
             "step-024000_tokens-0100B-phase1",
             "step-060000_tokens-0251B-phase1",
@@ -153,7 +153,7 @@ def get_hf_model(hf_model):
         ckpt_dir = Path(
             "/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-24B"
         )
-    elif hf_model == "Gaperon-1125-8B": # almanach/
+    elif hf_model == "Gaperon-1125-8B":  # almanach/
         checkpoints = [
             "step-0334000_tokens-0700B-phase1",
             "step-0382000_tokens-0801B-phase1",
@@ -174,7 +174,7 @@ def get_hf_model(hf_model):
             "/lustre/fsn1/projects/rech/dmn/udd26kf/scratch/commun/hf_final_ckpts/Gaperon-8B"
         )
     else:
-        print(f"Selection the main revision of {hf_model} model.")
+        # print(f"Selection the main revision of {hf_model} model.")
         checkpoints = [hf_model]
         revisions = ["main"]
     return checkpoints, revisions, ckpt_dir
@@ -265,7 +265,6 @@ def launch_evaluation(
     steps_done = []
 
     for ckpt, revision in zip(checkpoints, revisions):
-
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
 
@@ -274,16 +273,20 @@ def launch_evaluation(
         if min_step:
             step = get_step(ckpt)
             if (step + 1) < min_step:
-                print(f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}")
+                print(
+                    f"Skipping checkpoint: {ckpt} {revision}. Step {step} is less than min_step {min_step}"
+                )
                 continue
 
         if multiple_of and multiple_of != 1:
             step = get_step(ckpt)
             if (step + 1) % multiple_of != 0:
-                print(f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}")
+                print(
+                    f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}"
+                )
                 continue
 
-        if ckpt.endswith("-last"): # and (multiple_of is None or step in steps_done):
+        if ckpt.endswith("-last"):  # and (multiple_of is None or step in steps_done):
             if not dry_run:
                 print(f"Skipping last checkpoint: {ckpt}")
             continue
@@ -372,6 +375,7 @@ def launch_evaluation(
         task_list=task_list_path,
         extra_args=extra_args,
         extra_env_vars=extra_env_vars,
+        task_name=task_to_evaluate.stem,
     )
 
     array_filename = job_dir / "job_array_eval.slurm"
