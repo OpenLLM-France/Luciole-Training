@@ -4,7 +4,7 @@ lighteval|mlmm_arc_fra_cf:challenge|0
 lighteval|mintaka_fra|0
 
 # Reading Comprehension (RC)
-# lighteval|belebele_fra_Latn_cf|0
+lighteval|belebele_fra_Latn_cf|0
 lighteval|fquadv2_fra|0
 
 # Reasoning (RES)
