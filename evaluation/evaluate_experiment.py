@@ -117,7 +117,7 @@ def get_hf_model(hf_model):
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "Apertus-8B-2509":  # swiss-ai/
         revisions = (
-            [f"step{i*50000}-tokens{i*210}B" for i in range(1, 21)]
+            [f"step{i*50000}-tokens{i*210}B" for i in [1] + list(range(3, 21))]
             + [f"step{i*238000 + 1194000}-tokens{i*1000 + 5014}B" for i in range(3)]
             + [f"step{i*100000 + 1800000}-tokens{i*840 + 8072}B" for i in range(9)]
         )

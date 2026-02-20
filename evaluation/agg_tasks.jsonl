@@ -25,8 +25,8 @@
 // {"task": "helm|boolq:_average", "metric":"em_with_type_exact_match", "task_type":"Knowledge & Reading Comprehension", "category": "qa", "num_classes": null, "language": "en"}
 //
 // Multilingual tasks (other than French or English)
-{"task": "lighteval|flores200:fra_Latn-eng_Latn", "metric":"comet", "task_type":"Translation ", "category": "translation", "num_classes": null, "language": "multilingual"}
-{"task": "lighteval|flores200:eng_Latn-fra_Latn", "metric":"comet", "task_type":"Translation ", "category": "translation", "num_classes": null, "language": "multilingual"}
+{"task": "lighteval|flores200:fra_Latn-eng_Latn", "metric":"comet", "task_type":"Translation", "category": "translation", "num_classes": null, "language": "multilingual"}
+{"task": "lighteval|flores200:eng_Latn-fra_Latn", "metric":"comet", "task_type":"Translation", "category": "translation", "num_classes": null, "language": "multilingual"}
 {"task": "lighteval|mlmm_hellaswag_deu_cf", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "other"}
 {"task": "lighteval|mlmm_hellaswag_spa_cf", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "other"}
 {"task": "lighteval|mlmm_hellaswag_ita_cf", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "other"}

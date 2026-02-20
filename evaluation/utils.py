@@ -153,7 +153,9 @@ def get_training_tokens_and_model_size(file_path):
 
         tokens = steps * 4096 * 1024 / 10**9
     else:
-        raise ValueError(f"Unknown model in file path: {file_path}")
+        raise ValueError(
+            f"Cannot infer model size / nb of training tokens in file path: {file_path}"
+        )
     return tokens, model_size
 
 
@@ -352,3 +354,37 @@ def process_results(df, window=1, fit=False):
             .reset_index()
         )
         return group_df
+
+
+def format_task_for_title(task):
+    f = task.split("|")
+    if len(f) in [2, 3]:
+        task = f[1]
+    if task.endswith("_cf"):
+        task = task[:-3]
+    task = (
+        task.replace("_all_", "_")
+        .replace("mmlu", "MMLU")
+        .replace("arc", "ARC")
+        .replace("hellaswag", "HellaSwag")
+        .replace("winogrande", "Winogrande")
+        .replace("gsm8k", "GSM8K")
+        .replace("boolq", "BoolQ")
+        .replace("commonsenseqa", "CommonsenseQA")
+        .replace("belebele", "Belebele")
+        .replace("siqa", "SIQA")
+        .replace("openbookqa", "OpenBookQA")
+        .replace("piqa", "PIQA")
+        .replace("triviaqa", "TriviaQA")
+        .replace("mintaka", "Mintaka")
+        .replace("fquadv2", "FQuADv2")
+        .replace("xcodah", "XCODAH")
+        .replace("xcsqa", "XCSQA")
+        .replace("xnli", "XNLI")
+        .replace("mlmm", "MLMM")
+        .replace("flores200", "FLORES")
+        .replace("_Latn", "")
+        .replace("_", " ")
+        .replace(":", " ")
+    )
+    return task

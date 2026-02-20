@@ -1,8 +1,8 @@
 import os
 import math
 import argparse
-from utils import process_results, read_experiment_results
-from agg_score import calculate_agg_score, get_info
+from utils import process_results, read_experiment_results, format_task_for_title
+from agg_score import calculate_agg_score, get_info, check_benchmarks_by_tasktype
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -233,6 +233,7 @@ def plot_task(
     for i, (_, row) in enumerate(df.iterrows()):
         color = color_map[row["expe_name"]]
         linestyle = style_map[row["expe_name"]]
+        label = format_expename_for_title(row["expe_name"])
 
         X = np.array(row[xaxis_column]) * xscale
         Y = np.array(row["score"])
@@ -242,7 +243,7 @@ def plot_task(
                 i,
                 Y,
                 color=color,
-                label=row["expe_name"],
+                label=label,
                 yerr=row["stderr"] if "stderr" in row else None,
                 capsize=5,
             )
@@ -264,7 +265,7 @@ def plot_task(
                 linestyle="-",
                 alpha=np.clip(row["r2"], 0.2, 0.8),
                 color=color,
-                label=row["expe_name"],
+                label=label,
             )
 
             ax.text(
@@ -287,7 +288,7 @@ def plot_task(
                         markersize=10,  # larger than usual
                         markeredgewidth=2,
                         linewidth=2,
-                        label=row["expe_name"],
+                        label=label,
                     )
                 else:
                     # Horizontal line
@@ -296,8 +297,7 @@ def plot_task(
                         color=color,
                         linestyle="--",
                         linewidth=2,
-                        label=row["expe_name"]
-                        + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
+                        label=label + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
                     )
             else:
                 ax.plot(
@@ -307,7 +307,7 @@ def plot_task(
                     alpha=1,
                     color=color,
                     linestyle=linestyle,
-                    label=row["expe_name"],
+                    label=label,
                 )
                 # # Spot the last point
                 # ax.plot(
@@ -333,38 +333,10 @@ def format_metric_for_title(metric):
     return metric.replace("exact_match_", "em_").split("_")[0].upper()
 
 
-def format_task_for_title(task):
-    f = task.split("|")
-    if len(f) == 3:
-        task = f[1]
-    if task.endswith("_cf"):
-        task = task[:-3]
-    task = (
-        task.replace("_all_", "_")
-        .replace("mmlu", "MMLU")
-        .replace("arc", "ARC")
-        .replace("hellaswag", "HellaSwag")
-        .replace("winogrande", "Winogrande")
-        .replace("gsm8k", "GSM8K")
-        .replace("boolq", "BoolQ")
-        .replace("commonsenseqa", "CommonsenseQA")
-        .replace("belebele", "Belebele")
-        .replace("siqa", "SIQA")
-        .replace("openbookqa", "OpenBookQA")
-        .replace("piqa", "PIQA")
-        .replace("triviaqa", "TriviaQA")
-        .replace("mintaka", "Mintaka")
-        .replace("fquadv2", "FQuADv2")
-        .replace("xcodah", "XCODAH")
-        .replace("xcsqa", "XCSQA")
-        .replace("xnli", "XNLI")
-        .replace("mlmm", "MLMM")
-        .replace("flores200", "FLORES")
-        .replace("_Latn", "")
-        .replace("_", " ")
-        .replace(":", " ")
-    )
-    return task
+def format_expename_for_title(expe_name):
+    if expe_name.endswith("_noct"):
+        return expe_name[:-5]
+    return expe_name
 
 
 def plot_list_of_tasks(
@@ -671,12 +643,14 @@ def process_experiments(args):
             args.experiment_path
         ), "Length of legend must match number of experiment paths."
 
+    benchmarks_per_tasktype_ref = None
     for iexpe, path in enumerate(args.experiment_path):
         # Step 1: read experiment results
+        expe_name = args.legend[iexpe].replace("_", " ") if args.legend else None
         df = read_experiment_results(
             path,
             evaluation_dir=args.evaluation_dir,
-            expe_name=args.legend[iexpe].replace("_", " ") if args.legend else None,
+            expe_name=expe_name,
         )
 
         if df is None or df.empty:
@@ -685,7 +659,24 @@ def process_experiments(args):
 
         # Step 2: calculate aggregated scores if needed
         if "agg" in args.group:
-            df_agg = calculate_agg_score(df).dropna()
+            benchmarks_per_tasktype, df_agg = calculate_agg_score(
+                df, check_aggregation=args.check_aggregation
+            )
+            df_agg = df_agg.dropna()
+
+            # Check that the benchmarks per task type are the same across experiments
+            # (otherwise, the aggregated scores are not comparable)
+            if benchmarks_per_tasktype_ref is None:
+                benchmarks_per_tasktype_ref = benchmarks_per_tasktype
+                ref_name = expe_name if expe_name else path
+            else:
+                check_benchmarks_by_tasktype(
+                    benchmarks_per_tasktype_ref,
+                    benchmarks_per_tasktype,
+                    ref_name,
+                    expe_name if expe_name else path,
+                )
+
             df = pd.concat([df, df_agg])
 
         # Step 3: process the results
@@ -699,6 +690,17 @@ def process_experiments(args):
     if final_df.empty:
         print("No results found for the given experiments.")
         exit(0)
+
+    if benchmarks_per_tasktype_ref is not None:
+        print("===== AGGREGATED BENCHMARKS PER TASK TYPE =====")
+        for (task_type, language), benchmarks in sorted(
+            benchmarks_per_tasktype_ref.items()
+        ):
+            print(f"[{task_type} / {language}]")
+            for benchmark in sorted(benchmarks):
+                print(f"  - {format_task_for_title(benchmark)}")
+            print()
+
     return final_df
 
 
@@ -782,6 +784,12 @@ if __name__ == "__main__":
         default=False,
         action="store_true",
         help="If set, show detailed plots for the RULER benchmark (--group ruler).",
+    )
+    parser.add_argument(
+        "--check_aggregation",
+        default=False,
+        action="store_true",
+        help="If set, check that the aggregated benchmarks are the same for all the models (--group agg).",
     )
     parser.add_argument("--dpi", type=int, default=300)
     parser.add_argument(
