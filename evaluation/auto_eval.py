@@ -82,7 +82,7 @@ if [[ -z "$ATTACHMENTS" ]]; then
 fi
 
 # Send email
-eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS "$TO"
+eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS $TO
 """
 
 
@@ -355,7 +355,7 @@ def launch_plot(
         experiment_path=experiment_path,
         compared_models=" ".join(compared_models),
         plot_groups=plot_groups,
-        email=email,
+        email=email.replace(",", " "),
         account_cpu=os.environ.get("SLURM_ACCOUNT_CPU", "qgz@cpu"),
     )
 
