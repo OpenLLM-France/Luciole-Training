@@ -445,7 +445,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     has_original_checkpoints = (
-        Path(args.experiment_path) / args.experiment_path.split("/")[-1] / "checkpoints"
+        Path(args.experiment_path)
+        / args.experiment_path.rstrip("/").split("/")[-1]
+        / "checkpoints"
     ).is_dir()
     launch_conversion_needed = not args.hf_model and has_original_checkpoints
 
