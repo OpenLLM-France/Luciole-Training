@@ -121,7 +121,7 @@ def get_hf_model(hf_model):
             + [f"step{i*238000 + 1194000}-tokens{i*1000 + 5014}B" for i in range(3)]
             + [f"step{i*100000 + 1800000}-tokens{i*840 + 8072}B" for i in range(9)]
         )
-        checkpoints = [hf_model] * len(revisions)
+        checkpoints = ["swiss-ai/" + hf_model] * len(revisions)
     elif hf_model == "Lucie-7B":  # OpenLLM-France/
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
         revisions += [
@@ -129,7 +129,7 @@ def get_hf_model(hf_model):
             "extension_step0001220",
         ]
         checkpoints = ["OpenLLM-France/" + hf_model] * len(revisions)
-    elif hf_model == "SmolLM2-1.7B":
+    elif hf_model == "SmolLM2-1.7B":  # HuggingFaceTB/
         checkpoints = [
             "HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints" for i in range(1, 20)
         ] + ["HuggingFaceTB/SmolLM2-1.7B"]
