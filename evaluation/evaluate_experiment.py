@@ -95,26 +95,26 @@ def get_hf_model(hf_model):
         revisions = [
             f"stage1-step{i*100000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
-        checkpoints = [hf_model] * len(revisions)
+        checkpoints = ["allenai/" + hf_model] * len(revisions)
     elif hf_model == "OLMo-2-1124-7B":  # allenai/
         revisions = [
             f"stage1-step{i*50000}-tokens{math.ceil(i*209.72)}B"
             for i in range(1, 18)
             if i != 2
         ]
-        checkpoints = [hf_model] * len(revisions)
+        checkpoints = ["allenai/" + hf_model] * len(revisions)
     elif hf_model == "OLMo-2-1124-13B":  # allenai/
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B" for i in range(1, 19)
         ]
-        checkpoints = [hf_model] * len(revisions)
+        checkpoints = ["allenai/" + hf_model] * len(revisions)
     elif hf_model == "OLMo-2-0325-32B":  # allenai/
         revisions = [
             f"stage1-step{i*25000}-tokens{math.ceil(i*209.72)}B"
             for i in range(1, 19)
             if i != 14
         ]
-        checkpoints = [hf_model] * len(revisions)
+        checkpoints = ["allenai/" + hf_model] * len(revisions)
     elif hf_model == "Apertus-8B-2509":  # swiss-ai/
         revisions = (
             [f"step{i*50000}-tokens{i*210}B" for i in [1] + list(range(3, 21))]
@@ -124,12 +124,12 @@ def get_hf_model(hf_model):
         checkpoints = [hf_model] * len(revisions)
     elif hf_model == "Lucie-7B":  # OpenLLM-France/
         revisions = [f"step{i*50000:07d}" for i in range(1, 16)]
-        revisions = [
+        revisions += [
             "step0753851",
             "extension_step0001220",
         ]
-        checkpoints = [hf_model] * len(revisions)
-    elif hf_model == "SmolLM2-1.7B":  # HuggingFaceTB/
+        checkpoints = ["OpenLLM-France/" + hf_model] * len(revisions)
+    elif hf_model == "SmolLM2-1.7B":
         checkpoints = [
             "HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints" for i in range(1, 20)
         ] + ["HuggingFaceTB/SmolLM2-1.7B"]
