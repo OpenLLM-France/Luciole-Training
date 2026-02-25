@@ -49,4 +49,10 @@ try running the slurm job with the following environment variable set:
 NRL_FORCE_REBUILD_VENVS=true uv run python ...
 ```
 
-For multiple files in training folder, use ``dataset_name: openai_format_multifiles`` in your yaml file.
+Add paths to model and tokenizer in the yaml file. For multiple files in training folder, use ``dataset_name: openai_format_multifiles`` in the yaml. Then run, 
+```bash
+sbatch finetune_8B_H100.slurm
+```
+to test the example sft script.
+
+
