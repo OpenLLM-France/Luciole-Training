@@ -38,6 +38,6 @@ export TORCH_CUDA_ARCH_LIST=9.0
 #  --hf-ckpt-path hf_ckpts_8B_luciemix/
 
 uv run --no-build-isolation python examples/converters/convert_megatron_to_hf.py \
-  --config results/sft_luciole_nemotronh8B_luciemix_16K_131kckpt/step_9250/config.yaml \
-  --megatron-ckpt-path results/sft_luciole_nemotronh8B_luciemix_16K_131kckpt/step_9250/policy/weights/iter_0000000 \
-  --hf-ckpt-path hf_ckpts_8B_luciemix_new/
+  --config PATH_TO_MODEL_CONFIG \
+  --megatron-ckpt-path PATH_TO_CKPT \
+  --hf-ckpt-path OUTPUT_FOLDER
