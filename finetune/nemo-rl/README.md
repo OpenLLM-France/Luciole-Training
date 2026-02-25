@@ -49,7 +49,7 @@ try running the slurm job with the following environment variable set:
 NRL_FORCE_REBUILD_VENVS=true uv run python ...
 ```
 
-Add paths to model and tokenizer in the yaml file. The original branch is unable to handle mulitple train/val files. We made some modifications to ``__init__.py`` and ``oai_format_dataset.py`` in ``nemo_rl/data/datasets/response_datasets/`` to handle this. For multiple files in training folder, use ``dataset_name: openai_format_multifiles`` in your yaml. Then run, 
+Add paths to model and tokenizer in the yaml file. The original branch is unable to handle multiple train/val files. We made some modifications to ``__init__.py`` and ``oai_format_dataset.py`` in ``nemo_rl/data/datasets/response_datasets/`` to handle this. For multiple files in training folder, use ``dataset_name: openai_format_multifiles`` in your yaml. Then run, 
 ```bash
 sbatch finetune_8B_H100.slurm
 ```
