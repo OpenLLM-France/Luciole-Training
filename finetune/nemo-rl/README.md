@@ -48,3 +48,5 @@ try running the slurm job with the following environment variable set:
 ```bash
 NRL_FORCE_REBUILD_VENVS=true uv run python ...
 ```
+
+For multiple files in training folder, use ``dataset_name: openai_format_multifiles`` in your yaml file.
