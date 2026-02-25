@@ -22,11 +22,11 @@ checkpointing:
   checkpoint_must_save_by: null
 
 policy:
-  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_lrfix_nemotronh8b_annealing/huggingface_checkpoints/luciole_lrfix_nemotronh8b_annealing-step_0118237"
+  model_name: "PATH_TO_MODEL"
   tokenizer:
-    name: "/lustre/fsn1/projects/rech/qgz/uov59an/tokenizer_128k-arab-regional_v2_instruct" ## specify if you'd like to use a tokenizer different from the model's default
+    name: "PATH_TO_TOKENIZER" ## specify if you'd like to use a tokenizer different from the model's default
     # chat_template can be a Jinja template string or path to a .jinja file
-    chat_template: "/lustre/fsn1/projects/rech/qgz/uov59an/tokenizer_128k-arab-regional_v2_instruct/chat_template.jinja"
+    chat_template: "PATH_TO_CHAT_TEMPLATE"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   train_global_batch_size: 32
   train_micro_batch_size: 1
