@@ -55,4 +55,6 @@ sbatch finetune_8B_H100.slurm
 ```
 to test the example sft script.
 
+After the model is trained, run convert.slurm to convert the checkpoint to HF format by providing path to model config and the checkpoint.
+
 
