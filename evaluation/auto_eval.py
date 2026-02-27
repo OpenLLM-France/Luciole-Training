@@ -211,7 +211,7 @@ def launch_evaluation(
                     multiple_of=multiple_of,
                     command=command,
                     custom_tasks="smollm3",
-                    max_samples=1000,
+                    # max_samples=1000,
                 ),
                 dict(
                     task_to_evaluate="tasks/reasoning.txt",
