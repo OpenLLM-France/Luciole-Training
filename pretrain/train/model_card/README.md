@@ -33,7 +33,7 @@ Luciole-1.1-1B-Base was trained on 5.1 trillion tokens of multilingual data, inc
 and parallel data from a selection of languages (1.7%),
 as well as several programming languages (9.2%) and English mathematical data (3.5%).
 
-Training and data preparation code can be found in the [Luciole-Training]() repository.  
+Training and data preparation code can be found in the [Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training) repository.  
 
 
 The technical report is coming soon. 
@@ -115,21 +115,35 @@ If running on GPU (`cuda` device), you will need at least 6GB of VRAM to run inf
 
 ### Intermediate checkpoints
 
-Checkpoints at several training steps are available under revision tags,
-every 5000 steps during the first 30000 steps, and then every 10000 steps.
+Intermediate checkpoints are released under dedicated revision tags at regular intervals throughout training:
+- Every **1,000 steps** during the first **5,000 steps**  
+- Then every **5,000 steps** up to **30,000 steps**  
+- Then every **10,000 steps** beyond that  
+- In addition, a checkpoint is provided at the **end of each training phase**
 
-Intermediate checkpoints can be loaded using the `revision` parameter:
-```python
-model = transformers.AutoModelForCausalLM.from_pretrained(model_name,
-    revision="step0753851",
-    ...
-)
-```
-where `revision` can be one of:
-* "[`step0005000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0005000)", "[`step0010000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0010000)", "[`step0015000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0015000)", "[`step0020000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0020000)": every 5000 steps for the first pre-training steps (with a context length of 4096).
-* "[`step0025000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0025000)", "[`step0050000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0050000)", "[`step0075000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0075000)", "[`step0100000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0100000)", ..., "[`step0750000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0750000)": every 25000 steps from 25k to 750k steps.
-* "[`step0753851`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/step0753851)": last pre-training step before context length extension and annealing.
-* "[`extension_step0000250`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/extension_step0000250)", "[`extension_step0000500`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/extension_step0000500)", "[`extension_step0000750`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/extension_step0000750)", "[`extension_step0001000`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/extension_step0001000)", "[`extension_step0001220`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/extension_step0001220)": several checkpoints during context length extension (with a context length of 32000).
+All checkpoints are available at:  
+https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/
+
+They are organized into the following subfolders:
+* **Phase 1 – Initial pre-training (context length: 4,096)**  
+  From [phase1-step0001000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0001000)  
+  to [phase1-step0715787](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0715787)
+* **Phase 2 – Continued pre-training**  
+  From [phase2-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0010000)  
+  to [phase2-step0358931](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0358931)
+* **Phase 3 – Annealing phase**  
+  From [phase3-annealing-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase3-annealing-step0010000)  
+  to [phase3-annealing-step0118238](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase3-annealing-step0118238)
+* **Phase 4 – Context extension to 32k tokens**  
+  - [phase4-context-extension-32k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase4-context-extension-32k-step0003000)  
+  - [phase4-context-extension-32k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase4-context-extension-32k-step0005960)
+* **Phase 5 – Context extension to 131k tokens**  
+  - [phase5-context-extension-131k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase5-context-extension-131k-step0003000)  
+  - [phase5-context-extension-131k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase5-context-extension-131k-step0005960)
+
+The total cumulative number of training steps and training tokens for each checkpoint is specified in
+the YAML header of each `README.md` file, and in
+the `config.json` file (under the keys `"training_steps"` and `"training_tokens"`).
 
 ## Training Details
 
