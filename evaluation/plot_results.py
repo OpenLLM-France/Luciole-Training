@@ -113,9 +113,9 @@ task_group_mapping = {
     "finetune": [
         ("leaderboard|hellaswag|0", "acc"),
         ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),
-        ("custom|mmlu_pro_cf|0", "acc_norm"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
+        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
         ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
         ("community|gpqa-fr|0", "acc"),
         ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
@@ -130,6 +130,16 @@ task_group_mapping = {
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
     ],
 }
+
+task_group_mapping["common"] = [
+    task
+    for task in (
+        task_group_mapping["en"]
+        + task_group_mapping["fr"]
+        + task_group_mapping["multilingual"]
+    )
+    if task in task_group_mapping["finetune"]
+]
 
 
 def assign_colors(df, apply_phase_style=True):
