@@ -139,17 +139,32 @@ def launch_evaluation(
 
     COMMANDS = []
 
+    # Catch the model size from the experiment path "24B" -> 24
+    matcher = re.search(r"(\d+)B", experiment_path)
+    if matcher:
+        model_size = int(matcher.group(1))
+    else:
+        matcher = re.search(r"(\d+)b", experiment_path)
+        if matcher:
+            model_size = int(matcher.group(1))
+        else:
+            model_size = 8
+
+    gpus = 1 if model_size <= 32 else 2
+
     if eval_type in ["pretrain", "context_extension"]:
         COMMANDS += [
             dict(
                 task_to_evaluate="tasks/gsm8k.txt",
                 multiple_of=multiple_of,
                 command=command,
+                gpus=gpus,
             ),
             dict(
                 task_to_evaluate="tasks/en.txt",
                 multiple_of=multiple_of,
                 command=command,
+                gpus=gpus,
             ),
             dict(
                 task_to_evaluate="tasks/fr.txt",
@@ -157,6 +172,7 @@ def launch_evaluation(
                 command=command,
                 custom_tasks="multilingual",
                 max_samples=1000,
+                gpus=gpus,
             ),
             dict(
                 task_to_evaluate="tasks/multilingual.txt",
@@ -164,6 +180,7 @@ def launch_evaluation(
                 command=command,
                 custom_tasks="multilingual",
                 max_samples=1000,
+                gpus=gpus,
             ),
             dict(
                 task_to_evaluate="tasks/mmlu_pro.txt",
@@ -171,6 +188,7 @@ def launch_evaluation(
                 command=command,
                 custom_tasks="smollm3",
                 # max_samples=1000,
+                gpus=gpus,
             ),
         ]
 
@@ -182,6 +200,7 @@ def launch_evaluation(
                     multiple_of=multiple_of,
                     command=command,
                     max_samples=1000,
+                    gpus=gpus,
                 )
                 for task in ["mixeval", "ifbench", "ifeval", "ifeval_fr", "gsm_plus"]
             ]
@@ -192,6 +211,7 @@ def launch_evaluation(
                     command=command,
                     max_model_length=32768,
                     max_samples=1000,
+                    gpus=gpus,
                 )
                 for task in ["aime"]
             ]
@@ -202,6 +222,7 @@ def launch_evaluation(
                     command=command,
                     max_model_length=65536,
                     max_samples=1000,
+                    gpus=gpus,
                 )
                 for task in ["live_code_bench", "gpqa", "gpqa-fr"]
             ]
@@ -212,6 +233,7 @@ def launch_evaluation(
                     command=command,
                     custom_tasks="smollm3",
                     # max_samples=1000,
+                    gpus=gpus,
                 ),
                 dict(
                     task_to_evaluate="tasks/reasoning.txt",
@@ -219,11 +241,13 @@ def launch_evaluation(
                     command=command,
                     custom_tasks="multilingual",
                     max_samples=1000,
+                    gpus=gpus,
                 ),
                 dict(
                     task_to_evaluate="tasks/gsm8k.txt",
                     multiple_of=multiple_of,
                     command=command,
+                    gpus=gpus,
                 ),
             ]
         )
@@ -233,17 +257,6 @@ def launch_evaluation(
         if eval_type.startswith("ruler_"):
             length_str = eval_type.split("_")[1]
             lengths = [int(length_str)]
-
-        # Catch the model size from the experiment path "24B" -> 24
-        matcher = re.search(r"(\d+)B", experiment_path)
-        if matcher:
-            model_size = int(matcher.group(1))
-        else:
-            matcher = re.search(r"(\d+)b", experiment_path)
-            if matcher:
-                model_size = int(matcher.group(1))
-            else:
-                model_size = 8
 
         COMMANDS += [
             dict(
