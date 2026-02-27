@@ -5,9 +5,9 @@ Go at a location to install NeMo-RL, e.g.,
 cd $SCRATCH
 ```
 
-Clone the `nano-v3` branch of the NeMo-RL repo:
+Clone the `lucile` branch of the NeMo-RL repo:
 ```bash
-git clone -b nano-v3 https://github.com/NVIDIA-NeMo/RL.git nemo-rl --recursive
+git clone -b luciole https://github.com/OpenLLM-France/RL.git nemo-rl --recursive
 cd nemo-rl
 ```
 
@@ -48,13 +48,3 @@ try running the slurm job with the following environment variable set:
 ```bash
 NRL_FORCE_REBUILD_VENVS=true uv run python ...
 ```
-
-Add paths to model and tokenizer in the yaml file. The original branch is unable to handle multiple train/val files. We made some modifications to ``__init__.py`` and ``oai_format_dataset.py`` in ``nemo_rl/data/datasets/response_datasets/`` to handle this. For multiple files in training folder, use ``dataset_name: openai_format_multifiles`` in your yaml. Then run, 
-```bash
-sbatch finetune_8B_H100.slurm
-```
-to test the example sft script.
-
-After the model is trained, run convert.slurm to convert the checkpoint to HF format by providing path to model config and the checkpoint.
-
-
