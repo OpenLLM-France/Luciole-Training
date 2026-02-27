@@ -1,0 +1,6 @@
+*.jsonl
+venv/
+hotpotqa_cache/
+hotpotqa_cache_validation/
+*.json
+.env
