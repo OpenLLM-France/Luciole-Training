@@ -29,9 +29,9 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
 
 Luciole-1.1-1B-Base is a pretrained 1B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and [OpenLLM-France](https://github.com/OpenLLM-France) and released under an [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-Luciole-1.1-1B-Base was trained on 5 trillion tokens of multilingual data, including English (), French (), German (), Spanish (), Italian (), Portuguese (),  Arabic (),  Dutch (), a small subset of regional languages including regional languages of the French metropolitan area, French variants (Walloon), and French creoles from around the world (),*
-and parallel data from a selection of languages (2.5%),
-as well as several programming languages (14.7%).
+Luciole-1.1-1B-Base was trained on 5.1 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), a small subset of regional languages including regional languages of the French metropolitan area, French variants (Walloon), and French creoles from around the world (0.4%),*
+and parallel data from a selection of languages (1.7%),
+as well as several programming languages (9.2%) and English mathematical data (3.5%).
 
 Training and data preparation code can be found in the [Luciole-Training]() repository.  
 
@@ -104,12 +104,10 @@ for completion in completions:
 This will print something like:
 ```
 Quelle est la capitale de l'Espagne ? Madrid
-Quelle est la capitale de la France ? […] Paris
+Quelle est la capitale de la France? […] Paris
+Quelle est la capitale du Brésil ? Brasilia
+Quelle est la capitale de la Belgique ? Bruxelles
 Quelle est la capitale de l'Italie? Rome
-Quelle est la capitale de la Grande-Bretagne? Londres
-Quelle est la capitale de la Suisse? Berne
-Quelle est la capitale du Portugal? Lisbonne
-Quelle est la capitale de l'Algérie? Alger
 ...
 ```
 
