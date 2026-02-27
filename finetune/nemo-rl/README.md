@@ -5,7 +5,7 @@ Go at a location to install NeMo-RL, e.g.,
 cd $SCRATCH
 ```
 
-Clone the `lucile` branch of the NeMo-RL repo:
+Clone the `luciole` branch of the NeMo-RL repo:
 ```bash
 git clone -b luciole https://github.com/OpenLLM-France/RL.git nemo-rl --recursive
 cd nemo-rl
