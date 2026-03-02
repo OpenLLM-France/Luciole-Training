@@ -1,4 +1,4 @@
-# Model Card for Luciole-1.1-1B-Base-2603
+# Model Card for Luciole-1B-Base-2603
 
 <!-- inspired from the following template:
 https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/modelcard_template.md?plain=1
@@ -6,11 +6,11 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
 
 * [Model Description](#model-description)
 * [Uses](#uses)
-* [Bias, Risks, and Limitations](#disclaimer)
+* [Bias, Risks, and Limitations](#bias-risks-and-limitations)
 * [Example Code in Python](#example-code-in-python)
   * [Load the model](#load-the-model)
   * [Sentence completion](#sentence-completion)
-  * [Load a checkpoint](#load-a-checkpoint)
+* [Loading Intermediate Checkpoints](#loading-intermediate-checkpoints)
 * [Training Details](#training-details)
   * [Training Data](#training-data)
   * [Training Procedure](#training-procedure)
@@ -19,44 +19,44 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
       1. [Main Pre-training](#1-main-pre-training)
       2. [Context Length Extension](#2-context-extension)
       3. [Annealing](#3-annealing)
-  * [Training Logs and Learning Curves](#training-logs-and-learning-curves)
-<!-- * [Evaluation](#evaluation) -->
+* [Evaluation](#evaluation)
 * [Citation](#citation)
 * [Acknowledgements](#acknowledgements)
 * [Contact](#contact)
 
 ## Model Description
 
-Luciole-1.1-1B-Base is a pretrained 1B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and [OpenLLM-France](https://github.com/OpenLLM-France) and released under an [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
+Luciole-1B-Base is a pretrained 1B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and [OpenLLM-France](https://github.com/OpenLLM-France). It was created by the consortium of the [OpenLLM France](https://openllm-france.fr/) project funded by [BPI France](https://www.bpifrance.fr/) as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
 
-Luciole-1.1-1B-Base was trained on 5.1 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), a small subset of regional languages including regional languages of the French metropolitan area, French variants (Walloon), and French creoles from around the world (0.4%),*
-and parallel data from a selection of languages (1.7%),
-as well as several programming languages (9.2%) and English mathematical data (3.5%).
+Luciole-1B-Base was trained on 5.1 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), and a small subset of regional languages including regional languages of the French metropolitan area, French variants, and French creoles from around the world (0.4%). 
 
-Training and data preparation code can be found in the [Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training) repository.  
+The latter were selected from the [FineWeb 2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) dataset and include Basque, Breton, Catalan, Corsican, Franco-Provençal, Guadeloupean Creole French, Guianese Creole French, Occitan, Picard, Réunion Creole French, Saint Lucian Creole French, Seselwa Creole French, Tahitian, and Walloon.
+
+Training data also include parallel data from a selection of languages (1.7%), as well as several programming languages (9.2%) and English mathematical data (3.5%).
+
+* License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+* Training repository: [Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training)
+* Technical report: coming soon.
 
 
-The technical report is coming soon. 
-
-*Languages selected from the [FineWeb 2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) dataset: Basque, Breton, Catalan, Corsican, Franco-Provençal, Guadeloupean Creole French, Guianese Creole French, Occitan, Picard, Réunion Creole French, Saint Lucian Creole French, Seselwa Creole French, Tahitian, Walloon
 
 ## Uses
 
 ### Direct use
-Luciole-1.1-1B-Base is a foundation language model trained solely to predict the most probable next word in a sequence. It is designed as the first brick in a more complex training pipeline that would include multitask training on diverse instructions or focused fine-tuning on select downstream tasks, as well as possible alignment for human preferences.
+Luciole-1B-Base is a foundation language model trained solely to predict the most probable next word in a sequence. It is designed as the first brick in a more complex training pipeline that would include multitask training on diverse instructions or focused fine-tuning on select downstream tasks, as well as possible alignment for human preferences.
 
 ### Downstream use 
-Due to its multilingual training, Luciole-1.1-1B-Base can be fine-tuned for downstream tasks centered on the generation of multilingual text, with a special focus on French and English. 
+Due to its multilingual training, Luciole-1B-Base can be fine-tuned for downstream tasks centered on the generation of multilingual text, with a special focus on French and English. 
 
 ### Out-of-Scope Use
-Luciole-1.1-1B-Base is not intended to generate text directly for end use cases. It must be fine-tuned first. Its pretraining is optimized for multilingual performance, especially in French and English, and might perform less well on other languages without additional training. While trained on code data, it is not optimized for code generation tasks.
+Luciole-1B-Base is not intended to generate text directly for end use cases. It must be fine-tuned first. Its pretraining is optimized for multilingual performance, especially in French and English, and might perform less well on other languages without additional training. While trained on code data, it is not optimized for code generation tasks.
 
 ## Bias, Risks, and Limitations
 
-Like other foundation models, Luciole-1.1-1B-Base is trained on large amounts of web data. Additionally, due to the scarcity of French textual non-web data published under open licenses, much of our French data comes from older works in the public domain that carry biases from other time periods. While we made efforts to reduce toxic and offensive content in the [Luciole Training Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset), Luciole-1.1-1B-Base may still generate such content. Filtering of the Luciole Training Dataset is an ongoing project to which we welcome contributions. 
+Like other foundation models, Luciole-1B-Base is trained on large amounts of web data. Additionally, due to the scarcity of French textual non-web data published under open licenses, much of our French data comes from older works in the public domain that carry biases from other time periods. While we made efforts to reduce toxic and offensive content in the [Luciole Training Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset), Luciole-1B-Base may still generate such content. Filtering of the Luciole Training Dataset is an ongoing project to which we welcome contributions. 
 
 ### Recommendations
-To limit the generation of undesirable content, it is advised to fine-tune Luciole-1.1-1B-Base through instruction and preference tuning (DPO, RLHF, etc.).
+To limit the generation of undesirable content, it is advised to fine-tune Luciole-1B-Base through instruction and preference tuning (DPO, RLHF, etc.).
 
 ## Example Code in Python
 
@@ -66,7 +66,7 @@ Load the model (quantized version on GPU if possible, for efficient inference):
 ```python
 import transformers
 
-model_name = "OpenLLM-France/Luciole-1.1-1B-Base"
+model_name = "OpenLLM-France/Luciole-1B-Base"
 
 tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
 model = transformers.AutoModelForCausalLM.from_pretrained(model_name,
@@ -75,8 +75,6 @@ model = transformers.AutoModelForCausalLM.from_pretrained(model_name,
 )
 ```
 ### Sentence completion
-
-$works for me but I get warning messages$
 
 Wrap the model in a text generation pipeline, and specify some generation parameters:
 ```
@@ -111,9 +109,9 @@ Quelle est la capitale de l'Italie? Rome
 ...
 ```
 
-If running on GPU (`cuda` device), you will need at least 6GB of VRAM to run inference using 4bit quantization (16GB of VRAM without 4bit quantization).
+<!-- If running on GPU (`cuda` device), you will need at least 6GB of VRAM to run inference using 4bit quantization (16GB of VRAM without 4bit quantization). -->
 
-### Intermediate checkpoints
+## Loading Intermediate Checkpoints
 
 Intermediate checkpoints are released under dedicated revision tags at regular intervals throughout training:
 - Every **1,000 steps** during the first **5,000 steps**  
@@ -125,10 +123,10 @@ All checkpoints are available at:
 https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/
 
 They are organized into the following subfolders:
-* **Phase 1 – Initial pre-training (context length: 4,096)**  
+* **Phase 1 – Initial pretraining (context length: 4,096)**  
   From [phase1-step0001000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0001000)  
   to [phase1-step0715787](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0715787)
-* **Phase 2 – Continued pre-training**  
+* **Phase 2 – Continued pretraining**  
   From [phase2-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0010000)  
   to [phase2-step0358931](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0358931)
 * **Phase 3 – Annealing phase**  
@@ -149,32 +147,32 @@ the `config.json` file (under the keys `"training_steps"` and `"training_tokens"
 
 ### Training Data
 
-The training dataset used for the pretraining of Luciole-1.1-1B-Base is available
-at [OpenLLM-France/Luciole-Training-Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset).
-<!-- and described in ["The Lucie Training Dataset" (2024/12)](https://arxiv.org/abs/xxxx.xxxxx). -->
+The training dataset used for the pretraining of Luciole-1B-Base is available
+at [OpenLLM-France/Luciole-Training-Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset). Information on data preprocessing can be found on the data card or in the [Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training) repository.
+<!-- and described in ["" (2024/12)](). -->
 
-The initial composition of the training data is as follows:
+<!-- The initial composition of the training data is as follows:-->
 
-![Initial Data Composition](figures/pie_dataset_composition.png)
+<!-- ![Initial Data Composition]()-->
 
 Pretraining consisted of three principal phases of training with a context length of 4,096 tokens. The token breakdowns for the three phases are as follows:
 
-1. 3.5 trillion tokens of diverse data
-2. 1 trillion tokens introducing higher quality data and increasing math and code proportions
-3. 0.5 trillion tokens introducing some instruction-style and reasoning data
+1. Initial pretraining: 3.5 trillion tokens of diverse data
+2. Continued pretraining: 1 trillion tokens introducing higher quality data and increasing math and code proportions
+3. Annealing phase: 0.5 trillion tokens introducing some instruction-style and reasoning data
 
 Pretraining was followed by two short mid-training phases to extend the context length to 131,000 tokens:
 
-4. 25 billion tokens to extend context length from 4,096 to 32,000 tokens 
-5. 25 billion tokens to extend context length from 32,000 to 65,000 tokens
+4. First context extension: 25 billion tokens to extend context length from 4,096 to 32,000 tokens 
+5. Second context extension: 25 billion tokens to extend context length from 32,000 to 65,000 tokens
 
-This yields the following distributions.
+<!-- This yields the following distributions.-->
 
-![Training Data Composition](figures/pie_dataset_composition_training.png)
+<!-- ![Training Data Composition]()-->
 
 ### Training Procedure 
 
-Luciole-1.1-1B-Base is a causal decoder-only model trained on a causal language modeling task (i.e., predict the next token).
+Luciole-1B-Base is a causal decoder-only model trained on a causal language modeling task (i.e., predict the next token).
 
 It was pre-trained on 128 - 256 H100 80GB GPUs (32 - 64 nodes) for about 41,962 GPU hours (253 hours) on the [Jean Zay supercomputer](http://www.idris.fr/eng/jean-zay/jean-zay-presentation-eng.html).
 
@@ -185,7 +183,7 @@ The training code is available at [https://github.com/OpenLLM-France/Luciole-Tra
 
 #### Neural Network Architecture
 
-The architecture of Luciole-1.1-1B-Base is a custom adaptation of the [Nemotron3-4B](https://github.com/NVIDIA-NeMo/NeMo/blob/0b1be8d1165f49ee2ef1e74f72f2ff07350f6798/nemo/collections/llm/recipes/nemotron3_4b.py) recipe.
+The architecture of Luciole-1B-Base is a custom adaptation of the [Nemotron3-4B](https://github.com/NVIDIA-NeMo/NeMo/blob/0b1be8d1165f49ee2ef1e74f72f2ff07350f6798/nemo/collections/llm/recipes/nemotron3_4b.py) recipe.
 It has exactly 1.3 billion free parameters,
 with the following hyperparameters:
 | **Hyperparameter**        | **Value** |
@@ -203,92 +201,90 @@ The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during
 
 #### Training Hyperparameters
 
-The training consisted of three main phases:
-1. Main pre-training on 3.1T tokens, with a context length of 4096,
-2. Context extension on 5B tokens, with a context length of 32000,
-3. Annealing on 5B tokens of high quality data composed of a mixture of new data and data seen during training.
-<!-- perhaps cite the dataset for annealing  -->
+The details of the intitial pretraining phase are listed below. For each subsequent phase, only the values that differ from the intitial pretraining phase are listed. 
 
-The details of each phase are given below.
+**1. Initial pretraining**
 
-##### 1. Main Pre-training
-
-Training hyperparameters in torch/Megatron-DeepSpeed were as follows:
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples| 762 144 586 (3.1T tokens) |
-| Total \# steps  | 715,786 + 382,455 + 118,237 |
+| Total \# samples| 732,964,864 (3T) |
+| Total \# steps  | 715,786  |
 | RoPE theta             | 10,000    |
 | Context length         | 4,096      |
-| Initial Batch size     | 256        |
-| Final Batch size       | 1 024      |
-| Batch size rampup      | by steps of 64 over 10M samples |
-| Learning rate schedule | warmup (2M samples) + cosine annealing |
+| Batch size       | 1 024      |
+| Learning rate schedule | warmup (2M samples) + constant  |
 | Maximum Learning rate  | 3e-4       |
-| Final Learning rate    | 3e-5       |
 | Weight decay           | 0.1        |
 | Dropout                | _          |
 | Gradient clipping      | 1          |
 | Initializer range      | 0.009        |
 | Optimizer              | `AdamW` (β₁=0.9, β₂=0.95, ε=1e-5)    |
 | Precision              | `bfloat16` |
-| Tensor Parallelism (with 512 GPUs)   | 4           |
-| Pipeline Parallelism (with 512 GPUs) | 4           |
+| Tensor Parallelism (with 512 GPUs)   | 1           |
+| Pipeline Parallelism (with 512 GPUs) | 1           |
 | Data Parallelism (with 512 GPUs)     | 32          |
 
-#### 2. Context Length Extension
+**2. Continual Pretraining**
 
-Training hyperparameters are the same as above, with the following changes:
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples| 156 250 (5B tokens) |
-| Total \# steps  | 1 220      |
-| RoPE theta             | 20 000 000 |
-| Context length         | 32 000     |
-| Batch size             | 128        |
-| Learning rate          | 2e-5       |
-| Learning rate schedule | constant   |
-| Tensor Parallelism (with 128 GPUs)   | 4     |
-| Pipeline Parallelism (with 128 GPUs) | 4     |
-| Data Parallelism (with 128 GPUs)     | 8     |
+| Total \# samples|   |
+| Total \# steps  | 382,455      |
+| Learning rate          |    |
+| Learning rate schedule |   |
 
-#### 3. Annealing
 
-Training hyperparameters are the same as for context length extension, with the following changes:
+**3. Annealing**
+
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples| 156 250 (5B tokens) |
-| Total \# steps  | 1 220      |
+| Total \# samples| |
+| Total \# steps  | 118,237     |
 | Learning rate schedule | linear annealing |
-| Maximum Learning rate  | 3e-5       |
+| Maximum Learning rate  |       |
 | Final Learning rate    | 0          |
 
-### Training Logs and Learning Curves
 
-#### Training loss
+**4. Context extension to 32K**
 
-Training logs can be found in Tensorboard format in:
-* [`metadata/training_logs/`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/main/metadata/training_logs)
-<br> ├── [`1_pretraining.zip`](metadata/training_logs/1_pretraining.zip) training logs for the first pre-training phases,
-in a zip file. Each file in the zip corresponds to a job of at most 20H of training (parallelized over 512 GPUs).
-<br> ├── [`2_extension/`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/main/metadata/training_logs/2_extension) folder containing the training log <br> └── [`3_annealing/`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/main/metadata/training_logs/3_annealing) folder containing the training log for the annealing phase, which also took around 13H of training (parallelized over 128 GPUs).
+| **Hyperparameter**     | **Value**  |
+|------------------------|------------|
+| Total \# samples|  |
+| Total \# steps  |      |
+| RoPE theta             | 1,000,000 |
+| Context length         | 32,000     |
+| Batch size             |      |
+| Learning rate          |       |
+| Learning rate schedule |    |
+| Tensor Parallelism (with 128 GPUs)   |     |
+| Pipeline Parallelism (with 128 GPUs) |     |
+| Data Parallelism (with 128 GPUs)     |     |
 
-The convergence curves of the three pre-training phases are the following:
+**4. Context extension to 32K**
 
-![figures/convergence-curve-pretraining.png](figures/convergence-curve-pretraining.png)
+| **Hyperparameter**     | **Value**  |
+|------------------------|------------|
+| Total \# samples|  |
+| Total \# steps  |      |
+| RoPE theta             | 2,000,000 |
+| Context length         | 131,000     |
+| Batch size             |      |
+| Learning rate          |       |
+| Learning rate schedule |    |
+| Tensor Parallelism (with 128 GPUs)   |     |
+| Pipeline Parallelism (with 128 GPUs) |     |
+| Data Parallelism (with 128 GPUs)     |     |
+<!-- ### Training Logs and Learning Curves -->
 
-Data corresponding to these plots were extracted from tensorboard logs and are available in the following CSV files:
-* [`metadata/training_logs/`](https://huggingface.co/OpenLLM-France/Lucie-7B/tree/main/metadata/training_logs)
-<br> ├── [`1_pretraining.csv`](metadata/training_logs/1_pretraining.csv)
-<br> ├── [`2_extension.csv`](metadata/training_logs/2_extension.csv)
-<br> └── [`3_annealing.csv`](metadata/training_logs/3_annealing.csv)
+<!-- #### Training loss -->
+
 
 #### Evaluations
 
-Multiple evaluations were conducted during Luciole-1.1-1B-Base's training to assess its performance on standard benchmarks,
+Multiple evaluations were conducted during Luciole-1B-Base's training to assess its performance on standard benchmarks,
 primarily in French and English, as well as in Spanish, German, and Italian.
 
-Evaluation results on benchmark datasets of checkpoints of Luciole-1.1-1B-Base throughout the training process are available at
+Evaluation results on benchmark datasets of checkpoints of Luciole-1B-Base throughout the training process are available at
 [metadata/evaluation_learning_curve_lucie.csv](metadata/evaluation_learning_curve_lucie.csv).
 Evaluation results of baseline models on the same benchmark datasets are available at
 [metadata/evaluation_baselines.csv](metadata/evaluation_baselines.csv).
@@ -325,13 +321,11 @@ Main results are summarized in the following figures:
 
 ## Acknowledgements
 
-### BPI France
-
 We gratefully acknowledge BPI France for funding the OpenLLM France project under the call "Communs numériques pour l’intelligence artificielle générative" ("Digital commons for generative artificial intelligence") and the project numbers DOS0250771 and DOS0250773.
 
-Training of Luciole-1.1-1B-Base was made possible by computing AI and storage resources by GENCI at IDRIS thanks to the grant 2024-GC011015444 on the supercomputer Jean Zay’s H100 partition. We gratefully acknowledge support from GENCI and IDRIS and from Stephane Requena (GENCI) and Pierre-François Lavallée (IDRIS) in particular. 
+Training of Luciole-1B-Base was made possible by computing AI and storage resources by GENCI at IDRIS thanks to the grant 2024-GC011015444 on the supercomputer Jean Zay’s H100 partition. We gratefully acknowledge support from GENCI and IDRIS and from Stephane Requena (GENCI) and Pierre-François Lavallée (IDRIS) in particular. 
 
-Luciole-1.1-1B-Base was created by members of [LINAGORA](https://labs.linagora.com/) for the OpenLLM-France project, including in alphabetical order:  
+Luciole-1B-Base was created by members of [LINAGORA](https://labs.linagora.com/) for the OpenLLM-France project, including in alphabetical order:  
 
 Audran Bert  
 Akshay Chaturvedi  
@@ -352,18 +346,17 @@ Hayk Shoukourian (NVIDIA)
 Oleg Sudakov (NVIDIA)  
 
 We are also greatful to the partners of the [OpenLLM-France](https://www.openllm-france.fr/) consortium for their valuable input, with particular thanks to (in alphabetical order):  
+  
+Clément Bénesse (Opsci)    
+Bertrand Cabot (IDRIS)  
+Christophe Cerisara (LORIA)    
+Liam Duignan (CEA)   
+Olivier Ferret (CEA)    
+Emile Hazard (OpSci)  
+Léo Hunout (IDRIS)  
+Gabriel Lauzzana (LORIA)      
+Michel-Marie Maudet (LINAGORA)  
 
-Pascal Alix (Sorbonne),  
-Clément Bénesse (Opsci),    
-Bertrand Cabot (IDRIS),  
-Christophe Cerisara (LORIA),    
-Liam Duignan (CEA),   
-Olivier Ferret (CEA),    
-Emile Hazard (OpSci),  
-Léo Hunout (IDRIS),  
-Gabriel Lauzzana (LORIA),      
-Michel-Marie Maudet (LINAGORA),  
-Celia Zolynski (Sorbonne)
 
 We would also like to thank Djamé Seddah and the GAPERON team for sharing their insights with us.
 
