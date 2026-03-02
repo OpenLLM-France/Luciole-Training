@@ -120,9 +120,10 @@ if __name__ == "__main__":
             from web_utils import LanguageCodes
 
             for doc in data:
-                prefix = doc.metadata.pop("prefix", "")
-                doc.text = doc.text[len(prefix) :]
-                doc.metadata["language_iso"] = LanguageCodes.fineweb_to_iso1(language)
+                iso = LanguageCodes.fineweb_to_iso1(language, fallback=False)
+                if iso is None:
+                    iso = LanguageCodes.fineweb_to_iso3(language, fallback=False)
+                doc.metadata["language_iso"] = iso
                 yield doc
 
         pipeline = [
@@ -145,7 +146,8 @@ if __name__ == "__main__":
                     language=None,
                     language_key="language_iso",
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_prefix=True,
+                    remove_keys=["prefix"],
                 ),
                 cleanup=True,
                 expand_metadata=False,
@@ -159,8 +161,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/fineweb2_filtered/{language}/logs_hf",
             job_name="hf_fw2",
-            tasks=20 if language in MAIN_LANGUAGES else 1,
-            workers=10 if language in MAIN_LANGUAGES else 1,
+            tasks=10 if language in MAIN_LANGUAGES else 1,
             skip_completed=not args.force,
         )
 

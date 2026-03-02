@@ -227,7 +227,7 @@ def _custom_adapter_for_hf(
     ), "Source must be provided either through metadata or as a default value"
     conversation = metadata.pop(conversation_key, None) if conversation_key else None
     # Remove prefix from text if needed
-    if remove_prefix:
+    if remove_prefix and "prefix" in document.metadata:
         prefix = document.metadata["prefix"]
         document.text = document.text[len(prefix) :]
     # Clean metadata

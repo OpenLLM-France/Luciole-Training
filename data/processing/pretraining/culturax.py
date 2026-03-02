@@ -82,7 +82,7 @@ if __name__ == "__main__":
                 output_filename="data/culturax/${language}/score_${edu_score_int}/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
-                    source=None,
+                    source="culturax",
                     id_key=None,
                     language=language,
                     language_key=None,
@@ -102,8 +102,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/culturax_filtered/{language}/logs_hf",
             job_name="hf_culturax",
-            tasks=20,
-            workers=10,
+            tasks=10,
         )
 
         hf_executor.run()

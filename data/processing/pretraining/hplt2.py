@@ -78,30 +78,29 @@ if __name__ == "__main__":
             from web_utils import LanguageCodes
 
             for doc in data:
-                prefix = doc.metadata.pop("prefix", "")
-                doc.text = doc.text[len(prefix) :]
-                doc.metadata["language"] = LanguageCodes.fineweb_to_iso1(language)
+                doc.metadata["language_iso"] = LanguageCodes.fineweb_to_iso1(language)
                 yield doc
 
         pipeline = [
             JsonlReader(
                 f"{DATA_PATH}/hplt2_filtered/{language}/data",
             ),
-            fix_data,
+            partial(fix_data, language=language),
             HuggingFaceDatasetWriter(
                 dataset="OpenLLM-BPI/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/hplt2_filtered/{language}/data_hf",
-                output_filename="data/hplt2/${language}/score_${edu_score}/${rank}.parquet",
+                output_filename="data/hplt2/${language_iso}/score_${edu_score}/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
                     source="hplt2",
                     id_key=None,
-                    language=language,
-                    language_key=None,
+                    language=None,
+                    language_key="language_iso",
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_prefix=True,
+                    remove_keys=["prefix"],
                 ),
                 cleanup=True,
                 expand_metadata=False,
@@ -115,8 +114,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/hplt2_filtered/{language}/logs_hf",
             job_name="hf_hplt2",
-            tasks=20,
-            workers=10,
+            tasks=10,
         )
 
         hf_executor.run()

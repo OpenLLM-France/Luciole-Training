@@ -178,6 +178,7 @@ if __name__ == "__main__":
                             _custom_adapter_for_hf,
                             source=f"common_corpus/open-{open_type}/{collection}",
                             id_key=None,
+                            reset_id=True,
                             language=None,
                             language_key="language",
                             conversation_key=None,
@@ -203,7 +204,6 @@ if __name__ == "__main__":
                     logging_dir=f"{DATA_PATH}/common_corpus_filtered/logs_hf/{open_type}/{collection}",
                     job_name="hf_cc",
                     tasks=5,
-                    workers=1,
                     time="20:00:00",
                     skip_completed=not args.force,
                 )

@@ -43,6 +43,7 @@ if __name__ == "__main__":
         def fix_data(data: DocumentsPipeline, rank: int = 0, world_size: int = 1):
             for doc in data:
                 doc.id = str(doc.id)
+                doc.metadata["source"] = "wikimedia/" + doc.metadata["source"]
                 yield doc
 
         pipeline = [
@@ -55,14 +56,16 @@ if __name__ == "__main__":
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/wikimedia/data_hf",
-                output_filename="data/wikimedia/${source}/${language}/${rank}.parquet",
+                output_filename="data/${source}/${language}/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
+                    source_key="source",
                     source=None,
                     id_key=None,
                     language=None,
                     language_key="language",
                     conversation_key=None,
+                    remove_keys=["source", "dataset"],
                 ),
                 cleanup=True,
                 expand_metadata=False,

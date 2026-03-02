@@ -30,7 +30,7 @@ if __name__ == "__main__":
             output_filename="data/claire/${language}/${rank}.parquet",
             adapter=partial(
                 _custom_adapter_for_hf,
-                source=None,
+                source="claire",
                 id_key=None,
                 language=None,
                 language_key="language",

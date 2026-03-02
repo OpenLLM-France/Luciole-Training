@@ -150,8 +150,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/gutenberg/logs_hf",
             job_name="hf_gutenberg",
-            tasks=5,
-            workers=1,
+            tasks=1,
             skip_completed=not args.force,
         )
 

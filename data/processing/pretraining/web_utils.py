@@ -24,6 +24,12 @@ ROBOTSTXT_PATH = os.path.join(
 class LanguageCodes:
     _CODES = [
         {
+            "fineweb_code": "eng_Latn",
+            "language": "English",
+            "iso_639_1": "en",
+            "iso_639_3": "eng",
+        },
+        {
             "fineweb_code": "acf_Latn",
             "language": "Saint Lucian Creole French",
             "iso_639_1": None,
@@ -169,7 +175,7 @@ class LanguageCodes:
     def fineweb_to_iso1(cls, code: str, fallback=False) -> str | None:
         return (
             cls._fineweb_to_iso1.get(code, code)
-            if not fallback
+            if fallback
             else cls._fineweb_to_iso1.get(code)
         )
 
@@ -177,7 +183,7 @@ class LanguageCodes:
     def fineweb_to_iso3(cls, code: str, fallback=False) -> str | None:
         return (
             cls._fineweb_to_iso3.get(code, code)
-            if not fallback
+            if fallback
             else cls._fineweb_to_iso3.get(code)
         )
 
@@ -185,7 +191,7 @@ class LanguageCodes:
     def iso3_to_iso1(cls, code: str, fallback=False) -> str:
         return (
             cls._iso3_to_iso1.get(code, code)
-            if not fallback
+            if fallback
             else cls._iso3_to_iso1.get(code)
         )
 
@@ -193,7 +199,7 @@ class LanguageCodes:
     def iso1_to_fineweb(cls, code: str, fallback=False) -> str | None:
         return (
             cls._iso1_to_fineweb.get(code, code)
-            if not fallback
+            if fallback
             else cls._iso1_to_fineweb.get(code)
         )
 
@@ -201,7 +207,7 @@ class LanguageCodes:
     def iso3_to_fineweb(cls, code: str, fallback=False) -> str | None:
         return (
             cls._iso3_to_fineweb.get(code, code)
-            if not fallback
+            if fallback
             else cls._iso3_to_fineweb.get(code)
         )
 

@@ -76,10 +76,18 @@ if __name__ == "__main__":
                     _custom_adapter_for_hf,
                     source=main_name,
                     id_key=None,
+                    reset_id=True,
                     language="en",
                     language_key=None,
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_keys=[
+                        "fetch_time",
+                        "content_mime_type",
+                        "token_count",
+                        "char_count",
+                        "metadata",
+                        "snapshot_type",
+                    ],
                 ),
                 cleanup=True,
                 expand_metadata=False,
@@ -93,7 +101,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/finemath_filtered/{name}/logs_hf",
             job_name="hf_finemath",
-            workers=10,
+            tasks=5,
         )
 
         hf_executor.run()

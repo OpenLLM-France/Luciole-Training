@@ -179,7 +179,18 @@ if __name__ == "__main__":
         main_processing_executor.run()
 
     else:
-        subfolder_name = "w_thinking" if args.keep_thinking else "wo_thinking"
+        if args.subset.startswith("multilingual"):
+            _, language = args.subset.split("_")
+            if args.keep_thinking:
+                subfolder_name = "multilingual/w_thinking"
+                conversation_key = "messages"
+            else:
+                subfolder_name = "multilingual/wo_thinking"
+                conversation_key = None
+        else:
+            language = "en"
+            subfolder_name = args.subset
+            conversation_key = "messages"
 
         pipeline = [
             JsonlReader(
@@ -190,15 +201,15 @@ if __name__ == "__main__":
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{output_path}/data_hf",
-                output_filename=f"data/nemotron_postraining/{subfolder_name}/{language}"
+                output_filename=f"data/nemotron_posttraining/{subfolder_name}/{language}"
                 + "/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
-                    source=f"nemotron_postraining/{subfolder_name}",
+                    source=f"nemotron_posttraining/{subfolder_name}",
                     id_key=None,
                     language=language,
                     language_key=None,
-                    conversation_key="messages",
+                    conversation_key=conversation_key,
                     remove_keys=[],
                 ),
                 cleanup=True,
@@ -213,8 +224,8 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{output_path}/logs_hf",
             job_name="hf_nemotron",
-            tasks=10,
-            workers=1,
+            tasks=1,
+            skip_completed=not args.force,
         )
 
         hf_executor.run()

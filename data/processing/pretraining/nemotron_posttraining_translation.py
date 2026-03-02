@@ -320,7 +320,7 @@ if __name__ == "__main__":
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{output_path}/data_hf",
-                output_filename="data/nemotron_postraining/translation/fr/${rank}.parquet",
+                output_filename="data/nemotron_postraining/multilingual/translation/fr/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
                     source="nemotron_postraining/translation",
@@ -328,7 +328,7 @@ if __name__ == "__main__":
                     language="fr",
                     language_key=None,
                     conversation_key="messages",
-                    remove_keys=[],
+                    remove_keys=["original_thinking", "thinking_translated"],
                 ),
                 cleanup=True,
                 expand_metadata=False,
@@ -342,8 +342,8 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{output_path}/logs_hf",
             job_name="hf_nemotron",
-            tasks=5,
-            workers=1,
+            tasks=1,
+            skip_completed=not args.force,
         )
 
         hf_executor.run()

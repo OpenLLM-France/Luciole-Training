@@ -3,6 +3,9 @@ from utils import create_parser, parse_args, create_executor, add_sampler_filter
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from web_utils import get_robot_filter
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
+from functools import partial
 
 SUBSETS = [
     "megamath-web",
@@ -17,25 +20,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--name",
         type=str,
-        nargs="+",
         choices=SUBSETS,
+        default="megamath-web",
         help="Name of the dataset to process.",
-    )
-    parser.add_argument(
-        "--all",
-        action="store_true",
     )
     args = parse_args(parser)
     DATA_PATH = args.data_path
+    name = args.name
 
-    if args.all:
-        names = SUBSETS
-    else:
-        names = args.name
+    print(f"\nProcessing {name}...")
 
-    for name in names:
-        print(f"\nProcessing {name}...")
-
+    if not args.push_only:
         # Load data
         pipeline = [
             ParquetReader(
@@ -73,4 +68,40 @@ if __name__ == "__main__":
 
         filter_executor.run()
 
-        # Push to Hub
+    elif name == "megamath-web":
+        pipeline = [
+            JsonlReader(
+                f"{DATA_PATH}/megamath_filtered/{name}/data",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{DATA_PATH}/megamath_filtered/{name}/data_hf",
+                output_filename=f"data/{name}/" + "en/${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source=name,
+                    id_key=None,
+                    reset_id=False,
+                    language=None,
+                    language_key="lang",
+                    conversation_key=None,
+                    remove_keys=[],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/megamath_filtered/{name}/logs_hf",
+            job_name="hf_megamath",
+            tasks=5,
+        )
+
+        hf_executor.run()

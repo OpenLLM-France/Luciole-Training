@@ -5,7 +5,7 @@ from utils import (
     add_sampler_filter,
     print_builder_config,
 )
-
+import os
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from slugify import slugify
@@ -30,6 +30,12 @@ if __name__ == "__main__":
         default="main",
         help="Revision",
         choices=["main", "v1.2"],
+    )
+    parser.add_argument(
+        "--hf_subset",
+        type=str,
+        default="",
+        help="Subset folder in HuggingFace",
     )
     args = parse_args(parser)
     DATA_PATH = args.data_path
@@ -83,8 +89,12 @@ if __name__ == "__main__":
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/lucie_dataset/{revision}/{slug_name}/data_hf",
-                output_filename=f"data/{better_slugname}/"
-                + "${language}/${rank}.parquet",
+                output_filename=os.path.join(
+                    "data",
+                    args.hf_subset,
+                    better_slugname,
+                    "${language}/${rank}.parquet",
+                ),
                 adapter=partial(
                     _custom_adapter_for_hf,
                     source=better_slugname,
@@ -106,8 +116,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/lucie_dataset/{revision}/{slug_name}/logs_hf",
             job_name=slug_name,
-            tasks=10,
-            workers=1,
+            tasks=1,
             skip_completed=not args.force,
         )
 
