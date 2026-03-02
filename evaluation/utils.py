@@ -46,6 +46,9 @@ def get_training_tokens_and_model_size(file_path):
     elif "EuroLLM-22B" in str(file_path):
         tokens = 4000
         model_size = 22.0
+    elif "salamandra-2b" in str(file_path):
+        tokens = 12_875
+        model_size = 2
     elif "salamandra-7b" in str(file_path):
         tokens = 12_875
         model_size = 7.768_117_248

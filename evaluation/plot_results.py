@@ -142,6 +142,16 @@ task_group_mapping["common"] = [
 ]
 
 
+def normalize_expe_name_for_color(expe_name):
+    return (
+        expe_name.replace("-Instruct", "")
+        .replace("-instruct", "")
+        .replace("-Base", "")
+        .replace("-SFT", "")
+        .replace("-v1.1", "")
+    )
+
+
 def assign_colors(df, apply_phase_style=True):
     unique_experiments = df["expe_name"].unique()
     if len(unique_experiments) <= 10:
@@ -156,7 +166,10 @@ def assign_colors(df, apply_phase_style=True):
         if (
             not apply_phase_style
             or name.split("_phase")[0] != previous_name.split("_phase")[0]
-        ) and (name.split(" (")[0] != previous_name.split(" (")[0]):
+        ) and (
+            normalize_expe_name_for_color(name).split(" (")[0]
+            != normalize_expe_name_for_color(previous_name).split(" (")[0]
+        ):
             i += 1
         previous_name = name
         color_map[name] = colors[i % len(colors)]
