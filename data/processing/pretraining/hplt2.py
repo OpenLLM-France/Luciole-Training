@@ -2,7 +2,6 @@ from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from web_utils import get_web_pipeline, ROBOTSTXT_PATH
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.readers import JsonlReader
@@ -43,11 +42,6 @@ if __name__ == "__main__":
                 do_edu=True,
                 do_pii=True,
                 do_decont=False,
-            ),
-            PrefixFormatter(
-                date_keys=["ts"],
-                date_format="%Y/%m/%d %H:%M:%S",
-                prefix_pipeline={"domain": "Domain", "date": "Date"},
             ),
             JsonlWriter(
                 f"{DATA_PATH}/hplt2_filtered/{language}/data",
@@ -99,8 +93,6 @@ if __name__ == "__main__":
                     language=None,
                     language_key="language_iso",
                     conversation_key=None,
-                    remove_prefix=True,
-                    remove_keys=["prefix"],
                 ),
                 cleanup=True,
                 expand_metadata=False,

@@ -6,7 +6,6 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
 from datatrove.pipeline.base import PipelineStep
 from web_utils import get_web_pipeline, ROBOTSTXT_PATH
-from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
 from utils import _custom_adapter_for_hf, HF_SCHEMA
@@ -84,11 +83,6 @@ if __name__ == "__main__":
                 do_pii=True,
                 do_decont=False,
             ),
-            PrefixFormatter(
-                date_keys=["date"],
-                date_format="%Y-%m-%dT%H:%M:%SZ",
-                prefix_pipeline={"domain": "Domain", "date": "Date"},
-            ),
             JsonlWriter(
                 f"{DATA_PATH}/fineweb2_filtered/{language}/data",
                 output_filename="${cluster_size_group}_edu_${edu_score}_rank${rank}.jsonl.gz",
@@ -146,8 +140,6 @@ if __name__ == "__main__":
                     language=None,
                     language_key="language_iso",
                     conversation_key=None,
-                    remove_prefix=True,
-                    remove_keys=["prefix"],
                 ),
                 cleanup=True,
                 expand_metadata=False,

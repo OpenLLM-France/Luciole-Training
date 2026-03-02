@@ -2,7 +2,6 @@ from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
-from datatrove.pipeline.filters.prefix_formatter import PrefixFormatter
 from web_utils import get_web_pipeline, ROBOTSTXT_PATH
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
@@ -31,11 +30,6 @@ if __name__ == "__main__":
                 do_edu=True,
                 do_pii=True,
                 do_decont=False,
-            ),
-            PrefixFormatter(
-                date_keys=["timestamp"],
-                date_format="%Y/%m/%d %H:%M:%S",
-                prefix_pipeline={"domain": "Domain", "date": "Date"},
             ),
             JsonlWriter(
                 f"{DATA_PATH}/culturax_filtered/{language}/data",
@@ -87,8 +81,6 @@ if __name__ == "__main__":
                     language=language,
                     language_key=None,
                     conversation_key=None,
-                    remove_keys=["timestamp", "prefix"],
-                    remove_prefix=True,
                 ),
                 cleanup=True,
                 expand_metadata=False,

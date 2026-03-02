@@ -103,16 +103,12 @@ if __name__ == "__main__":
                 date_keys = []  # Date already in the text
             else:
                 date_keys = ["created", "date", "published_time"]
-            url_keys = ["url", "oa_url", "item_url"]
-
             prefix_pipeline = {
                 "channel": "Channel",
                 "title": "Title",
                 "fields": "Fields",
                 "date": "Date",
             }
-            if name == "cccc_filtered":
-                prefix_pipeline["fqdn"] = "Full domain"
 
             pipeline = [
                 HuggingFaceDatasetReader(
@@ -123,7 +119,6 @@ if __name__ == "__main__":
                 *language_filter,
                 PrefixFormatter(
                     date_keys=date_keys,
-                    url_keys=url_keys,
                     infer_date_format=True,
                     additionnal_formatting=additionnal_formatting,
                     prefix_pipeline=prefix_pipeline,
