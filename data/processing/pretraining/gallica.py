@@ -116,11 +116,12 @@ if __name__ == "__main__":
                 adapter=partial(
                     _custom_adapter_for_hf,
                     source=f"gallica_{args.name}",
-                    id_key=None,
+                    id_key="file_id",
                     language="fr",
                     language_key=None,
                     conversation_key=None,
                     remove_keys=["token_counts", "char_counts", "token_per_chars"],
+                    remove_prefix=True,
                 ),
                 cleanup=True,
                 expand_metadata=False,

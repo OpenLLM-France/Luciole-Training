@@ -22,8 +22,9 @@ if __name__ == "__main__":
             output_filename="data/insee/fr/${rank}.parquet",
             adapter=partial(
                 _custom_adapter_for_hf,
-                source=None,
+                source="insee",
                 id_key=None,
+                reset_id=True,
                 language="fr",
                 language_key=None,
                 conversation_key=None,

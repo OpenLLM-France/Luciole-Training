@@ -214,7 +214,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/logs_hf",
             job_name="hf_paradocs",
-            tasks=10,
+            tasks=1,
             skip_completed=not args.force,
         )
 

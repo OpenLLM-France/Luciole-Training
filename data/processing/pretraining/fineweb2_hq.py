@@ -109,6 +109,7 @@ if __name__ == "__main__":
         pipeline = [
             JsonlReader(
                 f"{DATA_PATH}/fineweb2_hq_filtered/{language}/data",
+                glob_pattern="*edu_[1-5]*.jsonl.gz",
             ),
             partial(fix_data, language=language),
             HuggingFaceDatasetWriter(
@@ -124,7 +125,7 @@ if __name__ == "__main__":
                     language=None,
                     language_key="language_iso",
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_keys=["embeddings"],
                 ),
                 cleanup=True,
                 expand_metadata=False,

@@ -176,7 +176,6 @@ if __name__ == "__main__":
                 logging_dir=f"{DATA_PATH}/common_pile/{name}/logs_hf",
                 job_name="hf_cp",
                 tasks=5,
-                workers=1,
                 time="20:00:00",
                 skip_completed=not args.force,
             )

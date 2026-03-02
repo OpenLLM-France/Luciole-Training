@@ -1,5 +1,9 @@
 import os
-from utils import create_parser, parse_args
+from utils import create_parser, parse_args, create_executor
+from datatrove.pipeline.readers import JsonlReader
+from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
+from functools import partial
 
 AWS_ACCESS_KEY_ID = "xxx"
 AWS_SECRET_ACCESS_KEY = "xxx"
@@ -56,12 +60,17 @@ def write_jsonl_gz_chunks(iterator, chunk_size, file_prefix):
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
-        "languages", nargs="+", help="List of programming languages to process"
+        "--languages",
+        nargs="+",
+        help="List of programming languages to process",
+        default=None,
     )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
     if not args.push_only:
+        assert args.languages is not None
+
         import boto3
         import gzip
         from datasets import load_dataset
@@ -114,4 +123,50 @@ if __name__ == "__main__":
             )
 
     else:
-        pass
+
+        def get_language(data, rank: int = 0, world_size: int = 1):
+            for doc in data:
+                file_path = doc.metadata["file_path"].split("/")[-1]
+                language = file_path.split("_")[0].lower()
+                doc.metadata["language"] = language
+                yield doc
+
+        output_path = f"{DATA_PATH}/stack-edu"
+
+        pipeline = [
+            JsonlReader(
+                output_path,
+            ),
+            get_language,
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{output_path}/data_hf",
+                output_filename="data/stack_edu/${language}/${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source="stack_edu",
+                    id_key=None,
+                    language=None,
+                    language_key="language",
+                    conversation_key=None,
+                    remove_keys=[],
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{output_path}/logs_hf",
+            job_name="hf_stack_edu",
+            tasks=1,
+            skip_completed=not args.force,
+        )
+
+        hf_executor.run()

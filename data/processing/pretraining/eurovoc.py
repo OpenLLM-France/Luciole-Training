@@ -118,7 +118,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/eurovoc_filtered_v2/logs_hf",
             job_name="hf_eurovoc",
-            tasks=10,
+            tasks=1,
             skip_completed=not args.force,
         )
 

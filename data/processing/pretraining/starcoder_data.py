@@ -83,8 +83,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{output_path}/logs_hf",
             job_name="hf_starcoder",
-            tasks=20,
-            workers=10,
+            tasks=10,
             skip_completed=not args.force,
         )
 

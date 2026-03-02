@@ -73,6 +73,7 @@ if __name__ == "__main__":
                     language=None,
                     language_key="language",
                     conversation_key=None,
+                    remove_keys=["source"],
                 ),
                 cleanup=True,
                 expand_metadata=False,

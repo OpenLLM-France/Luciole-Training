@@ -3,7 +3,6 @@ from utils import (
     parse_args,
     create_executor,
     add_sampler_filter,
-    print_builder_config,
 )
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
@@ -14,19 +13,10 @@ from functools import partial
 
 if __name__ == "__main__":
     parser = create_parser()
-    parser.add_argument(
-        "--name",
-        type=str,
-        default=None,
-        help="Subset to load",
-    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    if args.name is None:
-        print_builder_config("allenai/olmo-mix-1124")
-
-    name = args.name
+    name = "starcoder"
 
     if not args.push_only:
         pipeline = [
@@ -49,7 +39,7 @@ if __name__ == "__main__":
 
         main_processing_executor.run()
 
-    elif name == "starcoder":
+    else:
         pipeline = [
             JsonlReader(f"{DATA_PATH}/olmo_mix/{name}/data"),
             HuggingFaceDatasetWriter(
@@ -65,7 +55,7 @@ if __name__ == "__main__":
                     language=None,
                     language_key="extension",
                     conversation_key=None,
-                    remove_keys=[],
+                    remove_keys=["dataset"],
                 ),
                 cleanup=True,
                 expand_metadata=False,
@@ -79,8 +69,7 @@ if __name__ == "__main__":
             debug=args.debug,
             logging_dir=f"{DATA_PATH}/olmo_mix/{name}/logs_hf",
             job_name="hf_olmo_starcoder",
-            tasks=20,
-            workers=10,
+            tasks=10,
             skip_completed=not args.force,
         )
 

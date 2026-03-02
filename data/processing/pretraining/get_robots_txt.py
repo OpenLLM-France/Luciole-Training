@@ -5,6 +5,8 @@ from datatrove.pipeline.writers.jsonl import JsonlWriter
 from slugify import slugify
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
+from utils import _custom_adapter_for_hf, HF_SCHEMA
+from functools import partial
 
 DUMP_TO_PROCESS = ".CC-MAIN-2025-26"
 
@@ -70,6 +72,16 @@ if __name__ == "__main__":
             JsonlReader(
                 f"{output_path}/data_merge/",
             ),
+            # HuggingFaceDatasetWriter(
+            #     dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            #     + ("-debug" if args.debug else ""),
+            #     private=True,
+            #     local_working_dir=f"{output_path}/data_hf",
+            #     output_filename=f"robots_txt/{slugify(DUMP_TO_PROCESS)}"
+            #     + "${rank}.parquet",
+            #     cleanup=True,
+            #     expand_metadata=True,
+            # ),
             HuggingFaceDatasetWriter(
                 dataset="OpenLLM-BPI/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
@@ -77,8 +89,18 @@ if __name__ == "__main__":
                 local_working_dir=f"{output_path}/data_hf",
                 output_filename=f"robots_txt/{slugify(DUMP_TO_PROCESS)}"
                 + "${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source=slugify(DUMP_TO_PROCESS),
+                    id_key=None,
+                    language="",
+                    language_key=None,
+                    conversation_key=None,
+                    remove_keys=[],
+                ),
                 cleanup=True,
-                expand_metadata=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
             ),
         ]
 
