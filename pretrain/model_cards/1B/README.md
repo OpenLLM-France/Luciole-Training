@@ -207,11 +207,11 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples| 732,964,864 (3T tokens) |
-| Total \# steps  | 715,786  |
+| Total \# samples| 732,965,888 (3T tokens) |
+| Total \# steps  | 715,787  |
 | Context length         | 4,096      |
-| RoPE theta             | 10,000    |
 | Batch size       | 1,024      |
+| RoPE theta             | 10,000    |
 | Learning rate schedule | Warmup (2M samples) + Constant  |
 | Learning rate  | 3e-4       |
 | Weight decay           | 0.1        |
@@ -228,8 +228,8 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples| 391,633,920 (1.6T tokens) |
-| Total \# steps  | 382,455      |
+| Total \# samples| 367,545,344 (1.5T tokens) |
+| Total \# steps  | 358,931      |
 | Learning rate schedule | Cosine annealing  |
 | Maximum Learning rate  | 3e-4 |
 | Final Learning rate  | 6.87e-5 |
@@ -242,8 +242,8 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples | 121,074,688  (0.5T tokens) |
-| Total \# steps  | 118,237     |
+| Total \# samples | 121,075,712  (0.5T tokens) |
+| Total \# steps  | 118,238     |
 | Learning rate schedule | Linear annealing |
 | Maximum Learning rate  | 6.87e-5    |
 | Final Learning rate    | 0          |
@@ -256,8 +256,8 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Total \# samples       | 762,880 (25B tokens) |
 | Total \# steps         | 5,960 |
 | Context length         | 32,768 |
-| RoPE theta             | 1,000,000 |
 | Batch size             | 128 |
+| RoPE theta             | 1,000,000 |
 | Learning rate schedule | Warmup + Cosine annealing |
 | Maximum Learning rate  | 6.87e-5  |
 | Final Learning rate    | 0      |
@@ -272,8 +272,8 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Total \# samples| 190,720 (25B tokens) |
 | Total \# steps  | 5,960 |
 | Context length         | 131,072 |
-| RoPE theta             | 2,000,000 |
 | Batch size             | 32 |
+| RoPE theta             | 2,000,000 |
 
 ### Training Logs and Learning Curves
 
