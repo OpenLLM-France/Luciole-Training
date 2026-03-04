@@ -1,7 +1,7 @@
 // ** French tasks **
 {"task": "lighteval|fquadv2_fra", "metric":"exact_match_fra_prefix", "task_type":"Knowledge & Reading Comprehension","category": "generative", "num_classes": null, "language": "fr"}
 {"task": "lighteval|mintaka_fra", "metric":"exact_match_fra_prefix", "task_type":"Knowledge & Reading Comprehension","category": "generative", "num_classes": null, "language": "fr"}
-{"task": "lighteval|mlmm_arc_fra_cf:challenge", "metric":"acc_norm_token", "task_type":"Knowledge & Reading Comprehension","category": "mcq", "num_classes": 4, "language": "fr"}
+{"task": "lighteval|mlmm_arc_fra_cf:challenge", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense","category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|global_mmlu_all_fra_cf:_average", "metric":"acc_norm", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|belebele_fra_Latn_cf", "metric":"acc_norm", "task_type":"Knowledge & Reading Comprehension","category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|mlmm_hellaswag_fra_cf", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense",  "category": "mcq", "num_classes": 4, "language": "fr"}
@@ -11,8 +11,8 @@
 // {"task": "lighteval|meta_mmlu_fra_cf:_average", "metric":"acc_norm_pmi", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "fr"}
 //
 // ** English tasks **
-{"task": "lighteval|arc:easy", "metric":"acc_with_logprob_normalization", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "en"}
-{"task": "leaderboard|arc:challenge", "metric":"acc_with_logprob_normalization", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "en"}
+{"task": "lighteval|arc:easy", "metric":"acc_with_logprob_normalization", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "en"}
+{"task": "leaderboard|arc:challenge", "metric":"acc_with_logprob_normalization", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "en"}
 {"task": "lighteval|openbookqa", "metric":"acc_with_logprob_normalization", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "en"}
 {"task": "lighteval|triviaqa", "metric":"em_with_strip_strings&normalize_pred", "task_type":"Knowledge & Reading Comprehension", "category": "qa", "num_classes": null, "language": "en"}
 {"task": "custom|mmlu_pro_cf", "metric":"acc_norm_token", "task_type":"Knowledge & Reading Comprehension", "category": "Knowledge & Reading Comprehension", "num_classes": 10, "language": "en"}
