@@ -2,10 +2,12 @@ from utils import read_experiment_results
 import io
 import pandas as pd
 import argparse
+import os
 
 
 def read_info():
-    with open("agg_tasks.jsonl") as f:
+    folder = os.path.dirname(__file__)
+    with open(os.path.join(folder, "agg_tasks.jsonl")) as f:
         content = "\n".join(line for line in f if not line.lstrip().startswith("//"))
     df_info = pd.read_json(io.StringIO(content), lines=True)
     df_info["random"] = (1.0 / df_info["num_classes"]).fillna(0.0)
