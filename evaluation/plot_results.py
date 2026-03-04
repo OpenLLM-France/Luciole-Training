@@ -195,6 +195,111 @@ def assign_styles(df, apply_phase_style=True):
     return style_map
 
 
+def _plot_curves(
+    ax,
+    series,
+    color_map,
+    style_map,
+    unit="T_tokens",
+    xlog=False,
+    use_dots=False,
+):
+    """Plot a list of (expe_name, X, Y, extra) series on a single axis.
+
+    Each element of `series` is a dict with keys:
+        expe_name, X (array), Y (array),
+        and optionally: stderr, r2, slope, intercept (for fit mode).
+    """
+    xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
+    use_bars = all(len(s["Y"]) == 1 for s in series)
+
+    for i, s in enumerate(series):
+        color = color_map[s["expe_name"]]
+        linestyle = style_map[s["expe_name"]]
+        label = format_expename_for_title(s["expe_name"])
+
+        X = np.array(s["X"]) * xscale
+        Y = np.array(s["Y"])
+
+        if use_bars:
+            ax.bar(
+                i,
+                Y,
+                color=color,
+                label=label,
+                yerr=s.get("stderr"),
+                capsize=5,
+            )
+        elif "r2" in s:
+            ax.plot(
+                X,
+                Y,
+                alpha=np.clip(1 - s["r2"], 0.2, 0.8),
+                linestyle=":",
+                color=color,
+            )
+
+            # Plot regression line
+            xaxis = np.linspace(min(X), max(X), 100)
+            y_pred = s["intercept"] + s["slope"] * np.log(xaxis)
+            ax.plot(
+                xaxis,
+                y_pred,
+                linestyle="-",
+                alpha=np.clip(s["r2"], 0.2, 0.8),
+                color=color,
+                label=label,
+            )
+
+            ax.text(
+                xaxis[-1],
+                y_pred[-1],
+                f"$R^2$={s['r2']:.2f}",
+                color=color,
+                fontsize=8,
+                ha="left",
+                va="center",
+            )
+        else:
+            if len(Y) == 1:
+                if use_dots:
+                    ax.plot(
+                        X,
+                        Y,
+                        marker="+",
+                        color=color,
+                        markersize=10,
+                        markeredgewidth=2,
+                        linewidth=2,
+                        label=label,
+                    )
+                else:
+                    ax.axhline(
+                        y=Y,
+                        color=color,
+                        linestyle="--",
+                        linewidth=2,
+                        label=label + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
+                    )
+            else:
+                ax.plot(
+                    X,
+                    Y,
+                    marker="o",
+                    alpha=1,
+                    color=color,
+                    linestyle=linestyle,
+                    label=label,
+                )
+
+    if use_bars:
+        ax.set_xticks([])
+    else:
+        ax.set_xlabel(unit.replace("_", " "))
+        if xlog:
+            ax.set_xscale("log")
+
+
 def plot_task(
     ax,
     df,
@@ -209,19 +314,13 @@ def plot_task(
     max_tokens=None,
     checkpoint_index=None,
 ):
-    # print(f"Plotting {task} - {metric} with {len(df)} lines")
-
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
-    xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
     df = df[(df["task"] == task) & (df["metric"] == metric)]
     if max_tokens:
 
         def truncate_row(row, max_tokens):
             tokens = row["tokens"]
-            # find cutoff index where tokens <= max_tokens
             cutoff = sum(t <= max_tokens for t in tokens)
-
-            # slice lists accordingly
             row["tokens"] = tokens[:cutoff]
             row["FLOPs"] = row["FLOPs"][:cutoff]
             row["score"] = row["score"][:cutoff]
@@ -246,7 +345,7 @@ def plot_task(
 
         df = df.apply(select_checkpoint, axis=1, checkpoint_index=checkpoint_index)
 
-    # Access random
+    # Draw random baseline
     df_info = get_info()
     task_no_fewshot = "|".join(task.split("|")[:-1])
     if task_no_fewshot in df_info["task"].values:
@@ -256,103 +355,25 @@ def plot_task(
         random = 1.0 / num_classes
         ax.axhline(y=random, color="grey", linestyle=":", label="random")
 
-    use_bars = max([len(s) for s in df["score"]]) == 1
+    # Build series list
+    series = []
+    for _, row in df.iterrows():
+        s = {
+            "expe_name": row["expe_name"],
+            "X": row[xaxis_column],
+            "Y": row["score"],
+        }
+        if "stderr" in row:
+            s["stderr"] = row["stderr"]
+        if fit and "r2" in row:
+            s["r2"] = row["r2"]
+            s["slope"] = row["slope"]
+            s["intercept"] = row["intercept"]
+        series.append(s)
 
-    for i, (_, row) in enumerate(df.iterrows()):
-        color = color_map[row["expe_name"]]
-        linestyle = style_map[row["expe_name"]]
-        label = format_expename_for_title(row["expe_name"])
-
-        X = np.array(row[xaxis_column]) * xscale
-        Y = np.array(row["score"])
-
-        if use_bars:
-            ax.bar(
-                i,
-                Y,
-                color=color,
-                label=label,
-                yerr=row["stderr"] if "stderr" in row else None,
-                capsize=5,
-            )
-        elif fit:
-            ax.plot(
-                X,
-                Y,
-                alpha=np.clip(1 - row["r2"], 0.2, 0.8),
-                linestyle=":",
-                color=color,
-            )
-
-            # Plot regression line
-            xaxis = np.linspace(min(X), max(X), 100)
-            y_pred = row["intercept"] + row["slope"] * np.log(xaxis)
-            ax.plot(
-                xaxis,
-                y_pred,
-                linestyle="-",
-                alpha=np.clip(row["r2"], 0.2, 0.8),
-                color=color,
-                label=label,
-            )
-
-            ax.text(
-                xaxis[-1],
-                y_pred[-1],
-                f"$R^2$={row['r2']:.2f}",
-                color=color,
-                fontsize=8,
-                ha="left",
-                va="center",
-            )
-        else:
-            if len(Y) == 1:
-                if use_dots:
-                    ax.plot(
-                        X,
-                        Y,
-                        marker="+",
-                        color=color,
-                        markersize=10,  # larger than usual
-                        markeredgewidth=2,
-                        linewidth=2,
-                        label=label,
-                    )
-                else:
-                    # Horizontal line
-                    ax.axhline(
-                        y=Y,
-                        color=color,
-                        linestyle="--",
-                        linewidth=2,
-                        label=label + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
-                    )
-            else:
-                ax.plot(
-                    X,
-                    Y,
-                    marker="o",
-                    alpha=1,
-                    color=color,
-                    linestyle=linestyle,
-                    label=label,
-                )
-                # # Spot the last point
-                # ax.plot(
-                #     X[-1],
-                #     Y[-1],
-                #     marker="+",
-                #     color=color,
-                #     markersize=10,
-                #     markeredgewidth=2,
-                # )
-
-    if use_bars:
-        ax.set_xticks([])
-    else:
-        ax.set_xlabel(unit.replace("_", " "))
-        if xlog:
-            ax.set_xscale("log")
+    _plot_curves(
+        ax, series, color_map, style_map, unit=unit, xlog=xlog, use_dots=use_dots
+    )
     ax.set_ylabel(format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
 
@@ -382,7 +403,6 @@ def plot_aggregate(
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
-    xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
 
     # Build a lookup for random baselines: task_base -> random
     random_lookup = {}
@@ -390,7 +410,8 @@ def plot_aggregate(
         random_lookup[row["task"]] = row["random"]
 
     # Collect per-experiment normalized scores at each checkpoint
-    experiment_data = {}  # expe_name -> {tokens_value -> [normalized_scores]}
+    # expe_name -> {(tokens, xval) -> [normalized_scores]}
+    experiment_data = {}
 
     for task, metric in list_of_tasks_to_plot:
         task_base = "|".join(task.split("|")[:-1])
@@ -432,51 +453,21 @@ def plot_aggregate(
                     continue
                 experiment_data[expe_name][key].append(norm_score)
 
-    # Plot averaged normalized scores
-    use_bars = all(len(data) == 1 for data in experiment_data.values())
-
-    for i, (expe_name, data) in enumerate(experiment_data.items()):
-        color = color_map[expe_name]
-        linestyle = style_map[expe_name]
-        label = format_expename_for_title(expe_name)
-
+    # Build series from aggregated data
+    series = []
+    for expe_name, data in experiment_data.items():
         sorted_keys = sorted(data.keys())
-        X = np.array([k[1] for k in sorted_keys]) * xscale
-        Y = np.array([np.mean(data[k]) for k in sorted_keys])
+        series.append(
+            {
+                "expe_name": expe_name,
+                "X": [k[1] for k in sorted_keys],
+                "Y": [np.mean(data[k]) for k in sorted_keys],
+            }
+        )
 
-        if use_bars:
-            ax.bar(i, Y, color=color, label=label)
-        elif len(Y) == 1:
-            if use_dots:
-                ax.plot(
-                    X,
-                    Y,
-                    marker="+",
-                    color=color,
-                    markersize=10,
-                    markeredgewidth=2,
-                    linewidth=2,
-                    label=label,
-                )
-            else:
-                ax.axhline(
-                    y=Y[0],
-                    color=color,
-                    linestyle="--",
-                    linewidth=2,
-                    label=label + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
-                )
-        else:
-            ax.plot(
-                X, Y, marker="o", alpha=1, color=color, linestyle=linestyle, label=label
-            )
-
-    if use_bars:
-        ax.set_xticks([])
-    else:
-        ax.set_xlabel(unit.replace("_", " "))
-        if xlog:
-            ax.set_xscale("log")
+    _plot_curves(
+        ax, series, color_map, style_map, unit=unit, xlog=xlog, use_dots=use_dots
+    )
     ax.set_ylabel("Normalized score")
     ax.set_title("Average (normalized)")
 
