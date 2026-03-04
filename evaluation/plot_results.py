@@ -9,8 +9,56 @@ from agg_score import (
     normalize_within_range,
 )
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
+
+# Global style configuration
+plt.rcParams.update(
+    {
+        "font.family": "sans-serif",
+        "font.size": 10,
+        "axes.titlesize": 11,
+        "axes.titleweight": "bold",
+        "axes.labelsize": 10,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": "--",
+        "lines.linewidth": 1.8,
+        "lines.markersize": 5,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
+        "axes.edgecolor": "#cccccc",
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+    }
+)
+
+# Curated color palette (colorblind-friendly, high contrast)
+_PALETTE = [
+    "#4C72B0",  # blue
+    "#DD8452",  # orange
+    "#55A868",  # green
+    "#C44E52",  # red
+    "#8172B3",  # purple
+    "#937860",  # brown
+    "#DA8BC3",  # pink
+    "#8C8C8C",  # grey
+    "#CCB974",  # olive
+    "#64B5CD",  # cyan
+    "#1F77B4",  # dark blue
+    "#FF7F0E",  # vivid orange
+    "#2CA02C",  # vivid green
+    "#D62728",  # vivid red
+    "#9467BD",  # vivid purple
+    "#8C564B",  # dark brown
+    "#E377C2",  # vivid pink
+    "#7F7F7F",  # medium grey
+    "#BCBD22",  # yellow-green
+    "#17BECF",  # teal
+]
 
 task_group_mapping = {
     "en": [
@@ -159,11 +207,7 @@ def format_expe_name_for_color(expe_name):
 
 def assign_colors(df, apply_phase_style=True):
     unique_experiments = df["expe_name"].unique()
-    if len(unique_experiments) <= 10:
-        cmap = plt.get_cmap("tab10")
-    else:
-        cmap = plt.get_cmap("tab20")
-    colors = [cmap(i) for i in range(cmap.N)]
+    colors = _PALETTE
     color_map = {}
     i = -1
     previous_name = ""
@@ -204,7 +248,7 @@ def _plot_curves(
     xlog=False,
     use_dots=False,
 ):
-    """Plot a list of (expe_name, X, Y, extra) series on a single axis.
+    """Plot a list of series on a single axis.
 
     Each element of `series` is a dict with keys:
         expe_name, X (array), Y (array),
@@ -228,7 +272,9 @@ def _plot_curves(
                 color=color,
                 label=label,
                 yerr=s.get("stderr"),
-                capsize=5,
+                capsize=4,
+                edgecolor="white",
+                linewidth=0.5,
             )
         elif "r2" in s:
             ax.plot(
@@ -239,7 +285,6 @@ def _plot_curves(
                 color=color,
             )
 
-            # Plot regression line
             xaxis = np.linspace(min(X), max(X), 100)
             y_pred = s["intercept"] + s["slope"] * np.log(xaxis)
             ax.plot(
@@ -286,10 +331,11 @@ def _plot_curves(
                     X,
                     Y,
                     marker="o",
-                    alpha=1,
                     color=color,
                     linestyle=linestyle,
                     label=label,
+                    markeredgecolor="white",
+                    markeredgewidth=0.5,
                 )
 
     if use_bars:
@@ -298,6 +344,8 @@ def _plot_curves(
         ax.set_xlabel(unit.replace("_", " "))
         if xlog:
             ax.set_xscale("log")
+            ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
+    ax.tick_params(axis="both", which="both", length=3)
 
 
 def plot_task(
@@ -353,7 +401,9 @@ def plot_task(
             df_info["task"] == task_no_fewshot, "num_classes"
         ].iloc[0]
         random = 1.0 / num_classes
-        ax.axhline(y=random, color="grey", linestyle=":", label="random")
+        ax.axhline(
+            y=random, color="#bbbbbb", linestyle=":", linewidth=1.2, label="random"
+        )
 
     # Build series list
     series = []
@@ -595,12 +645,23 @@ def plot_list_of_tasks(
         ax = axes[-1]
         for handle in legend_dict.values():
             handle.set_alpha(1.0)
-        ax.legend(
+        leg = ax.legend(
             legend_dict.values(),
             legend_dict.keys(),
-            title="Experiment name",
+            title="Experiment",
             loc="center",
+            fontsize=11,
+            title_fontsize=12,
+            frameon=True,
+            fancybox=True,
+            edgecolor="#cccccc",
+            facecolor="white",
+            framealpha=0.9,
+            borderpad=1.0,
+            labelspacing=0.8,
+            handlelength=2.5,
         )
+        leg.get_title().set_fontweight("bold")
 
     else:
         list_of_tasks_to_plot = [
@@ -669,8 +730,9 @@ def plot_list_of_tasks(
         legend_dict = {}
 
         if add_aggregate:
+            agg_ax = axes[0]
             plot_aggregate(
-                axes[0],
+                agg_ax,
                 df,
                 list_of_tasks_to_plot,
                 color_map=color_map,
@@ -681,7 +743,19 @@ def plot_list_of_tasks(
                 max_tokens=max_tokens,
                 checkpoint_index=checkpoint_index,
             )
-            handles, labels = axes[0].get_legend_handles_labels()
+            # Visually emphasize the aggregate subplot
+            agg_ax.set_facecolor("#f7f7f7")
+            for spine in agg_ax.spines.values():
+                spine.set_visible(True)
+                spine.set_edgecolor("#888888")
+                spine.set_linewidth(1.5)
+            agg_ax.set_title(
+                agg_ax.get_title(),
+                fontsize=12,
+                fontweight="heavy",
+                fontstyle="italic",
+            )
+            handles, labels = agg_ax.get_legend_handles_labels()
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
@@ -708,29 +782,39 @@ def plot_list_of_tasks(
         # Dedicated subplot for legend
         legend_ax = axes[-1]
         legend_ax.axis("off")
-        # Set legend handle alpha to 1.0
         for handle in legend_dict.values():
             if hasattr(handle, "set_alpha"):
                 handle.set_alpha(1.0)
 
-        legend_ax.legend(
+        leg = legend_ax.legend(
             legend_dict.values(),
             legend_dict.keys(),
-            title="Experiment name",
+            title="Experiment",
             loc="center",
-            fontsize=12,
+            fontsize=11,
+            title_fontsize=12,
+            frameon=True,
+            fancybox=True,
+            shadow=False,
+            edgecolor="#cccccc",
+            facecolor="white",
+            framealpha=0.9,
+            borderpad=1.0,
+            labelspacing=0.8,
+            handlelength=2.5,
         )
+        leg.get_title().set_fontweight("bold")
 
         # Hide any unused subplots
         for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes) - 1):
             fig.delaxes(axes[j])
 
         if title is not None:
-            fig.suptitle(title)
+            fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)
 
-    plt.tight_layout()
+    plt.tight_layout(h_pad=1.5, w_pad=1.5)
     if output_file:
-        plt.savefig(output_file, dpi=dpi)
+        plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
         print(f"Saved figure to {output_file}")
 
 
