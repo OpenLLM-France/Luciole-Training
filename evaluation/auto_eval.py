@@ -129,6 +129,8 @@ def launch_evaluation(
     dependency_job_id=None,
     force=False,
     eval_type="pretrain",
+    lighteval_kwargs="",
+    additional_model_args=None,
     infer_ckpt_name=True,
     last_checkpoint_only=False,
     dry_run=False,
@@ -285,6 +287,8 @@ def launch_evaluation(
             infer_ckpt_name=infer_ckpt_name,
             last_checkpoint_only=last_checkpoint_only,
             dry_run=dry_run,
+            lighteval_kwargs=lighteval_kwargs,
+            additional_model_args=additional_model_args,
         )
         if job_id is not None:
             job_ids.append(job_id)
@@ -453,6 +457,18 @@ if __name__ == "__main__":
         help="If set, only evaluate the last checkpoint.",
     )
     parser.add_argument(
+        "--lighteval_kwargs",
+        type=str,
+        default="",
+        help="Additional arguments to pass to lighteval.",
+    )
+    parser.add_argument(
+        "--additional_model_args",
+        type=str,
+        default=None,
+        help="Additional model args to pass to lighteval, separated by commas (e.g. 'arg1=value1,arg2=value2').",
+    )
+    parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
     )
     args = parser.parse_args()
@@ -487,6 +503,8 @@ if __name__ == "__main__":
         force=args.force,
         eval_type=args.eval_type,
         infer_ckpt_name=launch_conversion_needed,
+        lighteval_kwargs=args.lighteval_kwargs,
+        additional_model_args=args.additional_model_args,
         last_checkpoint_only=args.last_checkpoint_only,
         dry_run=args.dry_run,
     )

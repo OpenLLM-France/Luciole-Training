@@ -5,16 +5,24 @@ import re
 import subprocess
 from pathlib import Path
 
-SBATCH_ARRAY_TEMPLATE = """#!/bin/bash
+MAIN_COMMAND = """VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
+    "$MODEL_ARG" \\
+    "$TASK_TO_EVALUATE" \\
+    --output-dir "$OUTPUT_DIR" \\
+    {extra_args}
+"""
+
+SBATCH_ARRAY_TEMPLATE = (
+    """#!/bin/bash
 #SBATCH --job-name=eval_{task_name}
 #SBATCH --output={log_dir}/eval_log_%x_%A_%a.out
 #SBATCH --gres=gpu:{gpus}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task={cpus}
-#SBATCH --time=20:00:00
+#SBATCH --time={time}
 #SBATCH --hint=nomultithread
-#SBATCH --qos=qos_gpu_{gpu}-t3
+#SBATCH --qos=qos_gpu_{gpu}-{service_quality}
 #SBATCH --account={account}
 #SBATCH --constraint={gpu}
 #SBATCH --array=0-{max_index}
@@ -57,12 +65,9 @@ cd "$CKPT_DIR"
 
 {extra_env_vars}
 
-VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
-    "$MODEL_ARG" \\
-    "$TASK_TO_EVALUATE" \\
-    --output-dir "$OUTPUT_DIR" \\
-    {extra_args}
 """
+    + MAIN_COMMAND
+)
 
 
 def init_extra_args(custom_tasks, max_samples=-1):
@@ -225,6 +230,7 @@ def launch_evaluation(
     max_model_length=None,
     dependency=None,
     lighteval_kwargs="",
+    additional_model_args=None,
     force=False,
     debug=False,
     min_step=None,
@@ -325,6 +331,9 @@ def launch_evaluation(
             else:
                 model_arg += f",max_length={max_model_length}"
 
+        if additional_model_args:
+            model_arg += "," + additional_model_args
+
         if gpus > 1:
             if command == "vllm":
                 if gpus > 3:
@@ -362,8 +371,11 @@ def launch_evaluation(
     if not dry_run:
         print(f"Prepared {len(tasks)} tasks for array job.")
 
-    account = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
+    account = os.environ.get("SLURM_ACCOUNT_GPU", "qgz@a100")
     gpu = account.split("@")[1]
+
+    service_quality = os.environ.get("SLURM_QOS_GPU", "t3")
+    time = "2:00:00" if service_quality == "dev" else "20:00:00"
 
     array_script = SBATCH_ARRAY_TEMPLATE.format(
         command=command,
@@ -378,6 +390,8 @@ def launch_evaluation(
         extra_args=extra_args,
         extra_env_vars=extra_env_vars,
         task_name=task_to_evaluate.stem,
+        time=time,
+        service_quality=service_quality,
     )
 
     array_filename = job_dir / "job_array_eval.slurm"
@@ -386,6 +400,14 @@ def launch_evaluation(
 
     if dry_run:
         print("sbatch", str(array_filename), f"# ({len(tasks)} tasks)")
+
+        # print("cd "+tasks[0]["ckpt_dir"])
+        # print(MAIN_COMMAND.format(command=command, extra_args=extra_args) \
+        #       .replace("$MODEL_ARG", tasks[0]["model_arg"]) \
+        #       .replace("$TASK_TO_EVALUATE", tasks[0]["task_to_evaluate"]) \
+        #       .replace("$OUTPUT_DIR", tasks[0]["output_dir"]) \
+        #       .replace("\\\n", "").replace("  ", " ").strip())
+        # print()
     else:
         print("Submitting array:", array_filename)
         result = subprocess.run(
@@ -463,6 +485,12 @@ def get_parser():
         help="Additional arguments to pass to lighteval.",
     )
     parser.add_argument(
+        "--additional_model_args",
+        type=str,
+        default=None,
+        help="Additional model args to pass to lighteval, separated by commas (e.g. 'arg1=value1,arg2=value2').",
+    )
+    parser.add_argument(
         "--multiple_of",
         type=int,
         default=None,
@@ -496,6 +524,7 @@ if __name__ == "__main__":
         max_model_length=args.max_model_length,
         dependency=args.dependency,
         lighteval_kwargs=args.lighteval_kwargs,
+        additional_model_args=args.additional_model_args,
         force=args.force,
         debug=args.debug,
         min_step=args.min_step,
