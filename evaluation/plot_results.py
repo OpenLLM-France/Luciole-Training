@@ -2,7 +2,12 @@ import os
 import math
 import argparse
 from utils import process_results, read_experiment_results, format_task_for_title
-from agg_score import calculate_agg_score, get_info, check_benchmarks_by_tasktype
+from agg_score import (
+    calculate_agg_score,
+    get_info,
+    check_benchmarks_by_tasktype,
+    normalize_within_range,
+)
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -142,7 +147,7 @@ task_group_mapping["common"] = [
 ]
 
 
-def normalize_expe_name_for_color(expe_name):
+def format_expe_name_for_color(expe_name):
     return (
         expe_name.replace("-Instruct", "")
         .replace("-instruct", "")
@@ -167,8 +172,8 @@ def assign_colors(df, apply_phase_style=True):
             not apply_phase_style
             or name.split("_phase")[0] != previous_name.split("_phase")[0]
         ) and (
-            normalize_expe_name_for_color(name).split(" (")[0]
-            != normalize_expe_name_for_color(previous_name).split(" (")[0]
+            format_expe_name_for_color(name).split(" (")[0]
+            != format_expe_name_for_color(previous_name).split(" (")[0]
         ):
             i += 1
         previous_name = name
@@ -362,6 +367,120 @@ def format_expename_for_title(expe_name):
     return expe_name
 
 
+def plot_aggregate(
+    ax,
+    df,
+    list_of_tasks_to_plot,
+    color_map,
+    style_map,
+    xlog=False,
+    unit="T_tokens",
+    use_dots=False,
+    max_tokens=None,
+    checkpoint_index=None,
+):
+    """Plot the average normalized score across all benchmarks in the list."""
+    df_info = get_info()
+    xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
+    xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
+
+    # Build a lookup for random baselines: task_base -> random
+    random_lookup = {}
+    for _, row in df_info.iterrows():
+        random_lookup[row["task"]] = row["random"]
+
+    # Collect per-experiment normalized scores at each checkpoint
+    experiment_data = {}  # expe_name -> {tokens_value -> [normalized_scores]}
+
+    for task, metric in list_of_tasks_to_plot:
+        task_base = "|".join(task.split("|")[:-1])
+        random_baseline = random_lookup.get(task_base, 0.0)
+
+        df_task = df[(df["task"] == task) & (df["metric"] == metric)]
+        for _, row in df_task.iterrows():
+            expe_name = row["expe_name"]
+            if expe_name not in experiment_data:
+                experiment_data[expe_name] = {}
+
+            tokens_list = row["tokens"]
+            scores_list = row["score"]
+            flops_list = row[xaxis_column]
+
+            if checkpoint_index is not None:
+                try:
+                    tokens_list = [tokens_list[checkpoint_index]]
+                    scores_list = [scores_list[checkpoint_index]]
+                    flops_list = [flops_list[checkpoint_index]]
+                except IndexError:
+                    continue
+
+            if max_tokens:
+                cutoff = sum(t <= max_tokens for t in tokens_list)
+                tokens_list = tokens_list[:cutoff]
+                scores_list = scores_list[:cutoff]
+                flops_list = flops_list[:cutoff]
+
+            for tokens_val, score_val, xval in zip(
+                tokens_list, scores_list, flops_list
+            ):
+                key = (tokens_val, xval)
+                if key not in experiment_data[expe_name]:
+                    experiment_data[expe_name][key] = []
+                try:
+                    norm_score = normalize_within_range(score_val, random_baseline, 1.0)
+                except AssertionError:
+                    continue
+                experiment_data[expe_name][key].append(norm_score)
+
+    # Plot averaged normalized scores
+    use_bars = all(len(data) == 1 for data in experiment_data.values())
+
+    for i, (expe_name, data) in enumerate(experiment_data.items()):
+        color = color_map[expe_name]
+        linestyle = style_map[expe_name]
+        label = format_expename_for_title(expe_name)
+
+        sorted_keys = sorted(data.keys())
+        X = np.array([k[1] for k in sorted_keys]) * xscale
+        Y = np.array([np.mean(data[k]) for k in sorted_keys])
+
+        if use_bars:
+            ax.bar(i, Y, color=color, label=label)
+        elif len(Y) == 1:
+            if use_dots:
+                ax.plot(
+                    X,
+                    Y,
+                    marker="+",
+                    color=color,
+                    markersize=10,
+                    markeredgewidth=2,
+                    linewidth=2,
+                    label=label,
+                )
+            else:
+                ax.axhline(
+                    y=Y[0],
+                    color=color,
+                    linestyle="--",
+                    linewidth=2,
+                    label=label + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
+                )
+        else:
+            ax.plot(
+                X, Y, marker="o", alpha=1, color=color, linestyle=linestyle, label=label
+            )
+
+    if use_bars:
+        ax.set_xticks([])
+    else:
+        ax.set_xlabel(unit.replace("_", " "))
+        if xlog:
+            ax.set_xscale("log")
+    ax.set_ylabel("Normalized score")
+    ax.set_title("Average (normalized)")
+
+
 def plot_list_of_tasks(
     df,
     list_of_tasks_to_plot,
@@ -377,6 +496,7 @@ def plot_list_of_tasks(
     details=False,
     dpi=300,
     max_subplot=19,
+    add_aggregate=False,
 ):
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
 
@@ -533,11 +653,13 @@ def plot_list_of_tasks(
                     details=details,
                     dpi=dpi,
                     max_subplot=max_subplot,
+                    add_aggregate=add_aggregate,
                 )
             return
 
         num_tasks = len(list_of_tasks_to_plot)
-        num_plots = num_tasks + 1  # +1 for the legend
+        num_extra = 1 if add_aggregate else 0
+        num_plots = num_tasks + num_extra + 1  # +1 for the legend
 
         cols = math.ceil(math.sqrt(num_plots))
         rows = math.ceil(num_plots / cols)
@@ -555,9 +677,26 @@ def plot_list_of_tasks(
         # Keep track of labels added to the legend
         legend_dict = {}
 
+        if add_aggregate:
+            plot_aggregate(
+                axes[0],
+                df,
+                list_of_tasks_to_plot,
+                color_map=color_map,
+                style_map=style_map,
+                xlog=xlog,
+                unit=unit,
+                use_dots=use_dots,
+                max_tokens=max_tokens,
+                checkpoint_index=checkpoint_index,
+            )
+            handles, labels = axes[0].get_legend_handles_labels()
+            for handle, label in zip(handles, labels):
+                legend_dict[label] = handle
+
         for i, (task, metric) in enumerate(list_of_tasks_to_plot):
             plot_task(
-                axes[i],
+                axes[i + num_extra],
                 df,
                 task,
                 metric,
@@ -571,7 +710,7 @@ def plot_list_of_tasks(
                 checkpoint_index=checkpoint_index,
             )
 
-            handles, labels = axes[i].get_legend_handles_labels()
+            handles, labels = axes[i + num_extra].get_legend_handles_labels()
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
@@ -592,7 +731,7 @@ def plot_list_of_tasks(
         )
 
         # Hide any unused subplots
-        for j in range(len(list_of_tasks_to_plot), len(axes) - 1):
+        for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes) - 1):
             fig.delaxes(axes[j])
 
         if title is not None:
@@ -637,6 +776,7 @@ def plot_experiments(df, args, max_subplot=19):
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None
         )
+        add_aggregate = g not in ("all", "agg", "ruler")
         plot_list_of_tasks(
             df,
             list_of_tasks_to_plot,
@@ -651,6 +791,7 @@ def plot_experiments(df, args, max_subplot=19):
             checkpoint_index=args.checkpoint_index,
             details=args.details,
             dpi=args.dpi,
+            add_aggregate=add_aggregate,
         )
 
     if not args.output_path:
