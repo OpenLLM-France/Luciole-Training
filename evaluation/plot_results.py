@@ -257,6 +257,15 @@ def _plot_curves(
     xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
     use_bars = all(len(s["Y"]) == 1 for s in series)
 
+    maxX_nodots = (
+        None
+        if use_bars
+        else max((max(s["X"]) * xscale for s in series if len(s["Y"]) > 1), default=0)
+    )
+
+    # Collect out-of-range single-point stars to draw after axis limits are set
+    deferred_stars = []
+
     for i, s in enumerate(series):
         color = color_map[s["expe_name"]]
         linestyle = style_map[s["expe_name"]]
@@ -324,8 +333,20 @@ def _plot_curves(
                         color=color,
                         linestyle="--",
                         linewidth=2,
-                        label=label + f" ({X[0]:.2f} {unit.replace('_', ' ')})",
+                        label=label + f" ({X[0]:.3g}{format_unit(unit)})",
                     )
+                    if X[0] <= maxX_nodots:
+                        ax.plot(
+                            X[-1],
+                            Y[-1],
+                            marker="*",
+                            color=color,
+                            markersize=15,
+                            markeredgecolor="white",
+                            markeredgewidth=0.5,
+                        )
+                    else:
+                        deferred_stars.append((Y[0], color))
             else:
                 ax.plot(
                     X,
@@ -337,11 +358,65 @@ def _plot_curves(
                     markeredgecolor="white",
                     markeredgewidth=0.5,
                 )
+                if not use_dots:
+                    ax.axhline(
+                        y=Y[-1],
+                        color=color,
+                        linestyle="--",
+                        linewidth=2,
+                    )
+                    ax.plot(
+                        X[-1],
+                        Y[-1],
+                        marker="*",
+                        color=color,
+                        markersize=15,
+                        markeredgecolor="white",
+                        markeredgewidth=0.5,
+                    )
+
+    # Draw deferred out-of-range stars at the right edge with an arrow
+    xmin, xmax = ax.get_xlim()
+    ymin, ymax = ax.get_ylim()
+    if deferred_stars:
+        # Force matplotlib to compute axis limits from existing data
+        ax.autoscale_view()
+        x_star = xmax
+        arrow_len = (xmax - xmin) * 0.12
+        y_offset = (ymax - ymin) * 0.04
+        arrow_tip_x = xmax + (xmax - xmin) * 0.06
+        for y_val, color in deferred_stars:
+            ax.plot(
+                x_star,
+                y_val,
+                marker="*",
+                color=color,
+                markersize=15,
+                markeredgecolor="white",
+                markeredgewidth=0.5,
+                clip_on=False,
+                zorder=5,
+            )
+            # Horizontal arrow pointing right, just above the star
+            arrow_y = y_val + y_offset
+            ax.annotate(
+                "",
+                xy=(arrow_tip_x, arrow_y),
+                xytext=(arrow_tip_x - arrow_len, arrow_y),
+                arrowprops=dict(
+                    arrowstyle="->,head_length=0.6,head_width=0.4",
+                    color=color,
+                    lw=2,
+                ),
+                clip_on=False,
+                annotation_clip=False,
+            )
 
     if use_bars:
         ax.set_xticks([])
     else:
-        ax.set_xlabel(unit.replace("_", " "))
+        ax.set_xlim(max(0, xmin), xmax)
+        ax.set_xlabel(format_unit(unit))
         if xlog:
             ax.set_xscale("log")
             ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
@@ -438,6 +513,10 @@ def format_expename_for_title(expe_name):
     return expe_name
 
 
+def format_unit(unit):
+    return unit.replace("_", " ").replace("tokens", "training tokens")
+
+
 def plot_aggregate(
     ax,
     df,
@@ -519,7 +598,7 @@ def plot_aggregate(
         ax, series, color_map, style_map, unit=unit, xlog=xlog, use_dots=use_dots
     )
     ax.set_ylabel("Normalized score")
-    ax.set_title("Average (normalized)")
+    ax.set_title("Average")
 
 
 def plot_list_of_tasks(
