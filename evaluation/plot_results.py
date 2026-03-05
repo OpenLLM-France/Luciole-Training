@@ -517,6 +517,21 @@ def format_unit(unit):
     return unit.replace("_", " ").replace("tokens", "training tokens")
 
 
+def _sort_legend_dict(legend_dict, df):
+    """Sort legend entries by experiment order in df, with 'random' always last."""
+    label_order = [format_expename_for_title(name) for name in df["expe_name"].unique()]
+
+    def sort_key(label):
+        if label == "random":
+            return (1, 0)
+        try:
+            return (0, label_order.index(label))
+        except ValueError:
+            return (0, len(label_order))
+
+    return dict(sorted(legend_dict.items(), key=lambda item: sort_key(item[0])))
+
+
 def plot_aggregate(
     ax,
     df,
@@ -743,6 +758,7 @@ def plot_list_of_tasks(
         for ax in axes[len(all_data) :]:
             ax.axis("off")
         ax = axes[-1]
+        legend_dict = _sort_legend_dict(legend_dict, df)
         for handle in legend_dict.values():
             handle.set_alpha(1.0)
         leg = ax.legend(
@@ -882,6 +898,7 @@ def plot_list_of_tasks(
         # Dedicated subplot for legend
         legend_ax = axes[-1]
         legend_ax.axis("off")
+        legend_dict = _sort_legend_dict(legend_dict, df)
         for handle in legend_dict.values():
             if hasattr(handle, "set_alpha"):
                 handle.set_alpha(1.0)
