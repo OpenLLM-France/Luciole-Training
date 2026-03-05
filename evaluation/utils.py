@@ -387,6 +387,7 @@ def format_task_for_title(task):
         .replace("mlmm", "MLMM")
         .replace("flores200", "FLORES")
         .replace("_Latn", "")
+        .replace("_cf", " ")
         .replace("_", " ")
         .replace(":", " ")
     )
