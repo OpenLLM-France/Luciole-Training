@@ -637,6 +637,53 @@ def plot_aggregate(
     ax.set_title("Average")
 
 
+def _draw_legend(ax_or_fig, legend_dict, as_figure=False):
+    """Draw a styled legend on an axis or as a standalone figure."""
+    for handle in legend_dict.values():
+        if hasattr(handle, "set_alpha"):
+            handle.set_alpha(1.0)
+
+    target = ax_or_fig
+    if as_figure:
+        target = ax_or_fig  # a figure, use figlegend
+        leg = target.legend(
+            legend_dict.values(),
+            legend_dict.keys(),
+            title="Experiment",
+            loc="center",
+            fontsize=11,
+            title_fontsize=12,
+            frameon=True,
+            fancybox=True,
+            shadow=False,
+            edgecolor="#cccccc",
+            facecolor="white",
+            framealpha=0.9,
+            borderpad=1.0,
+            labelspacing=0.8,
+            handlelength=2.5,
+        )
+    else:
+        leg = target.legend(
+            legend_dict.values(),
+            legend_dict.keys(),
+            title="Experiment",
+            loc="center",
+            fontsize=11,
+            title_fontsize=12,
+            frameon=True,
+            fancybox=True,
+            shadow=False,
+            edgecolor="#cccccc",
+            facecolor="white",
+            framealpha=0.9,
+            borderpad=1.0,
+            labelspacing=0.8,
+            handlelength=2.5,
+        )
+    leg.get_title().set_fontweight("bold")
+
+
 def plot_list_of_tasks(
     df,
     list_of_tasks_to_plot,
@@ -653,7 +700,9 @@ def plot_list_of_tasks(
     dpi=300,
     max_subplot=19,
     add_aggregate=False,
+    separate_legend=False,
 ):
+    legend_fig = None
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
 
         def full_expe_name(expe_name, tokens):
@@ -719,11 +768,11 @@ def plot_list_of_tasks(
         else:
             all_data = {"average": data}
 
-        n_subtasks = len(all_data) + 1
-        cols = math.ceil(math.sqrt(n_subtasks))
-        rows = math.ceil(n_subtasks / cols)
+        n_plots = len(all_data) if separate_legend else len(all_data) + 1
+        cols = math.ceil(math.sqrt(n_plots))
+        rows = math.ceil(n_plots / cols)
         fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
-        axes = axes.flatten() if n_subtasks > 1 else [axes]
+        axes = axes.flatten() if n_plots > 1 else [axes]
         legend_dict = {}
         for i, (ax, subtask) in enumerate(zip(axes, sorted(all_data.keys()))):
             data = all_data[subtask]
@@ -766,27 +815,12 @@ def plot_list_of_tasks(
 
         for ax in axes[len(all_data) :]:
             ax.axis("off")
-        ax = axes[-1]
         legend_dict = _sort_legend_dict(legend_dict, df)
-        for handle in legend_dict.values():
-            handle.set_alpha(1.0)
-        leg = ax.legend(
-            legend_dict.values(),
-            legend_dict.keys(),
-            title="Experiment",
-            loc="center",
-            fontsize=11,
-            title_fontsize=12,
-            frameon=True,
-            fancybox=True,
-            edgecolor="#cccccc",
-            facecolor="white",
-            framealpha=0.9,
-            borderpad=1.0,
-            labelspacing=0.8,
-            handlelength=2.5,
-        )
-        leg.get_title().set_fontweight("bold")
+        if separate_legend:
+            legend_fig = plt.figure(figsize=(4, max(2, 0.4 * len(legend_dict))))
+            _draw_legend(legend_fig, legend_dict, as_figure=True)
+        else:
+            _draw_legend(axes[-1], legend_dict)
 
     else:
         list_of_tasks_to_plot = [
@@ -831,12 +865,13 @@ def plot_list_of_tasks(
                     dpi=dpi,
                     max_subplot=max_subplot,
                     add_aggregate=add_aggregate,
+                    separate_legend=separate_legend,
                 )
             return
 
         num_tasks = len(list_of_tasks_to_plot)
         num_extra = 1 if add_aggregate else 0
-        num_plots = num_tasks + num_extra + 1  # +1 for the legend
+        num_plots = num_tasks + num_extra + (0 if separate_legend else 1)
 
         cols = math.ceil(math.sqrt(num_plots))
         rows = math.ceil(num_plots / cols)
@@ -904,36 +939,21 @@ def plot_list_of_tasks(
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
-        # Dedicated subplot for legend
-        legend_ax = axes[-1]
-        legend_ax.axis("off")
         legend_dict = _sort_legend_dict(legend_dict, df)
-        for handle in legend_dict.values():
-            if hasattr(handle, "set_alpha"):
-                handle.set_alpha(1.0)
-
-        leg = legend_ax.legend(
-            legend_dict.values(),
-            legend_dict.keys(),
-            title="Experiment",
-            loc="center",
-            fontsize=11,
-            title_fontsize=12,
-            frameon=True,
-            fancybox=True,
-            shadow=False,
-            edgecolor="#cccccc",
-            facecolor="white",
-            framealpha=0.9,
-            borderpad=1.0,
-            labelspacing=0.8,
-            handlelength=2.5,
-        )
-        leg.get_title().set_fontweight("bold")
-
-        # Hide any unused subplots
-        for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes) - 1):
-            fig.delaxes(axes[j])
+        if separate_legend:
+            # Hide all unused subplots (no legend subplot)
+            for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes)):
+                fig.delaxes(axes[j])
+            legend_fig = plt.figure(figsize=(4, max(2, 0.4 * len(legend_dict))))
+            _draw_legend(legend_fig, legend_dict, as_figure=True)
+        else:
+            # Dedicated subplot for legend
+            legend_ax = axes[-1]
+            legend_ax.axis("off")
+            _draw_legend(legend_ax, legend_dict)
+            # Hide any unused subplots (before the legend)
+            for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes) - 1):
+                fig.delaxes(axes[j])
 
         # Only show xlabel on bottom row subplots
         active_indices = set(range(num_extra + num_tasks))  # all plotted subplots
@@ -947,10 +967,19 @@ def plot_list_of_tasks(
         if title is not None:
             fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)
 
-    plt.tight_layout(h_pad=1.5, w_pad=1.5)
+    fig.tight_layout(h_pad=1.5, w_pad=1.5)
     if output_file:
-        plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
+        fig.savefig(output_file, dpi=dpi, bbox_inches="tight")
         print(f"Saved figure to {output_file}")
+
+    # Save or show the separate legend figure if it exists
+    if legend_fig is not None:
+        if output_file:
+            base, ext = os.path.splitext(output_file)
+            legend_file = f"{base}_legend{ext}"
+            legend_fig.savefig(legend_file, dpi=dpi, bbox_inches="tight")
+            print(f"Saved legend to {legend_file}")
+            plt.close(legend_fig)
 
 
 def plot_experiments(df, args, max_subplot=19):
@@ -1002,6 +1031,7 @@ def plot_experiments(df, args, max_subplot=19):
             details=args.details,
             dpi=args.dpi,
             add_aggregate=add_aggregate,
+            separate_legend=args.separate_legend,
         )
 
     if not args.output_path:
@@ -1166,6 +1196,12 @@ if __name__ == "__main__":
         help="If set, check that the aggregated benchmarks are the same for all the models (--group agg).",
     )
     parser.add_argument("--dpi", type=int, default=300)
+    parser.add_argument(
+        "--separate_legend",
+        default=False,
+        action="store_true",
+        help="If set, save the legend as a separate figure instead of a subplot.",
+    )
     parser.add_argument(
         "--save_csv",
         action="store_true",
