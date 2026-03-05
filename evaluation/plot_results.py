@@ -755,6 +755,15 @@ def plot_list_of_tasks(
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
+        # Only show xlabel on bottom row subplots (ruler)
+        ruler_cols = cols
+        for idx in range(len(all_data)):
+            is_bottom_row = (idx // ruler_cols) == (rows - 1) or (
+                idx + ruler_cols
+            ) >= len(all_data)
+            if not is_bottom_row:
+                axes[idx].set_xlabel("")
+
         for ax in axes[len(all_data) :]:
             ax.axis("off")
         ax = axes[-1]
@@ -925,6 +934,15 @@ def plot_list_of_tasks(
         # Hide any unused subplots
         for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes) - 1):
             fig.delaxes(axes[j])
+
+        # Only show xlabel on bottom row subplots
+        active_indices = set(range(num_extra + num_tasks))  # all plotted subplots
+        for idx in active_indices:
+            is_bottom_row = (idx // cols) == (rows - 1) or (
+                idx + cols
+            ) not in active_indices
+            if not is_bottom_row:
+                axes[idx].set_xlabel("")
 
         if title is not None:
             fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)

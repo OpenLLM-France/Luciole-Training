@@ -22,7 +22,7 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else None
         model_size = 32.234_279_936
-    elif "Apertus-8B-2509" in str(file_path):
+    elif "Apertus-8B" in str(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
         tokens = float(match.group(1)) if match else 15000
         model_size = 8.0
@@ -387,8 +387,10 @@ def format_task_for_title(task):
         .replace("mlmm", "MLMM")
         .replace("flores200", "FLORES")
         .replace("_Latn", "")
-        .replace("_cf", " ")
+        .replace("_cf", "")
+        .replace(":_average", "")
         .replace("_", " ")
         .replace(":", " ")
+        .strip()
     )
     return task

@@ -37,3 +37,6 @@
 {"task": "lighteval|global_mmlu_all_ara_cf:_average", "metric":"acc_norm", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "other"}
 {"task": "lighteval|global_mmlu_all_por_cf:_average", "metric":"acc_norm", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "other"}
 {"task": "lighteval|global_mmlu_all_nld_cf:_average", "metric":"acc_norm", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "other"}
+//
+// {"task": "lighteval|gpqa:diamond", "metric":"gpqa_pass@k_with_k", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "en"}
+// {"task": "lighteval|gpqa-fr", "metric":"acc", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 4, "language": "fr"}
