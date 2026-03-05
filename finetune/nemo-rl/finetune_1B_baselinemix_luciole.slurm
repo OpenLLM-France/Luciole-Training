@@ -1,20 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=nemo_rl_sft_baselinemix_luciole
-#SBATCH --output=logs/log_%x-%j.stdout
-#SBATCH --error=logs/log_%x-%j.stdout
+#SBATCH --job-name=nemo_rl_sft_1B_baselinemix
+#SBATCH --output=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline/log_%x-%j.stdout
+#SBATCH --error=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline/log_%x-%j.stdout
 #SBATCH --gres=gpu:4
-#SBATCH --nodes=8
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --exclusive
-#SBATCH --time=10:00:00
+#SBATCH --time=5:00:00
 #SBATCH --cpus-per-task=64
 #SBATCH --hint=nomultithread
 #SBATCH --constraint h100
 #SBATCH --account wuh@h100
 #SBATCH --qos qos_gpu_h100-t3
 #SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL,REQUEUE
-#SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL,REQUEUE
-#SBATCH --mail-user=achaturvedi@linagora.com,cthompson@linagora.com
 
 #set -euo pipefail
 
@@ -127,7 +125,6 @@ ray status || { echo "Ray failed to start"; exit 1; }
 # run code
 
 uv run --no-build-isolation python examples/run_sft.py \
-  --config sft_8B_baseline_luciole.yaml \
-  cluster.num_nodes=8 \
+  --config sft_1B_baseline_luciole.yaml \
+  cluster.num_nodes=4 \
   cluster.gpus_per_node=4
-

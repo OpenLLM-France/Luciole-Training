@@ -14,19 +14,19 @@ sft:
 
 checkpointing:
   enabled: true
-  checkpoint_dir: "results_new/sft_luciole_nemotronh8B_baseline"
+  checkpoint_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline/checkpoints"
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
-  keep_top_k: 3 # changed 3 to -1
+  keep_top_k: 10
   save_period: 10
   checkpoint_must_save_by: null
 
 policy:
-  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_131k_v4_nemotronh8b_context_extension/huggingface_checkpoints/luciole_131k_v4_nemotronh8b_context_extension-step_0023840"
+  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
   tokenizer:
-    name: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_train" ## specify if you'd like to use a tokenizer different from the model's default
+    name: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_nothink" ## specify if you'd like to use a tokenizer different from the model's default
     # chat_template can be a Jinja template string or path to a .jinja file
-    chat_template: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_train/chat_template.jinja"
+    chat_template: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_nothink/chat_template.jinja"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   train_global_batch_size: 256
   train_micro_batch_size: 1
@@ -82,8 +82,7 @@ policy:
       weight_decay: 0.1
       betas: [0.9, 0.95]
       eps: 1e-5
-        # when using Dtensor, we 
-        # need to set foreach
+      # when using Dtensor, we need to set foreach
       # and fused to False
       foreach: False
       fused: False
@@ -105,18 +104,15 @@ policy:
     sequence_parallel: false
     freeze_moe_router: false
     moe_router_dtype: null
-    moe_router_load_balancing_type: "none" # "aux_loss"
+    moe_router_load_balancing_type: "aux_loss"
     moe_router_bias_update_rate: 1e-3
     moe_permute_fusion: false
     #gives ~20% training perf speedup with sequence packing 
-    apply_rope_fusion: False
+    apply_rope_fusion: True
     # gives ~25% training perf speedup with sequence packing and apply_rope_fusion
     bias_activation_fusion: False
     defer_fp32_logits: False
     moe_per_layer_logging: False
-    # moe_enable_deepep: false
-    # moe_token_dispatcher_type: "allgather"
-    # moe_shared_expert_overlap: false
 
     optimizer:
       optimizer: "adam"
@@ -149,10 +145,10 @@ policy:
       start_weight_decay: ${policy.megatron_cfg.optimizer.weight_decay}
       end_weight_decay: ${policy.megatron_cfg.optimizer.weight_decay}
       weight_decay_incr_style: "constant"
-      lr_decay_style: "constant"
-      lr_decay_iters: 1000
-      lr_warmup_iters: 0
-      lr_warmup_init: 3.0e-6
+      lr_decay_style: "cosine"
+      lr_decay_iters: 3125
+      lr_warmup_iters: 50
+      lr_warmup_init: 0
 
     distributed_data_parallel_config:
       grad_reduce_in_fp32: false
@@ -163,25 +159,16 @@ policy:
 
 data:
   max_input_seq_length: ${policy.max_total_sequence_length}
-  add_bos: true
+  add_bos: false
   add_eos: true
   add_generation_prompt: false
   shuffle: true
   num_workers: 1
 
-  # dataset_name: ResponseDataset
+  #dataset_name: ResponseDataset
   dataset_name: openai_format_multifiles
   train_data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_baseline/training/"
   val_data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_baseline/validation/"
-
-  # train:
-  #  data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/lucie1mix/training/training.jsonl"
-  # validation:
-  #  data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/lucie1mix/validation/validation.jsonl"
-  # default:
-  #  dataset_name: ResponseDataset
-
-
   # You can use custom response datasets for training and validation. For example:
   #   data:
   #     dataset_name: ResponseDataset
@@ -210,7 +197,7 @@ data:
   use_preserving_dataset: false            # If true, uses PreservingDataset to preserve heterogeneous schemas (e.g., tool calls with varying argument structures)
 
 logger:
-  log_dir: "logs"  # Base directory for all logs
+  log_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1b_baseline/logs"  # Base directory for all logs
   wandb_enabled: false # Make sure you do a ``wandb login [Your API key]'' before running
   tensorboard_enabled: true
   mlflow_enabled: false
