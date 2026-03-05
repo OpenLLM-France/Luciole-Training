@@ -538,6 +538,10 @@ def plot_aggregate(
     for _, row in df_info.iterrows():
         random_lookup[row["task"]] = row["random"]
 
+    # Track which tasks each experiment has results for
+    # expe_name -> set of (task, metric)
+    experiment_tasks = {}
+
     # Collect per-experiment normalized scores at each checkpoint
     # expe_name -> {(tokens, xval) -> [normalized_scores]}
     experiment_data = {}
@@ -551,6 +555,8 @@ def plot_aggregate(
             expe_name = row["expe_name"]
             if expe_name not in experiment_data:
                 experiment_data[expe_name] = {}
+                experiment_tasks[expe_name] = set()
+            experiment_tasks[expe_name].add((task, metric))
 
             tokens_list = row["tokens"]
             scores_list = row["score"]
@@ -581,6 +587,21 @@ def plot_aggregate(
                 except AssertionError:
                     continue
                 experiment_data[expe_name][key].append(norm_score)
+
+    # Exclude experiments missing at least one task
+    all_tasks = set(list_of_tasks_to_plot)
+    num_tasks = len(all_tasks)
+    incomplete = {
+        name: all_tasks - tasks
+        for name, tasks in experiment_tasks.items()
+        if tasks != all_tasks
+    }
+    for name, missing in incomplete.items():
+        missing_names = [format_task_for_title(t) for t, _ in sorted(missing)]
+        print(
+            f"WARNING: '{name}' excluded from aggregate (missing {len(missing)}/{num_tasks} tasks: {', '.join(missing_names)})"
+        )
+        del experiment_data[name]
 
     # Build series from aggregated data
     series = []
