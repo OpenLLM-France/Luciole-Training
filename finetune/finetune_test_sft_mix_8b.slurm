@@ -12,8 +12,6 @@
 #SBATCH --account zwy@h100
 #SBATCH --qos qos_gpu_h100-dev
 #SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL,REQUEUE
-#SBATCH --mail-user=cthompson@linagora.com,achaturvedi@linagora.com
-
 
 ## load environment
 module purge
