@@ -62,17 +62,17 @@ _PALETTE = [
 
 task_group_mapping = {
     "en": [
-        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
-        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
         ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
         ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
         ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
+        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
         ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
         ("helm|siqa|0", "em"),
-        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("leaderboard|hellaswag|0", "acc"),
         ("leaderboard|winogrande|0", "acc"),
         ("lighteval|piqa|0", "acc_with_logprob_normalization"),
+        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         # ("helm|boolq:_average|0", "em_with_type_exact_match"),
     ],
     "smollm": [
@@ -119,9 +119,9 @@ task_group_mapping = {
     "fr": [
         ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),  # f1_fra ?
         ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),  # f1_fra ?
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
         ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
         ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
         ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
         ("lighteval|xcodah_fra_cf|0", "acc_norm"),
         ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
@@ -477,7 +477,7 @@ def plot_task(
         ].iloc[0]
         random = 1.0 / num_classes
         ax.axhline(
-            y=random, color="#bbbbbb", linestyle=":", linewidth=1.2, label="random"
+            y=random, color="#999999", linestyle=":", linewidth=2, label="random"
         )
 
     # Build series list
