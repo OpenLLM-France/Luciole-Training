@@ -1,6 +1,7 @@
 import argparse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import json
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("model_name", type=str, default="")
@@ -8,6 +9,9 @@ parser.add_argument("--chat", action="store_true")
 parser.add_argument("--save_path", type=str, default="vibe_evaluation_results.txt")
 parser.add_argument("--temperature", type=float, default=0.6)
 parser.add_argument("--top_p", type=float, default=0.9)
+parser.add_argument("--eos_token_id", nargs="+", type=int, default=None)
+parser.add_argument("--num_sequences", type=int, default=1)
+parser.add_argument("--system_prompt", type=str, default=None)
 args = parser.parse_args()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -32,32 +36,49 @@ if __name__ == "__main__":
     with open(args.save_path, "w", encoding="utf-8") as f:
         for i, prompt in enumerate(vibe_prompts):
             if args.chat:
-                # tokenizer.eos_token = "<|im_end|>"
+                conversation = [{"role": "user", "content": prompt}]
+                if args.system_prompt:
+                    conversation.insert(
+                        0, {"role": "system", "content": args.system_prompt}
+                    )
                 input_ids = tokenizer.apply_chat_template(
-                    [{"role": "user", "content": prompt}],
+                    conversation,
                     add_generation_prompt=True,
                     return_tensors="pt",
                 ).to(device)
             else:
-                # # Option 1
-                # tokenizer.bos_token = "</s>"
-                # tokenizer.bos_token_id = tokenizer.eos_token_id
-                # tokenizer.add_bos_token = True
-                # Option 2
-                # tokenizer.add_bos_token = False
-
                 input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(device)
+
+            args_dict = vars(args)  # convert argparse Namespace → dict
+
+            samples = []
+
             with torch.no_grad():
                 output = model.generate(
                     input_ids,
-                    max_new_tokens=1024,
-                    num_return_sequences=1,
+                    max_new_tokens=256,
+                    num_return_sequences=args.num_sequences,
                     do_sample=True,
-                    # top_k=50,
+                    top_k=50,
                     top_p=args.top_p,
                     temperature=args.temperature,
-                    eos_token_id=[1, 261],
+                    eos_token_id=args.eos_token_id,
                 )
-            generated_text = tokenizer.decode(output[0], skip_special_tokens=False)
-            print(f"\n\n#### Example #{i} \n{generated_text}\n")
-            f.write(f"\n\n#### Example #{i} \n{generated_text}\n")
+
+            for j, seq in enumerate(output):
+                text = tokenizer.decode(seq, skip_special_tokens=False)
+
+                print(f"\n\n#### Example #{i}-{j}\n{text}\n")
+
+                samples.append(
+                    {
+                        "example_id": i,
+                        "sample_id": j,
+                        "text": text,
+                        "generation_args": args_dict,
+                    }
+                )
+
+            with open("generations.jsonl", "a") as f:
+                for s in samples:
+                    f.write(json.dumps(s) + "\n")
