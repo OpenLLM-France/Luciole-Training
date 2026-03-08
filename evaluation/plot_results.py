@@ -517,6 +517,15 @@ def format_unit(unit):
     return unit.replace("_", " ").replace("tokens", "training tokens")
 
 
+def format_group_name_for_title(group_name):
+    return {
+        "en": "English",
+        "fr": "French",
+        "multilingual": "Other Languages",
+        "translation": "Translation",
+    }.get(group_name, None)
+
+
 def _sort_legend_dict(legend_dict, df):
     """Sort legend entries by experiment order in df, with 'random' always last."""
     label_order = [format_expename_for_title(name) for name in df["expe_name"].unique()]
@@ -543,6 +552,7 @@ def plot_aggregate(
     use_dots=False,
     max_tokens=None,
     checkpoint_index=None,
+    title=None,
 ):
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
@@ -644,7 +654,7 @@ def plot_aggregate(
             else format_metric_for_title(next(iter(averaged_metrics)))
         )
     )
-    ax.set_title("Overall Performance Across Benchmarks")
+    ax.set_title(title if title else "Overall Performance")
 
 
 def _draw_legend(ax_or_fig, legend_dict, as_figure=False):
@@ -778,15 +788,13 @@ def plot_list_of_tasks(
         elif add_aggregate:
             all_data["average"] = data
 
-        n_plots = len(all_data) if separate_legend else len(all_data) + 1
-        cols = math.ceil(math.sqrt(n_plots))
-        rows = math.ceil(n_plots / cols)
-        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
-        axes = axes.flatten() if n_plots > 1 else [axes]
-        legend_dict = {}
-        for i, (ax, subtask) in enumerate(zip(axes, sorted(all_data.keys()))):
-            data = all_data[subtask]
-            for expe_name_with_tokens, values in data.items():
+        has_average = "average" in all_data
+        detail_subtasks = sorted(k for k in all_data if k != "average")
+        n_details = len(detail_subtasks)
+
+        def _plot_ruler_on_ax(ax, subtask_name):
+            subtask_data = all_data[subtask_name]
+            for expe_name_with_tokens, values in subtask_data.items():
                 sorted_indices = np.argsort(values["context_length"])
                 values["context_length"] = np.array(values["context_length"])[
                     sorted_indices
@@ -800,7 +808,6 @@ def plot_list_of_tasks(
                     markeredgewidth=2,
                     label=expe_name_with_tokens,
                 )
-            # if i >= len(all_data) - 4:
             ax.set_xlabel("Context Length")
             ax.set_xscale("log", base=2)
             ax.set_xticks(
@@ -808,8 +815,8 @@ def plot_list_of_tasks(
                 labels=[str(cl) for cl in sorted(all_context_lengths)],
             )
             ax.set_ylabel("Ruler Match Score")
-            ax.set_title(subtask)
-            if subtask == "average":
+            ax.set_title(format_task_for_title(subtask_name))
+            if subtask_name == "average":
                 # Visually emphasize the average subplot
                 ax.set_facecolor("#f7f7f7")
                 for spine in ax.spines.values():
@@ -817,33 +824,73 @@ def plot_list_of_tasks(
                     spine.set_edgecolor("#888888")
                     spine.set_linewidth(1.5)
                 ax.set_title(
-                    subtask,
+                    "RULE" if hide_details else "Overall Performance (RULER)",
                     fontsize=12,
                     fontweight="heavy",
-                    fontstyle="italic",
+                    # fontstyle="italic",
                 )
-            # ax.legend(title="Experiment name", loc="best")
+                ax.set_ylabel("Average Ruler Match Score")
             handles, labels = ax.get_legend_handles_labels()
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
-        # Only show xlabel on bottom row subplots (ruler)
-        ruler_cols = cols
-        for idx in range(len(all_data)):
-            is_bottom_row = (idx // ruler_cols) == (rows - 1) or (
-                idx + ruler_cols
-            ) >= len(all_data)
-            if not is_bottom_row:
-                axes[idx].set_xlabel("")
+        if has_average and n_details > 0:
+            # First row: average + legend; remaining rows: detail subtasks
+            detail_cols = math.ceil(math.sqrt(n_details))
+            cols = max(2, detail_cols) if not separate_legend else max(1, detail_cols)
+            detail_rows = math.ceil(n_details / cols)
+            rows = 1 + detail_rows
+            detail_start = cols
+        elif has_average:
+            # Only average (hide_details)
+            cols = 1 if separate_legend else 2
+            rows = 1
+            detail_start = cols
+        else:
+            # Only details, no average
+            n_plots = n_details + (0 if separate_legend else 1)
+            cols = math.ceil(math.sqrt(n_plots))
+            rows = math.ceil(n_plots / cols)
+            detail_start = 0
 
-        for ax in axes[len(all_data) :]:
-            ax.axis("off")
+        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+        axes = axes.flatten() if rows * cols > 1 else [axes]
+        legend_dict = {}
+
+        if has_average:
+            _plot_ruler_on_ax(axes[0], "average")
+            # Hide xlabel when detail rows exist below
+            if n_details > 0:
+                axes[0].set_xlabel("")
+
+        for i, subtask in enumerate(detail_subtasks):
+            _plot_ruler_on_ax(axes[detail_start + i], subtask)
+
+        # Hide xlabel on non-bottom-row detail subplots
+        for i in range(n_details):
+            if i + cols < n_details:
+                axes[detail_start + i].set_xlabel("")
+
+        # Clean up unused axes
+        used = set()
+        if has_average:
+            used.add(0)
+        for i in range(n_details):
+            used.add(detail_start + i)
+
         legend_dict = _sort_legend_dict(legend_dict, df)
         if separate_legend:
             legend_fig = plt.figure(figsize=(4, max(2, 0.4 * len(legend_dict))))
             _draw_legend(legend_fig, legend_dict, as_figure=True)
         else:
-            _draw_legend(axes[-1], legend_dict)
+            legend_idx = 1 if has_average else (rows * cols - 1)
+            used.add(legend_idx)
+            axes[legend_idx].axis("off")
+            _draw_legend(axes[legend_idx], legend_dict)
+
+        for j in range(rows * cols):
+            if j not in used:
+                fig.delaxes(axes[j])
 
     else:
         list_of_tasks_to_plot = [
@@ -893,31 +940,47 @@ def plot_list_of_tasks(
             return
 
         if hide_details and add_aggregate:
-            # Only show the aggregate, no individual benchmarks
             num_tasks = 0
         else:
             num_tasks = len(list_of_tasks_to_plot)
-        num_extra = 1 if add_aggregate else 0
-        num_plots = num_tasks + num_extra + (0 if separate_legend else 1)
 
-        cols = math.ceil(math.sqrt(num_plots))
-        rows = math.ceil(num_plots / cols)
-
-        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
-        if rows * cols == 1:
-            axes = [axes]  # wrap single Axes in a list
-        else:
-            axes = axes.flatten()
         color_map = assign_colors(
             df, apply_phase_style=apply_phase_style
         )  # Global color map
         style_map = assign_styles(df, apply_phase_style=apply_phase_style)
 
-        # Keep track of labels added to the legend
+        if add_aggregate:
+            # Layout: first row for aggregate + legend, remaining rows for details
+            if num_tasks > 0:
+                detail_cols = math.ceil(math.sqrt(num_tasks))
+                cols = (
+                    max(2, detail_cols) if not separate_legend else max(1, detail_cols)
+                )
+                detail_rows = math.ceil(num_tasks / cols)
+            else:
+                cols = 1 if separate_legend else 2
+                detail_rows = 0
+            rows = 1 + detail_rows
+            detail_start = cols
+        else:
+            # No aggregate: flat layout for details + legend
+            num_plots = num_tasks + (0 if separate_legend else 1)
+            cols = math.ceil(math.sqrt(num_plots))
+            rows = math.ceil(num_plots / cols)
+            detail_start = 0
+
+        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+        if rows * cols == 1:
+            axes = [axes]
+        else:
+            axes = axes.flatten()
+
         legend_dict = {}
+        used = set()
 
         if add_aggregate:
             agg_ax = axes[0]
+            used.add(0)
             plot_aggregate(
                 agg_ax,
                 df,
@@ -929,6 +992,9 @@ def plot_list_of_tasks(
                 use_dots=use_dots,
                 max_tokens=max_tokens,
                 checkpoint_index=checkpoint_index,
+                title=title
+                if hide_details
+                else (f"Overall Performance ({title})" if title else None),
             )
             # Visually emphasize the aggregate subplot
             agg_ax.set_facecolor("#f7f7f7")
@@ -940,59 +1006,58 @@ def plot_list_of_tasks(
                 agg_ax.get_title(),
                 fontsize=12,
                 fontweight="heavy",
-                fontstyle="italic",
+                # fontstyle="italic",
             )
             handles, labels = agg_ax.get_legend_handles_labels()
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
+            # Hide xlabel when detail rows exist below
+            if num_tasks > 0:
+                agg_ax.set_xlabel("")
 
-        if not (hide_details and add_aggregate):
-            for i, (task, metric) in enumerate(list_of_tasks_to_plot):
-                plot_task(
-                    axes[i + num_extra],
-                    df,
-                    task,
-                    metric,
-                    color_map=color_map,
-                    style_map=style_map,
-                    xlog=xlog,
-                    fit=fit,
-                    unit=unit,
-                    use_dots=use_dots,
-                    max_tokens=max_tokens,
-                    checkpoint_index=checkpoint_index,
-                )
+        for i, (task, metric) in enumerate(list_of_tasks_to_plot[:num_tasks]):
+            ax_idx = detail_start + i
+            used.add(ax_idx)
+            plot_task(
+                axes[ax_idx],
+                df,
+                task,
+                metric,
+                color_map=color_map,
+                style_map=style_map,
+                xlog=xlog,
+                fit=fit,
+                unit=unit,
+                use_dots=use_dots,
+                max_tokens=max_tokens,
+                checkpoint_index=checkpoint_index,
+            )
 
-                handles, labels = axes[i + num_extra].get_legend_handles_labels()
-                for handle, label in zip(handles, labels):
-                    legend_dict[label] = handle
+            handles, labels = axes[ax_idx].get_legend_handles_labels()
+            for handle, label in zip(handles, labels):
+                legend_dict[label] = handle
 
         legend_dict = _sort_legend_dict(legend_dict, df)
         if separate_legend:
-            # Hide all unused subplots (no legend subplot)
-            for j in range(num_tasks + num_extra, len(axes)):
-                fig.delaxes(axes[j])
             legend_fig = plt.figure(figsize=(4, max(2, 0.4 * len(legend_dict))))
             _draw_legend(legend_fig, legend_dict, as_figure=True)
         else:
-            # Dedicated subplot for legend
-            legend_ax = axes[-1]
-            legend_ax.axis("off")
-            _draw_legend(legend_ax, legend_dict)
-            # Hide any unused subplots (before the legend)
-            for j in range(num_tasks + num_extra, len(axes) - 1):
+            legend_idx = 1 if add_aggregate else (rows * cols - 1)
+            used.add(legend_idx)
+            axes[legend_idx].axis("off")
+            _draw_legend(axes[legend_idx], legend_dict)
+
+        # Remove unused axes
+        for j in range(rows * cols):
+            if j not in used:
                 fig.delaxes(axes[j])
 
-        # Only show xlabel on bottom row subplots
-        active_indices = set(range(num_extra + num_tasks))  # all plotted subplots
-        for idx in active_indices:
-            is_bottom_row = (idx // cols) == (rows - 1) or (
-                idx + cols
-            ) not in active_indices
-            if not is_bottom_row:
-                axes[idx].set_xlabel("")
+        # Hide xlabel on non-bottom-row detail subplots
+        for i in range(num_tasks):
+            if i + cols < num_tasks:
+                axes[detail_start + i].set_xlabel("")
 
-        if title is not None:
+        if title and not add_aggregate:
             fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)
 
     fig.tight_layout(h_pad=1.5, w_pad=1.5)
@@ -1062,6 +1127,7 @@ def plot_experiments(df, args, max_subplot=19):
             dpi=args.dpi,
             add_aggregate=add_aggregate,
             separate_legend=args.separate_legend,
+            title=format_group_name_for_title(g),
         )
 
     if not args.output_path:
