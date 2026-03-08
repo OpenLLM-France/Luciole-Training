@@ -669,7 +669,7 @@ def _draw_legend(ax_or_fig, legend_dict, as_figure=False):
         leg = target.legend(
             legend_dict.values(),
             legend_dict.keys(),
-            title="Experiment",
+            title="Model",
             loc="center",
             fontsize=11,
             title_fontsize=12,
@@ -687,7 +687,7 @@ def _draw_legend(ax_or_fig, legend_dict, as_figure=False):
         leg = target.legend(
             legend_dict.values(),
             legend_dict.keys(),
-            title="Experiment",
+            title="Model",
             loc="center",
             fontsize=11,
             title_fontsize=12,
@@ -717,7 +717,7 @@ def plot_list_of_tasks(
     max_tokens=None,
     checkpoint_index=None,
     hide_details=False,
-    dpi=300,
+    dpi=150,
     max_subplot=19,
     add_aggregate=False,
     separate_legend=False,
@@ -792,6 +792,13 @@ def plot_list_of_tasks(
         detail_subtasks = sorted(k for k in all_data if k != "average")
         n_details = len(detail_subtasks)
 
+        # Determine stable ordering of experiments (first one gets solid line)
+        ruler_expe_order = list(
+            dict.fromkeys(
+                name for subtask_data in all_data.values() for name in subtask_data
+            )
+        )
+
         def _plot_ruler_on_ax(ax, subtask_name):
             subtask_data = all_data[subtask_name]
             for expe_name_with_tokens, values in subtask_data.items():
@@ -800,12 +807,18 @@ def plot_list_of_tasks(
                     sorted_indices
                 ]
                 values["score"] = np.array(values["score"])[sorted_indices]
+                is_first = (
+                    ruler_expe_order.index(expe_name_with_tokens) == 0
+                    if expe_name_with_tokens in ruler_expe_order
+                    else False
+                )
                 ax.plot(
                     values["context_length"],
                     values["score"],
-                    marker="+",
-                    markersize=10,
-                    markeredgewidth=2,
+                    marker="o" if is_first else None,
+                    # markersize=10,
+                    # markeredgewidth=2,
+                    linestyle="-" if is_first else "--",
                     label=expe_name_with_tokens,
                 )
             ax.set_xlabel("Context Length")
@@ -824,7 +837,7 @@ def plot_list_of_tasks(
                     spine.set_edgecolor("#888888")
                     spine.set_linewidth(1.5)
                 ax.set_title(
-                    "RULE" if hide_details else "Overall Performance (RULER)",
+                    "RULER" if hide_details else "Overall Performance (RULER)",
                     fontsize=12,
                     fontweight="heavy",
                     # fontstyle="italic",
@@ -1291,7 +1304,7 @@ if __name__ == "__main__":
         action="store_true",
         help="If set, check that the aggregated benchmarks are the same for all the models (--group agg).",
     )
-    parser.add_argument("--dpi", type=int, default=300)
+    parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument(
         "--separate_legend",
         default=False,
