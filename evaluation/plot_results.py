@@ -561,7 +561,14 @@ def plot_aggregate(
     # expe_name -> {(tokens, xval) -> [normalized_scores]}
     experiment_data = {}
 
+    averaged_metrics = set()
+    all_tasks = set()
     for task, metric in list_of_tasks_to_plot:
+        if metric in ("bleu", "bleu_4", "metricx"):
+            continue
+        averaged_metrics.add(metric)
+        all_tasks.add((task, metric))
+
         task_base = "|".join(task.split("|")[:-1])
         random_baseline = random_lookup.get(task_base, 0.0)
 
@@ -597,14 +604,10 @@ def plot_aggregate(
                 key = (tokens_val, xval)
                 if key not in experiment_data[expe_name]:
                     experiment_data[expe_name][key] = []
-                try:
-                    norm_score = normalize_within_range(score_val, random_baseline, 1.0)
-                except AssertionError:
-                    continue
+                norm_score = normalize_within_range(score_val, random_baseline, 1.0)
                 experiment_data[expe_name][key].append(norm_score)
 
     # Exclude experiments missing at least one task
-    all_tasks = set(list_of_tasks_to_plot)
     num_tasks = len(all_tasks)
     incomplete = {
         name: all_tasks - tasks
@@ -633,8 +636,15 @@ def plot_aggregate(
     _plot_curves(
         ax, series, color_map, style_map, unit=unit, xlog=xlog, use_dots=use_dots
     )
-    ax.set_ylabel("Normalized score")
-    ax.set_title("Average")
+    ax.set_ylabel(
+        "Averaged "
+        + (
+            "Normalized Score"
+            if len(averaged_metrics) > 1
+            else format_metric_for_title(next(iter(averaged_metrics)))
+        )
+    )
+    ax.set_title("Overall Performance Across Benchmarks")
 
 
 def _draw_legend(ax_or_fig, legend_dict, as_figure=False):
