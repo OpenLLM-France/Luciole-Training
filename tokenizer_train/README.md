@@ -54,12 +54,6 @@ python tokenizer_make_instruct.py --tokenizer_path trained/my_tokenizer
 
 Adds chat/instruction special tokens to the base tokenizer.
 
-### 5. Upload
-
-```bash
-python hf_upload_tokenizer.py --tokenizer_path trained/my_tokenizer --repo_id OpenLLM-BPI/my_tokenizer
-```
-
 ## Results
 
 See `chronicles/README.md` for training data distributions and compression performance results.
