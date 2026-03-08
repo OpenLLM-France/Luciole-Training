@@ -16,10 +16,9 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
   * [Training Procedure](#training-procedure)
     * [Neural Network Architecture](#neural-network-architecture)
     * [Training Hyperparameters](#training-hyperparameters)
-      1. [Main Pre-training](#1-main-pre-training)
-      2. [Context Length Extension](#2-context-extension)
-      3. [Annealing](#3-annealing)
-* [Evaluation](#evaluation)
+  * [Training Convergence and Evaluation](#training-convergence-and-evaluation)
+    * [Training loss](#training-loss)
+    * [Evaluation](#evaluation)
 * [Citation](#citation)
 * [Acknowledgements](#acknowledgements)
 * [Contact](#contact)
@@ -97,15 +96,15 @@ Quelle est la capitale de la France ?\
 """
 completions = pipeline(prompt, **generation_kwargs)
 for completion in completions:
-    print(prompt + " […]" + completion['generated_text'])
+    print(prompt + "[…]" + completion['generated_text'])
 ```
 This will print something like:
 ```
 Quelle est la capitale de l'Espagne ? Madrid
-Quelle est la capitale de la France? […] Paris
+Quelle est la capitale de la France ?[…] Paris
 Quelle est la capitale du Brésil ? Brasilia
 Quelle est la capitale de la Belgique ? Bruxelles
-Quelle est la capitale de l'Italie? Rome
+Quelle est la capitale de l'Italie ? Rome
 ...
 ```
 
@@ -124,20 +123,15 @@ https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/
 
 They are organized into the following subfolders:
 * **Phase 1 – Initial pretraining (context length: 4,096)**  
-  From [phase1-step0001000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0001000)  
-  to [phase1-step0715787](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0715787)
+  From [phase1-step0001000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0001000) to [phase1-step0715787](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase1-step0715787)
 * **Phase 2 – Continued pretraining**  
-  From [phase2-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0010000)  
-  to [phase2-step0358931](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0358931)
+  From [phase2-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0010000) to [phase2-step0358931](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase2-step0358931)
 * **Phase 3 – Annealing phase**  
-  From [phase3-annealing-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase3-annealing-step0010000)  
-  to [phase3-annealing-step0118238](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase3-annealing-step0118238)
+  From [phase3-annealing-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase3-annealing-step0010000) to [phase3-annealing-step0118238](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase3-annealing-step0118238)
 * **Phase 4 – Context extension to 32k tokens**  
-  - [phase4-context-extension-32k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase4-context-extension-32k-step0003000)  
-  - [phase4-context-extension-32k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase4-context-extension-32k-step0005960)
+  [phase4-context-extension-32k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase4-context-extension-32k-step0003000) and [phase4-context-extension-32k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase4-context-extension-32k-step0005960)
 * **Phase 5 – Context extension to 131k tokens**  
-  - [phase5-context-extension-131k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase5-context-extension-131k-step0003000)  
-  - [phase5-context-extension-131k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase5-context-extension-131k-step0005960)
+  [phase5-context-extension-131k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase5-context-extension-131k-step0003000) and [phase5-context-extension-131k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-1B-Base/phase5-context-extension-131k-step0005960)
 
 The total cumulative number of training steps and training tokens for each checkpoint is specified in
 the YAML header of each `README.md` file, and in
@@ -222,7 +216,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Precision              | `bfloat16` |
 | Tensor Parallelism (with 256 GPUs)   | 1           |
 | Pipeline Parallelism (with 256 GPUs) | 1           |
-| Data Parallelism (with 256 GPUs)     | 32          |
+| Data Parallelism (with 256 GPUs)     | 256         |
 
 **2. Continual Pretraining**
 
@@ -233,9 +227,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Learning rate schedule | Cosine annealing  |
 | Maximum Learning rate  | 3e-4 |
 | Final Learning rate  | 6.87e-5 |
-| Tensor Parallelism (with 128 GPUs)   | 1           |
-| Pipeline Parallelism (with 128 GPUs) | 1           |
-| Data Parallelism (with 128 GPUs)     | 32          |
+| Data Parallelism (with 128 GPUs)     | 128          |
 
 
 **3. Annealing**
@@ -261,8 +253,6 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Learning rate schedule | Warmup + Cosine annealing |
 | Maximum Learning rate  | 6.87e-5  |
 | Final Learning rate    | 0      |
-| Tensor Parallelism (with 32 GPUs)   | 1  |
-| Pipeline Parallelism (with 32 GPUs) | 1  |
 | Data Parallelism (with 32 GPUs)     | 32 |
 
 **4. Context extension to 131K**
@@ -275,7 +265,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Batch size             | 32 |
 | RoPE theta             | 2,000,000 |
 
-### Training Logs and Learning Curves
+### Training Convergence and Evaluation
 
 #### Training loss
 
@@ -290,40 +280,42 @@ Information on training loss curves and training stability is available in the t
 The following figure shows the training loss curve for the different training phases:
 ![metadata/training_logs/ConvergenceCurve.png](metadata/training_logs/ConvergenceCurve.png)
 
-#### Evaluations
+#### Evaluation
 
-Multiple evaluations were conducted during Luciole-1B-Base's training to assess its performance on standard benchmarks,
-primarily in French and English, as well as in Spanish, German, and Italian.
+During the training of Luciole-1B-Base, we conducted multiple evaluations to assess performance on standard benchmarks.
+The primary evaluation languages were French and English, with additional evaluations in German, Spanish, Italian, Portuguese, Dutch, and Arabic.
+These evaluations were performed on intermediate checkpoints throughout training and on the final checkpoint.
+We also evaluated the final checkpoint using the RULER benchmark to measure long-context performance.
 
-Evaluation results on benchmark datasets of checkpoints of Luciole-1B-Base throughout the training process are available at
-[metadata/evaluation_learning_curve_lucie.csv](metadata/evaluation_learning_curve_lucie.csv).
-Evaluation results of baseline models on the same benchmark datasets are available at
-[metadata/evaluation_baselines.csv](metadata/evaluation_baselines.csv).
+For comparison, we evaluated the model against the following models, which have between 1B and 2B parameters and were trained on multilingual data, including French:
+- [Gaperon-1125-1B](https://huggingface.co/almanach/Gaperon-1125-1B)
+- [EuroLLM-1.7B](https://huggingface.co/utter-project/EuroLLM-1.7B)
+- [salamandra-2b](https://huggingface.co/BSC-LT/salamandra-2b)
+- [Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B)
+- [Qwen3-1.7B-Base](https://huggingface.co/Qwen/Qwen3-1.7B-Base)
 
-Main results are summarized in the following figures:
+The main results are summarized in the figures below.
+**Click on a figure to view the complete evaluation results with detailed metrics.**
+The figures illustrate the evolution of evaluation performance across training checkpoints.
+The x-axis corresponds to the cumulative number of training tokens, while the y-axis reports the average performance across tasks within each category.
+The RULER figure differs in that it reports average performance across different context lengths.
 
-### French
-![figures/learning-curve-evaluation-french-bench.png](figures/learning-curve-evaluation-french-bench.png)
+<table>
+<tr>
+<td><a href="metadata/evaluation/fr_details.png"><img src="metadata/evaluation/fr_average.png" alt="French average results"></a></td>
+<td><img src="metadata/evaluation/legend.png" alt="Legend"></td>
+</tr>
+<tr>
+<td><a href="metadata/evaluation/en_details.png"><img src="metadata/evaluation/en_average.png" alt="English average results"></a></td>
+<td><a href="metadata/evaluation/multilingual_details.png"><img src="metadata/evaluation/multilingual_average.png" alt="Multilingual average results"></a></td>
+</tr>
+<tr>
+<td><a href="metadata/evaluation/translation_details.png"><img src="metadata/evaluation/translation_average.png" alt="Translation average results"></a></td>
+<td><a href="metadata/evaluation/ruler_details.png"><img src="metadata/evaluation/ruler_average.png" alt="RULER average results"></a></td>
+</tr>
+</table>
 
-### English
-![figures/learning-curve-evaluation-benchmarks-in-english.png](figures/learning-curve-evaluation-benchmarks-in-english.png)
-
-### other
-![figures/learning-curve-evaluation-multilingual-arc-benchmark.png](figures/learning-curve-evaluation-multilingual-arc-benchmark.png)
-
-### Needle in a Haystack
-
-#### Pretraining
-![figures/needle-in-a-haystack/Lucie-7B-main.png](figures/needle-in-a-haystack/Lucie-7B-main.png) 
-
-#### Context Length Extension
-![figures/needle-in-a-haystack/Lucie-7B-extension.png](figures/needle-in-a-haystack/Lucie-7B-extension.png) 
-
-#### Annealing
-![figures/needle-in-a-haystack/Lucie-7B-annealing.png](figures/needle-in-a-haystack/Lucie-7B-annealing.png) 
-
-
-
+All figures can be found in the [metadata/evaluation](metadata/evaluation) folder.
 
 ## Citation
 
