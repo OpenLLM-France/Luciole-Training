@@ -696,7 +696,7 @@ def plot_list_of_tasks(
     apply_phase_style=True,
     max_tokens=None,
     checkpoint_index=None,
-    details=False,
+    hide_details=False,
     dpi=300,
     max_subplot=19,
     add_aggregate=False,
@@ -763,10 +763,10 @@ def plot_list_of_tasks(
                         ].append(context_length)
                         all_data[subtask][expe_name_with_tokens]["score"].append(score)
 
-        if details:
-            all_data["average"] = data
-        else:
+        if hide_details:
             all_data = {"average": data}
+        elif add_aggregate:
+            all_data["average"] = data
 
         n_plots = len(all_data) if separate_legend else len(all_data) + 1
         cols = math.ceil(math.sqrt(n_plots))
@@ -799,6 +799,19 @@ def plot_list_of_tasks(
             )
             ax.set_ylabel("Ruler Match Score")
             ax.set_title(subtask)
+            if subtask == "average":
+                # Visually emphasize the average subplot
+                ax.set_facecolor("#f7f7f7")
+                for spine in ax.spines.values():
+                    spine.set_visible(True)
+                    spine.set_edgecolor("#888888")
+                    spine.set_linewidth(1.5)
+                ax.set_title(
+                    subtask,
+                    fontsize=12,
+                    fontweight="heavy",
+                    fontstyle="italic",
+                )
             # ax.legend(title="Experiment name", loc="best")
             handles, labels = ax.get_legend_handles_labels()
             for handle, label in zip(handles, labels):
@@ -861,7 +874,7 @@ def plot_list_of_tasks(
                     apply_phase_style=apply_phase_style,
                     max_tokens=max_tokens,
                     checkpoint_index=checkpoint_index,
-                    details=details,
+                    hide_details=hide_details,
                     dpi=dpi,
                     max_subplot=max_subplot,
                     add_aggregate=add_aggregate,
@@ -869,7 +882,11 @@ def plot_list_of_tasks(
                 )
             return
 
-        num_tasks = len(list_of_tasks_to_plot)
+        if hide_details and add_aggregate:
+            # Only show the aggregate, no individual benchmarks
+            num_tasks = 0
+        else:
+            num_tasks = len(list_of_tasks_to_plot)
         num_extra = 1 if add_aggregate else 0
         num_plots = num_tasks + num_extra + (0 if separate_legend else 1)
 
@@ -919,30 +936,31 @@ def plot_list_of_tasks(
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
 
-        for i, (task, metric) in enumerate(list_of_tasks_to_plot):
-            plot_task(
-                axes[i + num_extra],
-                df,
-                task,
-                metric,
-                color_map=color_map,
-                style_map=style_map,
-                xlog=xlog,
-                fit=fit,
-                unit=unit,
-                use_dots=use_dots,
-                max_tokens=max_tokens,
-                checkpoint_index=checkpoint_index,
-            )
+        if not (hide_details and add_aggregate):
+            for i, (task, metric) in enumerate(list_of_tasks_to_plot):
+                plot_task(
+                    axes[i + num_extra],
+                    df,
+                    task,
+                    metric,
+                    color_map=color_map,
+                    style_map=style_map,
+                    xlog=xlog,
+                    fit=fit,
+                    unit=unit,
+                    use_dots=use_dots,
+                    max_tokens=max_tokens,
+                    checkpoint_index=checkpoint_index,
+                )
 
-            handles, labels = axes[i + num_extra].get_legend_handles_labels()
-            for handle, label in zip(handles, labels):
-                legend_dict[label] = handle
+                handles, labels = axes[i + num_extra].get_legend_handles_labels()
+                for handle, label in zip(handles, labels):
+                    legend_dict[label] = handle
 
         legend_dict = _sort_legend_dict(legend_dict, df)
         if separate_legend:
             # Hide all unused subplots (no legend subplot)
-            for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes)):
+            for j in range(num_tasks + num_extra, len(axes)):
                 fig.delaxes(axes[j])
             legend_fig = plt.figure(figsize=(4, max(2, 0.4 * len(legend_dict))))
             _draw_legend(legend_fig, legend_dict, as_figure=True)
@@ -952,7 +970,7 @@ def plot_list_of_tasks(
             legend_ax.axis("off")
             _draw_legend(legend_ax, legend_dict)
             # Hide any unused subplots (before the legend)
-            for j in range(len(list_of_tasks_to_plot) + num_extra, len(axes) - 1):
+            for j in range(num_tasks + num_extra, len(axes) - 1):
                 fig.delaxes(axes[j])
 
         # Only show xlabel on bottom row subplots
@@ -1010,12 +1028,14 @@ def plot_experiments(df, args, max_subplot=19):
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
 
-        filename = f'{args.filename_prefix}{g}{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.unit == "FLOPs" else ""}{args.filename_suffix}.png'
+        add_aggregate = g not in ("all", "agg")
+        info_str = f'{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.unit == "FLOPs" else ""}'
+        info_str += "_average" if (args.hide_details and add_aggregate) else "_details"
+        filename = f"{args.filename_prefix}{g}{info_str}{args.filename_suffix}.png"
 
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None
         )
-        add_aggregate = g not in ("all", "agg", "ruler")
         plot_list_of_tasks(
             df,
             list_of_tasks_to_plot,
@@ -1028,7 +1048,7 @@ def plot_experiments(df, args, max_subplot=19):
             max_subplot=max_subplot,
             apply_phase_style=args.apply_phase_style,
             checkpoint_index=args.checkpoint_index,
-            details=args.details,
+            hide_details=args.hide_details,
             dpi=args.dpi,
             add_aggregate=add_aggregate,
             separate_legend=args.separate_legend,
@@ -1184,10 +1204,10 @@ if __name__ == "__main__":
         help="List of experiment names to include in the legend.",
     )
     parser.add_argument(
-        "--details",
+        "--hide_details",
         default=False,
         action="store_true",
-        help="If set, show detailed plots for the RULER benchmark (--group ruler).",
+        help="If set, hide detailed sub-benchmark plots and show only averages/aggregates.",
     )
     parser.add_argument(
         "--check_aggregation",
