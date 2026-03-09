@@ -1,3 +1,5 @@
+import os
+
 from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import JsonlReader
@@ -55,8 +57,9 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            # "/lustre/fsn1/projects/rech/qgz/uzq54wg/test.jsonl",
-            "/lustre/fsn1/projects/rech/qgz/uhm96nw/mixtral_data_generation/edu_french",
+            os.path.join(
+                os.environ.get("DATA", ""), "mixtral_data_generation/edu_french"
+            ),
             glob_pattern="acaf_questionsdelangue_prompts.jsonl",
             text_key="question",
         ),
