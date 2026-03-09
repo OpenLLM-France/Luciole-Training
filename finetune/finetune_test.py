@@ -57,7 +57,9 @@ if __name__ == "__main__":
     parser.add_argument("--base_model", type=str, default="nemotron1b")
     parser.add_argument(
         "--output_dir",
-        default=os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "finetune/olivier"),
+        default=os.path.join(
+            os.environ.get("OpenLLM_OUTPUT", ""), "finetune", os.environ.get("USER", "")
+        ),
     )
     parser.add_argument("--name", default="nemo_test", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
@@ -79,10 +81,16 @@ if __name__ == "__main__":
 
     if args.base_model == "nemotron1b":
         finetune_recipe = get_recipe("nemotron1b")
-        resume_path = os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "pretrain/luciole_serie/luciole_nemotron1b_phase2/luciole_nemotron1b_phase2/checkpoints/luciole_nemotron1b_phase2-step=0382455")
+        resume_path = os.path.join(
+            os.environ.get("OpenLLM_OUTPUT", ""),
+            "pretrain/luciole_serie/luciole_nemotron1b_phase2/luciole_nemotron1b_phase2/checkpoints/luciole_nemotron1b_phase2-step=0382455",
+        )
     elif args.base_model == "nemotronh8b":
         finetune_recipe = get_recipe("nemotronh8b")
-        resume_path = os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last")
+        resume_path = os.path.join(
+            os.environ.get("OpenLLM_OUTPUT", ""),
+            "pretrain/luciole_serie/luciole_nemotronh8b_phase2/luciole_nemotronh8b_phase2/checkpoints/luciole_nemotronh8b_phase2-step=0358929-last",
+        )
     else:
         raise ValueError(f"Unknown base model: {args.base_model}")
 
@@ -101,7 +109,9 @@ if __name__ == "__main__":
     if args.chat:
         from nemo_patch.data.fine_tuning import FineTuningDataModule
 
-        data_path = os.path.join(os.environ.get("OpenLLM_OUTPUT", ""), "data/instruct_data/sft_mix_test3")
+        data_path = os.path.join(
+            os.environ.get("OpenLLM_OUTPUT", ""), "data/instruct_data/sft_mix_test3"
+        )
         recipe.data = run.Config(
             FineTuningDataModule,
             dataset_root=data_path,

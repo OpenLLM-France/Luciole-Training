@@ -8,7 +8,7 @@ HOSTNAME=$(hostname)
 # Set DATA path based on machine
 
 if [[ "$HOSTNAME" == "koios" ]]; then
-    export OpenLLM_OUTPUT="/media/storage0/ogouvert/OpenLLM-BPI-output"
+    export OpenLLM_OUTPUT="/media/storage0/$USER/OpenLLM-BPI-output"
 else
     export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
     export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
