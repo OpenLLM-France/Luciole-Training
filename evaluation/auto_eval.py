@@ -266,7 +266,7 @@ def launch_evaluation(
                 multiple_of=multiple_of,
                 command=command,
                 custom_tasks="ruler",
-                max_model_length=length,
+                max_model_length=int(length * 1.2),
                 gpus=4
                 if (length > 65536 and model_size > 12)
                 else (2 if length > 32768 else 1),
