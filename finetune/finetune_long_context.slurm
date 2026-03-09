@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=finetune_nemo
-#SBATCH --output=/lustre/fswork/projects/rech/knb/ukq43aj/logs_train/log_%j.out
-#SBATCH --error=/lustre/fswork/projects/rech/knb/ukq43aj/logs_train/log_%j.out
+#SBATCH --output=logs_train/log_%j.out
+#SBATCH --error=logs_train/log_%j.out
 #SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
