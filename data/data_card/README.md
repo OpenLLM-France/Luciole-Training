@@ -45,12 +45,18 @@ An equally important motivation was to offer a resource designed to train models
 By sharing our resources openly, we aim to further research on, and development of, multilingual language models.  
 
 #### Web Data Opt-Outs
-<!-- Olivier -->
 
+Robots.txt rules were applied retrospectively to all web-crawled datasets (FineWeb, DCLM, FineMath, InfiWebMath, and MegaMath).
+To do this, we processed robots.txt files from the [CommonCrawl dump CC-MAIN-2025-26](https://data.commoncrawl.org/crawl-data/CC-MAIN-2025-26/index.html) and retained only the most recent robots.txt file for each website.
+
+A URL was considered valid if it either explicitly allowed crawling by CCBot or contained a malformed robots.txt file (e.g., HTML content). Websites that did not appear in the CC-MAIN-2025-26 Common Crawl dump were excluded.
 
 #### Personal and Sensitive Information (PII)
-<!-- Olivier -->
 
+We follow the same approach as FineWeb-Edu to remove emails and IP addresses from the dataset.
+Email addresses are detected and replaced with placeholders such as "email@example.com" or "firstname.lastname@example.com". Similarly, IP addresses are automatically identified and replaced with the tag "<IP_ADDRESS>".
+
+In addition, phone numbers are detected and anonymized using the Google phonenumbers library, which provides robust parsing and validation for international phone formats. All detected phone numbers are replaced with the token "<PHONE_NUMBER>". This detection covers both international numbers and several country-specific formats, including French, Canadian, Belgian, German, Spanish, Italian, Portuguese, and Dutch phone numbers.
 
 ### Bias, Risks, and Limitations
 While we have made strong efforts to only include only open corpora, it is possible that individual documents in those corpora are copyrighted. Similarly, it is possible that some personal information in those corpora has slipped through PII filters. If you find your copyrighted work in the Luciole Training Dataset or mention of your personal details therein, we invite you to contact us at contact@openllm-france.fr.
@@ -63,7 +69,17 @@ A further limitation of this dataset is that it does not distinguish between var
 Due to harmful biases potentially conveyed by some documents in the Luciole Training Dataset, models pretrained on this data should undergo careful fine-tuning and alignment before being used for non-research purposes. 
 
 ### Sample Metadata
-<!-- Olivier -->
+
+In addition to the `text` field, which provides the content of the sample, each training sample in the corpus contains the following metadata when available:
+
+* [`source`]: an identifier for the source of the text sample (e.g., Wikipedia, FineWeb2, Gutenberg, …).
+* [`id`]: an identifier that is unique among documents from the same source.
+* [`language`]: the language of the text sample:
+  - the ISO 639-1 or ISO ...-3 code for a given natural language ("en", "fr", "de", "es", "it", …),
+  - the name of a programming language ("python", …),
+  - a list of ISO 639-1 codes separated by "-" for data containing parallel translations ("fr-en", "de-fr", "es-en", "it-en", …).
+* [`messages`] (optional): if applicable, the text formatted as a conversation following the Hugging Face chat format.
+* [`metadata`] (optional): additional metadata about the text sample, in JSON format. This may include information such as the source subset, rights, URL, date, etc.
 
 ### Dataset Composition
 <!-- Olivier -->
@@ -71,10 +87,90 @@ Due to harmful biases potentially conveyed by some documents in the Luciole Trai
 ## Downloading the Data
 
 ### Sample Use in Python
-<!-- Olivier -->
+
+### Load the dataset
+
+Load and iterate over the full dataset using the `datasets` library:
+```python
+from datasets import load_dataset
+
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", split="train", streaming=True)
+
+for sample in dataset:
+   
+   text = sample["text"]
+
+   # … do something with the text
+```
+
+### Iterate over a subset
+
+Several configurations are available to select a subset of the dataset.
+
+The list of possible configurations can be obtained programmatically:
+```python
+from datasets import load_dataset_builder
+
+config_names = list(load_dataset_builder("OpenLLM-BPI/Luciole-Training-Dataset").builder_configs)
+
+print(config_names)
+```
+```plaintext
+['default', '_robots_txt', 'Aya', 'Claire', 'CommonCorpus', 'CommonPile', 'CroissantAligned', 'Culturax-fr', 'Dolma3Longmino', 'Europarl', 'Eurovoc', 'Finemath-3plus', 'Finemath-4plus', 'Fineweb2-acf', 'Fineweb2-ar', 'Fineweb2-br', 'Fineweb2-ca', 'Fineweb2-co', 'Fineweb2-crs', 'Fineweb2-de', 'Fineweb2-es', 'Fineweb2-eu', 'Fineweb2-fr', 'Fineweb2-fr-3plus', 'Fineweb2-frp', 'Fineweb2-gcf', 'Fineweb2-gcr', 'Fineweb2-it', 'Fineweb2-nl', 'Fineweb2-oc', 'Fineweb2-pcd', 'Fineweb2-pt', 'Fineweb2-rcf', 'Fineweb2-ty', 'Fineweb2-wa', 'Fineweb2HQ-ar', 'Fineweb2HQ-de', 'Fineweb2HQ-es', 'Fineweb2HQ-fr', 'Fineweb2HQ-it', 'Fineweb2HQ-nl', 'Fineweb2HQ-pt', 'Gallica', 'Gutenberg', 'HAL', 'HPLT2-fr', 'Infiwebmath-3plus', 'Infiwebmath-4plus', 'INSEE', 'MathPile', 'MegamathWeb', 'NemotronPosttraining', 'OpenCodeReasoning', 'OpenMathInstruct', 'OpenThoughts', 'Opendata', 'Paradocs', 'Parlement', 'PleiasSynth', 'Scholar', 'StackEdu', 'StarcoderData', 'StarcoderOlmomix', 'SynthFineweb2', 'SyntheticWikipediaQA', 'Theses', 'Vikidia', 'Wikimedia', 'Youtube', 'acf', 'ar', 'br', 'ca', 'co', 'crs', 'de', 'en', 'es', 'eu', 'fr', 'frp', 'gcf', 'gcr', 'it', 'nl', 'oc', 'pcd', 'pt', 'rcf', 'ty', 'wa', 'de-fr', 'en-de', 'en-es', 'en-fr', 'en-it', 'en-nl', 'en-pt', 'es-pt']
+```
+
+Below are some examples of how to load data from different sources and in different languages.
+
+Load data in French:
+```python
+from datasets import load_dataset
+
+kwargs = dict(split="train", streaming=True)
+
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "fr", **kwargs)
+```
+Load data where French and English are aligned:
+```python
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "en-fr", **kwargs)
+```
+
+Load data from Wikimedia:
+```python
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "Wikimedia", **kwargs)
+```
+
+Load the Fineweb2-fr dataset:
+```python
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "Fineweb2-fr", **kwargs)
+```
+
+Load the subset Fineweb2-fr-3plus from the Pile dataset:
+```python
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "Fineweb2-fr-3plus", **kwargs)
+```
+
+Note that you can also access configurations that are not explicitly specified by exploring the [data hierarchy](data_hierarchy.txt).
+
+For instance, to access the French subset of Wikimedia:
+```python
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/wikimedia/*/fr")
+```
+
+Or to load Python data:
+```python
+dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/**/python")
+```
 
 ### Accessing the English Web Data
-<!-- Olivier -->
+
+Due to storage limitations on the Hugging Face repository, we could not directly host three subsets of the Luciole-Training-Dataset: FineWeb-edu, DCLM-dolmino, and Fineweb-HQ.
+
+These subsets can instead be downloaded from our external server using the following commands:
+```bash
+TOKEN=$(curl -s https://dl.labs.linagora.com/api/login -H "Content-Type: application/json" -d '{}')
+
+curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-France/Luciole-Training-Dataset/?algo=zip" -o Luciole-Training-Dataset.zip
+```
 
 ## Details on Data Sources
 

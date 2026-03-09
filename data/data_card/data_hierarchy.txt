@@ -1,0 +1,624 @@
+├── data
+│   ├── aya
+│   │   ├── ar
+│   │   ├── de
+│   │   ├── en
+│   │   ├── es
+│   │   ├── eu
+│   │   ├── fr
+│   │   ├── it
+│   │   ├── nl
+│   │   └── pt
+│   ├── claire
+│   │   ├── en
+│   │   └── fr
+│   ├── common_corpus
+│   │   ├── open-culture
+│   │   │   └── bnl-newspapers-1841-1879
+│   │   │       ├── de
+│   │   │       ├── fr
+│   │   │       ├── it
+│   │   │       └── nl
+│   │   └── open-government
+│   │       ├── eurlex
+│   │       │   ├── de
+│   │       │   ├── en
+│   │       │   ├── es
+│   │       │   ├── fr
+│   │       │   ├── it
+│   │       │   ├── nl
+│   │       │   └── pt
+│   │       ├── gatt-library
+│   │       │   ├── de
+│   │       │   ├── en
+│   │       │   ├── es
+│   │       │   └── fr
+│   │       ├── oecd
+│   │       │   ├── de
+│   │       │   ├── en
+│   │       │   ├── es
+│   │       │   ├── fr
+│   │       │   ├── it
+│   │       │   └── nl
+│   │       ├── tedeutenders
+│   │       │   ├── ca
+│   │       │   ├── de
+│   │       │   ├── en
+│   │       │   ├── es
+│   │       │   ├── fr
+│   │       │   ├── it
+│   │       │   ├── nl
+│   │       │   └── pt
+│   │       └── wto
+│   │           ├── ar
+│   │           ├── de
+│   │           ├── en
+│   │           ├── es
+│   │           ├── fr
+│   │           ├── it
+│   │           ├── nl
+│   │           └── pt
+│   ├── common_pile
+│   │   ├── arxiv_abstracts_filtered
+│   │   │   └── en
+│   │   ├── arxiv_papers_filtered
+│   │   │   └── en
+│   │   ├── biodiversity_heritage_library_filtered
+│   │   │   └── en
+│   │   ├── caselaw_access_project_filtered
+│   │   │   └── en
+│   │   ├── data_provenance_initiative_filtered
+│   │   │   └── en
+│   │   ├── doab_filtered
+│   │   │   └── en
+│   │   ├── foodista_filtered
+│   │   │   └── en
+│   │   ├── github_archive_filtered
+│   │   │   └── en
+│   │   ├── library_of_congress_filtered
+│   │   │   └── en
+│   │   ├── libretexts_filtered
+│   │   │   └── en
+│   │   ├── news_filtered
+│   │   │   └── en
+│   │   ├── oercommons_filtered
+│   │   │   └── en
+│   │   ├── peS2o_filtered
+│   │   │   └── en
+│   │   ├── pre_1929_books_filtered
+│   │   │   └── en
+│   │   ├── pressbooks_filtered
+│   │   │   └── en
+│   │   ├── public_domain_review_filtered
+│   │   │   └── en
+│   │   ├── pubmed_filtered
+│   │   │   └── en
+│   │   ├── python_enhancement_proposals_filtered
+│   │   │   └── en
+│   │   ├── regulations_filtered
+│   │   │   └── en
+│   │   ├── stackexchange_filtered
+│   │   │   └── en
+│   │   ├── ubuntu_irc_filtered
+│   │   │   └── en
+│   │   └── youtube_filtered
+│   │       └── en
+│   ├── croissant_aligned
+│   │   └── en-fr
+│   ├── culturax
+│   │   └── fr
+│   │       ├── score_0
+│   │       ├── score_1
+│   │       ├── score_2
+│   │       ├── score_3
+│   │       └── score_4
+│   ├── dolma3_longmino
+│   │   ├── lc_synth-cwe
+│   │   │   └── en
+│   │   ├── lc_synth-rex
+│   │   │   └── en
+│   │   └── olmocr_science_pdfs
+│   │       └── en
+│   ├── europarl
+│   │   ├── de
+│   │   ├── de-fr
+│   │   ├── en
+│   │   ├── en-de
+│   │   ├── en-es
+│   │   ├── en-fr
+│   │   ├── en-it
+│   │   ├── en-pt
+│   │   ├── es
+│   │   ├── es-pt
+│   │   ├── fr
+│   │   ├── it
+│   │   └── pt
+│   ├── eurovoc
+│   │   ├── ar
+│   │   ├── ca
+│   │   ├── de
+│   │   ├── en
+│   │   ├── es
+│   │   ├── fr
+│   │   ├── it
+│   │   ├── nl
+│   │   └── pt
+│   ├── finemath
+│   │   └── en
+│   │       ├── score_3
+│   │       ├── score_4
+│   │       └── score_5
+│   ├── fineweb2
+│   │   ├── acf
+│   │   ├── ar
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── br
+│   │   ├── ca
+│   │   ├── co
+│   │   ├── crs
+│   │   ├── de
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── es
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── eu
+│   │   ├── fr
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── frp
+│   │   ├── gcf
+│   │   ├── gcr
+│   │   ├── it
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── nl
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── oc
+│   │   ├── pcd
+│   │   ├── pt
+│   │   │   ├── score_0
+│   │   │   ├── score_1
+│   │   │   ├── score_2
+│   │   │   ├── score_3
+│   │   │   └── score_4
+│   │   ├── rcf
+│   │   ├── ty
+│   │   └── wa
+│   ├── fineweb2_hq
+│   │   ├── ar
+│   │   ├── de
+│   │   ├── es
+│   │   ├── fr
+│   │   ├── it
+│   │   ├── nl
+│   │   └── pt
+│   ├── gallica
+│   │   ├── monographies
+│   │   │   └── fr
+│   │   └── press
+│   │       └── fr
+│   ├── gutenberg
+│   │   ├── de
+│   │   ├── en
+│   │   ├── es
+│   │   ├── fr
+│   │   ├── it
+│   │   ├── nl
+│   │   └── pt
+│   ├── hal
+│   │   └── fr
+│   ├── hplt2
+│   │   └── fr
+│   │       ├── score_0
+│   │       ├── score_1
+│   │       ├── score_2
+│   │       ├── score_3
+│   │       └── score_4
+│   ├── infiwebmath
+│   │   └── en
+│   │       ├── score_3
+│   │       ├── score_4
+│   │       └── score_5
+│   ├── insee
+│   │   └── fr
+│   ├── math_pile
+│   │   └── en
+│   ├── megamath-web
+│   │   └── en
+│   ├── nemotron_posttraining
+│   │   ├── chat
+│   │   │   └── en
+│   │   ├── code
+│   │   │   └── en
+│   │   ├── math
+│   │   │   └── en
+│   │   ├── multilingual
+│   │   │   ├── w_thinking
+│   │   │   │   ├── de
+│   │   │   │   ├── es
+│   │   │   │   ├── fr
+│   │   │   │   └── it
+│   │   │   └── wo_thinking
+│   │   │       ├── de
+│   │   │       ├── es
+│   │   │       ├── fr
+│   │   │       └── it
+│   │   └── stem
+│   │       └── en
+│   ├── open_code_reasoning
+│   │   └── en
+│   ├── open_math_instruct
+│   │   └── en
+│   ├── open_thoughts
+│   │   ├── code
+│   │   │   └── en
+│   │   └── science
+│   │       └── en
+│   ├── opendata
+│   │   └── fr
+│   ├── paradocs
+│   │   ├── en-de
+│   │   ├── en-es
+│   │   ├── en-fr
+│   │   ├── en-it
+│   │   ├── en-nl
+│   │   └── en-pt
+│   ├── parlement
+│   │   ├── amendements_parlement
+│   │   │   └── fr
+│   │   ├── discours_publics
+│   │   │   └── fr
+│   │   ├── interventions_parlement
+│   │   │   └── fr
+│   │   └── questions_ecrites_parlement
+│   │       └── fr
+│   ├── pleias_synth
+│   │   ├── ar
+│   │   ├── ca
+│   │   ├── de
+│   │   ├── en
+│   │   ├── es
+│   │   ├── eu
+│   │   ├── fr
+│   │   ├── it
+│   │   ├── nl
+│   │   ├── oc
+│   │   └── pt
+│   ├── scholar
+│   │   └── fr
+│   ├── stack_edu
+│   │   ├── c
+│   │   ├── cpp
+│   │   ├── csharp
+│   │   ├── go
+│   │   ├── java
+│   │   ├── javascript
+│   │   ├── markdown
+│   │   ├── php
+│   │   ├── python
+│   │   ├── ruby
+│   │   ├── rust
+│   │   ├── shell
+│   │   ├── sql
+│   │   ├── swift
+│   │   └── typescript
+│   ├── starcoder_data
+│   │   ├── ada
+│   │   ├── agda
+│   │   ├── alloy
+│   │   ├── antlr
+│   │   ├── applescript
+│   │   ├── assembly
+│   │   ├── augeas
+│   │   ├── awk
+│   │   ├── batchfile
+│   │   ├── bluespec
+│   │   ├── c
+│   │   ├── c-sharp
+│   │   ├── clojure
+│   │   ├── cmake
+│   │   ├── coffeescript
+│   │   ├── common-lisp
+│   │   ├── cpp
+│   │   ├── css
+│   │   ├── cuda
+│   │   ├── dart
+│   │   ├── dockerfile
+│   │   ├── elixir
+│   │   ├── elm
+│   │   ├── emacs-lisp
+│   │   ├── erlang
+│   │   ├── f-sharp
+│   │   ├── fortran
+│   │   ├── git-commits-cleaned
+│   │   ├── github-issues-filtered-structured
+│   │   ├── glsl
+│   │   ├── go
+│   │   ├── groovy
+│   │   ├── haskell
+│   │   ├── html
+│   │   ├── idris
+│   │   ├── isabelle
+│   │   ├── java
+│   │   ├── java-server-pages
+│   │   ├── javascript
+│   │   ├── json
+│   │   ├── julia
+│   │   ├── jupyter-scripts-dedup-filtered
+│   │   ├── jupyter-structured-clean-dedup
+│   │   ├── kotlin
+│   │   ├── lean
+│   │   ├── literate-agda
+│   │   ├── literate-coffeescript
+│   │   ├── literate-haskell
+│   │   ├── lua
+│   │   ├── makefile
+│   │   ├── maple
+│   │   ├── markdown
+│   │   ├── mathematica
+│   │   ├── matlab
+│   │   ├── ocaml
+│   │   ├── pascal
+│   │   ├── perl
+│   │   ├── php
+│   │   ├── powershell
+│   │   ├── prolog
+│   │   ├── protocol-buffer
+│   │   ├── python
+│   │   ├── r
+│   │   ├── racket
+│   │   ├── restructuredtext
+│   │   ├── rmarkdown
+│   │   ├── ruby
+│   │   ├── rust
+│   │   ├── sas
+│   │   ├── scala
+│   │   ├── scheme
+│   │   ├── shell
+│   │   ├── smalltalk
+│   │   ├── solidity
+│   │   ├── sparql
+│   │   ├── sql
+│   │   ├── stan
+│   │   ├── standard-ml
+│   │   ├── stata
+│   │   ├── systemverilog
+│   │   ├── tcl
+│   │   ├── tcsh
+│   │   ├── tex
+│   │   ├── thrift
+│   │   ├── typescript
+│   │   ├── verilog
+│   │   ├── vhdl
+│   │   ├── visual-basic
+│   │   ├── xslt
+│   │   ├── yacc
+│   │   ├── yaml
+│   │   └── zig
+│   ├── starcoder_olmomix
+│   │   ├── ada
+│   │   ├── agda
+│   │   ├── alloy
+│   │   ├── antlr
+│   │   ├── applescript
+│   │   ├── assembly
+│   │   ├── augeas
+│   │   ├── awk
+│   │   ├── batchfile
+│   │   ├── bluespec
+│   │   ├── c
+│   │   ├── c-sharp
+│   │   ├── clojure
+│   │   ├── cmake
+│   │   ├── coffeescript
+│   │   ├── common-lisp
+│   │   ├── cpp
+│   │   ├── css
+│   │   ├── cuda
+│   │   ├── dart
+│   │   ├── dockerfile
+│   │   ├── elixir
+│   │   ├── elm
+│   │   ├── emacs-lisp
+│   │   ├── erlang
+│   │   ├── f-sharp
+│   │   ├── fortran
+│   │   ├── git-commits-cleaned
+│   │   ├── github-issues-filtered-structured
+│   │   ├── glsl
+│   │   ├── go
+│   │   ├── groovy
+│   │   ├── haskell
+│   │   ├── html
+│   │   ├── idris
+│   │   ├── isabelle
+│   │   ├── java
+│   │   ├── java-server-pages
+│   │   ├── javascript
+│   │   ├── json
+│   │   ├── julia
+│   │   ├── jupyter-scripts-dedup-filtered
+│   │   ├── jupyter-structured-clean-dedup
+│   │   ├── kotlin
+│   │   ├── lean
+│   │   ├── literate-agda
+│   │   ├── literate-coffeescript
+│   │   ├── literate-haskell
+│   │   ├── lua
+│   │   ├── makefile
+│   │   ├── maple
+│   │   ├── markdown
+│   │   ├── mathematica
+│   │   ├── matlab
+│   │   ├── ocaml
+│   │   ├── pascal
+│   │   ├── perl
+│   │   ├── php
+│   │   ├── powershell
+│   │   ├── prolog
+│   │   ├── protocol-buffer
+│   │   ├── python
+│   │   ├── r
+│   │   ├── racket
+│   │   ├── restructuredtext
+│   │   ├── rmarkdown
+│   │   ├── ruby
+│   │   ├── rust
+│   │   ├── sas
+│   │   ├── scala
+│   │   ├── scheme
+│   │   ├── shell
+│   │   ├── smalltalk
+│   │   ├── solidity
+│   │   ├── sparql
+│   │   ├── sql
+│   │   ├── stan
+│   │   ├── standard-ml
+│   │   ├── stata
+│   │   ├── systemverilog
+│   │   ├── tcl
+│   │   ├── tcsh
+│   │   ├── tex
+│   │   ├── thrift
+│   │   ├── typescript
+│   │   ├── verilog
+│   │   ├── vhdl
+│   │   ├── visual-basic
+│   │   ├── xslt
+│   │   ├── yacc
+│   │   ├── yaml
+│   │   └── zig
+│   ├── synth_fineweb2
+│   │   └── fr
+│   ├── synthetic_wikipedia_qa
+│   │   └── fr
+│   ├── theses
+│   │   └── fr
+│   ├── vikidia
+│   │   ├── ar
+│   │   ├── ca
+│   │   ├── de
+│   │   ├── en
+│   │   ├── es
+│   │   ├── eu
+│   │   ├── fr
+│   │   ├── it
+│   │   ├── oc
+│   │   └── pt
+│   ├── wikimedia
+│   │   ├── wikibooks
+│   │   │   ├── ar
+│   │   │   ├── ca
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── eu
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   ├── nl
+│   │   │   ├── oc
+│   │   │   └── pt
+│   │   ├── wikinews
+│   │   │   ├── ar
+│   │   │   ├── ca
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   ├── nl
+│   │   │   └── pt
+│   │   ├── wikipedia
+│   │   │   ├── ar
+│   │   │   ├── br
+│   │   │   ├── ca
+│   │   │   ├── co
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── eu
+│   │   │   ├── fr
+│   │   │   ├── frp
+│   │   │   ├── it
+│   │   │   ├── nl
+│   │   │   ├── oc
+│   │   │   ├── pcd
+│   │   │   └── pt
+│   │   ├── wikiquote
+│   │   │   ├── ar
+│   │   │   ├── br
+│   │   │   ├── ca
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── eu
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   ├── nl
+│   │   │   └── pt
+│   │   ├── wikisource
+│   │   │   ├── ar
+│   │   │   ├── br
+│   │   │   ├── ca
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── eu
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   ├── nl
+│   │   │   └── pt
+│   │   ├── wikiversity
+│   │   │   ├── ar
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   └── pt
+│   │   ├── wikivoyage
+│   │   │   ├── de
+│   │   │   ├── en
+│   │   │   ├── es
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   ├── nl
+│   │   │   └── pt
+│   │   └── wiktionary
+│   │       ├── ar
+│   │       ├── br
+│   │       ├── ca
+│   │       ├── co
+│   │       ├── de
+│   │       ├── en
+│   │       ├── es
+│   │       ├── eu
+│   │       ├── fr
+│   │       ├── it
+│   │       ├── nl
+│   │       ├── oc
+│   │       └── pt
+│   └── youtube
+│       └── fr
+└── robots_txt
