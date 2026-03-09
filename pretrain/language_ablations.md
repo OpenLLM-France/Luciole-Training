@@ -8,7 +8,7 @@ cd train
 ```bash
 python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
     --name_prefix fr100 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
-    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/pretrain/train/language_datamixes/fr100.json \
+    --datamix language_datamixes/fr100.json \
     --time 20:00:00 \
     --qos qos_gpu_h100-t3 \
     --account wuh@h100 \
@@ -18,7 +18,7 @@ python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_languag
 ```bash
 python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
     --name_prefix fr5_en95 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
-    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/pretrain/train/language_datamixes/fr5_en95.json \
+    --datamix language_datamixes/fr5_en95.json \
     --time 20:00:00 \
     --qos qos_gpu_h100-t3 \
     --account wuh@h100 \
@@ -28,7 +28,7 @@ python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_languag
 ```bash
 python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
     --name_prefix fr50_en50 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
-    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/pretrain/train/language_datamixes/fr50_en50.json \
+    --datamix language_datamixes/fr50_en50.json \
     --time 20:00:00 \
     --qos qos_gpu_h100-t3 \
     --account wuh@h100 \
@@ -38,7 +38,7 @@ python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_languag
 ```bash
 python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
     --name_prefix en100 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
-    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/pretrain/train/language_datamixes/en100.json \
+    --datamix language_datamixes/en100.json \
     --time 20:00:00 \
     --qos qos_gpu_h100-t3 \
     --account wuh@h100 \
@@ -48,7 +48,7 @@ python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_languag
 ```bash
 python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
     --name_prefix fr1_en99 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
-    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/pretrain/train/language_datamixes/fr1_en99.json \
+    --datamix language_datamixes/fr1_en99.json \
     --time 20:00:00 \
     --qos qos_gpu_h100-t3 \
     --account wuh@h100 \
@@ -58,7 +58,7 @@ python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_languag
 ```bash
 python slurm_launcher.py --output_dir $OpenLLM_OUTPUT/pretrain/ablations_language \
     --name_prefix fr33_en66 --mode phase1 --scheduler cosine --num_nodes 16 --arch llama1b \
-    --datamix /linkhome/rech/gendjf01/uzq54wg/OpenLLM-BPI-Training/pretrain/train/language_datamixes/fr33_en66.json \
+    --datamix language_datamixes/fr33_en66.json \
     --time 20:00:00 \
     --qos qos_gpu_h100-t3 \
     --account wuh@h100 \
