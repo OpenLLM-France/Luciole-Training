@@ -12,6 +12,9 @@
   * [Sample Use in Python](#sample-use-in-python)
   * [Accessing the English Web Data](#accessing-the-english-web-data)
 * [Details on Data Sources](#details-on-data-sources)
+* [Citation](#citation)
+* [Acknowledgements](#acknowledgements)
+* [Contact](#contact)
 
 
 
@@ -81,7 +84,7 @@ In addition to the `text` field, which provides the content of the sample, each 
 * [`messages`] (optional): if applicable, the text formatted as a conversation following the Hugging Face chat format.
 * [`metadata`] (optional): additional metadata about the text sample, in JSON format. This may include information such as the source subset, rights, URL, date, etc.
 
-### Dataset Composition
+<!-- ### Dataset Composition -->
 <!-- Olivier -->
 
 ## Downloading the Data
@@ -175,7 +178,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 ## Details on Data Sources
 
 #### Aya Dataset
-* <u>Source</u>: [CohereLabs/aya_dataset](https://huggingface.co/datasets/CohereLabs/aya_dataset). Licence: Apache 2.0
+* <u>Source</u>: [CohereLabs/aya_dataset](https://huggingface.co/datasets/CohereLabs/aya_dataset). Licence: Apache 2.0.
 * <u>Description</u>: "The Aya Dataset is a multilingual instruction fine-tuning dataset curated by an open-science community via Aya Annotation Platform from Cohere Labs. The dataset contains a total of 204k human-annotated prompt-completion pairs along with the demographics data of the annotators. This dataset can be used to train, finetune, and evaluate multilingual LLMs" (Aya Dataset [data card](https://huggingface.co/datasets/CohereLabs/aya_dataset)).
 * <u>Citation</u>: Shivalika Singh, Freddie Vargus, and Daniel Dsouza, Börje F. Karlsson, Abinaya Mahendiran, Wei-Yin Ko, Herumb Shandilya, Jay Patel, Deividas Mataciunas, Laura OMahony, Mike Zhang, Ramith Hettiarachchi, Joseph Wilson, Marina Machado, Luisa Souza Moura, Dominik Krzemiński, Hakimeh Fadaei, Irem Ergün, Ifeoma Okoh, Aisha Alaagib, Oshan Mudannayake, Zaid Alyafeai, Vu Minh Chien, Sebastian Ruder, Surya Guthikonda, Emad A. Alghamdi, Sebastian Gehrmann, Niklas Muennighoff, Max Bartolo, Julia Kreutzer, Ahmet Üstün, Marzieh Fadaee and Sara Hooker (2024). Aya Dataset: An Open-Access Collection for Multilingual Instruction Tuning.   [arXiv:2402.06619](https://arxiv.org/abs/2402.06619)
    
@@ -192,20 +195,21 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 #### Common Corpus
 <!-- Julie -->
-* <u>Source</u>:
-<!-- <u>Pre-processing</u>: -->
-* <u>Citation</u>:
-
-#### Common Pile (v0.1)
-* <u>Source</u>: [common-pile/common-pile-v01-filtered-data](https://huggingface.co/collections/common-pile/common-pile-v01-filtered-data)
-* <u>Description</u>: The Common Pile v0.1 is a curated "eight terabyte collection of openly licensed text designed for LLM pretraining. The Common Pile comprises content from 30 sources that span diverse domains including research papers, code, books, encyclopedias, educational materials, audio transcripts, and more" (Kandpal et al., 2025).
-
+* <u>Source</u>: [PleIAs/common_corpus](https://huggingface.co/datasets/PleIAs/common_corpus). License: Public Domain or mixed open licenses.
+* <u>Description</u>: "The data assembled in Common Corpus are either uncopyrighted or under permissible licenses and amount to about two trillion tokens. The dataset contains a wide variety of languages, ranging from the high-resource European languages to some low-resource languages rarely represented in pre-training datasets. In addition, it includes a large portion of code data" (Langlais et al, (2026)).
 <!-- Subsets -->
 <!-- <u>Pre-processing</u>: -->
-* <u>Citation</u>: Nikhil Kandpal and Brian Lester and Colin Raffel and Sebastian Majstorovic and Stella Biderman and Baber Abbasi and Luca Soldaini and Enrico Shippole and A. Feder Cooper and Aviya Skowron and John Kirchenbauer and Shayne Longpre and Lintang Sutawika and Alon Albalak and Zhenlin Xu and Guilherme Penedo and Loubna Ben Allal and Elie Bakouch and John David Pressman and Honglu Fan and Dashiell Stander and Guangyu Song and Aaron Gokaslan and Tom Goldstein and Brian R. Bartoldson and Bhavya Kailkhura and Tyler Murray (2025). [arXiv:2506.05209](https://arxiv.org/abs/2506.05209)
+* <u>Citation</u>: Pierre-Carl Langlais, Pavel Chizhov, Catherine Arnett, Carlos Hinostroza, Mattia Nee, Eliot Jones, Irène Girard, David Mach, Anastasia Stasenko, Ivan Yamshchikov (2026). Common Corpus: The Largest Collection of Ethical Data for LLM Pre-Training. ICLR 2026.
+
+#### Common Pile (v0.1)
+* <u>Source</u>: [common-pile/common-pile-v01-filtered-data](https://huggingface.co/collections/common-pile/common-pile-v01-filtered-data). License: Mixed open licenses (see document details for each subset).
+* <u>Description</u>: The Common Pile v0.1 is a curated "eight terabyte collection of openly licensed text designed for LLM pretraining. The Common Pile comprises content from 30 sources that span diverse domains including research papers, code, books, encyclopedias, educational materials, audio transcripts, and more" (Kandpal et al., 2025).
+<!-- Subsets -->
+<!-- <u>Pre-processing</u>: -->
+* <u>Citation</u>: Nikhil Kandpal, Brian Lester, Colin Raffel, Sebastian Majstorovic, Stella Biderman, Baber Abbasi, Luca Soldaini, Enrico Shippole, A. Feder Cooper, Aviya Skowron, John Kirchenbauer, Shayne Longpre, Lintang Sutawika, Alon Albalak, Zhenlin Xu, Guilherme Penedo, Loubna Ben Allal, Elie Bakouch, John David Pressman, Honglu Fan, Dashiell Stander, Guangyu Song, Aaron Gokaslan, Tom Goldstein, Brian R. Bartoldson, Bhavya Kailkhura, and Tyler Murray (2025). [arXiv:2506.05209](https://arxiv.org/abs/2506.05209)
 
 #### Croissant Aligned
-* <u>Source</u>: [OpenLLM-France/Translation-Instruct](https://huggingface.co/datasets/OpenLLM-France/Translation-Instruct)
+* <u>Source</u>: [OpenLLM-France/Translation-Instruct](https://huggingface.co/datasets/OpenLLM-France/Translation-Instruct). License: CC-BY-SA 4.0.
 * <u>Original source</u>: [croissantllm/croissant_dataset_no_web_data](https://huggingface.co/datasets/croissantllm/croissant_dataset_no_web_data/tree/main/aligned_36b) (subset: `aligned_36b`). License: not specified.
 * <u>Extracted from</u>: 
   * Translation pairs: [OPUS](https://opus.nlpl.eu/) (99.6% of the data in CroissantAligned). Pairs extracted from OPUS are labeled as "UnbabelFrEn". 
@@ -215,14 +219,17 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 * <u>Citation</u>: Manuel Faysse, Patrick Fernandes, Nuno M. Guerreiro, António Loison, Duarte M. Alves, Caio Corro, Nicolas Boizard, João Alves, Ricardo Rei, Pedro H. Martins, Antoni Bigata Casademunt, François Yvon, André F.T. Martins, Gautier Viaud, Céline Hudelot, Pierre Colombo (2024). "CroissantLLM: A Truly Bilingual French-English Language Model," [arXiv:2402.00786](https://arxiv.org/abs/2402.00786).
 
 #### CulturaX
-* <u>Source</u>: Licence: 
-* <u>Description</u>: 
-* <u>Citation</u>: 
+* <u>Source</u>: [uonlp/CulturaX](https://huggingface.co/datasets/uonlp/CulturaX) Licence: [mC4 license](https://huggingface.co/datasets/allenai/c4#license), [OSCAR license](https://huggingface.co/datasets/uonlp/CulturaX).
+* <u>Description</u>: A combination of mC4 and OSCAR corpora; a "substantial multilingual dataset with 6.3 trillion tokens in 167 languages, tailored for large language model (LLM) development. Our dataset undergoes meticulous cleaning and deduplication through a rigorous pipeline of multiple stages to accomplish the best quality for model training, including language identification, URL-based filtering, metric-based cleaning, document refinement, and data deduplication" (CulturaX [data card](https://huggingface.co/datasets/uonlp/CulturaX)).
+* <u>Citation</u>: Thuat Nguyen, Chien Van Nguyen, Viet Dac Lai, Hieu Man, Nghia Trung Ngo, Franck Dernoncourt,
+      Ryan A.Rossi, and Thien Huu Nguyen (2024). CulturaX: A Cleaned, Enormous, and Multilingual Dataset for Large Language Models in 167 Languages. In Calzolari et al, (eds.), Proceedings of the 2024 Joint International Conference on Computational Linguistics, Language Resources and Evaluation (LREC-COLING 2024). pp. 4226-4237. [paper](https://aclanthology.org/2024.lrec-main.377)
 
-#### DCLM Dolmino (via ftp)
-* <u>Source</u>: Licence: 
-* <u>Description</u>: 
+#### DCLM Dolmino (via external server)
+* <u>Source</u>: [allenai/dolmino-mix-1124](https://huggingface.co/datasets/allenai/dolmino-mix-1124), DCLM subset. Licence: ODC-BY.
+* <u>Description</u>: A subset of data from [DCLM Baseline 1.0](https://huggingface.co/datasets/mlfoundations/dclm-baseline-1.0). "DCLM-Baseline was created by applying a series of cleaning, filtering, and deduplication steps to the raw Common Crawl data (DCLM-Pool). The key steps include: Heuristic cleaning and filtering (reproduction of RefinedWeb), Deduplication using a Bloom filter, Model-based filtering using a fastText classifier trained on instruction-formatted data" (DCLM Baseline 1.0 [data card](https://huggingface.co/datasets/mlfoundations/dclm-baseline-1.0))
 * <u>Citation</u>: 
+  * Dolmino Mix: Team OLMo, Pete Walsh, Luca Soldaini, Dirk Groeneveld, Kyle Lo, Shane Arora, Akshita Bhagia, Yuling Gu, Shengyi Huang, and Matt Jordan, et al. (2024). 2 OLMo 2 Furious. [arXiv:2501.00656](https://arxiv.org/abs/2501.00656).
+  * DCLM: Jeffrey Li, Alex Fang, Georgios Smyrnis, Maor Ivgi, Matt Jordan, Samir Gadre, Hritik Bansal, Etash Guha, Sedrick Keh, Kushal Arora, Saurabh Garg, Rui Xin, Niklas Muennighoff, Reinhard Heckel, Jean Mercat, Mayee Chen, Suchin Gururangan, Mitchell Wortsman, Alon Albalak, Yonatan Bitton, Marianna Nezhurina, Amro Abbas, Cheng-Yu Hsieh, Dhruba Ghosh, Josh Gardner, Maciej Kilian, Hanlin Zhang, Rulin Shao, Sarah Pratt, Sunny Sanyal, Gabriel Ilharco, Giannis Daras, Kalyani Marathe, Aaron Gokaslan, Jieyu Zhang, Khyathi Chandu, Thao Nguyen, Igor Vasiljevic, Sham Kakade, Shuran Song, Sujay Sanghavi, Fartash Faghri, Sewoong Oh, Luke Zettlemoyer, Kyle Lo, Alaaeldin El-Nouby, Hadi Pouransari, Alexander Toshev, Stephanie Wang, Dirk Groeneveld, Luca Soldaini, Pang Wei Koh, Jenia Jitsev, Thomas Kollar, Alexandros G. Dimakis, Yair Carmon, Achal Dave, Ludwig Schmidt, and Vaishaal Shankar (2024). DataComp-LM: In search of the next generation of training sets for language models. [arXiv:2406.11794](https://arxiv.org/abs/2406.11794)
 
 #### Dolma3 Longmino
 * <u>Source</u>: [allenai/dolma3_longmino_mix-100B-1125](https://huggingface.co/datasets/allenai/dolma3_longmino_mix-100B-1125). License: ODC-By.
@@ -251,7 +258,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
   * Andrei-Marius Avram, Vasile Pais, and Dan Ioan Tufis (2021). "[PyEuroVoc: A Tool for Multilingual Legal Document Classification with EuroVoc Descriptors](https://arxiv.org/pdf/2108.01139)," Proceedings of the International Conference on Recent Advances in Natural Language Processing (RANLP 2021), pages 92–101, Held Online. INCOMA Ltd.
   * Zein Shaheen, Gerhard Wohlgenannt and Erwin Filtz (2020). "Large scale legal text classification using transformer models," [arXiv:2010.12871](https://arxiv.org/abs/2010.12871v1).
 
-#### FineMath (??? and InfiMM-WebMath)
+#### FineMath and InfiMM-WebMath
 * <u>Source</u>: [HuggingFaceTB/finemath](https://huggingface.co/datasets/HuggingFaceTB/finemath). License: ODC-BY.
 * <u>Description</u>: "FineMath consists of 34B tokens (FineMath-3+) and 54B tokens (FineMath-3+ with InfiMM-WebMath-3+) of mathematical educational content filtered from CommonCrawl. To curate this dataset, we trained a mathematical content classifier using annotations generated by LLama-3.1-70B-Instruct. We used the classifier to retain only the most educational mathematics content, focusing on clear explanations and step-by-step problem solving rather than advanced academic papers" (FineMath [data card](https://huggingface.co/datasets/HuggingFaceTB/finemath)).
 <!-- * <u>Pre-processing</u>: -->
@@ -264,7 +271,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 * <u>Citation</u>: Guilherme Penedo,  Hynek Kydlíček,  Vinko Sabolčec,  Bettina Messmer,  Negar Foroutan,  Amir Hossein Kargaran,  Colin Raffel,  Martin Jaggi, Leandro Von Werra and Thomas Wolf (2025). FineWeb2: One Pipeline to Scale Them All -- Adapting Pre-Training Data Processing to Every Language. [arXiv:2506.20920](https://arxiv.org/abs/2506.20920).
 
 
-#### FineWeb HQ (via ftp)
+#### FineWeb HQ (via external server)
 * <u>Source</u>: [epfml/FineWeb-HQ](https://huggingface.co/datasets/epfml/FineWeb-HQ). License: ODC-BY.
 * <u>Description</u>: "FineWeb-HQ is a high-quality, model-filtered pretraining dataset derived as a subset of [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb). FineWeb-HQ was created by selecting the top 10% of FineWeb documents based on a deep learning classifier trained to identify structured and knowledge-rich samples. This classifier uses XLM-RoBERTa embeddings to score documents."
 <!-- * <u>Pre-processing</u>: -->
@@ -276,7 +283,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 <!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Bettina Messmer, Vinko Sabolčec and Martin Jaggi (2025). Enhancing Multilingual LLM Pretraining with Model-Based Data Selection. [arXiv:2502.10361](https://arxiv.org/abs/2502.10361).
 
-#### FineWebEdu (via ftp)
+#### FineWebEdu (via external server)
 * <u>Source</u>: [HuggingFaceFW/fineweb-edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). License: [ODC-BY](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu).
 * <u>Extracted from</u>: [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb). License: [ODC-BY](https://huggingface.co/datasets/HuggingFaceFW/fineweb).
 * <u>Description</u>: A 1.3 trillion token selection from [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb), which contains 15 trillion tokens of curated data from 96 Common Crawl dumps. Content in FineWebEdu has been selected by a custom designed classifier for its high-quality, educational content. Most recent crawl: 2024-10 (see <a href="https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset/blob/main/figures/fig_distribution_finewebedu-english_histogram.png">composition details</a> for information about the crawls included in this dataset.)
@@ -303,6 +310,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
   * <u>Text cleaning</u>: Headers and footers containing information about Project Gutenberg were removed (see [code details](https://github.com/OpenLLM-France/Lucie-Training/blob/cdec8fd6369385455829ab39c2f04bcb1a8a475a/tokenization/text.py#L93)).
 
 #### HAL
+<!-- Julie -->
 * <u>Source</u>: Corpus processed by OpenLLM partners and published separately as []().
 * <u>Original source</u>:  based on [almanach/halvest](https://huggingface.co/datasets/almanach/halvest). License: [HAL license](https://doc.hal.science/en/legal-aspects/).
 * <u>Extracted from</u>: [HAL](https://hal.science/) ([Open access](https://about.hal.science/)).
@@ -313,13 +321,14 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 
 #### HPLT 2
-* <u>Source</u>: Licence: 
-* <u>Description</u>: 
+* <u>Source</u>: [HPLT/HPLT2.0_cleaned](https://huggingface.co/datasets/HPLT/HPLT2.0_cleaned). Licence: CC-0 1.0.
+* <u>Description</u>: A cleaned, "large-scale collection of web-crawled documents in 191 world languages, produced by the HPLT project. The source of the data is mostly Internet Archive with some additions from Common Crawl" (HPLT 2 [data card](https://huggingface.co/datasets/HPLT/HPLT2.0_cleaned)).
 <!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: 
+* <u>Citation</u>: Laurie Burchell, Ona de Gibert, Nikolay Arefyev, Mikko Aulamo, Marta Bañón, Pinzhen Chen, Mariia Fedorova, Liane Guillou, Barry Haddow, Jan Hajic, Jindrich Helcl, Erik Henriksson, Mateusz Klimaszewski, Ville Komulainen, Andrey Kutuzov, Joona Kytöniemi, Veronika Laippala, Petter Mæhlum, Bhavitvya Malik, Farrokh Mehryary, Vladislav Mikhailov, Nikita Moghe, Amanda Myntti, Dayyán O’Brien, Stephan Oepen, Proyag Pal, Jousia Piha, Sampo Pyysalo, Gema Ramírez-Sánchez, David Samuel, Pavel Stepachev, Jörg Tiedemann, Duan Variš, Tereza Vojtechová and Jaume Zaragoza-Bernabeu (2025). An Expanded Massive Multilingual Dataset for High-Performance Language Technologies (HPLT). Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers). pp. 17452-17485. [paper](https://aclanthology.org/2025.acl-long.854/)
 
 
 #### INSEE
+<!-- Julie -->
 * <u>Source</u>: Licence: 
 * <u>Description</u>: 
 <!-- * <u>Pre-processing</u>: -->
@@ -333,19 +342,21 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 
 #### MegaMath Web
-* <u>Source</u>: Licence: 
-* <u>Description</u>: 
+* <u>Source</u>: [LLM360/MegaMath](https://huggingface.co/datasets/LLM360/MegaMath). Licence: ODC-BY.
+* <u>Description</u>: MegaMath is "an open math pretraining dataset curated from diverse, math-focused sources, with over 300B tokens". MegaMath Web includes "re-extracted mathematical documents from Common Crawl with math-oriented HTML optimizations, fasttext-based filtering and deduplication, all for acquiring higher-quality data on the Internet" (MegaMath [data card](https://huggingface.co/datasets/LLM360/MegaMath)).
 <!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: 
+* <u>Citation</u>: Fan Zhou, Zengzhi Wang,  Nikhil Ranjan,  Zhoujun  Cheng, Liping Tang,  Guowei He,  Zhengzhong Liu, and Eric P. Xing (2025). MegaMath: Pushing the Limits of Open Math Corpora. [arXiv:2504.02807](https://arxiv.org/abs/2504.02807).
 
 #### Nemotron Post-Training v2
-* <u>Source</u>: Licence: 
-* <u>Description</u>: 
+* <u>Source</u>: [nvidia/Nemotron-Post-Training-Dataset-v2](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2). Licence: CC-BY 4.0.
+* <u>Description</u>: A collection of instruction-style, supervised-fine tuning data in math, code, STEM (science-technology-engineering-math), and general chat. This version contains instructions in French, Spanish, Italian, German, and Japanese.
 <!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: 
+  * Dhruv Nathawani, Shuoyang Ding,  Vitaly Lavrukhin,  Igor Gitman,  Somshubra Majumdar,  Evelina Bakhturina,  Boris Ginsburg,  and Jane Polak Scowcroft (2025). Nemotron-Post-Training-Dataset-v2. [Hugging Face](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2).
+  * NVIDIA (2025). NVIDIA Nemotron Nano 2: An Accurate and Efficient Hybrid Mamba-Transformer Reasoning Model. [arXiv:2508.14444](https://arxiv.org/abs/2508.14444).
 
 #### Open Code Reasoning
-* <u>Source</u>: Licence: 
+* <u>Source</u>: [nvidia/OpenCodeReasoning](https://huggingface.co/datasets/nvidia/OpenCodeReasoning). Licence: CC-BY 4.0.
 * <u>Description</u>: 
 <!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: 
@@ -469,25 +480,10 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 <!-- * <u>Citation</u>: No paper found. -->
 
 #### YouTube
+<!-- Julie -->
 * <u>Source</u>: Corpus contributed by LINAGORA Labs and [LeVoiceLab](https://www.levoicelab.org/).
 * <u>Extracted from</u>: [YouTube](https://www.youtube.com/). <!-- License: TODO? -->
 * <u>Description</u>: French subtitles from videos published with permissive licenses on YouTube. <!-- TODO -->
-* <u>Extraction pipeline description</u>:
-  * **Searching for YouTube videos likely in French:** Based on searches generated automatically from random sequences of words extracted from a corpus of French journalistic articles (initially obtained through a web-crawling tool applied to publicly accessible news and media sites such as Huffington Post, 20 Minutes, Le Parisien, Actu, Numerama, Slate, etc.).  
-  Selection of videos with subtitles labeled as "French," excluding those marked as "automatically generated."  
-  *At this stage: 52,778 videos selected, corresponding to 10,654 hours of audio.*  
-  * **Selection of videos whose subtitle language classification confirms French with a certain confidence index:**  
-  *At this stage: 51,934 videos selected, corresponding to 10,425 hours of audio.*  
-  * **Selection of videos whose subtitles contain uppercase, lowercase, and punctuation marks:**  
-  This step filters out automatically generated subtitles created with speech recognition tools.  
-  *At this stage: 45,488 videos selected, corresponding to 8,904 hours of audio.*  
-  * **Extraction of audio tracks from the selected videos.**  
-  * **Automatic formatting of transcripts obtained from subtitles:** Removal of emojis, sound event annotations in brackets (like "[Music]") and extra text such as "subtitled by XXX."  (on last seconds of the video).
-  * **Selection of videos where an automatic speech recognition tool correctly transcribes the first 30 seconds with a minimum recall and precision rate:**  
-  *At this stage: 37,513 videos selected, corresponding to 7,541 hours of audio.*  
-  * **Realignment of the transcript:** Ensuring accurate timestamps in the transcriptions based on the subtitles and excluding audios where alignment fails.  
-  *At this stage: 36,618 videos selected, corresponding to 6,729 hours of audio.* 
-
 
 
 
