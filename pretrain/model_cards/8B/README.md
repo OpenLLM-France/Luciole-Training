@@ -125,13 +125,11 @@ They are organized into the following subfolders:
 * **Phase 1 – Initial pretraining (context length: 4,096)**  
   From [phase1-step0001000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase1-step0001000) to [phase1-step0715787](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase1-step0715787)
 * **Phase 2 – Continued pretraining**  
-  From [phase2-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase2-step0010000) to [phase2-step0358931](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase2-step0358931)
+  From [phase2-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase2-step0010000) to [phase2-step0358930](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase2-step0358930)
 * **Phase 3 – Annealing phase**  
   From [phase3-annealing-step0010000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase3-annealing-step0010000) to [phase3-annealing-step0118238](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase3-annealing-step0118238)
-* **Phase 4 – Context extension to 32k tokens**  
-  [phase4-context-extension-32k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase4-context-extension-32k-step0003000) and [phase4-context-extension-32k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase4-context-extension-32k-step0005960)
-* **Phase 5 – Context extension to 131k tokens**  
-  [phase5-context-extension-131k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase5-context-extension-131k-step0003000) and [phase5-context-extension-131k-step0005960](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase5-context-extension-131k-step0005960)
+* **Phase 4 – Context extension to 131k tokens**  
+  [phase4-context-extension-131k-step0003000](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase4-context-extension-131k-step0003000) to [phase4-context-extension-131k-step0023841](https://dl.labs.linagora.com/files/models/OpenLLM-France/Luciole-8B-Base/phase4-context-extension-131k-step0023841)
 
 The total cumulative number of training steps and training tokens for each checkpoint is specified in
 the YAML header of each `README.md` file, and in
@@ -167,7 +165,7 @@ Pretraining was followed by one short mid-training phases to extend the context 
 
 Luciole-8B-Base is a causal decoder-only model trained on a causal language modeling task (i.e., predict the next token).
 
-It was pre-trained on 128 - 256 H100 80GB GPUs (32 - 64 nodes) for about 41,962 GPU hours (253 hours) on the [Jean Zay supercomputer](http://www.idris.fr/eng/jean-zay/jean-zay-presentation-eng.html).
+It was pre-trained on 128 - 256 H100 80GB GPUs (32 - 64 nodes) for about 237,036 GPU hours (870 hours) on the [Jean Zay supercomputer](http://www.idris.fr/eng/jean-zay/jean-zay-presentation-eng.html).
 
 The training code is available at [https://github.com/OpenLLM-France/Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training). Training used version 2.3.1 of NVIDIA's [NeMo framework](https://github.com/NVIDIA-NeMo/NeMo).
 
@@ -176,7 +174,7 @@ The training code is available at [https://github.com/OpenLLM-France/Luciole-Tra
 
 #### Neural Network Architecture
 
-The architecture of Luciole-8B-Base is a custom adaptation of the [NemotronH-8B](https://github.com/NVIDIA-NeMo/NeMo/blob/0b1be8d1165f49ee2ef1e74f72f2ff07350f6798/nemo/collections/llm/recipes/nemotronh_8b.py) recipe.
+The architecture of Luciole-8B-Base is a custom adaptation of the [NemotronH-8B](https://github.com/NVIDIA-NeMo/NeMo/blob/v2.3.1/nemo/collections/llm/recipes/nemotronh_8b.py) recipe.
 It has exactly 8.08 billion free parameters,
 with the following hyperparameters:
 | **Hyperparameter**        | **Value** |
@@ -192,8 +190,6 @@ with the following hyperparameters:
 | MLP Activation            |  `relu2`|
 | Mamba Activation          |  `silu`|
 
-
-The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below.
 
 #### Training Hyperparameters
 
@@ -215,9 +211,9 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Initializer range      | 0.009        |
 | Optimizer              | `AdamW` (β₁=0.9, β₂=0.95, ε=1e-5)    |
 | Precision              | `bfloat16` |
-| Tensor Parallelism (with 256 GPUs)   | 1           |
+| Tensor Parallelism (with 256 GPUs)   | 2           |
 | Pipeline Parallelism (with 256 GPUs) | 1           |
-| Data Parallelism (with 256 GPUs)     | 256         |
+| Data Parallelism (with 256 GPUs)     | 128         |
 
 **2. Continual Pretraining**
 
@@ -228,7 +224,6 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Learning rate schedule | Cosine annealing  |
 | Maximum Learning rate  | 3e-4 |
 | Final Learning rate  | 6.87e-5 |
-| Data Parallelism (with 128 GPUs)     | 128          |
 
 
 **3. Annealing**
@@ -249,7 +244,10 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Total \# steps  | 5,960 |
 | Context length         | 131,072 |
 | Batch size             | 32 |
-| RoPE theta             | 2,000,000 |
+| Context Parallelism (with 128 GPUs)  | 8          |
+| Tensor Parallelism (with 128 GPUs)   | 2          |
+| Data Parallelism (with 128 GPUs)     | 8          |
+
 
 ### Training Convergence and Evaluation
 
