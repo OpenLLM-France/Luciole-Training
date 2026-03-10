@@ -155,10 +155,10 @@ Pretraining consisted of three principal phases of training with a context lengt
 2. Continued pretraining: 1 trillion tokens introducing higher quality data and increasing math and code proportions
 3. Annealing phase: 0.5 trillion tokens introducing some instruction-style and reasoning data
 
-Pretraining was followed by two short mid-training phases to extend the context length to 131,000 tokens:
+Pretraining was followed by two short mid-training phases to extend the context length to 131,072 tokens:
 
-4. First context extension: 25 billion tokens to extend context length from 4,096 to 32,000 tokens 
-5. Second context extension: 25 billion tokens to extend context length from 32,000 to 65,000 tokens
+4. First context extension: 25 billion tokens to extend context length from 4,096 to 32,768 tokens 
+5. Second context extension: 25 billion tokens to extend context length from 32,768 to 131,072 tokens
 
 <!-- This yields the following distributions.-->
 
@@ -178,7 +178,7 @@ The training code is available at [https://github.com/OpenLLM-France/Luciole-Tra
 #### Neural Network Architecture
 
 The architecture of Luciole-1B-Base is a custom adaptation of the [Nemotron3-4B](https://github.com/NVIDIA-NeMo/NeMo/blob/0b1be8d1165f49ee2ef1e74f72f2ff07350f6798/nemo/collections/llm/recipes/nemotron3_4b.py) recipe.
-It has exactly 1.3 billion free parameters,
+It has 1.3 billion free parameters,
 with the following hyperparameters:
 | **Hyperparameter**        | **Value** |
 |---------------------------|---------|
@@ -255,7 +255,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Final Learning rate    | 0      |
 | Data Parallelism (with 32 GPUs)     | 32 |
 
-**4. Context extension to 131K**
+**5. Context extension to 131K**
 
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
