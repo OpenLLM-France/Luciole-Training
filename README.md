@@ -1,4 +1,4 @@
-# OpenLLM-BPI-Training
+# Luciole-Training
 
 Training pipeline for the **Luciole** series of multilingual (French-English) large language models, part of the [OpenLLM-France](https://github.com/OpenLLM-France) initiative.
 
