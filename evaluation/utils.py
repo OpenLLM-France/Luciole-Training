@@ -130,7 +130,7 @@ def get_training_tokens_and_model_size(file_path):
         if match:
             steps = float(match.group(1))
         else:
-            match = re.search(r"step_([0-9.]+)", str(file_path))
+            match = re.search(r"step[_-]([0-9.]+)", str(file_path))
             steps = float(match.group(1)) if match else None
             if steps is None:
                 raise ValueError(f"Could not extract steps from file path: {file_path}")
