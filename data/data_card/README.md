@@ -311,13 +311,13 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 #### HAL
 <!-- Julie -->
-* <u>Source</u>: Corpus processed by OpenLLM partners and published separately as []().
+* <u>Source</u>: Corpus processed by OpenLLM partners. <!--  and published separately as [](). License: -->
 * <u>Original source</u>:  based on [almanach/halvest](https://huggingface.co/datasets/almanach/halvest). License: [HAL license](https://doc.hal.science/en/legal-aspects/).
 * <u>Extracted from</u>: [HAL](https://hal.science/) ([Open access](https://about.hal.science/)).
 * <u>Description</u>: A collection of scientific papers and manuscripts distributed through the open science platform HAL. Dataset containing text retrieved through OCR.
 <!-- * <u>Pre-processing</u>: -->
   
-* <u>Citation</u>: 
+<!-- * <u>Citation</u>: -->
 
 
 #### HPLT 2
@@ -329,10 +329,11 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 #### INSEE
 <!-- Julie -->
-* <u>Source</u>: Licence: 
+* <u>Source</u>: Corpus processed by OpenLLM partners. <!--  and published separately as [](). License: -->
+* <u>Extracted from</u>: 
 * <u>Description</u>: 
 <!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: 
+<!-- * <u>Citation</u>: -->
 
 #### MathPile (Commercial)
 * <u>Source</u>: [OpenLLM-France/Lucie-Training-Dataset](https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset).
@@ -357,9 +358,12 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 #### Open Code Reasoning
 * <u>Source</u>: [nvidia/OpenCodeReasoning](https://huggingface.co/datasets/nvidia/OpenCodeReasoning). Licence: CC-BY 4.0.
-* <u>Description</u>: 
+* <u>Original sources:</u> 
+  * CodeForces problems:  [CodeForces](http://codeforces.com).
+  * Question collections: [TACO](https://huggingface.co/datasets/BAAI/TACO), [APPS](https://huggingface.co/datasets/codeparrot/apps), [CodeContests](https://huggingface.co/datasets/deepmind/code_contests), and [open-r1/codeforces](https://huggingface.co/datasets/open-r1/codeforces).
+* <u>Description</u>: OpenCodeReasoning "comprises 735,255 samples in Python across 28,319 unique competitive programming questions. OpenCodeReasoning is designed for supervised fine-tuning (SFT)" (OpenCodeReasoning [data card](https://huggingface.co/datasets/nvidia/OpenCodeReasoning)).
 <!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: 
+* <u>Citation</u>: Wasi Uddin Ahmad, Sean Narenthiran, Somshubra Majumdar, Aleksander Ficek, Siddhartha Jain, Jocelyn Huang, Vahid Noroozi, and Boris Ginsburg (2025). OpenCodeReasoning: Advancing Data Distillation for Competitive Coding. [arXiv:2504.01943](https://arxiv.org/abs/2504.01943).
 
 #### OpenData
 * <u>Source</u>: [Nicolas-BZRD/DILA_OPENDATA_FR_2023](https://huggingface.co/datasets/Nicolas-BZRD/DILA_OPENDATA_FR_2023/tree/main) (balo, dole, inca, kali, legi and sarde subsets). License: [ODC-BY](https://huggingface.co/datasets/Nicolas-BZRD/DILA_OPENDATA_FR_2023/tree/main).
@@ -454,14 +458,10 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 <!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: 
 
-#### Wikipedia, Wikisource, Wiktionary
-* <u>Source</u>: Corpus contributed by LINAGORA Labs (OpenLLM-France).
-  Also published here:
-  * [OpenLLM-France/wikipedia](https://huggingface.co/datasets/OpenLLM-France/wikipedia)
-  * [OpenLLM-France/wikisource](https://huggingface.co/datasets/OpenLLM-France/wikisource)
-  * [OpenLLM-France/wiktionary](https://huggingface.co/datasets/OpenLLM-France/wiktionary)
+#### Wikimedia
+* <u>Source</u>: [OpenLLM-France/wikimedia](https://huggingface.co/datasets/OpenLLM-France/wikimedia)
 * <u>Extracted from</u>: [Wikimedia dumps](https://dumps.wikimedia.org/other/enterprise_html/runs/). License: [GFDL/CC BY-SA](https://dumps.wikimedia.org/legal.html).
-<!-- * <u>Description</u>: TODO -->
+* <u>Description</u>: A curated collection of Wikimedia pages in markdown format, compiled from various Wikimedia projects across multiple languages, including: Wikipedia, Wikibooks, Wikinews, Wikiquote, Wikisource, Wikiversity, Wikivoyage, Wiktionary.
 <!-- * <u>Pre-processing</u>: TODO -->
 <!-- * <u>Citation</u>: No paper found. -->
 
