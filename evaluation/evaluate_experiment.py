@@ -211,11 +211,14 @@ def get_checkpoints_and_revisions(
 
 
 def get_step(text):
-    match = re.search(r"-step[=_](\d+)", text)
+    match = re.search(r"totalstep[=_]?(\d+)", text)
+    if not match:
+        match = re.search(r"step[=_]?(\d+)", text)
     if match:
         step_number = int(match.group(1))
         return step_number
     else:
+        raise RuntimeError(f"Could not extract step number from: {text}")
         return None
 
 
