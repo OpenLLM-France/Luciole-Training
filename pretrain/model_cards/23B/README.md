@@ -1,3 +1,32 @@
+---
+license: apache-2.0
+pipeline_tag: text-generation
+language:
+- fr
+- en
+- it
+- de
+- es
+- pt
+- nl
+- ar
+tags:
+- pretrained
+- openllm-france
+datasets:
+  - OpenLLM-France/Luciole-Training-Dataset
+training_progress:
+  num_steps: 1170080
+  num_tokens: 4907671224320
+  context_length: 131072
+widget:
+  - text: |-
+      Quelle est la capitale de l'Espagne ? Madrid.
+      Quelle est la capitale de la France ?
+    example_title: Capital cities in French
+    group: 1-shot Question Answering
+---
+
 # Model Card for Luciole-23B-Base-2603
 
 <!-- inspired from the following template:
