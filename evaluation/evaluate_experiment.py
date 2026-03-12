@@ -1,9 +1,9 @@
 import argparse
 import os
 import math
-import re
 import subprocess
 from pathlib import Path
+from utils import get_step
 
 MAIN_COMMAND = """VLLM_WORKER_MULTIPROC_METHOD=spawn lighteval {command} \\
     "$MODEL_ARG" \\
@@ -210,18 +210,6 @@ def get_checkpoints_and_revisions(
     return checkpoints, revisions, hf_dir
 
 
-def get_step(text):
-    match = re.search(r"totalstep[=_]?(\d+)", text)
-    if not match:
-        match = re.search(r"step[=_]?(\d+)", text)
-    if match:
-        step_number = int(match.group(1))
-        return step_number
-    else:
-        raise RuntimeError(f"Could not extract step number from: {text}")
-        return None
-
-
 def launch_evaluation(
     experiment_path,
     task_to_evaluate,
@@ -280,7 +268,7 @@ def launch_evaluation(
         step = None
 
         if min_step:
-            step = get_step(ckpt)
+            _, step = get_step(ckpt)
             if (step + 1) < min_step:
                 if not dry_run:
                     print(
@@ -289,7 +277,7 @@ def launch_evaluation(
                 continue
 
         if multiple_of and multiple_of != 1:
-            step = get_step(ckpt)
+            _, step = get_step(ckpt)
             if (step + 1) % multiple_of != 0:
                 if not dry_run:
                     print(

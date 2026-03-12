@@ -5,6 +5,17 @@ import re
 import numpy as np
 
 
+def get_step(text):
+    match = re.search(r"totalstep[=_-]?(\d+)", text)
+    is_global = bool(match)
+    if not match:
+        match = re.search(r"step[=_-]?(\d+)", text)
+    if match:
+        step_number = int(match.group(1))
+        return is_global, step_number
+    raise RuntimeError(f"Could not extract step number from: {text}")
+
+
 def get_training_tokens_and_model_size(file_path):
     if "OLMo-2-0425-1B" in str(file_path):
         match = re.search(r"-tokens([0-9.]+)B", str(file_path))
@@ -126,15 +137,9 @@ def get_training_tokens_and_model_size(file_path):
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
 
-        match = re.search(r"totalstep([0-9.]+)", str(file_path))
-        if match:
-            steps = float(match.group(1))
-        else:
-            match = re.search(r"step[_-]([0-9.]+)", str(file_path))
-            steps = float(match.group(1)) if match else None
-            if steps is None:
-                raise ValueError(f"Could not extract steps from file path: {file_path}")
+        is_global, steps = get_step(str(file_path))
 
+        if not is_global:
             steps_phase1 = 715787
             steps_phase2 = 358930
             steps_phase3_annealing = 118238 if model_size < 23 else 71526
@@ -151,7 +156,7 @@ def get_training_tokens_and_model_size(file_path):
                     + steps_phase3_annealing
                     + steps_extension
                 )
-            elif "annealin" in str(file_path):
+            else:  # if "annealin" in str(file_path):
                 steps += steps_phase1 + steps_phase2
 
         tokens = steps * 4096 * 1024 / 10**9
