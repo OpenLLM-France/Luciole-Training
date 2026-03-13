@@ -81,7 +81,7 @@ Luciole-1B-Base is not intended to generate text directly for end use cases. It 
 
 ## Bias, Risks, and Limitations
 
-Like other foundation models, Luciole-1B-Base is trained on large amounts of web data. Additionally, due to the scarcity of French textual non-web data published under open licenses, much of our French data comes from older works in the public domain that carry biases from other time periods. While we made efforts to reduce toxic and offensive content in the [Luciole Training Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset), Luciole-1B-Base may still generate such content. Filtering of the Luciole Training Dataset is an ongoing project to which we welcome contributions. 
+Like other foundation models, Luciole-1B-Base is trained on large amounts of web data. Additionally, due to the scarcity of French textual non-web data published under open licenses, much of our French data comes from older works in the public domain that carry biases from other time periods. While we made efforts to reduce toxic and offensive content in the [Luciole Training Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset), Luciole-1B-Base may still generate such content. Filtering of the Luciole Training Dataset and its source datasets is an ongoing project. 
 
 ### Recommendations
 To limit the generation of undesirable content, it is advised to fine-tune Luciole-1B-Base through instruction and preference tuning (DPO, RLHF, etc.).
@@ -220,7 +220,7 @@ with the following hyperparameters:
 | Activation                |  `relu2`|
 
 
-The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below.
+The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below Note that rotary positional embeddings (RoPE) are applied to the first 50% of the per-head query and key dimensions (`rotary_percent = 0.5`), with the remaining dimensions left unchanged.
 
 #### Training Hyperparameters
 
@@ -299,7 +299,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 #### Training loss
 
 Information on training loss curves and training stability is available in the training logs, which are released at<br>
-[metadata/training_logs](metadata/training_logs)<br>
+[metadata/training_logs](https://huggingface.co/OpenLLM-France/Luciole-1B-Base/tree/main/)<br>
 ├── [ConvergenceCurve_phase1.csv](metadata/training_logs/ConvergenceCurve_phase1.csv) -- training logs for phase 1 (initial pretraining) <br>
 ├── [ConvergenceCurve_phase2.csv](metadata/training_logs/ConvergenceCurve_phase2.csv) -- training logs for phase 2 (continued pretraining) <br>
 ├── [ConvergenceCurve_phase3-annealing.csv](metadata/training_logs/ConvergenceCurve_phase3-annealing.csv) -- training logs for phase 3 (annealing) <br>
@@ -344,7 +344,7 @@ The RULER figure differs in that it reports average performance across different
 </tr>
 </table>
 
-All figures can be found in the [metadata/evaluation](metadata/evaluation) folder.
+All figures can be found in the [metadata/evaluation](https://huggingface.co/OpenLLM-France/Luciole-1B-Base/tree/main/metadata/training_logs) folder.
 
 ## Citation
 
@@ -353,7 +353,7 @@ All figures can be found in the [metadata/evaluation](metadata/evaluation) folde
 
 ## Acknowledgements
 
-We gratefully acknowledge BPI France for funding the OpenLLM France project under the call "Communs numériques pour l’intelligence artificielle générative" ("Digital commons for generative artificial intelligence") and the project numbers DOS0250771 and DOS0250773.
+We gratefully acknowledge BPI France for funding the OpenLLM France project under the [call](https://www.bpifrance.fr/nos-appels-a-projets-concours/appel-a-projets-communs-numeriques-pour-lintelligence-artificielle-generative) "Communs numériques pour l’intelligence artificielle générative" ("Digital commons for generative artificial intelligence") as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
 
 Training of Luciole-1B-Base was made possible by computing AI and storage resources by GENCI at IDRIS thanks to the grant 2024-GC011015444 on the supercomputer Jean Zay’s H100 partition. We gratefully acknowledge support from GENCI and IDRIS and from Stephane Requena (GENCI) and Pierre-François Lavallée (IDRIS) in particular. 
 
@@ -390,7 +390,7 @@ Gabriel Lauzzana (LORIA)
 Michel-Marie Maudet (LINAGORA)  
 
 
-We would also like to thank Djamé Seddah and the GAPERON team for sharing their insights with us.
+We would also like to thank members of the [Gaperon](https://huggingface.co/collections/almanach/gaperon), [Salamandra](https://huggingface.co/collections/BSC-LT/salamandra) and [Apertus](https://huggingface.co/collections/swiss-ai/apertus-llm) projects for sharing their insights with us.
 
 Finally, we thank the entire OpenLLM-France community, whose members have helped in diverse ways. 
 
