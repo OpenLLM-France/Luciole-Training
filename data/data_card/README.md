@@ -7,7 +7,7 @@
   * [Bias, Risks, and Limitations](#bias-risks-and-limitations)
     * [Recommendations](#recommendations)
   * [Sample Metadata](#sample-metadata)
-  * [Dataset Composition](#dataset-composition)
+  <!-- * [Dataset Composition](#dataset-composition) -->
 * [Downloading the Data](#downloading-the-data)
   * [Sample Use in Python](#sample-use-in-python)
   * [Accessing the English Web Data](#accessing-the-english-web-data)
@@ -25,7 +25,7 @@ digital books, newspapers, and magazines, some of which were processed by Optica
 
 The Luciole Training Dataset was created by the consortium of the [OpenLLM France](https://openllm-france.fr/) project funded by [BPI France](https://www.bpifrance.fr/) as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
 
-It was used to pretrain the Luciole family of models, including [Luciole-1B-Base](https://huggingface.co/OpenLLM-France/Luciole-1.1-1B-Base), [Luciole-8B-Base](https://huggingface.co/OpenLLM-France/Luciole-8B-Base) and [Luciole-23B-Base](https://huggingface.co/OpenLLM-France/Luciole-23B-Base), foundation LLMs with strong capabilities in French and English. 
+It was used to pretrain the Luciole family of models, including [Luciole-1B-Base](https://huggingface.co/OpenLLM-France/Luciole-1B-Base), Luciole-8B-Base (coming soon) and Luciole-23B-Base (coming soon), foundation LLMs with strong capabilities in French and English. 
 
 Due to storage constraints, the English web data from the Luciole Training Dataset is published elsewhere (see [Accessing the English Web Data](#accessing-the-english-web-data) below for instructions on how to access this data).
 
@@ -56,15 +56,15 @@ A URL was considered valid if it either explicitly allowed crawling by CCBot or 
 
 #### Personal and Sensitive Information (PII)
 
-We follow the same approach as FineWeb-Edu to remove emails and IP addresses from the dataset.
-Email addresses are detected and replaced with placeholders such as "email@example.com" or "firstname.lastname@example.com". Similarly, IP addresses are automatically identified and replaced with the tag "<IP_ADDRESS>".
+For CulturaX, FineWeb 2, FineWeb-Edu, HPLT 2, and Common Corpus, we follow the same approach as [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb#data-processing-steps) to remove emails and IP addresses from the dataset.
+Email addresses are detected and replaced with placeholders such as "email@example.com" or "firstname.lastname@example.com". Similarly, IP addresses are automatically identified and replaced with the tag "<IP_ADDRESS>" for the web data sets (but not for Common Corpus, where we found too many false positives).
 
-In addition, phone numbers are detected and anonymized using the Google phonenumbers library, which provides robust parsing and validation for international phone formats. All detected phone numbers are replaced with the token "<PHONE_NUMBER>". This detection covers both international numbers and several country-specific formats, including French, Canadian, Belgian, German, Spanish, Italian, Portuguese, and Dutch phone numbers.
+In addition, phone numbers are detected and anonymized using [phonenumbers](https://pypi.org/project/phonenumbers/), a Python port of Google's [libphonenumber](https://github.com/google/libphonenumber) library, which provides robust parsing and validation for international phone number formats. All detected phone numbers are replaced with the token "<PHONE_NUMBER>". This detection covers both international numbers and several country-specific formats, including French, Canadian, Belgian, German, Spanish, Italian, Portuguese, and Dutch.
 
 ### Bias, Risks, and Limitations
 While we have made strong efforts to only include only open corpora, it is possible that individual documents in those corpora are copyrighted. Similarly, it is possible that some personal information in those corpora has slipped through PII filters. If you find your copyrighted work in the Luciole Training Dataset or mention of your personal details therein, we invite you to contact us at contact@openllm-france.fr.
 
-Despite efforts to filter toxicity in web data, improving filtering methods is an ongoing project, and it is extremely likely that toxic and offensive documents remain in web data. Another likely source of biases comes from older data in the public domain. Historical documents can carry biases related to, for example, gender, skin color, ethnicity, and religion that are not socially acceptable. 
+Despite efforts to filter toxicity in web data, improving filtering methods is an ongoing project, and it is extremely likely that toxic and offensive documents remain in web data. Another likely source of biases comes from older data in the public domain. Historical documents can carry offensive biases related to, for example, gender, skin color, ethnicity, and religion. Finding ways to exploit valuable historical and linguistic content from these data while limiting the impact of socially unacceptable biases is an important topic for future research. 
 
 A further limitation of this dataset is that it does not distinguish between variants of different languages. Quebequois French and Metropolitan French, to give just one example, are both classified as "French". In future work, we hope to focus more on regional linguistic diversity.
 
@@ -76,7 +76,7 @@ Due to harmful biases potentially conveyed by some documents in the Luciole Trai
 In addition to the `text` field, which provides the content of the sample, each training sample in the corpus contains the following metadata when available:
 
 * [`source`]: an identifier for the source of the text sample (e.g., Wikipedia, FineWeb2, Gutenberg, …).
-* [`id`]: an identifier that is unique among documents from the same source.
+* [`id`]: an identifier that is unique among documents within a single data source.
 * [`language`]: the language of the text sample:
   - the ISO 639-1 or ISO ...-3 code for a given natural language ("en", "fr", "de", "es", "it", …),
   - the name of a programming language ("python", …),
@@ -97,7 +97,7 @@ Load and iterate over the full dataset using the `datasets` library:
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", split="train", streaming=True)
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", split="train", streaming=True)
 
 for sample in dataset:
    
@@ -114,7 +114,7 @@ The list of possible configurations can be obtained programmatically:
 ```python
 from datasets import load_dataset_builder
 
-config_names = list(load_dataset_builder("OpenLLM-BPI/Luciole-Training-Dataset").builder_configs)
+config_names = list(load_dataset_builder("OpenLLM-France/Luciole-Training-Dataset").builder_configs)
 
 print(config_names)
 ```
@@ -130,38 +130,38 @@ from datasets import load_dataset
 
 kwargs = dict(split="train", streaming=True)
 
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "fr", **kwargs)
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "fr", **kwargs)
 ```
 Load data where French and English are aligned:
 ```python
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "en-fr", **kwargs)
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "en-fr", **kwargs)
 ```
 
 Load data from Wikimedia:
 ```python
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "Wikimedia", **kwargs)
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "Wikimedia", **kwargs)
 ```
 
 Load the Fineweb2-fr dataset:
 ```python
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "Fineweb2-fr", **kwargs)
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "Fineweb2-fr", **kwargs)
 ```
 
 Load the subset Fineweb2-fr-3plus from the Pile dataset:
 ```python
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", "Fineweb2-fr-3plus", **kwargs)
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "Fineweb2-fr-3plus", **kwargs)
 ```
 
 Note that you can also access configurations that are not explicitly specified by exploring the [data hierarchy](data_hierarchy.txt).
 
 For instance, to access the French subset of Wikimedia:
 ```python
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/wikimedia/*/fr")
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/wikimedia/*/fr")
 ```
 
 Or to load Python data:
 ```python
-dataset = load_dataset("OpenLLM-BPI/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/**/python")
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/**/python")
 ```
 
 ### Accessing the English Web Data
@@ -196,7 +196,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 #### Common Corpus
 <!-- Julie -->
 * <u>Source</u>: [PleIAs/common_corpus](https://huggingface.co/datasets/PleIAs/common_corpus). License: Public Domain or mixed open licenses.
-* <u>Description</u>: "The data assembled in Common Corpus are either uncopyrighted or under permissible licenses and amount to about two trillion tokens. The dataset contains a wide variety of languages, ranging from the high-resource European languages to some low-resource languages rarely represented in pre-training datasets. In addition, it includes a large portion of code data" (Langlais et al, (2026)).
+* <u>Description</u>: "The data assembled in Common Corpus are either uncopyrighted or under permissible licenses and amount to about two trillion tokens. The dataset contains a wide variety of languages, ranging from the high-resource European languages to some low-resource languages rarely represented in pre-training datasets. In addition, it includes a large portion of code data" (Langlais et al, 2026).
 <!-- Subsets -->
 <!-- <u>Pre-processing</u>: -->
 * <u>Citation</u>: Pierre-Carl Langlais, Pavel Chizhov, Catherine Arnett, Carlos Hinostroza, Mattia Nee, Eliot Jones, Irène Girard, David Mach, Anastasia Stasenko, Ivan Yamshchikov (2026). Common Corpus: The Largest Collection of Ethical Data for LLM Pre-Training. ICLR 2026.
@@ -206,7 +206,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 * <u>Description</u>: The Common Pile v0.1 is a curated "eight terabyte collection of openly licensed text designed for LLM pretraining. The Common Pile comprises content from 30 sources that span diverse domains including research papers, code, books, encyclopedias, educational materials, audio transcripts, and more" (Kandpal et al., 2025).
 <!-- Subsets -->
 <!-- <u>Pre-processing</u>: -->
-* <u>Citation</u>: Nikhil Kandpal, Brian Lester, Colin Raffel, Sebastian Majstorovic, Stella Biderman, Baber Abbasi, Luca Soldaini, Enrico Shippole, A. Feder Cooper, Aviya Skowron, John Kirchenbauer, Shayne Longpre, Lintang Sutawika, Alon Albalak, Zhenlin Xu, Guilherme Penedo, Loubna Ben Allal, Elie Bakouch, John David Pressman, Honglu Fan, Dashiell Stander, Guangyu Song, Aaron Gokaslan, Tom Goldstein, Brian R. Bartoldson, Bhavya Kailkhura, and Tyler Murray (2025). [arXiv:2506.05209](https://arxiv.org/abs/2506.05209)
+* <u>Citation</u>: Nikhil Kandpal, Brian Lester, Colin Raffel, Sebastian Majstorovic, Stella Biderman, Baber Abbasi, Luca Soldaini, Enrico Shippole, A. Feder Cooper, Aviya Skowron, John Kirchenbauer, Shayne Longpre, Lintang Sutawika, Alon Albalak, Zhenlin Xu, Guilherme Penedo, Loubna Ben Allal, Elie Bakouch, John David Pressman, Honglu Fan, Dashiell Stander, Guangyu Song, Aaron Gokaslan, Tom Goldstein, Brian R. Bartoldson, Bhavya Kailkhura, and Tyler Murray (2025). The Common Pile v0.1: An 8TB Dataset of Public Domain and Openly Licensed Text. [arXiv:2506.05209](https://arxiv.org/abs/2506.05209)
 
 #### Croissant Aligned
 * <u>Source</u>: [OpenLLM-France/Translation-Instruct](https://huggingface.co/datasets/OpenLLM-France/Translation-Instruct). License: CC-BY-SA 4.0.
@@ -216,7 +216,9 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
   * Thesis abstracts: French thesis abstract pairs. License: [ETALAB-Licence-Ouverte-v2.0](https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf).
   * Song lyrics: [lacoccinelle](https://www.lacoccinelle.net). 
 * <u>Description</u>: CroissantAligned contains samples of parallel French/English (or English/French) data. Data extracted from OPUS takes the form of sentences pairs, where one sentence is in French and the other is in English. OPUS pairs were passed through a custom pipeline designed to select the highest quality translation examples. Selected pairs are labeled "UnbabelFrEn" in the CroissantAligned dataset. The thesis abstract subset contains thesis abstracts paired with translations written by the thesis authors. The song lyrics are translated by contributors to www.lacoccinelle.net. Parallel data are used to boost the multilingual capabilities of models trained on them ([Faysse et al.,2024](https://arxiv.org/pdf/2402.00786)).
-* <u>Citation</u>: Manuel Faysse, Patrick Fernandes, Nuno M. Guerreiro, António Loison, Duarte M. Alves, Caio Corro, Nicolas Boizard, João Alves, Ricardo Rei, Pedro H. Martins, Antoni Bigata Casademunt, François Yvon, André F.T. Martins, Gautier Viaud, Céline Hudelot, Pierre Colombo (2024). "CroissantLLM: A Truly Bilingual French-English Language Model," [arXiv:2402.00786](https://arxiv.org/abs/2402.00786).
+* <u>Citations</u>: 
+  * CroissantLLM: Manuel Faysse, Patrick Fernandes, Nuno M. Guerreiro, António Loison, Duarte M. Alves, Caio Corro, Nicolas Boizard, João Alves, Ricardo Rei, Pedro H. Martins, Antoni Bigata Casademunt, François Yvon, André F.T. Martins, Gautier Viaud, Céline Hudelot, Pierre Colombo (2024). "CroissantLLM: A Truly Bilingual French-English Language Model," [arXiv:2402.00786](https://arxiv.org/abs/2402.00786).
+  * Translation-Instruct: Olivier Gouvert, Julie Hunter, Jérôme Louradour, Christophe Cérisara, Evan Dufraisse, Yaya Sy, Laura Rivière, Jean-Pierre Lorré (2025). The Lucie-7B LLM and the Lucie Training Dataset: Open resources for multilingual language generation. [arxiv:2503.12294](https://arxiv.org/abs/2503.12294).
 
 #### CulturaX
 * <u>Source</u>: [uonlp/CulturaX](https://huggingface.co/datasets/uonlp/CulturaX) Licence: [mC4 license](https://huggingface.co/datasets/allenai/c4#license), [OSCAR license](https://huggingface.co/datasets/uonlp/CulturaX).
@@ -245,7 +247,9 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
   * `fr-en`, `es-en`, `it-en` parallel data: [Europarl v7](https://www.statmt.org/europarl/v7/). License: [Open](https://www.statmt.org/europarl/).
   * `de-fr` parallel data: [Europarl v10](https://www.statmt.org/europarl/v10/training-monolingual/). License: [Open](https://www.statmt.org/europarl/).
 * <u>Description</u>: "The Europarl parallel corpus is extracted from the proceedings of the European Parliament. It includes versions in 21 European languages: Romanic (French, Italian, Spanish, Portuguese, Romanian), Germanic (English, Dutch, German, Danish, Swedish), Slavik (Bulgarian, Czech, Polish, Slovak, Slovene), Finni-Ugric (Finnish, Hungarian, Estonian), Baltic (Latvian, Lithuanian), and Greek. The goal of the extraction and processing was to generate sentence aligned text for statistical machine translation systems" ([www.statmt.org](https://www.statmt.org/europarl/)).
-* <u>Citation</u>: Philipp Koehn (2005). "Europarl: A Parallel Corpus for Statistical Machine Translation," MT Summit. 
+* <u>Citations</u>: 
+  * Europarl: Philipp Koehn (2005). "Europarl: A Parallel Corpus for Statistical Machine Translation," MT Summit. 
+  * Translation-Instruct: Olivier Gouvert, Julie Hunter, Jérôme Louradour, Christophe Cérisara, Evan Dufraisse, Yaya Sy, Laura Rivière, Jean-Pierre Lorré (2025). The Lucie-7B LLM and the Lucie Training Dataset: Open resources for multilingual language generation. [arxiv:2503.12294](https://arxiv.org/abs/2503.12294).
 
 #### Eurovoc
 * <u>Source</u>:   [EuropeanParliament/Eurovoc](https://huggingface.co/datasets/EuropeanParliament/Eurovoc). License: [EUPL 1.1](https://huggingface.co/datasets/EuropeanParliament/Eurovoc).
@@ -434,13 +438,13 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 #### Synth FineWeb 2
 * <u>Source</u>: Original subset of the Luciole Training Corpus.
-* <u>Description</u>: 
+* <u>Description</u>: Using Qwen 3 8B, we synthetically augmented documents from FineWeb 2 by prompting the model to reformulate them using three different levels of difficulty: easy, medium, difficult. The documents in this corpus consist of the medium and difficult reformulations.
 <!-- * <u>Pre-processing</u>: -->
 
 
 #### Synth Wikipedia
 * <u>Source</u>: Original subset of the Luciole Training Corpus.
-* <u>Description</u>: 
+* <u>Description</u>: Using Qwen 3 8B, we synthetically augmented documents from Wikipedia by generating question/response pairs based on the content of the Wikipedia document. The question/answer pairs were appended to the end of the document concerned.
 <!-- * <u>Pre-processing</u>: -->
 
 
@@ -453,10 +457,10 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 
 #### Vikidia
-* <u>Source</u>: Licence: 
-* <u>Description</u>: 
+* <u>Source</u>: [vikidia.org](https://dumps.vikidia.org/). Licence: [GFDL](https://fr.vikidia.org/wiki/Vikidia:R%C3%A9utilisation_du_contenu_de_Vikidia).
+* <u>Description</u>: "Vikidia est un projet encyclopédique multilingue en ligne, en format wiki, destiné aux 8-13 ans comme lecteurs mais aussi comme participants. Le site est indépendant de la fondation Wikimédia, dont dépend Wikipédia. Il a été lancé le 17 novembre 2006" ([vikidia.org](https://fr.vikidia.org/wiki/Vikidia:%C3%80_propos)).
 <!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: 
+
 
 #### Wikimedia
 * <u>Source</u>: [OpenLLM-France/wikimedia](https://huggingface.co/datasets/OpenLLM-France/wikimedia)
@@ -505,7 +509,9 @@ Gabriel Lauzzana (LORIA),
 Michel-Marie Maudet (LINAGORA),  
 Celia Zolynski (Sorbonne)
 
-We would also like to thank the numerous open data projects that have guided us in, or directly contributed to, the creation of this dataset. This includes in particular: the [Common Corpus](https://huggingface.co/datasets/PleIAs/common_corpus) from [Pleias](https://pleias.fr/), the [Common Pile](https://huggingface.co/common-pile), the [Nemotron post-training datasets](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2) from [Nvidia](https://www.nvidia.com/en-eu/) and numerous projects from [Hugging Face](https://huggingface.co/) and [Allen AI](https://allenai.org/).
+Thanks to and [Vikidia](https://fr.vikidia.org/wiki/Vikidia:Accueil) for giving us access to their data.
+
+We would also like to thank the numerous open data projects that have guided us in the process of creating this dataset. This includes in particular: the [Common Corpus](https://huggingface.co/datasets/PleIAs/common_corpus) from [Pleias](https://pleias.fr/), the [Common Pile](https://huggingface.co/common-pile), the [Nemotron post-training datasets](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2) from [Nvidia](https://www.nvidia.com/en-eu/) and numerous projects from [Hugging Face](https://huggingface.co/) and [Allen AI](https://allenai.org/). 
 
 Finally, we thank the entire OpenLLM-France community, whose members have helped in diverse ways. 
 
