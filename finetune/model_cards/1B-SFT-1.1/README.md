@@ -83,14 +83,18 @@ Luciole-1B-SFT-1.1 is trained on the following datasets:
 * [Croissant-Aligned-Instruct](https://huggingface.co/datasets/OpenLLM-France/Croissant-Aligned-Instruct) (English/French; 24K)
 * [Paradocs](https://huggingface.co/datasets/jhu-clsp/paradocs) (English/French; 65K samples)
 * [EuroparlAligned]() (English/French; 6K samples)
-* [RAG_hotpot_QA]()⚠️ (English; 74,393 samples)
-* [RAG_TAT_QA]()⚠️ (English; 6K samples)
+* [ContextQA_hotpot_QA]()⚠️ (English; 74,393 samples)
+* [ContextQA_TAT_QA]()⚠️ (English; 6K samples)
 * Hard-coded prompts concerning OpenLLM and Lucie (based on [allenai/tulu-3-hard-coded-10x](https://huggingface.co/datasets/allenai/tulu-3-hard-coded-10x))
     * French: hardcoded_fr.jsonl (962 samples)
     * English: hardcoded_en.jsonl (1108 samples)
 
 Four epochs were passed on each dataset.
 
+<center>
+   <img src='../../all_sft_bar.png' width='600px'>
+</center>
+    
 ### Preprocessing
 * Filtering by keyword and foreign language strings: we [remove examples](https://github.com/OpenLLM-France/Luciole-Training/blob/main/data/processing/posttraining/preprocess.py) in which the assistant is presented as model other than Luciole (e.g., ChatGPT, Gemma, Llama, ...) as well as those in which there are strings of non-roman characters (signaling the presence of Arabic, Russian or Chinese text).
 
@@ -106,6 +110,14 @@ chat = [
   {
     "content": "Qui était Molière ?",
     "role": "user"
+  },
+  {
+    "content": "Molière était un dramaturge, acteur et comédien français du XVIIe siècle.",
+    "role": "assistant"
+  },
+  {
+    "content": "Quelles sont ses œuvres les plus connues ?",
+    "role": "user"
   }
 ]
 print(tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True))
@@ -116,6 +128,10 @@ gives the output
 You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.<|im_end|>
 <|im_start|>user
 Qui était Molière ?<|im_end|>
+<|im_start|>assistant
+Molière était un dramaturge, acteur et comédien français du XVIIe siècle.<|im_end|>
+<|im_start|>user
+Quelles sont ses œuvres les plus connues ?<|im_end|>
 <|im_start|>assistant
 ```
 
