@@ -10,6 +10,7 @@ base_model:
 - OpenLLM-France/Luciole-1B-Base
 ---
 
+
 # Model Card for Luciole-1B-SFT-1.1
 
 * [Model Description](#model-description)
@@ -82,24 +83,41 @@ Luciole-1B-SFT-1.1 is trained on the following datasets:
 * [Croissant-Aligned-Instruct](https://huggingface.co/datasets/OpenLLM-France/Croissant-Aligned-Instruct) (English/French; 24K)
 * [Paradocs](https://huggingface.co/datasets/jhu-clsp/paradocs) (English/French; 65K samples)
 * [EuroparlAligned]() (English/French; 6K samples)
-* [RAG_hotpot_QA]() (English; 74,393 samples)
-* [RAG_TAT_QA]() (English; 6K samples)
+* [RAG_hotpot_QA]()⚠️ (English; 74,393 samples)
+* [RAG_TAT_QA]()⚠️ (English; 6K samples)
 * Hard-coded prompts concerning OpenLLM and Lucie (based on [allenai/tulu-3-hard-coded-10x](https://huggingface.co/datasets/allenai/tulu-3-hard-coded-10x))
-    * French: hardcoded_fr.jsonl (790 samples)
-    * English: hardcoded_en.jsonl (947 samples)
+    * French: hardcoded_fr.jsonl (962 samples)
+    * English: hardcoded_en.jsonl (1108 samples)
 
 Four epochs were passed on each dataset.
 
 ### Preprocessing
-* Filtering by keyword: Examples containing assistant responses were filtered out from the four synthetic datasets if the responses contained a keyword from the list [filter_strings](https://github.com/OpenLLM-France/Lucie-Training/blob/98792a1a9015dcf613ff951b1ce6145ca8ecb174/tokenization/data.py#L2012). This filter is designed to remove examples in which the assistant is presented as model other than Lucie (e.g., ChatGPT, Gemma, Llama, ...).
+* Filtering by keyword and foreign language strings: we [remove examples](https://github.com/OpenLLM-France/Luciole-Training/blob/main/data/processing/posttraining/preprocess.py) in which the assistant is presented as model other than Luciole (e.g., ChatGPT, Gemma, Llama, ...) as well as those in which there are strings of non-roman characters (signaling the presence of Arabic, Russian or Chinese text).
 
 ### Instruction template:
-Luciole-1B-SFT-1.1 was trained on the chat template from NEED_MODEL_NAME with the sole difference that `<|begin_of_text|>` is replaced with `<s>`. The resulting template:
+Luciole-1B-SFT-1.1 was trained on the chat template inspired from [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B/). In our chat template, we removed thinking capability and added a default system prompt. The resulting template can be found [here](https://huggingface.co/OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_nothink/blob/main/chat_template.jinja).
 
 
-
-An example: ⚠️
-
+An example: 
+```
+from transformers import AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained("OpenLLM-France/Luciole-1B-SFT-1.1")
+chat = [
+  {
+    "content": "Qui était Molière ?",
+    "role": "user"
+  }
+]
+print(tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True))
+```
+gives the output
+```
+<|im_start|>system
+You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.<|im_end|>
+<|im_start|>user
+Qui était Molière ?<|im_end|>
+<|im_start|>assistant
+```
 
 ### Training procedure
 
@@ -109,13 +127,28 @@ The model architecture and hyperparameters are:
 * max learning rate: 3e-5
 * min learning rate: 3e-6
 
-<sup>*</sup>As noted above, while Luciole-1B-SFT-1.1 is trained on sequences of 16384 tokens, it maintains the capacity of the base model, NEED_BASE_MODEL, to handle context sizes of up to 131K tokens.
+<sup>*</sup>As noted above, while Luciole-1B-SFT-1.1 is trained on sequences of 16384 tokens, it maintains the capacity of the base model, [OpenLLM-France/Luciole-1B-Base](https://huggingface.co/OpenLLM-France/Luciole-1B-Base), to handle context sizes of up to 131K tokens.
 
 ## Testing the model
 
 ### Test with ollama
 
-ADD_OLLAMA_STUFF ⚠️
+* Download and install [Ollama](https://ollama.com/download)
+* Download the [GGUF model](https://huggingface.co/OpenLLM-France/Luciole-1B-SFT-1.1-gguf/blob/main/Lucie-7B-Instruct-v1.1-q4_k_m.gguf)
+* Copy the [`Modelfile`](https://huggingface.co/OpenLLM-France/Luciole-1B-SFT-1.1-gguf/blob/main/Modelfile), adpating if necessary the path to the GGUF file (line starting with `FROM`).
+* Run in a shell:
+    * `ollama create -f Modelfile Luciole`
+    * `ollama run Luciole`
+* Once ">>>" appears, type your prompt(s) and press Enter.
+* Optionally, restart a conversation by typing "`/clear`"
+* End the session by typing "`/bye`".
+
+Useful for debug:
+* [How to print input requests and output responses in Ollama server?](https://stackoverflow.com/a/78831840)
+* [Documentation on Modelfile](https://github.com/ollama/ollama/blob/main/docs/modelfile.mdx#parameter)
+   * Examples: [Ollama model library](https://github.com/ollama/ollama#model-library)
+      * Llama 3 example: https://ollama.com/library/llama3.1
+* Add GUI : https://docs.openwebui.com/
 
 ### Test with vLLM
 
