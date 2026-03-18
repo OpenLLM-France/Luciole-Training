@@ -27,7 +27,7 @@ widget:
     group: 1-shot Question Answering
 ---
 
-# Model Card for Luciole-23B-Base-2603
+# Model Card for Luciole-23B-Base
 
 <!-- inspired from the following template:
 https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/modelcard_template.md?plain=1
