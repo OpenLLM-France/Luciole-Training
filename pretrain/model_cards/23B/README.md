@@ -54,9 +54,10 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
 
 ## Model Description
 
-Luciole-23B-Base is a pretrained 23B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and [OpenLLM-France](https://github.com/OpenLLM-France). It was created by the consortium of the [OpenLLM France](https://openllm-france.fr/) project funded by [BPI France](https://www.bpifrance.fr/) as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
+Luciole-23B-Base is a pretrained 23B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and the [OpenLLM-France](https://openllm-france.fr/) consortium as a part of the OpenLLM France project, funded by [BPI France](https://www.bpifrance.fr/) through the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
+It was trained on the [GENCI](https://www.genci.fr/) supercomputer Jean Zay, managed by [IDRIS](http://www.idris.fr/eng/index.html)
 
-Luciole-23B-Base was trained on 5.1 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), and a small subset of regional languages including regional languages of the French metropolitan area, French variants, and French creoles from around the world (0.4%). 
+Luciole-23B-Base was trained on around 5 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), and a small subset of regional languages including regional languages of the French metropolitan area, French variants, and French creoles from around the world (0.4%). 
 
 The latter were selected from the [FineWeb 2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) dataset and include Basque, Breton, Catalan, Corsican, Franco-Provençal, Guadeloupean Creole French, Guianese Creole French, Occitan, Picard, Réunion Creole French, Saint Lucian Creole French, Seselwa Creole French, Tahitian, and Walloon.
 
@@ -220,7 +221,7 @@ with the following hyperparameters:
 | Activation                |  `relu2`|
 
 
-The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below.
+The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below Note that rotary positional embeddings (RoPE) are applied to the first 50% of the per-head query and key dimensions (`rotary_percent = 0.5`), with the remaining dimensions left unchanged.
 
 #### Training Hyperparameters
 
@@ -305,7 +306,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 #### Training loss
 
 Information on training loss curves and training stability is available in the training logs, which are released at<br>
-[metadata/training_logs](metadata/training_logs)<br>
+[metadata/training_logs](https://huggingface.co/OpenLLM-France/Luciole-23B-Base/tree/main/metadata/training_logs)<br>
 ├── [ConvergenceCurve_phase1.csv](metadata/training_logs/ConvergenceCurve_phase1.csv) -- training logs for phase 1 (initial pretraining) <br>
 ├── [ConvergenceCurve_phase2.csv](metadata/training_logs/ConvergenceCurve_phase2.csv) -- training logs for phase 2 (continued pretraining) <br>
 ├── [ConvergenceCurve_phase3-annealing.csv](metadata/training_logs/ConvergenceCurve_phase3-annealing.csv) -- training logs for phase 3 (annealing) <br>
@@ -336,20 +337,20 @@ The RULER figure differs in that it reports average performance across different
 
 <table>
 <tr>
-<td><a href="metadata/evaluation/fr_details.png"><img src="metadata/evaluation/fr_average.png" alt="French average results"></a></td>
+<td><a href="https://huggingface.co/openllm-france/luciole-23b-base/blob/main/metadata/evaluation/fr_details.png"><img src="metadata/evaluation/fr_average.png" alt="French average results"></a></td>
 <td><img src="metadata/evaluation/legend.png" alt="Legend"></td>
 </tr>
 <tr>
-<td><a href="metadata/evaluation/en_details.png"><img src="metadata/evaluation/en_average.png" alt="English average results"></a></td>
-<td><a href="metadata/evaluation/multilingual_details.png"><img src="metadata/evaluation/multilingual_average.png" alt="Multilingual average results"></a></td>
+<td><a href="https://huggingface.co/openllm-france/luciole-23b-base/blob/main/metadata/evaluation/en_details.png"><img src="metadata/evaluation/en_average.png" alt="English average results"></a></td>
+<td><a href="https://huggingface.co/openllm-france/luciole-23b-base/blob/main/metadata/evaluation/multilingual_details.png"><img src="metadata/evaluation/multilingual_average.png" alt="Multilingual average results"></a></td>
 </tr>
 <tr>
-<td><a href="metadata/evaluation/translation_details.png"><img src="metadata/evaluation/translation_average.png" alt="Translation average results"></a></td>
-<td><a href="metadata/evaluation/ruler_details.png"><img src="metadata/evaluation/ruler_average.png" alt="RULER average results"></a></td>
+<td><a href="https://huggingface.co/openllm-france/luciole-23b-base/blob/main/metadata/evaluation/translation_details.png"><img src="metadata/evaluation/translation_average.png" alt="Translation average results"></a></td>
+<td><a href="https://huggingface.co/openllm-france/luciole-23b-base/blob/main/metadata/evaluation/ruler_details.png"><img src="metadata/evaluation/ruler_average.png" alt="RULER average results"></a></td>
 </tr>
 </table>
 
-All figures can be found in the [metadata/evaluation](metadata/evaluation) folder.
+All figures can be found in the [metadata/evaluation](https://huggingface.co/OpenLLM-France/Luciole-23B-Base/tree/main/metadata/evaluation) folder.
 
 ## Citation
 
@@ -358,7 +359,7 @@ All figures can be found in the [metadata/evaluation](metadata/evaluation) folde
 
 ## Acknowledgements
 
-We gratefully acknowledge BPI France for funding the OpenLLM France project under the call "Communs numériques pour l’intelligence artificielle générative" ("Digital commons for generative artificial intelligence") and the project numbers DOS0250771 and DOS0250773.
+We gratefully acknowledge BPI France for funding the OpenLLM France project under the [call](https://www.bpifrance.fr/nos-appels-a-projets-concours/appel-a-projets-communs-numeriques-pour-lintelligence-artificielle-generative) "Communs numériques pour l’intelligence artificielle générative" ("Digital commons for generative artificial intelligence") as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
 
 Training of Luciole-23B-Base was made possible by computing AI and storage resources by GENCI at IDRIS thanks to the grant 2024-GC011015444 on the supercomputer Jean Zay’s H100 partition. We gratefully acknowledge support from GENCI and IDRIS and from Stephane Requena (GENCI) and Pierre-François Lavallée (IDRIS) in particular. 
 
@@ -373,14 +374,18 @@ Jérôme Louradour
 Charlotte Noel   
 Kate Thompson   
 
-We thank the support teams from IDRIS and NVIDIA for their technical guidance throughout the project, especially:  
+We thank the support team from IDRIS for technical guidance throughout the project, especially:  
 
-Meriem Bendris (NVIDIA)  
+
 Martin Comminges (IDRIS)  
 Rémi Lacroix (IDRIS)     
 Myriam Peyrounette (IDRIS)  
-Hayk Shoukourian (NVIDIA)  
-Oleg Sudakov (NVIDIA)  
+
+as well as the support team from NVIDIA, especially:
+
+Meriem Bendris (NVIDIA)   
+Hayk Shoukourian (NVIDIA)    
+Oleg Sudakov (NVIDIA)
 
 We are also greatful to the partners of the [OpenLLM-France](https://www.openllm-france.fr/) consortium for their valuable input, with particular thanks to (in alphabetical order):  
   
@@ -395,7 +400,8 @@ Gabriel Lauzzana (LORIA)
 Michel-Marie Maudet (LINAGORA)  
 
 
-We would also like to thank Djamé Seddah and the GAPERON team for sharing their insights with us.
+We would also like to thank members of the [Gaperon](https://huggingface.co/collections/almanach/gaperon), [Salamandra](https://huggingface.co/collections/BSC-LT/salamandra) and [Apertus](https://huggingface.co/collections/swiss-ai/apertus-llm) projects for sharing their insights with us. We also acknowledge the numerous open source actors whose resources have guided us throughout the training process, with particular thanks to [Nvidia](https://www.nvidia.com/en-eu/), [Hugging Face](https://huggingface.co/) and [Allen AI](https://allenai.org/). 
+
 
 Finally, we thank the entire OpenLLM-France community, whose members have helped in diverse ways. 
 
