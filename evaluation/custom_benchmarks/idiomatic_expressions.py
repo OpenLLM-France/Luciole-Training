@@ -120,12 +120,20 @@ for task in TASKS_TABLE:
 
 
 ### Translation
-def prompt_fn(line, task_name: str) -> Doc:
-    choices = [x.strip() for x in line["English"].split("/")]
-    source = line["French"].strip()
+def prompt_fn(line, task_name: str, fr_to_en=True) -> Doc:
+    fr_expression = [x.strip().capitalize() for x in line["French"].split("/")]
+    en_expression = [x.strip().capitalize() for x in line["English"].split("/")]
+    if fr_to_en:
+        source = fr_expression[0]
+        choices = en_expression
+        query = f"Translate this French idiomatic expression into English.\nQuestion: {source}\nAnswer:"
+    else:
+        source = en_expression[0]
+        choices = fr_expression
+        query = f"Translate this English idiomatic expression into French.\nQuestion: {source}\nAnswer:"
     return Doc(
         task_name=task_name,
-        query=f"Translate this French idiomatic expression into English.\nQuestion: {source}\nAnswer:",
+        query=query,
         choices=choices,
         gold_index=list(range(len(choices))),
     )
@@ -139,6 +147,7 @@ TASKS_TABLE.extend(
             suite=["custom"],
             hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
             hf_subset=subset,
+            hf_filter=lambda x: x["French"] != "///" and x["English"] != "///",
             evaluation_splits=("train",),
             few_shots_split="train",
             few_shots_select="random_sampling_from_train",
