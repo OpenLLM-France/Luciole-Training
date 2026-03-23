@@ -86,7 +86,7 @@ TASKS_TABLE.extend(
 
 
 #### Idiomatic Expressions Fill in the blank tasks
-def prompt(line, task_name: str, use_context: bool) -> Doc:
+def prompt_fn(line, task_name: str, use_context: bool) -> Doc:
     choices, gold_idx = get_choices_and_gold_from_line(line, use_context)
     return Doc(
         task_name=task_name,
@@ -100,7 +100,7 @@ TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
             name=f"idiomatic_expressions_fib{'_context' if use_context else ''}:{subset.lower().replace(' ', '_')}",
-            prompt_function=partial(prompt, use_context=use_context),
+            prompt_function=partial(prompt_fn, use_context=use_context),
             suite=["custom"],
             hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
             hf_subset=subset,
@@ -110,6 +110,43 @@ TASKS_TABLE.extend(
         )
         for subset in SUBSETS
         for use_context in [True, False]
+    ]
+)
+
+print(f"Total tasks registered: {len(TASKS_TABLE)}")
+print("Tasks:")
+for task in TASKS_TABLE:
+    print(f"  {task.name}")
+
+
+### Translation
+def prompt_fn(line, task_name: str) -> Doc:
+    choices = [x.strip() for x in line["English"].split("/")]
+    source = line["French"].strip()
+    return Doc(
+        task_name=task_name,
+        query=f"Translate this French idiomatic expression into English.\nQuestion: {source}\nAnswer:",
+        choices=choices,
+        gold_index=list(range(len(choices))),
+    )
+
+
+TASKS_TABLE.extend(
+    [
+        LightevalTaskConfig(
+            name=f"idiomatic_expressions_translation:{subset.lower().replace(' ', '_')}",
+            prompt_function=prompt_fn,
+            suite=["custom"],
+            hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
+            hf_subset=subset,
+            evaluation_splits=("train",),
+            few_shots_split="train",
+            few_shots_select="random_sampling_from_train",
+            generation_size=300,
+            metrics=[Metrics.bleu, Metrics.bleu_1, Metrics.bleu_4],
+            stop_sequence=["\n"],
+        )
+        for subset in SUBSETS
     ]
 )
 
