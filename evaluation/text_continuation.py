@@ -92,7 +92,7 @@ def main():
         gpu_memory_utilization=0.90,
     )
 
-    prompts = [example["text"] for example in dataset]
+    prompts = [example["input"] for example in dataset]
     outputs = llm.generate(prompts, sampling_params)
 
     os.makedirs(args.output, exist_ok=True)
