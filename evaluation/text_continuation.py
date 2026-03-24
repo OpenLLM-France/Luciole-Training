@@ -57,6 +57,12 @@ def parse_args():
         default="outputs",
         help="Directory to write JSONL output files (default: outputs/)",
     )
+    parser.add_argument(
+        "--language",
+        type=str,
+        default="fr",
+        help="Language subset of the wikipedia dataset",
+    )
     return parser.parse_args()
 
 
@@ -74,7 +80,7 @@ def main():
         "OpenLLM-France/Luciole-Training-Dataset",
         split="train",
         streaming=True,
-        data_dir="data/wikimedia/wikipedia/fr",
+        data_dir=f"data/wikimedia/wikipedia/{args.language}",
     )
     dataset = dataset.shuffle(seed=42, buffer_size=10_000)
     dataset = dataset.take(args.num_samples)
