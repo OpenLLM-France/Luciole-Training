@@ -35,7 +35,7 @@ pip install -e .[multilingual,vllm]
 pip install language_data langdetect syllapy seaborn python-slugify
 pip install unbabel-comet>=2.2.0
 
-module load cuda/12.8.0
+module load cuda/12.8.0 # or CUDA version used to compile torch (see `python -c "import torch; print(torch.version.cuda)"`)
 pip install --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 ```
 
