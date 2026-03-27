@@ -2,10 +2,10 @@
 sft:
   ## total number of steps to train will equal
   ## min((max_num_epochs * len(train_dataloader)), max_num_steps)
-  max_num_epochs: 2
-  max_num_steps: 3130
+  max_num_epochs: 4
+  max_num_steps: 2340
 
-  val_period: 40
+  val_period: 300
   val_batches: 8
   val_global_batch_size: 256
   val_micro_batch_size: 1
@@ -14,7 +14,7 @@ sft:
 
 checkpointing:
   enabled: true
-  checkpoint_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline/checkpoints"
+  checkpoint_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline_full_cleaned_v3/checkpoints"
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
   keep_top_k: 10
@@ -28,7 +28,7 @@ policy:
     # chat_template can be a Jinja template string or path to a .jinja file
     chat_template: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_nothink/chat_template.jinja"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
-  train_global_batch_size: 256
+  train_global_batch_size: 2048
   train_micro_batch_size: 1
   max_total_sequence_length: 16384
   precision: "bfloat16"
@@ -45,7 +45,7 @@ policy:
     tensor_parallel_size: 1
     context_parallel_size: 1
     custom_parallel_plan: null
-  
+
     # LoRA (Low-Rank Adaptation) Configuration
     lora_cfg:
       enabled: False  # Set to True to enable LoRA fine-tuning
@@ -86,7 +86,7 @@ policy:
       # and fused to False
       foreach: False
       fused: False
-    
+
   ## ignored since enabled=false, but needed for testing purposes
   megatron_cfg:
     enabled: true
@@ -96,7 +96,6 @@ policy:
     tensor_model_parallel_size: 4
     expert_tensor_parallel_size: 1
     expert_model_parallel_size: 1
-    pipeline_model_parallel_size: 1
     context_parallel_size: 1 #changing from 1 to 2
     pipeline_dtype: ${policy.precision}
     num_layers_in_first_pipeline_stage: null
@@ -116,8 +115,8 @@ policy:
 
     optimizer:
       optimizer: "adam"
-      lr: 3.0e-5
-      min_lr: 3.0e-6
+      lr: 2.0e-5
+      min_lr: 2.0e-6
       weight_decay: 0.1
       bf16: true
       fp16: false
@@ -146,8 +145,8 @@ policy:
       end_weight_decay: ${policy.megatron_cfg.optimizer.weight_decay}
       weight_decay_incr_style: "constant"
       lr_decay_style: "cosine"
-      lr_decay_iters: 3125
-      lr_warmup_iters: 50
+      lr_decay_iters: 2338
+      lr_warmup_iters: 70
       lr_warmup_init: 0
 
     distributed_data_parallel_config:
@@ -167,8 +166,8 @@ data:
 
   #dataset_name: ResponseDataset
   dataset_name: openai_format_multifiles
-  train_data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_baseline/training/"
-  val_data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_baseline/validation/"
+  train_data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_full_cleaned_v3/training/"
+  val_data_path: "/lustre/fsn1/projects/rech/qgz/ufb61ek/luciole_full_cleaned_v3/validation/"
   # You can use custom response datasets for training and validation. For example:
   #   data:
   #     dataset_name: ResponseDataset
@@ -197,7 +196,7 @@ data:
   use_preserving_dataset: false            # If true, uses PreservingDataset to preserve heterogeneous schemas (e.g., tool calls with varying argument structures)
 
 logger:
-  log_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1b_baseline/logs"  # Base directory for all logs
+  log_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline_full_cleaned_v3/logs"  # Base directory for all logs
   wandb_enabled: false # Make sure you do a ``wandb login [Your API key]'' before running
   tensorboard_enabled: true
   mlflow_enabled: false
