@@ -18,7 +18,7 @@ checkpointing:
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
   keep_top_k: 10
-  save_period: 10
+  save_period: 50
   checkpoint_must_save_by: null
 
 policy:
@@ -93,7 +93,7 @@ policy:
     env_vars: {}
     empty_unused_memory_level: 1
     activation_checkpointing: false
-    tensor_model_parallel_size: 4
+    tensor_model_parallel_size: 1
     expert_tensor_parallel_size: 1
     expert_model_parallel_size: 1
     context_parallel_size: 1 #changing from 1 to 2
