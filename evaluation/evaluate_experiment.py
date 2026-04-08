@@ -186,7 +186,7 @@ def get_hf_model(hf_model):
 
 
 def get_checkpoints_and_revisions(
-    experiment_path, hf_model=None, infer_ckpt_name=False
+    experiment_path, hf_model=None, infer_ckpt_name=False, is_nemo_rl=False
 ):
     if hf_model is not None:
         checkpoints, revisions, hf_dir = get_hf_model(hf_model)
@@ -195,11 +195,22 @@ def get_checkpoints_and_revisions(
         if infer_ckpt_name:
             # Infer name of ckpt based on nemo checkpoints instead of HF conversion (needed in auto_eval.py dependency)
             experiment_name = experiment_path.name
-            ckpt_dir = experiment_path / experiment_name / "checkpoints"
-            assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
-            checkpoints = sorted(
-                [d.name.replace("=", "_") for d in ckpt_dir.iterdir() if d.is_dir()]
-            )  # [::-1]
+            if not is_nemo_rl:
+                ckpt_dir = experiment_path / experiment_name / "checkpoints"
+                assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
+                checkpoints = sorted(
+                    [d.name.replace("=", "_") for d in ckpt_dir.iterdir() if d.is_dir()]
+                )  # [::-1]
+            else:
+                ckpt_dir = experiment_path / "checkpoints"
+                assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
+                checkpoints = sorted(
+                    [
+                        f"{experiment_name}-{d.name}"
+                        for d in ckpt_dir.iterdir()
+                        if d.is_dir()
+                    ]
+                )  # [::-1]
         else:
             ckpt_dir = hf_dir
             assert ckpt_dir.is_dir(), f"Directory does not exist: {ckpt_dir}"
@@ -230,6 +241,7 @@ def launch_evaluation(
     gpus=1,
     dry_run=False,
     infer_ckpt_name=False,
+    is_nemo_rl=False,
 ):
     experiment_path = Path(experiment_path)
     task_to_evaluate = Path(task_to_evaluate)
@@ -238,7 +250,7 @@ def launch_evaluation(
         print(f"# Task to evaluate: {task_to_evaluate}")
 
     checkpoints, revisions, ckpt_dir = get_checkpoints_and_revisions(
-        experiment_path, hf_model, infer_ckpt_name
+        experiment_path, hf_model, infer_ckpt_name, is_nemo_rl
     )
     if last_checkpoint_only:
         checkpoints = [checkpoints[-1]]
@@ -499,6 +511,11 @@ def get_parser():
     parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
     )
+    parser.add_argument(
+        "--is_nemo_rl",
+        action="store_true",
+        help="If set, use Nemo-RL specific settings.",
+    )
     return parser
 
 
@@ -523,4 +540,5 @@ if __name__ == "__main__":
         last_checkpoint_only=args.last_checkpoint_only,
         gpus=args.gpus,
         dry_run=args.dry_run,
+        is_nemo_rl=args.is_nemo_rl,
     )

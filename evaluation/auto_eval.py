@@ -28,6 +28,40 @@ module load arch/{gpu} nemo/2.4.0
 torchrun --nproc_per_node=1 {source_path}/pretrain/conversion/convert_experiment.py {experiment_path} --arch {arch} --multiple_of {multiple_of}
 """
 
+SBATCH_CONV_NEMORL_TEMPLATE = """#!/bin/bash
+#SBATCH --job-name=convert_nemorl
+#SBATCH --output={log_dir}/log_%x-%j.out
+#SBATCH --gres=gpu:1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=1:00:00
+#SBATCH --cpus-per-task=24
+#SBATCH --hint=nomultithread
+#SBATCH --qos=qos_gpu_{gpu}-dev
+#SBATCH --account={account_gpu}
+#SBATCH --constraint={gpu}
+#SBATCH --mail-type=FAIL
+
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
+export HF_HUB_OFFLINE=1                                                        
+export NVTE_DEBUG=1
+export NVTE_DEBUG_LEVEL=2
+export TORCH_CUDA_ARCH_LIST=9.0
+
+module purge
+module load arch/h100
+module load cuda/12.8.0
+module load cudnn/9.10.2.21-12-cuda
+module load nccl/2.27.3-1-cuda                          
+module load uv/0.8.3         
+
+cd $SCRATCH/nemo-rl #TODO make it more robust by not hardcoding nemo-rl path
+source .venv/bin/activate 
+
+python {source_path}/finetune/nemo-rl/convert_experiment.py {experiment_path} {prefix_name}
+"""
+
 SBATCH_PLOT_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=plot
 #SBATCH --output={log_dir}/log_%x-%j.out
@@ -86,7 +120,9 @@ eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS $TO
 """
 
 
-def launch_conversion(experiment_path, arch, multiple_of=1, dry_run=False):
+def launch_conversion(
+    experiment_path, arch, multiple_of=1, dry_run=False, is_nemo_rl=False
+):
     print(
         f"Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
     )
@@ -96,15 +132,26 @@ def launch_conversion(experiment_path, arch, multiple_of=1, dry_run=False):
     account_gpu = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
     gpu = account_gpu.split("@")[1]
 
-    job_script = SBATCH_CONV_TEMPLATE.format(
-        log_dir=job_dir / "slurm_logs",
-        experiment_path=experiment_path,
-        arch=arch,
-        multiple_of=multiple_of,
-        account_gpu=account_gpu,
-        gpu=gpu,
-        source_path=Path(__file__).parent.parent.resolve(),
-    )
+    if not is_nemo_rl:
+        job_script = SBATCH_CONV_TEMPLATE.format(
+            log_dir=job_dir / "slurm_logs",
+            experiment_path=experiment_path,
+            arch=arch,
+            multiple_of=multiple_of,
+            account_gpu=account_gpu,
+            gpu=gpu,
+            source_path=Path(__file__).parent.parent.resolve(),
+        )
+    else:
+        print("Using Nemotron-RL specific conversion template")
+        job_script = SBATCH_CONV_NEMORL_TEMPLATE.format(
+            log_dir=job_dir / "slurm_logs",
+            experiment_path=experiment_path,
+            prefix_name=Path(experiment_path).name,
+            account_gpu=account_gpu,
+            gpu=gpu,
+            source_path=Path(__file__).parent.parent.resolve(),
+        )
 
     job_filename = job_dir / "conversion_job.slurm"
     with open(job_filename, "w") as f:
@@ -289,6 +336,7 @@ def launch_evaluation(
             dry_run=dry_run,
             lighteval_kwargs=lighteval_kwargs,
             additional_model_args=additional_model_args,
+            is_nemo_rl=args.is_nemo_rl,
         )
         if job_id is not None:
             job_ids.append(job_id)
@@ -471,13 +519,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
     )
+    parser.add_argument(
+        "--is_nemo_rl", action="store_true", help="Convert Nemo-RL ckpts."
+    )
     args = parser.parse_args()
 
-    has_original_checkpoints = (
-        Path(args.experiment_path)
-        / args.experiment_path.rstrip("/").split("/")[-1]
-        / "checkpoints"
-    ).is_dir()
+    if not args.is_nemo_rl:
+        has_original_checkpoints = (
+            Path(args.experiment_path)
+            / args.experiment_path.rstrip("/").split("/")[-1]
+            / "checkpoints"
+        ).is_dir()
+    else:
+        has_original_checkpoints = (Path(args.experiment_path) / "checkpoints").is_dir()
     launch_conversion_needed = not args.hf_model and has_original_checkpoints
 
     # Launch conversion job
@@ -487,6 +541,7 @@ if __name__ == "__main__":
             args.arch,
             args.multiple_of,
             dry_run=args.dry_run,
+            is_nemo_rl=args.is_nemo_rl,
         )
         if args.dry_run:
             print("#" * 80)
