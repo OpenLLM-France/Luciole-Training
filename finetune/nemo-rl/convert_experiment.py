@@ -14,7 +14,9 @@ def convert_one_checkpoint(
     # Use hf_model_name override, if available.
     model_name = hf_model_name if hf_model_name else config["policy"]["model_name"]
     tokenizer_name = config["policy"]["tokenizer"]["name"]
-    hf_overrides = config["policy"].get("hf_overrides", {}) or {}
+    hf_overrides = config["policy"].get("hf_overrides", {"eos_token_id": 261}) or {
+        "eos_token_id": 261
+    }
 
     export_model_from_megatron(
         hf_model_name=model_name,
