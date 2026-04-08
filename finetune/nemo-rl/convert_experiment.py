@@ -5,7 +5,11 @@ from nemo_rl.models.megatron.community_import import export_model_from_megatron
 
 
 def convert_one_checkpoint(
-    config, hf_model_name=None, megatron_ckpt_path=None, hf_ckpt_path=None
+    config,
+    hf_model_name=None,
+    megatron_ckpt_path=None,
+    hf_ckpt_path=None,
+    eos_token_id=261,
 ):
     """Main entry point."""
     with open(config, "r") as f:
@@ -14,9 +18,9 @@ def convert_one_checkpoint(
     # Use hf_model_name override, if available.
     model_name = hf_model_name if hf_model_name else config["policy"]["model_name"]
     tokenizer_name = config["policy"]["tokenizer"]["name"]
-    hf_overrides = config["policy"].get("hf_overrides", {"eos_token_id": 261}) or {
-        "eos_token_id": 261
-    }
+    hf_overrides = config["policy"].get(
+        "hf_overrides", {"eos_token_id": eos_token_id}
+    ) or {"eos_token_id": eos_token_id}
 
     export_model_from_megatron(
         hf_model_name=model_name,
@@ -60,6 +64,11 @@ def get_parser():
         type=str,
         help="Prefix name for the output HuggingFace checkpoints. Format MUST contains: luciole_{{arch}}{{size}} e.g. luciole_nemotron1b_baseline etc.",
     )
+    parser.add_argument(
+        "--eos_token_id",
+        type=int,
+        default=261,
+    )
     return parser
 
 
@@ -67,6 +76,7 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
     experiment_path = args.experiment_path
     prefix_name = args.prefix_name
+    eos_token_id = args.eos_token_id
 
     checkpoints_path = os.path.join(experiment_path, "checkpoints")
     assert os.path.exists(
@@ -91,4 +101,10 @@ if __name__ == "__main__":
             experiment_path, "huggingface_checkpoints", f"{prefix_name}-{step_folder}"
         )
 
-        convert_one_checkpoint(config_path, None, megatron_ckpt_path, hf_ckpt_path)
+        convert_one_checkpoint(
+            config_path,
+            None,
+            megatron_ckpt_path,
+            hf_ckpt_path,
+            eos_token_id=eos_token_id,
+        )
