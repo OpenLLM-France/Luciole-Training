@@ -120,7 +120,7 @@ policy:
       weight_decay: 0.1
       bf16: true
       fp16: false
-      params_dtype: "float32"
+      params_dtype: "bfloat16"
 
       #adam
       adam_beta1: 0.9

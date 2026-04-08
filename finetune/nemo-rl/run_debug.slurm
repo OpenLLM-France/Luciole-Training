@@ -1,20 +1,20 @@
 #!/bin/bash
-#SBATCH --job-name=nemo_rl_sft_1B_baselinemix
-#SBATCH --output=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline/log_%x-%j.stdout
-#SBATCH --error=/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/finetune/nemo-rl/ablations2/sft_luciole_1B_baseline/log_%x-%j.stdout
-#SBATCH --gres=gpu:4
-#SBATCH --nodes=4
+#SBATCH --job-name=nemo_rl
+#SBATCH --output=log_%x-%j.out
+#SBATCH --gres=gpu:1
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --exclusive
-#SBATCH --time=5:00:00
-#SBATCH --cpus-per-task=64
+#SBATCH --time=00:10:00
+#SBATCH --cpus-per-task=24
 #SBATCH --hint=nomultithread
 #SBATCH --constraint h100
 #SBATCH --account wuh@h100
-#SBATCH --qos qos_gpu_h100-t3
-#SBATCH --mail-type=ARRAY_TASKS,BEGIN,END,FAIL,REQUEUE
+#SBATCH --qos qos_gpu_h100-dev
 
 #set -euo pipefail
+
+CONFIG_FILE=$1
 
 ## load environment
 module purge
@@ -23,7 +23,7 @@ module load cuda/12.8.0
 module load cudnn/9.10.2.21-12-cuda
 module load nccl/2.27.3-1-cuda
 module load uv/0.8.3
-source .venv/bin/activate
+source $SCRATCH/nemo-rl/.venv/bin/activate
 
 export TORCH_CUDA_ARCH_LIST=9.0
 
@@ -62,7 +62,7 @@ export NCCL_SOCKET_IFNAME=$IB_IFACE
 export NCCL_ASYNC_ERROR_HANDLING=1
 
 
-# nodes
+# Nodes
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 nodes_array=($nodes)
@@ -125,6 +125,7 @@ ray status || { echo "Ray failed to start"; exit 1; }
 # run code
 
 uv run --no-build-isolation python examples/run_sft.py \
-  --config sft_1B_baseline_luciole.yaml \
-  cluster.num_nodes=4 \
-  cluster.gpus_per_node=4
+  --config $CONFIG_FILE \
+  cluster.num_nodes=1 \
+  cluster.gpus_per_node=1 \
+  sft.max_num_steps=1 # debug
