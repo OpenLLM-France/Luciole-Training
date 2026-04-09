@@ -15,6 +15,7 @@
 
 export CONFIG_FILE=$(realpath "$1")
 export EXPERIMENT_PATH=$(realpath "$2")
+method=${3:-sft} # default to sft
 
 mkdir -p "$EXPERIMENT_PATH/slurm_logs"
 exec > "$EXPERIMENT_PATH/slurm_logs/$SLURM_JOB_ID.out" 2>&1
@@ -128,8 +129,8 @@ sleep 60
 ray status || { echo "Ray failed to start"; exit 1; }
 
 # run code
-uv run --no-build-isolation python examples/run_sft.py \
+uv run --no-build-isolation python examples/run_$method.py \
   --config $CONFIG_FILE \
   cluster.num_nodes=1 \
   cluster.gpus_per_node=4 \
-  sft.max_num_steps=1 # debug
+  $method.max_num_steps=1
