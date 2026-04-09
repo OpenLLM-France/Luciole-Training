@@ -36,11 +36,23 @@ def finetune_recipe(**kwargs):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--resume_path", type=str, default=os.path.join(os.path.expanduser("~"), ".cache/nemo/models/Qwen2.5-7B-Instruct"))
-    parser.add_argument("--data_path", type=str, default=f"{os.environ['SCRATCH']}/Datasets/Train-Math-en-fr-NEMO-2")
+    parser.add_argument(
+        "--resume_path",
+        type=str,
+        default=os.path.join(
+            os.path.expanduser("~"), ".cache/nemo/models/Qwen2.5-7B-Instruct"
+        ),
+    )
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        default=f"{os.environ['SCRATCH']}/Datasets/Train-Math-en-fr-NEMO-2",
+    )
     parser.add_argument(
         "--output_dir",
-        default=os.path.join(os.environ.get("SCRATCH", "/tmp"), "Models/Qwen2.5-7B-Instruct-en-fr-2"),
+        default=os.path.join(
+            os.environ.get("SCRATCH", "/tmp"), "Models/Qwen2.5-7B-Instruct-en-fr-2"
+        ),
     )
     parser.add_argument("--name", default="nemo_test", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
@@ -70,7 +82,6 @@ if __name__ == "__main__":
     )
 
     recipe.resume.restore_config.path = args.resume_path
-
 
     recipe.trainer.max_steps = 434
     recipe.trainer.val_check_interval = 30

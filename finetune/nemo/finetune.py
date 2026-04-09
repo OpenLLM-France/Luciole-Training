@@ -3,27 +3,23 @@ import torch
 import json
 import logging
 import os
-import transformers
 
 from finetune_recipe import (
     create_trainer,
     distributed_fused_adam_with_cosine_annealing,
     create_logger,
-    create_autoresume,
 )
-from utils import read_datamix_file, save_stats, write_completion
+from utils import save_stats, write_completion
 
 from finetune_dataloader import create_data
 
 from nemo.collections import llm
 from nemo.utils.exp_manager import TimingCallback
-from nemo.collections.common.metrics.perf_metrics import FLOPsMeasurementCallback
-from nemo.lightning.pytorch.callbacks.garbage_collection import GarbageCollectionCallback
+from nemo.lightning.pytorch.callbacks.garbage_collection import (
+    GarbageCollectionCallback,
+)
 from nemo.lightning.pytorch.callbacks.pytorch_profiler import PytorchProfilerCallback
 from megatron.core.distributed import DistributedDataParallelConfig
-from lightning.pytorch.loggers import TensorBoardLogger
-from nemo.collections.llm.modelopt import set_modelopt_spec_if_exists_in_ckpt
-from nemo.collections.llm.api import _setup
 
 if __name__ == "__main__":
 
@@ -40,12 +36,20 @@ if __name__ == "__main__":
             ) from e
 
     parser = argparse.ArgumentParser()
-    #parser.add_argument("config")
+    # parser.add_argument("config")
     parser.add_argument(
         "--arch",
         default="llama1b",
         type=str,
-        choices=["llama1b", "llama8b", "mamba1b", "mixtral8x7", "mambahybrid8b", "qwen25-7B", "qwen3-8B"],
+        choices=[
+            "llama1b",
+            "llama8b",
+            "mamba1b",
+            "mixtral8x7",
+            "mambahybrid8b",
+            "qwen25-7B",
+            "qwen3-8B",
+        ],
     )
     parser.add_argument("--name", default="", type=str)
     parser.add_argument("--num_nodes", default=1, type=int)
@@ -108,7 +112,10 @@ if __name__ == "__main__":
     #     packed_seq_length = 4_194_304 // batch_size
 
     data_args = dict(
-        batch_size=batch_size, seq_length=seq_length, packed_seq_length=packed_seq_length, tokenizer_name=tokenizer_name
+        batch_size=batch_size,
+        seq_length=seq_length,
+        packed_seq_length=packed_seq_length,
+        tokenizer_name=tokenizer_name,
     )
 
     data = create_data(data_paths, **data_args)
@@ -226,7 +233,7 @@ if __name__ == "__main__":
         model_config.recompute_granularity = "full"
         model_config.recompute_method = "block"
         model_config.recompute_num_layers = args.n_recompute
- 
+
     args_dict = vars(args)
     for key in [
         "tensor_parallelism",
@@ -247,7 +254,13 @@ if __name__ == "__main__":
     logger.info(f"Resume training if possible: {resume_if_exists}")
 
     opt = distributed_fused_adam_with_cosine_annealing(
-        max_lr=args.lr, warmup_steps=optimizer_warmup_steps, weight_decay=0.0, adam_beta1=0.9, adam_beta2=0.999, min_lr=0.0, adam_eps=1e-8
+        max_lr=args.lr,
+        warmup_steps=optimizer_warmup_steps,
+        weight_decay=0.0,
+        adam_beta1=0.9,
+        adam_beta2=0.999,
+        min_lr=0.0,
+        adam_eps=1e-8,
     )
 
     callbacks = [TimingCallback()]
@@ -263,12 +276,14 @@ if __name__ == "__main__":
                 end_step=max_steps,
                 warmup_steps=0,
                 active_steps=max_steps,
-                trace_dir=os.path.join(os.environ.get("SCRATCH", "/tmp"), "Training_OpenLLM/torch"),
+                trace_dir=os.path.join(
+                    os.environ.get("SCRATCH", "/tmp"), "Training_OpenLLM/torch"
+                ),
                 profiler_kwargs={
-                    'with_stack': True,
-                    'profile_memory': True,
-                }
-            )
+                    "with_stack": True,
+                    "profile_memory": True,
+                },
+            ),
         ]
 
     trainer = create_trainer(
@@ -294,7 +309,7 @@ if __name__ == "__main__":
         trainer=trainer,
         log=nemo_logger,
         optim=opt,
-        #resume=create_autoresume(path=f"nemo://{model_name.split('/')[-1]}", resume_if_exists=resume_if_exists),
+        # resume=create_autoresume(path=f"nemo://{model_name.split('/')[-1]}", resume_if_exists=resume_if_exists),
     )
 
     if args.mode in ["debug", "benchmark"]:
