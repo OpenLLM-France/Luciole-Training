@@ -508,13 +508,13 @@ if __name__ == "__main__":
         "--lighteval_kwargs",
         type=str,
         default="",
-        help="Additional arguments to pass to lighteval.",
+        help="Additional arguments to pass to lighteval (e.g. --lighteval_kwargs=--save-details).",
     )
     parser.add_argument(
         "--additional_model_args",
         type=str,
         default=None,
-        help="Additional model args to pass to lighteval, separated by commas (e.g. 'arg1=value1,arg2=value2').",
+        help="Additional model args to pass to lighteval, separated by commas (format 'arg1=value1,arg2=value2', e.g. --additional_model_args='override_chat_template=False').",
     )
     parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
