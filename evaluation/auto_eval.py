@@ -210,6 +210,12 @@ def launch_evaluation(
                 gpus=gpus,
             ),
             dict(
+                task_to_evaluate="tasks/gsm8k_lighteval.txt",
+                multiple_of=multiple_of,
+                command=command,
+                gpus=gpus,
+            ),
+            dict(
                 task_to_evaluate="tasks/en.txt",
                 multiple_of=multiple_of,
                 command=command,
