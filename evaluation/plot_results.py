@@ -61,6 +61,16 @@ _PALETTE = [
 ]
 
 task_group_mapping = {
+    # "mcq": [
+    #     ("leaderboard|hellaswag|0", "acc"),
+    #     ("helm|hellaswag|0", "em_with_normalize_gold&normalize_pred"),
+    #     ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+    #     ("lighteval|mlmm_arc_fra_mcf:challenge|0", "acc"),
+    #     ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
+    #     ("lighteval|mlmm_hellaswag_fra_mcf|0", "acc"),
+    #     ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+    #     ("custom|mmlu_pro_mcf|0", "acc"),
+    # ],
     "en": [
         ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
         ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
@@ -169,11 +179,11 @@ task_group_mapping = {
         ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
         ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
         ("custom|mmlu_pro_cf|0", "acc_norm_token"),
-        ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
-        ("community|gpqa-fr|0", "acc"),
+        # ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
+        # ("community|gpqa-fr|0", "acc"),
         ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("lighteval|gsm_plus|0", "extractive_match"),
-        ("lighteval|aime25|0", "pass@k_with_k&n"),
+        # ("lighteval|aime25|0", "pass@k_with_k&n"),
         ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
         ("extended|ifeval|0", "prompt_level_loose_acc"),
         ("community|ifeval-fr|0", "prompt_level_loose_acc"),
@@ -200,7 +210,7 @@ def format_expe_name_for_color(expe_name):
         expe_name.replace("-Instruct", "")
         .replace("-instruct", "")
         .replace("-Base", "")
-        .replace("-SFT", "")
+        # .replace("-SFT", "")
         .replace("-v1.1", "")
     )
 
@@ -423,6 +433,24 @@ def _plot_curves(
     ax.tick_params(axis="both", which="both", length=3)
 
 
+def get_checkpoint_index(checkpoint_index, expe_name):
+    if checkpoint_index is None:
+        return None
+    if checkpoint_index == "last":
+        return -1
+    if checkpoint_index == "last-not-luciole":
+        if "luciole" in expe_name.lower():
+            return None
+        else:
+            return -1
+    try:
+        return int(checkpoint_index)
+    except ValueError:
+        raise ValueError(
+            f"Invalid checkpoint index '{checkpoint_index}' for experiment '{expe_name}'. Must be an integer or 'last'."
+        )
+
+
 def plot_task(
     ax,
     df,
@@ -455,15 +483,18 @@ def plot_task(
     if checkpoint_index is not None:
 
         def select_checkpoint(row, checkpoint_index):
-            try:
-                row["tokens"] = [row["tokens"][checkpoint_index]]
-                row["FLOPs"] = [row["FLOPs"][checkpoint_index]]
-                row["score"] = [row["score"][checkpoint_index]]
-                row["stderr"] = [row["stderr"][checkpoint_index]]
-            except IndexError:
-                raise RuntimeError(
-                    f"Checkpoint index {checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})"
-                )
+            expe_name = row["expe_name"]
+            actual_checkpoint_index = get_checkpoint_index(checkpoint_index, expe_name)
+            if actual_checkpoint_index is not None:
+                try:
+                    row["tokens"] = [row["tokens"][actual_checkpoint_index]]
+                    row["FLOPs"] = [row["FLOPs"][actual_checkpoint_index]]
+                    row["score"] = [row["score"][actual_checkpoint_index]]
+                    row["stderr"] = [row["stderr"][actual_checkpoint_index]]
+                except IndexError:
+                    raise RuntimeError(
+                        f"Checkpoint index {actual_checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})"
+                    )
             return row
 
         df = df.apply(select_checkpoint, axis=1, checkpoint_index=checkpoint_index)
@@ -595,12 +626,16 @@ def plot_aggregate(
             flops_list = row[xaxis_column]
 
             if checkpoint_index is not None:
-                try:
-                    tokens_list = [tokens_list[checkpoint_index]]
-                    scores_list = [scores_list[checkpoint_index]]
-                    flops_list = [flops_list[checkpoint_index]]
-                except IndexError:
-                    continue
+                actual_checkpoint_index = get_checkpoint_index(
+                    checkpoint_index, expe_name
+                )
+                if actual_checkpoint_index is not None:
+                    try:
+                        tokens_list = [tokens_list[actual_checkpoint_index]]
+                        scores_list = [scores_list[actual_checkpoint_index]]
+                        flops_list = [flops_list[actual_checkpoint_index]]
+                    except IndexError:
+                        continue
 
             if max_tokens:
                 cutoff = sum(t <= max_tokens for t in tokens_list)
@@ -721,6 +756,7 @@ def plot_list_of_tasks(
     max_subplot=19,
     add_aggregate=False,
     separate_legend=False,
+    rows_cols=None,
 ):
     legend_fig = None
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
@@ -731,6 +767,8 @@ def plot_list_of_tasks(
             return expe_name
 
         # Ruler
+        color_map = assign_colors(df, apply_phase_style=apply_phase_style)
+        ruler_color_map = {}  # maps expe_name_with_tokens -> color
         df_filtered = df[df["metric"] == "ruler_match"]
         data = {}
         all_data = {}
@@ -749,13 +787,17 @@ def plot_list_of_tasks(
                 row_tokens = row["tokens"]
                 row_score = row["score"]
                 if checkpoint_index is not None:
-                    try:
-                        row_tokens = [row["tokens"][checkpoint_index]]
-                        row_score = [row["score"][checkpoint_index]]
-                    except IndexError:
-                        raise RuntimeError(
-                            f"Checkpoint index {checkpoint_index} out of range for {expe_name} ({len(row['tokens'])} values for task={task})"
-                        )
+                    actual_checkpoint_index = get_checkpoint_index(
+                        checkpoint_index, expe_name
+                    )
+                    if actual_checkpoint_index is not None:
+                        try:
+                            row_tokens = [row["tokens"][actual_checkpoint_index]]
+                            row_score = [row["score"][actual_checkpoint_index]]
+                        except IndexError:
+                            raise RuntimeError(
+                                f"Checkpoint index {actual_checkpoint_index} out of range for {expe_name} ({len(row['tokens'])} values for task={task})"
+                            )
                 for tokens, score in zip(row_tokens, row_score):
                     expe_name_with_tokens = full_expe_name(expe_name, tokens)
                     if expe_name_with_tokens not in data:
@@ -763,6 +805,11 @@ def plot_list_of_tasks(
                             "context_length": [],
                             "score": [],
                         }
+                    if (
+                        expe_name_with_tokens not in ruler_color_map
+                        and expe_name in color_map
+                    ):
+                        ruler_color_map[expe_name_with_tokens] = color_map[expe_name]
                     data[expe_name_with_tokens]["context_length"].append(context_length)
                     data[expe_name_with_tokens]["score"].append(score)
             for subtask in subtasks:
@@ -773,6 +820,13 @@ def plot_list_of_tasks(
                     expe_name = row["expe_name"]
                     for tokens, score in zip(row["tokens"], row["score"]):
                         expe_name_with_tokens = full_expe_name(expe_name, tokens)
+                        if (
+                            expe_name_with_tokens not in ruler_color_map
+                            and expe_name in color_map
+                        ):
+                            ruler_color_map[expe_name_with_tokens] = color_map[
+                                expe_name
+                            ]
                         if expe_name_with_tokens not in all_data[subtask]:
                             all_data[subtask][expe_name_with_tokens] = {
                                 "context_length": [],
@@ -812,14 +866,16 @@ def plot_list_of_tasks(
                     if expe_name_with_tokens in ruler_expe_order
                     else False
                 )
+                color = ruler_color_map.get(expe_name_with_tokens)
                 ax.plot(
                     values["context_length"],
                     values["score"],
-                    marker="o" if is_first else None,
+                    marker="o",  # if is_first else None,
                     # markersize=10,
                     # markeredgewidth=2,
                     linestyle="-" if is_first else "--",
                     label=expe_name_with_tokens,
+                    color=color,
                 )
             ax.set_xlabel("Context Length")
             ax.set_xscale("log", base=2)
@@ -846,6 +902,8 @@ def plot_list_of_tasks(
             handles, labels = ax.get_legend_handles_labels()
             for handle, label in zip(handles, labels):
                 legend_dict[label] = handle
+            ymin, ymax = ax.get_ylim()
+            ax.set_ylim(0, 1)  # ymax)
 
         if has_average and n_details > 0:
             # First row: average + legend; remaining rows: detail subtasks
@@ -865,6 +923,16 @@ def plot_list_of_tasks(
             cols = math.ceil(math.sqrt(n_plots))
             rows = math.ceil(n_plots / cols)
             detail_start = 0
+
+        if rows_cols is not None:
+            rows, cols = rows_cols
+            n_needed = (
+                (1 if has_average else 0) + n_details + (0 if separate_legend else 1)
+            )
+            assert (
+                rows * cols >= n_needed
+            ), f"--rows_cols {rows}x{cols} = {rows * cols} subplots, but {n_needed} are needed"
+            detail_start = cols if has_average else 0
 
         fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
         axes = axes.flatten() if rows * cols > 1 else [axes]
@@ -949,6 +1017,7 @@ def plot_list_of_tasks(
                     max_subplot=max_subplot,
                     add_aggregate=add_aggregate,
                     separate_legend=separate_legend,
+                    rows_cols=rows_cols,
                 )
             return
 
@@ -981,6 +1050,16 @@ def plot_list_of_tasks(
             cols = math.ceil(math.sqrt(num_plots))
             rows = math.ceil(num_plots / cols)
             detail_start = 0
+
+        if rows_cols is not None:
+            rows, cols = rows_cols
+            n_needed = (
+                (1 if add_aggregate else 0) + num_tasks + (0 if separate_legend else 1)
+            )
+            assert (
+                rows * cols >= n_needed
+            ), f"--rows_cols {rows}x{cols} = {rows * cols} subplots, but {n_needed} are needed"
+            detail_start = cols if add_aggregate else 0
 
         fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
         if rows * cols == 1:
@@ -1116,7 +1195,7 @@ def plot_experiments(df, args, max_subplot=19):
         else:
             list_of_tasks_to_plot = task_group_mapping[g]
 
-        add_aggregate = g not in ("all", "agg")
+        add_aggregate = g not in ("all", "agg") and not args.hide_average
         info_str = f'{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.unit == "FLOPs" else ""}'
         info_str += "_average" if (args.hide_details and add_aggregate) else "_details"
         filename = f"{args.filename_prefix}{g}{info_str}{args.filename_suffix}.png"
@@ -1141,6 +1220,7 @@ def plot_experiments(df, args, max_subplot=19):
             add_aggregate=add_aggregate,
             separate_legend=args.separate_legend,
             title=format_group_name_for_title(g),
+            rows_cols=args.rows_cols,
         )
 
     if not args.output_path:
@@ -1281,7 +1361,7 @@ if __name__ == "__main__":
     parser.add_argument("--apply_phase_style", action="store_true")
     parser.add_argument(
         "--checkpoint_index",
-        type=int,
+        type=str,
         default=None,
         help="If set, only show the specified checkpoint index (ex: 0, -1).",
     )
@@ -1299,6 +1379,12 @@ if __name__ == "__main__":
         help="If set, hide detailed sub-benchmark plots and show only averages/aggregates.",
     )
     parser.add_argument(
+        "--hide_average",
+        default=False,
+        action="store_true",
+        help="If set, hide the average/aggregate subplot and show only individual benchmarks.",
+    )
+    parser.add_argument(
         "--check_aggregation",
         default=False,
         action="store_true",
@@ -1312,12 +1398,25 @@ if __name__ == "__main__":
         help="If set, save the legend as a separate figure instead of a subplot.",
     )
     parser.add_argument(
+        "--rows_cols",
+        type=str,
+        default=None,
+        help="Enforce subplot grid as ROWSxCOLS (e.g. 3x4). Fails if not enough subplots.",
+    )
+    parser.add_argument(
         "--save_csv",
         action="store_true",
         help="If set, save the processed results to a CSV file instead of plotting.",
     )
 
     args = parser.parse_args()
+
+    if args.rows_cols is not None:
+        parts = args.rows_cols.split("x")
+        assert (
+            len(parts) == 2
+        ), f"--rows_cols must be in ROWSxCOLS format (e.g. 3x4), got '{args.rows_cols}'"
+        args.rows_cols = (int(parts[0]), int(parts[1]))
 
     df = process_experiments(args)
     print(df)
