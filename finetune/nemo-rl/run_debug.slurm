@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=nemo_rl
-#SBATCH --output=log_%x-%j.out
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --exclusive
@@ -14,7 +13,12 @@
 
 #set -euo pipefail
 
-CONFIG_FILE=$1
+export CONFIG_FILE=$(realpath "$1")
+export EXPERIMENT_PATH=$(realpath "$2")
+
+mkdir -p "$EXPERIMENT_PATH/slurm_logs"
+exec > "$EXPERIMENT_PATH/slurm_logs/$SLURM_JOB_ID.out" 2>&1
+cp "$CONFIG_FILE" "$EXPERIMENT_PATH/config.yaml"
 
 ## load environment
 module purge
@@ -23,7 +27,8 @@ module load cuda/12.8.0
 module load cudnn/9.10.2.21-12-cuda
 module load nccl/2.27.3-1-cuda
 module load uv/0.8.3
-source $SCRATCH/nemo-rl/.venv/bin/activate
+cd $SCRATCH/nemo-rl
+source .venv/bin/activate
 
 export TORCH_CUDA_ARCH_LIST=9.0
 
@@ -123,9 +128,8 @@ sleep 60
 ray status || { echo "Ray failed to start"; exit 1; }
 
 # run code
-
 uv run --no-build-isolation python examples/run_sft.py \
   --config $CONFIG_FILE \
   cluster.num_nodes=1 \
-  cluster.gpus_per_node=1 \
+  cluster.gpus_per_node=4 \
   sft.max_num_steps=1 # debug

@@ -11,7 +11,7 @@ sft:
 
 checkpointing:
   enabled: true
-  checkpoint_dir: "/lustre/fsn1/projects/rech/qgz/uzq54wg/sft_luciole_1B_openmathinstruct2/checkpoints"
+  checkpoint_dir: "${oc.env:EXPERIMENT_PATH}/checkpoints"
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
   keep_top_k: 100
@@ -19,11 +19,11 @@ checkpointing:
   checkpoint_must_save_by: null
 
 policy:
-  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
+  model_name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
   tokenizer:
-    name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink" ## specify if you'd like to use a tokenizer different from the model's default
+    name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink" ## specify if you'd like to use a tokenizer different from the model's default
     # chat_template can be a Jinja template string or path to a .jinja file
-    chat_template: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink/chat_template.jinja"
+    chat_template: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink/chat_template.jinja"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   train_global_batch_size: 512
   train_micro_batch_size: 1
@@ -141,7 +141,7 @@ data:
   shuffle: true
 
 logger:
-  log_dir: "/lustre/fsn1/projects/rech/qgz/uzq54wg/sft_luciole_1B_openmathinstruct2/logs"  # Base directory for all logs
+  log_dir: "${oc.env:EXPERIMENT_PATH}/logs"  # Base directory for all logs
   wandb_enabled: false # Make sure you do a ``wandb login [Your API key]'' before running
   tensorboard_enabled: true
   mlflow_enabled: false

@@ -14,7 +14,7 @@ sft:
 
 checkpointing:
   enabled: false
-  checkpoint_dir: "/lustre/fsn1/projects/rech/qgz/uzq54wg/sft_luciole_1B_baseline/checkpoints"
+  checkpoint_dir: "${oc.env:EXPERIMENT_PATH}/checkpoints"
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
   keep_top_k: 10
