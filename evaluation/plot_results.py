@@ -181,6 +181,7 @@ task_group_mapping = {
         ("extended|ifbench_multiturn|1", "prompt_level_loose_acc"),
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
+        ("lighteval|gsm8k|0", "extractive_match"),
     ],
 }
 
