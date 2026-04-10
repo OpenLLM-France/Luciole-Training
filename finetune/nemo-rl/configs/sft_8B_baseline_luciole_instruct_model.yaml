@@ -14,7 +14,7 @@ sft:
 
 checkpointing:
   enabled: true
-  checkpoint_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/sft/luciole_8b/ablations/sft_luciole_8B_instruct_train/checkpoints"
+  checkpoint_dir: "{oc.env:EXPERIMENT_PATH}/checkpoints"
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
   keep_top_k: 10
@@ -26,7 +26,7 @@ policy:
   tokenizer:
     name: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_train/" ## specify if you'd like to use a tokenizer different from the model's default
     # chat_template can be a Jinja template string or path to a .jinja file
-    chat_template: "/lustre/fsn1/projects/rech/qgz/ufb61ek/tokenizer_128k-arab-regional_v2_instruct_train/chat_template.jinja"
+    chat_template: "${policy.tokenizer.name}/chat_template.jinja"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   train_global_batch_size: 2048
   train_micro_batch_size: 1
@@ -197,7 +197,7 @@ data:
   use_preserving_dataset: false            # If true, uses PreservingDataset to preserve heterogeneous schemas (e.g., tool calls with varying argument structures)
 
 logger:
-  log_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/sft/luciole_8b/ablations/sft_luciole_8B_instruct_train/logs"  # Base directory for all logs
+  log_dir: "{oc.env:EXPERIMENT_PATH}/logs"  # Base directory for all logs
   wandb_enabled: false # Make sure you do a ``wandb login [Your API key]'' before running
   tensorboard_enabled: true
   mlflow_enabled: false
