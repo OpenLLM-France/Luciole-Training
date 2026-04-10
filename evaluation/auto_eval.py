@@ -72,7 +72,6 @@ SBATCH_PLOT_TEMPLATE = """#!/bin/bash
 #SBATCH --hint=nomultithread
 #SBATCH --qos=qos_cpu-dev
 #SBATCH --account={account_cpu}
-#SBATCH --partition=prepost
 #SBATCH --mail-type=FAIL
 
 export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
