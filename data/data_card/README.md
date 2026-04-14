@@ -156,12 +156,12 @@ Note that you can also access configurations that are not explicitly specified b
 
 For instance, to access the French subset of Wikimedia:
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/wikimedia/*/fr")
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", data_dir="data/wikimedia/*/fr", **kwargs)
 ```
 
 Or to load Python data:
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", split="train", streaming=True, data_dir="data/**/python")
+dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", data_dir="data/**/python", **kwargs)
 ```
 
 ### Accessing the English Web Data
@@ -486,7 +486,7 @@ curl -H "X-Auth: $TOKEN" "https://dl.labs.linagora.com/api/raw/datasets/OpenLLM-
 
 We gratefully acknowledge BPI France for funding the OpenLLM France project under the call "Communs numériques pour l’intelligence artificielle générative" ("Digital commons for generative artificial intelligence") and the project numbers DOS0250771 and DOS0250773.
 
-Processing and storage of the Luciole Training Dataset was made possible by computing AI and storage resources by GENCI at IDRIS thanks to the grant 2024-GC011015444 on the supercomputer Jean Zay. We gratefully acknowledge support from GENCI and IDRIS and from Stephane Requena (GENCI) and Pierre-François Lavallée (IDRIS) in particular. 
+Processing and storage of the Luciole Training Dataset was made possible by computing AI and storage resources by GENCI at IDRIS thanks to the grants 2024-AD011014561 and 2025-AS011016445 on the supercomputer Jean Zay. We gratefully acknowledge support from GENCI and IDRIS and from Stephane Requena (GENCI) and Pierre-François Lavallée (IDRIS) in particular. 
 
 The Luciole Training Dataset was created by members of [LINAGORA](https://labs.linagora.com/) and [OpenLLM-France](https://openllm-france.fr/), including, in alphabetical order:  
  
