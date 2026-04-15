@@ -339,13 +339,18 @@ def launch_evaluation(
 
         if gpus > 1:
             if command == "vllm":
-                if gpus > 3:
-                    gpu_pipeline_parallel_size = gpus // 2
-                    gpu_data_parallel_size = gpus // gpu_pipeline_parallel_size
-                    model_arg += f",pipeline_parallel_size={gpu_pipeline_parallel_size},data_parallel_size={gpu_data_parallel_size}"
-                else:
-                    model_arg += f",pipeline_parallel_size={gpus}"
                 extra_env_vars += "export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
+                if "ruler" in task_to_evaluate.stem.lower():
+                    if gpus > 3:
+                        gpu_pipeline_parallel_size = gpus // 2
+                        gpu_data_parallel_size = gpus // gpu_pipeline_parallel_size
+                        model_arg += f",pipeline_parallel_size={gpu_pipeline_parallel_size},data_parallel_size={gpu_data_parallel_size}"
+                    else:
+                        model_arg += f",pipeline_parallel_size={gpus}"
+                else:
+                    gpu_tensor_parallel_size = min(gpus, 4)
+                    gpu_pipeline_parallel_size = gpus // gpu_tensor_parallel_size
+                    model_arg += f",tensor_parallel_size={gpu_tensor_parallel_size},pipeline_parallel_size={gpu_pipeline_parallel_size}"
 
         # Save the tuple representing a job array element
         tasks.append(
