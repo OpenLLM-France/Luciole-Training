@@ -340,7 +340,7 @@ def launch_evaluation(
         if gpus > 1:
             if command == "vllm":
                 extra_env_vars += "export VLLM_HOST_IP=$(hostname -i)\nexport RAY_NODE_IP_ADDRESS=$(hostname -i)\n"
-                if "parallel_size" in additional_model_args:
+                if additional_model_args and ("parallel_size" in additional_model_args):
                     pass
                 elif "ruler" in task_to_evaluate.stem.lower():
                     if gpus > 3:
