@@ -4,7 +4,9 @@ from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from datasets import get_dataset_split_names
 from transformers import AutoTokenizer
-from datatrove.pipeline.filters import LambdaFilter
+from datatrove.data import Document
+from datatrove.pipeline.filters.base_filter import BaseFilter
+from datatrove.pipeline.writers.disk_base import DiskWriter
 
 
 def custom_adapter(self, data: dict, path: str, id_in_file: int | str):
@@ -19,17 +21,83 @@ def custom_adapter(self, data: dict, path: str, id_in_file: int | str):
     }
 
 
-def filter_chinese(text):
-    def chinese_proportion(text):
+class FilterChinese(BaseFilter):
+    name = "🀄 Chinese Filter"
+
+    def __init__(
+        self, chinese_threshold: float = 0.2, exclusion_writer: DiskWriter = None
+    ):
+        super().__init__(exclusion_writer)
+        self.chinese_threshold = chinese_threshold
+
+    def filter(self, doc: Document) -> bool:
+        def chinese_proportion(text):
+            import re
+
+            if not text:
+                return 0.0
+            chinese_pattern = re.compile(r"[\u4e00-\u9fff]")
+            chinese_count = len(chinese_pattern.findall(text))
+            return chinese_count / len(text)
+
+        return chinese_proportion(doc.text) < self.chinese_threshold
+
+
+class ToolExtraction(BaseFilter):
+    name = "🪚🔨🔧 Tool Extraction"
+
+    def __init__(self, split_name, exclusion_writer: DiskWriter = None):
+        super().__init__(exclusion_writer)
+        self.split_name = split_name
+
+    def filter(self, doc: Document) -> bool:
+        import ast
         import re
 
-        if not text:
-            return 0.0
-        chinese_pattern = re.compile(r"[\u4e00-\u9fff]")
-        chinese_count = len(chinese_pattern.findall(text))
-        return chinese_count / len(text)
+        doc.metadata["tools"] = []
 
-    return chinese_proportion(text) < 0.2  # Adjust the threshold as needed
+        xml_tools = doc.metadata["chat_template_kwargs"]["xml_tools"]
+        if len(xml_tools) == 0:
+            return True
+        elif len(xml_tools) > 1:
+            return False, "multiple_xml_tools_entries"
+
+        if (
+            self.split_name == "hermes_function_calling_v1_no_think"
+            and "no access" in xml_tools
+        ):
+            doc.metadata["tools"] = []
+            return True
+
+        if self.split_name in [
+            "hermes_function_calling_v1_no_think",
+            "xlam_traces_no_think",
+        ]:
+            pattern = r"<tools>\s*(\[.*\])\s*</tools>"
+            match = re.search(pattern, xml_tools[0], re.DOTALL)
+            if match:
+                try:
+                    doc.metadata["tools"] = ast.literal_eval(match.group(1))
+                    return True
+                except Exception:
+                    return False, "failed_tool_extraction"
+            else:
+                return False, "tools_tag_not_found"
+
+        if self.split_name == "smolagents_toolcalling_traces_think":
+            try:
+                doc.metadata["tools"] = [
+                    ast.literal_eval(line)
+                    for line in xml_tools[0].splitlines()
+                    if line.strip()
+                ]
+                return True
+            except Exception:
+                return False, "failed_tool_extraction"
+        else:
+            raise NotImplementedError(
+                f"Don't know how to extract tools for split: {self.split_name}"
+            )
 
 
 def add_system_prompt(
@@ -38,18 +106,7 @@ def add_system_prompt(
     world_size: int = 1,
     tokenizer=None,
 ):
-    import ast
     import re
-
-    def extract_tool(tool: str) -> str:
-        pattern = r"<tools>\s*(\[.*\])\s*</tools>"
-        match = re.search(pattern, tool, re.DOTALL)
-        if match:
-            return match.group(1)
-        else:
-            raise ValueError(
-                f"Found <tools> tags but failed to extract tools with regex in tool: {tool}"
-            )
 
     _has_custom_instructions = False
     _has_xml_tools = False
@@ -72,29 +129,10 @@ def add_system_prompt(
                 f"\n>>> Found Python tools in the dataset: {python_tools}\n"
             )
 
-        # Process tools if needed
-        if xml_tools:
-            try:
-                tools = [
-                    ast.literal_eval(line)
-                    for xml_tool in xml_tools
-                    for line in xml_tool.splitlines()
-                    if line.strip()
-                ]
-            except Exception:
-                try:
-                    tools = ast.literal_eval(extract_tool(xml_tools[0]))
-                except Exception:
-                    document.metadata["failed_tool_extraction"] = True
-                    tools = None
-                    # raise ValueError(f"Failed to extract and parse XML tools. Original xml_tools: {repr(xml_tools)}")
-        else:
-            tools = None
-
-        document.metadata["tools"] = tools
-        # document.metadata["messages"] = [{"role": "system", "content": system_prompt}] + document.metadata["messages"]
         system_prompt = tokenizer.apply_chat_template(
-            [{"role": "system", "content": system_prompt}], tools=tools, tokenize=False
+            [{"role": "system", "content": system_prompt}],
+            tools=document.metadata.get("tools", None),
+            tokenize=False,
         )
         system_prompt = re.search(
             r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
@@ -145,7 +183,11 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     splits = get_dataset_split_names("HuggingFaceTB/smoltalk2", "SFT")
-    # print(splits)
+    tool_splits = [
+        "smolagents_toolcalling_traces_think",
+        "hermes_function_calling_v1_no_think",
+        "xlam_traces_no_think",
+    ]
 
     tokenizer = AutoTokenizer.from_pretrained(
         "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
@@ -153,9 +195,24 @@ if __name__ == "__main__":
 
     # Add adapter that add empty text if the text field is None, to avoid skipping data
     for split in splits:
-        # if split not in ["smolagents_toolcalling_traces_think", "hermes_function_calling_v1_no_think", "xlam_traces_no_think"]:
+        # if split not in tool_splits:
         #     continue
         print(f"\n\n#### Processing split: {split}")
+
+        tool_pipeline = (
+            [
+                ToolExtraction(
+                    split_name=split,
+                    exclusion_writer=JsonlWriter(
+                        f"{DATA_PATH}/smoltalk2/{split}/tool_extraction_failed"
+                    ),
+                ),
+                clean_tool_response,
+            ]
+            if split in tool_splits
+            else []
+        )
+
         pipeline = [
             HuggingFaceDatasetReader(
                 "HuggingFaceTB/smoltalk2",
@@ -164,16 +221,9 @@ if __name__ == "__main__":
                 adapter=custom_adapter,
             ),
             partial(add_system_prompt, tokenizer=tokenizer),
-            LambdaFilter(
-                lambda doc: "failed_tool_extraction" not in doc.metadata,
-                exclusion_writer=JsonlWriter(
-                    f"{DATA_PATH}/smoltalk2/{split}/fail_tool_extraction"
-                ),
-            ),
-            clean_tool_response,
+            *tool_pipeline,
             partial(apply_chat_template, tokenizer=tokenizer),
-            LambdaFilter(
-                lambda doc: filter_chinese(doc.text),
+            FilterChinese(
                 exclusion_writer=JsonlWriter(
                     f"{DATA_PATH}/smoltalk2/{split}/chinese_heavy"
                 ),
@@ -198,7 +248,8 @@ if __name__ == "__main__":
             logging_dir=f"{DATA_PATH}/smoltalk2/{split}/logs",
             job_name="smoltalk2",
             tasks=1,
-            time="20:00:00",
+            time="01:00:00",
+            # partition="cpu_p1",
             skip_completed=not args.force,
         )
         main_processing_executor.run()
