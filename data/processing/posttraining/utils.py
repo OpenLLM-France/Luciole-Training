@@ -1,5 +1,8 @@
 import os
 import importlib.util
+from datatrove.data import Document
+from datatrove.pipeline.filters.base_filter import BaseFilter
+from datatrove.pipeline.writers.disk_base import DiskWriter
 
 # Directly load pretraining/utils.py under a unique module name to avoid
 # a circular import, since this file is also named 'utils'.
@@ -17,3 +20,45 @@ create_executor = pretraining_utils.create_executor
 add_sampler_filter = pretraining_utils.add_sampler_filter
 _custom_adapter_for_hf = pretraining_utils._custom_adapter_for_hf
 HF_SCHEMA = pretraining_utils.HF_SCHEMA
+
+
+def instruct_adapter(self, data: dict, path: str, id_in_file: int | str):
+    return {
+        "text": data.pop(self.text_key, "<empty>"),
+        "id": data.pop(self.id_key, f"{path}/{id_in_file}"),
+        "media": data.pop("media", []),
+        "metadata": (
+            data.pop("metadata", {}) if isinstance(data.get("metadata"), dict) else {}
+        )
+        | data,  # pop metadata only if it's a dict
+    }
+
+
+class FilterChinese(BaseFilter):
+    name = "🀄 Chinese Filter"
+
+    def __init__(
+        self, chinese_threshold: float = 0.2, exclusion_writer: DiskWriter = None
+    ):
+        super().__init__(exclusion_writer)
+        self.chinese_threshold = chinese_threshold
+
+    def filter(self, doc: Document) -> bool:
+        def chinese_proportion(text):
+            import re
+
+            if not text:
+                return 0.0
+            chinese_pattern = re.compile(r"[\u4e00-\u9fff]")
+            chinese_count = len(chinese_pattern.findall(text))
+            return chinese_count / len(text)
+
+        return chinese_proportion(doc.text) < self.chinese_threshold
+
+
+def apply_chat_template(data, rank: int = 0, world_size: int = 1, tokenizer=None):
+    for document in data:
+        document.text = tokenizer.apply_chat_template(
+            document.metadata["messages"], tokenize=False
+        )
+        yield document

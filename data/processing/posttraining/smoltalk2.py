@@ -7,40 +7,71 @@ from transformers import AutoTokenizer
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
+from utils import FilterChinese, apply_chat_template, instruct_adapter
 
 
-def custom_adapter(self, data: dict, path: str, id_in_file: int | str):
-    return {
-        "text": data.pop(self.text_key, "<empty>"),
-        "id": data.pop(self.id_key, f"{path}/{id_in_file}"),
-        "media": data.pop("media", []),
-        "metadata": (
-            data.pop("metadata", {}) if isinstance(data.get("metadata"), dict) else {}
-        )
-        | data,  # pop metadata only if it's a dict
-    }
+class ToolCallingFiltering(BaseFilter):
+    name = "🪚🔨🔧 Tool Calling Filtering"
 
-
-class FilterChinese(BaseFilter):
-    name = "🀄 Chinese Filter"
-
-    def __init__(
-        self, chinese_threshold: float = 0.2, exclusion_writer: DiskWriter = None
-    ):
+    def __init__(self, exclusion_writer: DiskWriter = None):
         super().__init__(exclusion_writer)
-        self.chinese_threshold = chinese_threshold
 
     def filter(self, doc: Document) -> bool:
-        def chinese_proportion(text):
-            import re
+        import re
+        import ast
+        import json
 
-            if not text:
-                return 0.0
-            chinese_pattern = re.compile(r"[\u4e00-\u9fff]")
-            chinese_count = len(chinese_pattern.findall(text))
-            return chinese_count / len(text)
+        for message in doc.metadata["messages"]:
+            if message["role"] == "assistant" and "<tool_call>" in message["content"]:
+                for match in re.finditer(
+                    r"<tool_call>(.*?)</tool_call>", message["content"], re.DOTALL
+                ):
+                    raw = match.group(1).strip()
+                    parsed = ast.literal_eval(raw)
 
-        return chinese_proportion(doc.text) < self.chinese_threshold
+                    # Validate keys
+                    if set(parsed.keys()) != {"name", "arguments"}:
+                        return False, "tool_calling_arguments"
+                        # raise ValueError(f"Unexpected tool call keys: {set(parsed.keys())}")
+                    if not isinstance(parsed["name"], str):
+                        return False, "tool_calling_name_not_a_string"
+                        # raise ValueError(f"Tool call 'name' must be a string, got: {type(parsed['name'])}")
+                    if not isinstance(parsed["arguments"], dict):
+                        return False, "tool_calling_arguments_not_a_dict"
+                        # raise ValueError(f"Tool call 'arguments' must be a dict, got: {type(parsed['arguments'])}")
+
+                    # Rebuild with guaranteed key order: name first
+                    ordered = {"name": parsed["name"], "arguments": parsed["arguments"]}
+                    clean_json = json.dumps(ordered)
+                    message["content"] = message["content"].replace(
+                        match.group(0), f"<tool_call>{clean_json}</tool_call>"
+                    )
+        return True
+
+
+def clean_tool_response(data, rank: int = 0, world_size: int = 1):
+    import re
+
+    for doc in data:
+
+        def split_tool_responses(text):
+            matches = re.findall(
+                r"<tool_response>(.*?)</tool_response>", text, re.DOTALL
+            )
+            return [match.strip() for match in matches]
+
+        messages = doc.metadata["messages"]
+        new_messages = []
+        for message in messages:
+            if message["role"] == "tool" and "<tool_response>" in message["content"]:
+                tool_responses = split_tool_responses(message["content"])
+                # Create a new message for each tool response
+                for tool_response in tool_responses:
+                    new_messages.append({"role": "tool", "content": tool_response})
+            else:
+                new_messages.append(message)
+        doc.metadata["messages"] = new_messages
+        yield doc
 
 
 class ToolExtraction(BaseFilter):
@@ -64,7 +95,7 @@ class ToolExtraction(BaseFilter):
 
         if (
             self.split_name == "hermes_function_calling_v1_no_think"
-            and "no access" in xml_tools
+            and "no access" in xml_tools[0]
         ):
             doc.metadata["tools"] = []
             return True
@@ -131,7 +162,7 @@ def add_system_prompt(
 
         system_prompt = tokenizer.apply_chat_template(
             [{"role": "system", "content": system_prompt}],
-            tools=document.metadata.get("tools", None),
+            tools=document.metadata.pop("tools", None),
             tokenize=False,
         )
         system_prompt = re.search(
@@ -141,40 +172,6 @@ def add_system_prompt(
             {"role": "system", "content": system_prompt}
         ] + document.metadata["messages"]
         yield document
-
-
-def apply_chat_template(data, rank: int = 0, world_size: int = 1, tokenizer=None):
-    for document in data:
-        document.text = tokenizer.apply_chat_template(
-            document.metadata["messages"], tokenize=False
-        )
-        # document.text = remove_chinese_heavy_lines(document.text)
-        # document.metadata["conversation"] = messages
-        yield document
-
-
-def clean_tool_response(data, rank: int = 0, world_size: int = 1, tokenizer=None):
-    for doc in data:
-        import re
-
-        def split_tool_responses(text):
-            matches = re.findall(
-                r"<tool_response>(.*?)</tool_response>", text, re.DOTALL
-            )
-            return [match.strip() for match in matches]
-
-        messages = doc.metadata["messages"]
-        new_messages = []
-        for message in messages:
-            if message["role"] == "tool" and "<tool_response>" in message["content"]:
-                tool_responses = split_tool_responses(message["content"])
-                # Create a new message for each tool response
-                for tool_response in tool_responses:
-                    new_messages.append({"role": "tool", "content": tool_response})
-            else:
-                new_messages.append(message)
-        doc.metadata["messages"] = new_messages
-        yield doc
 
 
 if __name__ == "__main__":
@@ -207,6 +204,11 @@ if __name__ == "__main__":
                         f"{DATA_PATH}/smoltalk2/{split}/tool_extraction_failed"
                     ),
                 ),
+                ToolCallingFiltering(
+                    exclusion_writer=JsonlWriter(
+                        f"{DATA_PATH}/smoltalk2/{split}/tool_calling_failed"
+                    ),
+                ),
                 clean_tool_response,
             ]
             if split in tool_splits
@@ -215,20 +217,23 @@ if __name__ == "__main__":
 
         pipeline = [
             HuggingFaceDatasetReader(
-                "HuggingFaceTB/smoltalk2",
+                "NousResearch/hermes-function-calling-v1",
                 {"name": "SFT", "split": split},
                 streaming=True,
-                adapter=custom_adapter,
+                adapter=instruct_adapter,
             ),
-            partial(add_system_prompt, tokenizer=tokenizer),
             *tool_pipeline,
+            partial(add_system_prompt, tokenizer=tokenizer),
             partial(apply_chat_template, tokenizer=tokenizer),
             FilterChinese(
                 exclusion_writer=JsonlWriter(
                     f"{DATA_PATH}/smoltalk2/{split}/chinese_heavy"
                 ),
             ),
-            JsonlWriter(f"{DATA_PATH}/smoltalk2/{split}/data", expand_metadata=True),
+            JsonlWriter(
+                f"{DATA_PATH}/smoltalk2/{split}/data",
+                expand_metadata=True,
+            ),
         ]
         if split == "smoltalk_multilingual8_Qwen3_32B_think":
             add_sampler_filter(pipeline, 0.3)
@@ -248,8 +253,9 @@ if __name__ == "__main__":
             logging_dir=f"{DATA_PATH}/smoltalk2/{split}/logs",
             job_name="smoltalk2",
             tasks=1,
-            time="01:00:00",
-            # partition="cpu_p1",
+            time="00:30:00",
+            partition="cpu_p1",
+            qos="qos_cpu-dev",
             skip_completed=not args.force,
         )
         main_processing_executor.run()
