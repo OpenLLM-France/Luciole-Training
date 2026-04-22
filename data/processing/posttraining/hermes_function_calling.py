@@ -4,7 +4,7 @@ from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from transformers import AutoTokenizer
 from utils import FilterChinese, apply_chat_template, instruct_adapter
-from smoltalk2 import clean_tool_response
+from smolagents_toolcalling import clean_tool_response
 
 
 def reformat_messages(data, rank: int = 0, world_size: int = 1):
@@ -41,7 +41,7 @@ def reset_system_prompt(
         if messages[0]["role"] == "system":
             messages = messages[1:]
 
-        tools = document.metadata.pop("tools", None)
+        tools = document.metadata.get("tools", None)
         tools = json.loads(tools)
 
         system_prompt = tokenizer.apply_chat_template(
@@ -103,6 +103,3 @@ if __name__ == "__main__":
             skip_completed=not args.force,
         )
         main_processing_executor.run()
-
-"""
-"""
