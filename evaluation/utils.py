@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import re
 import numpy as np
+import glob
 
 
 def get_step(text):
@@ -232,9 +233,9 @@ def read_experiment_results(
         expe_name = main_dir.name
 
     dataframes = [
-        read_json_file(f)
-        for f in main_dir.rglob("results_*.json")
-        if evaluation_dir in f.parts and "deprecated" not in str(f)
+        read_json_file(Path(f))
+        for f in glob.glob(str(main_dir / "**" / "results_*.json"), recursive=True)
+        if evaluation_dir in Path(f).parts and "deprecated" not in f
     ]
     if not dataframes:
         print(f"No valid JSON result files found in {main_dir}")
