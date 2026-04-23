@@ -79,6 +79,3 @@ if __name__ == "__main__":
         skip_completed=not args.force,
     )
     main_processing_executor.run()
-
-"""
-"""

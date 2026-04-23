@@ -1,10 +1,10 @@
 from utils import create_parser, parse_args, create_executor
-from datatrove.pipeline.readers import HuggingFaceDatasetReader
-from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
+from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from functools import partial
 from transformers import AutoTokenizer
-from utils import instruct_adapter
 from datatrove.pipeline.filters import LambdaFilter
+from utils import instruct_adapter, _custom_adapter_for_hf, HF_SCHEMA
 
 
 def format_data(
@@ -31,7 +31,7 @@ def format_data(
         #     {"role": "assistant", "content": "", "tool_calls": tool_calls},
         #     {"role": "tool", "content": "TOOL RESPONSE"},
         # ]
-        if args.openrag_format:
+        if openrag_format:
             messages = [
                 {
                     "role": "system",
@@ -74,39 +74,74 @@ if __name__ == "__main__":
         "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
-    # Add adapter that add empty text if the text field is None, to avoid skipping data
-    pipeline = [
-        HuggingFaceDatasetReader(
-            "PleIAs/SYNTH",
-            {"split": "train"},
-            streaming=True,
-            adapter=instruct_adapter,
-        ),
-        LambdaFilter(
-            lambda doc: doc.metadata["model"].strip() == "qwen-3-8b-rag",
-            exclusion_writer=JsonlWriter(
-                f"{DATA_PATH}/pleais_norag/data",
-                output_filename="${language}/rank${rank}.jsonl.gz",
+    if not args.push_only:
+        pipeline = [
+            HuggingFaceDatasetReader(
+                "PleIAs/SYNTH",
+                {"split": "train"},
+                streaming=True,
+                adapter=instruct_adapter,
             ),
-        ),
-        partial(format_data, tokenizer=tokenizer, openrag_format=args.openrag_format),
-        JsonlWriter(
-            f"{DATA_PATH}/pleais_rag/{format}/data",
-            output_filename="${language}/rank${rank}.jsonl.gz",
-            expand_metadata=True,
-        ),
-    ]
+            LambdaFilter(
+                lambda doc: doc.metadata["model"].strip() == "qwen-3-8b-rag",
+            ),
+            partial(
+                format_data, tokenizer=tokenizer, openrag_format=args.openrag_format
+            ),
+            JsonlWriter(
+                f"{DATA_PATH}/pleais_rag/{format}/data",
+                output_filename="${language}/${rank}.jsonl.gz",
+                expand_metadata=True,
+            ),
+        ]
 
-    main_processing_executor = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{DATA_PATH}/pleais_rag/{format}/logs",
-        job_name="pleais_rag_{format}",
-        tasks=10,
-        time="00:30:00",
-        # partition="cpu_p1",
-        qos="qos_cpu-dev",
-        skip_completed=not args.force,
-    )
-    main_processing_executor.run()
+        main_processing_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/pleais_rag/{format}/logs",
+            job_name="pleais_rag_{format}",
+            tasks=10,
+            time="00:30:00",
+            # partition="cpu_p1",
+            qos="qos_cpu-dev",
+            skip_completed=not args.force,
+        )
+        main_processing_executor.run()
+
+    elif args.openrag_format:
+        # Push to hub
+        pipeline = [
+            JsonlReader(
+                f"{DATA_PATH}/pleais_rag/{format}/data",
+            ),
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-BPI/PleAIs_RAG",
+                private=True,
+                local_working_dir=f"{DATA_PATH}/pleais_rag/{format}/data_hf",
+                output_filename="data/${language}/${rank}.parquet",
+                adapter=partial(
+                    _custom_adapter_for_hf,
+                    source="PleIAs/SYNTH",
+                    id_key="synth_id",
+                    language=None,
+                    language_key="language",
+                    conversation_key="messages",
+                ),
+                cleanup=True,
+                expand_metadata=False,
+                schema=HF_SCHEMA,
+            ),
+        ]
+
+        hf_executor = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/pleais_rag/{format}/logs_hf",
+            job_name="pleais_rag",
+            tasks=1,
+            skip_completed=not args.force,
+        )
+
+        hf_executor.run()
