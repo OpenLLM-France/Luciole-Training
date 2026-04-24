@@ -63,6 +63,7 @@ def clean_tool_response(data, rank: int = 0, world_size: int = 1):
 def reformat_messages(data, rank: int = 0, world_size: int = 1, tokenizer=None):
     import json
     import re
+    import random
 
     for doc in data:
         xml_tools = doc.metadata.pop("chat_template_kwargs")["xml_tools"][0]
@@ -86,6 +87,8 @@ def reformat_messages(data, rank: int = 0, world_size: int = 1, tokenizer=None):
             },
         }
         tools = [json.loads(o) for o in objs] + [visit_webpage_tool]
+        random.shuffle(tools)
+
         doc.metadata["tools"] = tools
 
         system_prompt = tokenizer.apply_chat_template(

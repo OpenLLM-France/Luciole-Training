@@ -35,6 +35,7 @@ def reset_system_prompt(
 ):
     import re
     import json
+    import random
 
     for document in data:
         messages = document.metadata["messages"]
@@ -43,6 +44,7 @@ def reset_system_prompt(
 
         tools = document.metadata.get("tools", None)
         tools = json.loads(tools)
+        random.shuffle(tools)
 
         system_prompt = tokenizer.apply_chat_template(
             [{"role": "system", "content": ""}],

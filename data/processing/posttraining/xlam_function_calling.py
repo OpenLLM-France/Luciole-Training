@@ -14,10 +14,12 @@ def format_messages(
 ):
     import json
     import re
+    import random
 
     for doc in data:
         tools = doc.metadata.get("tools", None)
         tools = json.loads(tools)
+        random.shuffle(tools)
 
         system_prompt = tokenizer.apply_chat_template(
             [{"role": "system", "content": ""}],
