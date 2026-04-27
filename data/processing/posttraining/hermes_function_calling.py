@@ -44,7 +44,8 @@ def reset_system_prompt(
 
         tools = document.metadata.get("tools", None)
         tools = json.loads(tools)
-        random.shuffle(tools)
+        if tools:
+            random.shuffle(tools)
 
         system_prompt = tokenizer.apply_chat_template(
             [{"role": "system", "content": ""}],
@@ -100,7 +101,7 @@ if __name__ == "__main__":
             job_name="hermes_function_calling",
             tasks=1,
             time="00:30:00",
-            partition="cpu_p1",
+            # partition="cpu_p1",
             qos="qos_cpu-dev",
             skip_completed=not args.force,
         )

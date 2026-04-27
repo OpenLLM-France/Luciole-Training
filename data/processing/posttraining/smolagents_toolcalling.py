@@ -9,7 +9,7 @@ from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 
 
-class ToolCallingFiltering(BaseFilter):
+class ToolFiltering(BaseFilter):
     name = "🪚🔨🔧 Tool Calling Filtering"
 
     def __init__(self, exclusion_writer: DiskWriter = None):
@@ -32,6 +32,8 @@ class ToolCallingFiltering(BaseFilter):
                         return False, "fail_to_parse_tool_calling"
                     message["content"] = message["content"].replace(match.group(0), "")
                     message["tool_calls"].append(parsed)
+            # elif message["role"] == "tool":
+            #     # remove $Obsertation:/s
         return True
 
 
@@ -87,7 +89,8 @@ def reformat_messages(data, rank: int = 0, world_size: int = 1, tokenizer=None):
             },
         }
         tools = [json.loads(o) for o in objs] + [visit_webpage_tool]
-        random.shuffle(tools)
+        if tools:
+            random.shuffle(tools)
 
         doc.metadata["tools"] = tools
 
@@ -123,7 +126,7 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         partial(reformat_messages, tokenizer=tokenizer),
-        ToolCallingFiltering(),
+        ToolFiltering(),
         partial(apply_chat_template, tokenizer=tokenizer),
         FilterChinese(
             exclusion_writer=JsonlWriter(
@@ -144,7 +147,7 @@ if __name__ == "__main__":
         job_name="smolagents_toolcalling",
         tasks=1,
         time="00:30:00",
-        partition="cpu_p1",
+        # partition="cpu_p1",
         qos="qos_cpu-dev",
         skip_completed=not args.force,
     )

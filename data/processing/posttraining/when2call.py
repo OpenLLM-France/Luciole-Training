@@ -3,7 +3,7 @@ from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from transformers import AutoTokenizer
-from utils import FilterChinese, apply_chat_template, instruct_adapter
+from utils import apply_chat_template, instruct_adapter
 
 
 def format_messages(
@@ -17,10 +17,9 @@ def format_messages(
     import random
 
     for doc in data:
-        tools = doc.metadata.get("tools", None)
-        tools = json.loads(tools)
-        if tools:
-            random.shuffle(tools)
+        tools = doc.metadata.get("tools", [])
+        tools = [json.loads(tool) for tool in tools]
+        random.shuffle(tools)
 
         system_prompt = tokenizer.apply_chat_template(
             [{"role": "system", "content": ""}],
@@ -33,12 +32,7 @@ def format_messages(
 
         doc.metadata["messages"] = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": doc.metadata.pop("query")},
-            {
-                "role": "assistant",
-                "tool_calls": json.loads(doc.metadata.pop("answers")),
-            },
-        ]
+        ] + doc.metadata["messages"]
         yield doc
 
 
@@ -53,18 +47,15 @@ if __name__ == "__main__":
 
     pipeline = [
         HuggingFaceDatasetReader(
-            "Salesforce/xlam-function-calling-60k",
-            {"split": "train"},
+            "nvidia/When2Call",
+            {"name": "train_sft", "split": "train"},
             streaming=True,
             adapter=instruct_adapter,
         ),
         partial(format_messages, tokenizer=tokenizer),
         partial(apply_chat_template, tokenizer=tokenizer),
-        FilterChinese(
-            exclusion_writer=JsonlWriter(f"{DATA_PATH}/xlam/chinese_heavy"),
-        ),
         JsonlWriter(
-            f"{DATA_PATH}/xlam/data",
+            f"{DATA_PATH}/when2call/data",
             expand_metadata=True,
         ),
     ]
@@ -73,11 +64,11 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/xlam/logs",
-        job_name="xlam",
+        logging_dir=f"{DATA_PATH}/when2call/logs",
+        job_name="when2call",
         tasks=1,
         time="00:30:00",
-        partition="cpu_p1",
+        # partition="cpu_p1",
         qos="qos_cpu-dev",
         skip_completed=not args.force,
     )
