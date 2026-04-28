@@ -36,6 +36,20 @@ def format_messages(
         yield doc
 
 
+def annotate_refusal(
+    data,
+    rank: int = 0,
+    world_size: int = 1,
+):
+    for doc in data:
+        doc.metadata["refusal"] = "missing_argument"
+        for word in ["sorry", "apologies", "apologize"]:
+            if word in doc.metadata["messages"][-1]["content"].lower():
+                doc.metadata["refusal"] = "apologies"
+                break
+        yield doc
+
+
 if __name__ == "__main__":
     parser = create_parser()
     args = parse_args(parser)
@@ -52,10 +66,12 @@ if __name__ == "__main__":
             streaming=True,
             adapter=instruct_adapter,
         ),
+        annotate_refusal,
         partial(format_messages, tokenizer=tokenizer),
         partial(apply_chat_template, tokenizer=tokenizer),
         JsonlWriter(
             f"{DATA_PATH}/when2call/data",
+            output_filename="${refusal}/${rank}.jsonl",
             expand_metadata=True,
         ),
     ]
