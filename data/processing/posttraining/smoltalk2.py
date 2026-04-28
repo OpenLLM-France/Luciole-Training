@@ -7,6 +7,15 @@ from transformers import AutoTokenizer
 from utils import FilterChinese, apply_chat_template, instruct_adapter
 
 
+def remove_hi(data, rank: int = 0, world_size: int = 1, split_name=None):
+    for doc in data:
+        if split_name == "smoltalk_everyday_convs_reasoning_Qwen3_32B_think":
+            doc.metadata["messages"] = doc.metadata["messages"][2:]
+            yield doc
+        else:
+            yield doc
+
+
 def add_system_prompt(
     data,
     rank: int = 0,
@@ -36,12 +45,24 @@ def add_system_prompt(
         yield document
 
 
+SPLITS = get_dataset_split_names("HuggingFaceTB/smoltalk2", "SFT")
+
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument(
+        "--split_name",
+        type=str,
+        choices=SPLITS + ["all"],
+        default="all",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    splits = get_dataset_split_names("HuggingFaceTB/smoltalk2", "SFT")
+    if args.split_name == "all":
+        splits = SPLITS
+    else:
+        splits = [args.split_name]
+
     tool_splits = [
         "smolagents_toolcalling_traces_think",
         "hermes_function_calling_v1_no_think",
@@ -66,6 +87,7 @@ if __name__ == "__main__":
                 streaming=True,
                 adapter=instruct_adapter,
             ),
+            partial(remove_hi, split_name=split),
             partial(add_system_prompt, tokenizer=tokenizer),
             partial(apply_chat_template, tokenizer=tokenizer),
             FilterChinese(
