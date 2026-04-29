@@ -171,13 +171,16 @@ data:
 
   dataset_name: openai_format
   train_data_path:
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smolagents_toolcalling/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_function_calling/func_calling/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_function_calling/glaive_func_calling/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/when2call/data/*.jsonl.gz"
-    - ["${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_agentic_sft_v2/*/data/*.jsonl.gz", 0.5]
-    - ["${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/xlam/data/*.jsonl.gz", 0.5]
-  val_data_path: null
+    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smolagents_toolcalling/data/*.jsonl.gz" # total 9079
+    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_function_calling/func_calling/data/*.jsonl.gz" # total 1893                                                                                                                                            
+    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_function_calling/glaive_func_calling/data/*.jsonl.gz" # total 5209                                                                                                                                     
+    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/when2call/data/missing_argument/*.jsonl.gz" # total 15 k (50% missing?) -> keep only missing ?                                                                                                                
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/xlam/data/*.jsonl.gz"                                                                                                                                                                                   
+      weight: 0.25 # total 60 k                                                                                                                                                                                                                                           
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_agentic_sft_v2/*/data/*.jsonl.gz"                                                                                                                                                              
+      weight: 0.1 # total 300 k -> too big, no improve 
+
+  val_data_path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/aya_dataset_Qwen3_32B_think/data/*.jsonl.gz"
   chat_key: "messages"                     # Key for messages in the data
   system_key: null                         # Key for system message (optional)
   system_prompt: null                      # Default system prompt (optional)
