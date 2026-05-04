@@ -290,7 +290,7 @@ def launch_evaluation(
 
         if multiple_of and multiple_of != 1:
             _, step = get_step(ckpt)
-            if (step + 1) % multiple_of <= 1:
+            if (step + 1) % multiple_of > 1:
                 if not dry_run:
                     print(
                         f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}"
