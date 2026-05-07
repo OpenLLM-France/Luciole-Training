@@ -26,6 +26,7 @@ Create a dedicated environment and install [our lighteval fork](https://github.c
 ```bash
 module purge
 module load anaconda-py3/2024.06
+module load git
 conda create -n eval-env python=3.10
 conda activate eval-env
 
@@ -34,6 +35,7 @@ cd lighteval/
 pip install -e .[multilingual,vllm]
 pip install language_data langdetect syllapy seaborn python-slugify
 pip install unbabel-comet>=2.2.0
+pip install jieba fuzzywuzzy rouge # For longbench eval
 
 module load cuda/12.8.0 # or CUDA version used to compile torch (see `python -c "import torch; print(torch.version.cuda)"`)
 pip install --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
@@ -43,6 +45,9 @@ pip install --no-cache-dir --no-build-isolation mamba-ssm[causal-conv1d]
 > ```bash
 > srun -p compil_h100 -c 24 --hint=nomultithread --pty -A $SLURM_ACCOUNT_CPU bash
 > ```
+
+If you have issues with installation, you can try `module load gcc/14.2.0`
+<!-- module load nccl/2.27.3-1-cuda -->
 
 ### Preload assets and datasets
 
@@ -151,3 +156,69 @@ python plot_results.py $models --group all \
 ## RULER (Long-Context Evaluation)
 
 See [ruler/README.md](ruler/README.md) for RULER benchmark setup and usage.
+
+## Tool Evaluation
+
+Follow [BFCL README](https://github.com/ShishirPatil/gorilla/blob/main/berkeley-function-call-leaderboard/README.md)
+
+### Installation
+
+```bash
+module purge
+module load arch/h100
+module load anaconda-py3/2024.06
+module load gcc/14.2.0
+
+# Create a new Conda environment with Python 3.10
+conda create -n BFCL python=3.10
+conda activate BFCL
+
+# Clone the Gorilla repository
+git clone https://github.com/ShishirPatil/gorilla.git
+
+# Change directory to the `berkeley-function-call-leaderboard`
+cd gorilla/berkeley-function-call-leaderboard
+
+# # Install the package in editable mode
+# pip install -e .
+
+# Vllm for local model
+pip install -e .[oss_eval_vllm]
+pip install -U "vllm>=0.10" transformers
+```
+
+### Evaluate
+
+```bash
+module purge
+module load arch/a100 anaconda-py3/2024.06 gcc/14.2.0 # on a100
+module load arch/h100 anaconda-py3/2024.06 gcc/14.2.0 # on h100
+conda activate BFCL
+
+# JZ
+export MODEL_PATH=...
+
+NAME=${MODEL_PATH##*/}
+CATS=non_live,live 
+RESULT_DIR="$SCRATCH/result/${NAME}"
+SCORE_DIR="$SCRATCH/score/${NAME}" 
+
+mkdir -p "$RESULT_DIR" "$SCORE_DIR" 
+
+# 1. Generate model responses (vLLM inference — same flags you've been using)
+bfcl generate \
+  --model linagora/nemotron3-1b-FC \
+  --local-model-path "$MODEL_PATH" \
+  --backend vllm \
+  --num-gpus 1 \
+  --gpu-memory-utilization 0.9 \
+  --test-category "$CATS" \
+  --result-dir $RESULT_DIR 
+  
+# 2. Score the responses
+bfcl evaluate \
+  --model linagora/nemotron3-1b-FC \
+  --test-category "$CATS" \
+  --result-dir $RESULT_DIR \
+  --score-dir  $SCORE_DIR
+```
