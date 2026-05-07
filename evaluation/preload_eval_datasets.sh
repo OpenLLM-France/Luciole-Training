@@ -9,7 +9,7 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 hf download Qwen/Qwen3-0.6B
 
-for TASK in en gsm8k mixeval ifbench ifeval ifeval_fr gsm_plus aime live_code_bench gpqa gpqa-fr; do
+for TASK in en gsm8k mixeval ifbench ifeval ifeval_fr gsm_plus aime live_code_bench gpqa gpqa-fr rag; do
     lighteval accelerate "model_name=Qwen/Qwen3-0.6B" tasks/${TASK}.txt
 done
 
