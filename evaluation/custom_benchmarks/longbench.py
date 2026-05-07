@@ -378,7 +378,7 @@ for _ds in DATASETS:
     TASKS_TABLE.append(
         LightevalTaskConfig(
             name=f"longbench_{_ds}",
-            suite=["community"],
+            suite=["custom"],
             prompt_function=_make_prompt_fn(_base),
             hf_repo="Xnhyacinth/LongBench",
             hf_subset=_ds,
