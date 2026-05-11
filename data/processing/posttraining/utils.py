@@ -57,8 +57,28 @@ class FilterChinese(BaseFilter):
 
 
 def apply_chat_template(data, rank: int = 0, world_size: int = 1, tokenizer=None):
-    for document in data:
-        document.text = tokenizer.apply_chat_template(
-            document.metadata["messages"], tokenize=False
+    for doc in data:
+        doc.text = tokenizer.apply_chat_template(
+            doc.metadata["messages"], tokenize=False
         )
-        yield document
+        yield doc
+
+
+def check_last_message(data, rank: int = 0, world_size: int = 1, tokenizer=None):
+    raise_last_message_warning = True
+    for doc in data:
+        last_idx = max(
+            i
+            for i, m in enumerate(doc.metadata["messages"])
+            if m["role"] == "assistant"
+        )
+        if (
+            last_idx < len(doc.metadata["messages"]) - 1
+        ) and raise_last_message_warning:
+            print(
+                f"Warning: Document {doc.id} has messages after the last assistant message. Truncating."
+            )
+            print(f"Last message was: {doc.metadata['messages'][-1]}")
+            raise_last_message_warning = False  # Only warn once
+        doc.metadata["messages"] = doc.metadata["messages"][: last_idx + 1]
+        yield doc

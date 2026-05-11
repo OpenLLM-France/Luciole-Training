@@ -3,7 +3,12 @@ from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from transformers import AutoTokenizer
-from utils import FilterChinese, apply_chat_template, instruct_adapter
+from utils import (
+    FilterChinese,
+    apply_chat_template,
+    instruct_adapter,
+    check_last_message,
+)
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
@@ -127,6 +132,7 @@ if __name__ == "__main__":
         ),
         partial(reformat_messages, tokenizer=tokenizer),
         ToolFiltering(),
+        check_last_message,
         partial(apply_chat_template, tokenizer=tokenizer),
         FilterChinese(
             exclusion_writer=JsonlWriter(

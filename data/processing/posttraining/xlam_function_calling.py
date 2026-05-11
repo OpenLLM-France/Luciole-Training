@@ -3,7 +3,12 @@ from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from transformers import AutoTokenizer
-from utils import FilterChinese, apply_chat_template, instruct_adapter
+from utils import (
+    FilterChinese,
+    apply_chat_template,
+    instruct_adapter,
+    check_last_message,
+)
 
 
 def format_messages(
@@ -60,6 +65,7 @@ if __name__ == "__main__":
         ),
         partial(format_messages, tokenizer=tokenizer),
         partial(apply_chat_template, tokenizer=tokenizer),
+        check_last_message,
         FilterChinese(
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/xlam/chinese_heavy"),
         ),
