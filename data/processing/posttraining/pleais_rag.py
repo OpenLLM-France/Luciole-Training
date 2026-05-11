@@ -8,7 +8,7 @@ from utils import instruct_adapter, _custom_adapter_for_hf, HF_SCHEMA
 
 
 def format_data(
-    data, rank: int = 0, world_size: int = 1, tokenizer=None, openrag_format=False
+    data, rank: int = 0, world_size: int = 1, tokenizer=None, format="openrag"
 ):
     SYSTEM_PROMPT = """You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.
 
@@ -31,7 +31,7 @@ def format_data(
         #     {"role": "assistant", "content": "", "tool_calls": tool_calls},
         #     {"role": "tool", "content": "TOOL RESPONSE"},
         # ]
-        if openrag_format:
+        if "openrag" in format:
             messages = [
                 {
                     "role": "system",
@@ -40,7 +40,13 @@ def format_data(
                     ),
                 },
                 {"role": "user", "content": doc.metadata.pop("query")},
-                {"role": "assistant", "content": doc.metadata.pop("synthetic_answer")},
+                {
+                    "role": "assistant",
+                    "content": doc.metadata.pop("synthetic_answer"),
+                    "reasoning_content": doc.metadata.get("synthetic_reasoning")
+                    if "thinking" in format
+                    else "",
+                },
             ]
         else:
             messages = [
@@ -58,17 +64,29 @@ def format_data(
         yield doc
 
 
+def add_thinking_tags(data, rank: int = 0, world_size: int = 1):
+    for doc in data:
+        messages = doc.metadata["messages"]
+        for message in messages:
+            if "reasoning_content" in message and message["reasoning_content"]:
+                message["content"] = (
+                    "<think>\n"
+                    + message.pop("reasoning_content").strip()
+                    + "\n</think>\n\n"
+                    + message["content"]
+                )
+        yield doc
+
+
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
-        "--openrag_format",
-        action="store_true",
+        "--format",
+        choices=["tool", "openrag", "openrag_thinking"],
         help="Use OpenRAG format (documents in the system prompt)",
     )
     args = parse_args(parser)
     DATA_PATH = args.data_path
-
-    format = "openrag" if args.openrag_format else "tool"
 
     tokenizer = AutoTokenizer.from_pretrained(
         "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
@@ -85,11 +103,9 @@ if __name__ == "__main__":
             LambdaFilter(
                 lambda doc: doc.metadata["model"].strip() == "qwen-3-8b-rag",
             ),
-            partial(
-                format_data, tokenizer=tokenizer, openrag_format=args.openrag_format
-            ),
+            partial(format_data, tokenizer=tokenizer, format=args.format),
             JsonlWriter(
-                f"{DATA_PATH}/pleais_rag/{format}/data",
+                f"{DATA_PATH}/pleais_rag/{args.format}/data",
                 output_filename="${language}/${rank}.jsonl.gz",
                 expand_metadata=True,
             ),
@@ -99,7 +115,7 @@ if __name__ == "__main__":
             pipeline,
             local=args.local,
             debug=args.debug,
-            logging_dir=f"{DATA_PATH}/pleais_rag/{format}/logs",
+            logging_dir=f"{DATA_PATH}/pleais_rag/{args.format}/logs",
             job_name="pleais_rag_{format}",
             tasks=10,
             time="00:30:00",
@@ -109,17 +125,18 @@ if __name__ == "__main__":
         )
         main_processing_executor.run()
 
-    elif args.openrag_format:
+    elif args.format == "openrag_thinking":
         # Push to hub
         pipeline = [
             JsonlReader(
-                f"{DATA_PATH}/pleais_rag/{format}/data",
+                f"{DATA_PATH}/pleais_rag/{args.format}/data",
             ),
+            add_thinking_tags,
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/PleAIs_RAG",
+                dataset="OpenLLM-France/PleAIs_RAG",
                 private=True,
-                local_working_dir=f"{DATA_PATH}/pleais_rag/{format}/data_hf",
-                output_filename="data/${language}/${rank}.parquet",
+                local_working_dir=f"{DATA_PATH}/pleais_rag/{args.format}/data_hf",
+                output_filename="data/" + args.format + "/${language}/${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
                     source="PleIAs/SYNTH",
@@ -138,7 +155,7 @@ if __name__ == "__main__":
             pipeline,
             local=args.local,
             debug=args.debug,
-            logging_dir=f"{DATA_PATH}/pleais_rag/{format}/logs_hf",
+            logging_dir=f"{DATA_PATH}/pleais_rag/{args.format}/logs_hf",
             job_name="pleais_rag",
             tasks=1,
             skip_completed=not args.force,
