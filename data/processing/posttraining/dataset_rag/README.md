@@ -32,3 +32,28 @@ python3 augment_tatqa.py --dataset tatqa_converted.jsonl --output tatqa_augmente
 python3 evaluate_tatqa.py --input tatqa_augmented.jsonl --output tatqa_augmented_evaluated.jsonl --filter
 python3 formatting_sft.py --input tatqa_augmented_evaluated_filtered.jsonl --format chat 
 ```
+
+## Benchmark exports
+
+The pre-augmentation converters can also export a prompt-agnostic benchmark
+schema:
+
+```json
+{
+  "id": "...",
+  "query": "...",
+  "retrieved_documents": ["..."],
+  "titles": ["..."],
+  "supporting_index": [0],
+  "answer": "..."
+}
+```
+
+`supporting_index` contains zero-based indices into `retrieved_documents`.
+An empty list means the query is unanswerable from the retrieved documents.
+
+```bash
+python3 convert_multilingual_qa.py --dataset piaf --language fr --output piaf_benchmark.jsonl --output-format benchmark
+python3 convert_tatqa_to_augment_format.py --input tatqa.json --output tatqa_benchmark.jsonl --output-format benchmark
+python3 convert_hotpotqa.py --split validation --output hotpotqa_val_benchmark.jsonl --output-format benchmark
+```

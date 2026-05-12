@@ -8,6 +8,8 @@ import json
 import re
 from pathlib import Path
 
+from benchmark_format import augment_row_to_benchmark
+
 
 def _stringify_cell(value: object) -> str:
     text = "" if value is None else str(value)
@@ -193,7 +195,13 @@ def convert_doc(doc: dict) -> list[dict]:
     return out
 
 
-def convert(input_file: str, output_file: str) -> tuple[int, int, int]:
+def convert(
+    input_file: str,
+    output_file: str,
+    *,
+    output_format: str = "augment",
+    include_id: bool = True,
+) -> tuple[int, int, int]:
     docs, warnings = load_tatqa_docs(Path(input_file))
     rows_out = []
     for doc in docs:
@@ -201,6 +209,8 @@ def convert(input_file: str, output_file: str) -> tuple[int, int, int]:
 
     with open(output_file, "w", encoding="utf-8") as f:
         for row in rows_out:
+            if output_format == "benchmark":
+                row = augment_row_to_benchmark(row, include_id=include_id)
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     for w in warnings:
@@ -211,11 +221,27 @@ def convert(input_file: str, output_file: str) -> tuple[int, int, int]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert TATQA to augmentation format JSONL")
+    parser = argparse.ArgumentParser(description="Convert TATQA to augmentation or benchmark JSONL")
     parser.add_argument("--input", required=True, help="Path to TATQA input (JSON/JSONL)")
     parser.add_argument("--output", required=True, help="Output JSONL path")
+    parser.add_argument(
+        "--output-format",
+        choices=["augment", "benchmark"],
+        default="augment",
+        help="Output schema: augmentation format or prompt-agnostic benchmark format",
+    )
+    parser.add_argument(
+        "--no-id",
+        action="store_true",
+        help="Do not include the id column in benchmark output",
+    )
     args = parser.parse_args()
-    convert(args.input, args.output)
+    convert(
+        args.input,
+        args.output,
+        output_format=args.output_format,
+        include_id=not args.no_id,
+    )
 
 
 if __name__ == "__main__":

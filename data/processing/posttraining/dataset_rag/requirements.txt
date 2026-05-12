@@ -1,3 +1,4 @@
 aiohttp
 datasets<4.0.0
+rank-bm25
 tqdm
