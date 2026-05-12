@@ -511,6 +511,80 @@ You MUST reply with ONLY a JSON object in this exact format (no other text):
 {"score": <int>, "justification": "<one sentence>"}
 """
 
+JUDGE_FRENCH_QUALITY_SYSTEM_PROMPT = """\
+You are an expert linguist evaluating the quality of French text that was translated from English.
+You will be given a **French text** (a question, a reasoning trace, or both).
+
+Rate the **quality of the French** on a scale from 1 to 5. The scores are grouped into three quality levels:
+
+### Bon (score 5) — Natural French, no issues
+The text reads like it was written by a native French speaker. Correct grammar, natural phrasing, appropriate vocabulary, no anglicisms or calques.
+
+### Acceptable (score 3 or 4) — Minor issues only
+The text is understandable and mostly natural, with one or two MINOR issues such as:
+- A missing article (e.g. "pour Union Deportiva" instead of "pour l'Union Deportiva")
+- A single minor anglicism where the meaning is still clear (e.g. "score musical" instead of "bande originale")
+- A single false friend that remains understandable (e.g. "incorporé" instead of "constituée en société")
+- Slightly awkward but grammatically correct phrasing
+Use **4** if there is only one very minor issue, **3** if there are two minor issues or one more noticeable one.
+
+### Non acceptable (score 1 or 2) — Serious errors
+The text has at least one SERIOUS error that makes it sound like bad machine translation:
+- Syntactic calques: word order copied from English (e.g. "Sont-ils X et Y des exemples de..." instead of "X et Y sont-ils des exemples de...")
+- Untranslated English words (e.g. "planter" instead of "planteur/propriétaire terrien")
+- Multiple gender/agreement errors in the same sentence (e.g. "les plus gros pièces utilisés" instead of "les plus grandes pièces utilisées")
+- Broken sentence structure requiring a complete rewrite
+- Multiple anglicisms in the same sentence (e.g. "concours de talent de réalité" instead of "concours de talents de télé-réalité")
+Use **2** if the text is still understandable despite the serious error(s), **1** if the text is incomprehensible or needs a complete rewrite.
+
+CRITICAL rules — read carefully:
+- Words like "réalisateur", "producteur", "société de production", "documentaire", "activiste", "universitaire" are STANDARD French words. Do NOT treat them as anglicisms.
+- Proper nouns, band names, movie titles, and university names in English (e.g. "Carnegie Mellon University", "Queens of the Stone Age") are expected and must NOT be penalized.
+- A question like "Quelle université est située à San Antonio ?" is CORRECT French — do not penalize it.
+- Only flag issues that a native French speaker would actually notice as unnatural.
+
+Calibration examples:
+
+**Score 5** (bon):
+"Quel artiste est originaire d'Afrique du Sud — la chanteuse Carina Round ou le groupe de rock Seether ?"
+→ Natural syntax, correct grammar, no issues.
+
+**Score 5** (bon):
+"Quelle université est située à San Antonio, au Texas - Carnegie Mellon University ou Trinity University ?"
+→ Perfectly correct. English university names are expected.
+
+**Score 5** (bon):
+"En quelle année le grand-père de Maria Clémentine Sobieska est-il devenu roi de Pologne et grand duc de Lituanie ?"
+→ Natural phrasing, proper inversion.
+
+**Score 4** (acceptable):
+"Dans quelle ligue Borja Herrera Gonzalez joue-t-il quand il joue comme latéral gauche ou ailier pour Union Deportiva Las Palmas ?"
+→ Missing article "l'" before "Union Deportiva". Otherwise natural.
+
+**Score 3** (acceptable):
+"Qui a écrit le score musical pour la première production de Horizon Pictures ?"
+→ "score musical" is a calque of "musical score" (correct: "bande originale"). Otherwise fine.
+
+**Score 2** (non acceptable):
+"Sont-ils Armand Schaefer et Frederick Wiseman des exemples de réalisateurs canadiens ?"
+→ "Sont-ils X et Y..." calques English "Are X and Y...". Should be "X et Y sont-ils..."
+
+**Score 2** (non acceptable):
+"Carroll, New York, est nommé d'après quel riche planter de Maryland ?"
+→ "planter" is an untranslated English word.
+
+**Score 2** (non acceptable):
+"Quelle entreprise a produit les plus gros pièces d'artillerie utilisés pendant la Première Guerre mondiale ?"
+→ Multiple gender errors: "gros" → "grandes", "utilisés" → "utilisées".
+
+**Score 1** (non acceptable):
+"ZeniMax Media Inc. est une entreprise médiatique américaine, développeuse duquel jeu vidéo de rôle multijoueur en ligne massivement (MMORPG), publié par Bethesda Softworks ?"
+→ Broken structure, incomprehensible.
+
+You MUST reply with ONLY a JSON object (no other text):
+{"score": <int>, "justification": "<one sentence in French>"}
+"""
+
 JUDGE_FACTUAL_SYSTEM_PROMPT = """\
 You are an impartial factual evaluator. You will be given:
 1. A **question**.
@@ -596,6 +670,39 @@ async def _call_judge(
         except Exception as exc:
             print(f"  Judge response parsing failed: {exc}")
     return None
+
+
+def _build_french_quality_judge_user_prompt(reasoning: str) -> str:
+    return f"**Reasoning trace (in French):**\n{reasoning}"
+
+
+async def run_french_quality_judge_ordered(
+    rows: list[dict],
+    *,
+    api_key: str,
+    api_url: str = LLM_API_URL,
+    model: str = LLM_MODEL,
+    desc: str = "LLM French quality judge",
+) -> list[dict | None]:
+    semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT)
+    async with aiohttp.ClientSession() as session:
+        from tqdm.asyncio import tqdm as atqdm
+        tasks = [
+            _call_judge(
+                session,
+                JUDGE_FRENCH_QUALITY_SYSTEM_PROMPT,
+                _build_french_quality_judge_user_prompt(
+                    row.get("reasoning_trace", ""),
+                ),
+                0.0,
+                semaphore,
+                api_key=api_key,
+                api_url=api_url,
+                model=model,
+            )
+            for row in rows
+        ]
+        return await atqdm.gather(*tasks, desc=desc)
 
 
 async def run_judge_ordered(
@@ -698,7 +805,22 @@ def run_factual_judge(
     return asyncio.run(run_factual_judge_ordered(rows, sf_lookup, api_key=api_key, api_url=api_url, model=model, desc=desc))
 
 
-def filter_row(row: dict) -> bool:
+def run_french_quality_judge(
+    rows: list[dict],
+    *,
+    api_key: str,
+    api_url: str = LLM_API_URL,
+    model: str = LLM_MODEL,
+    desc: str = "LLM French quality judge",
+) -> list[dict | None]:
+    """Synchronous wrapper: run the French quality LLM judge on a list of rows."""
+    if not api_key:
+        raise ValueError("api_key is required for LLM judge (set LLM_API_KEY in .env or environment)")
+    print(f"\nRunning French quality LLM-as-a-judge ({model}) on {len(rows)} rows...")
+    return asyncio.run(run_french_quality_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc))
+
+
+def filter_row(row: dict, *, french_quality_threshold: int = 5) -> bool:
     """Keep unanswerable rows and rows that pass all evaluated quality thresholds.
 
     Always required (when answerable):
@@ -707,6 +829,7 @@ def filter_row(row: dict) -> bool:
     Applied only if the metric was evaluated (field present in row):
       - eval_chunk_f1 must be 1.0   (requires --eval-chunks)
       - eval_factual_judge_score must be 5  (requires --llm-judge-factual or --llm-judge-factual-openrouter)
+      - eval_french_quality_judge_score must be >= french_quality_threshold, default 5 (requires --llm-judge-french-quality)
     """
     if row.get("is_unanswerable", False):
         return True
@@ -715,5 +838,7 @@ def filter_row(row: dict) -> bool:
     if "eval_chunk_f1" in row and row["eval_chunk_f1"] != 1.0:
         return False
     if "eval_factual_judge_score" in row and row["eval_factual_judge_score"] != 5:
+        return False
+    if "eval_french_quality_judge_score" in row and (row["eval_french_quality_judge_score"] or 0) < french_quality_threshold:
         return False
     return True

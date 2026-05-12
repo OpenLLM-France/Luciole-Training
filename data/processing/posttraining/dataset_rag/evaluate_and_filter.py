@@ -28,8 +28,10 @@ from utils import (
     filter_row,
     run_judge_ordered,
     run_factual_judge_ordered,
+    run_french_quality_judge_ordered,
     run_llm_judge,
     run_factual_judge,
+    run_french_quality_judge,
 )
 
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
@@ -144,7 +146,8 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
              llm_judge: bool = False,
              llm_judge_factual: bool = False,
              llm_judge_openrouter: bool = False,
-             llm_judge_factual_openrouter: bool = False) -> dict:
+             llm_judge_factual_openrouter: bool = False,
+             llm_judge_french_quality: bool = False) -> dict:
     """Evaluate all entries in the augmented dataset."""
     stats = defaultdict(int)
     stats_by_type = defaultdict(lambda: {"correct": 0, "total": 0})
@@ -164,6 +167,8 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
     or_judge_stats: defaultdict = defaultdict(float)
     or_factual_judge_results = _collect_judge_results(rows, llm_judge_factual_openrouter, run_factual_judge_openrouter, sf_lookup={})
     or_factual_judge_stats: defaultdict = defaultdict(float)
+    french_quality_judge_results = _collect_judge_results(rows, llm_judge_french_quality, run_french_quality_judge, api_key=LLM_API_KEY)
+    french_quality_judge_stats: defaultdict = defaultdict(float)
 
     chunk_stats = defaultdict(float)
     enriched_rows = []
@@ -223,6 +228,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         fj_score, fj_justification = _extract_score(llm_judge_factual, is_unanswerable, factual_judge_results, row_idx, factual_judge_stats)
         or_j_score, or_j_justification = _extract_score(llm_judge_openrouter, is_unanswerable, or_judge_results, row_idx, or_judge_stats)
         or_fj_score, or_fj_justification = _extract_score(llm_judge_factual_openrouter, is_unanswerable, or_factual_judge_results, row_idx, or_factual_judge_stats)
+        fq_score, fq_justification = _extract_score(llm_judge_french_quality, is_unanswerable, french_quality_judge_results, row_idx, french_quality_judge_stats)
 
         # Build enriched row: original data + eval columns
         enriched = dict(row)
@@ -239,6 +245,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
             (llm_judge_factual, fj_score, fj_justification, "eval_factual_judge_score", "eval_factual_judge_justification"),
             (llm_judge_openrouter, or_j_score, or_j_justification, "eval_openrouter_judge_score", "eval_openrouter_judge_justification"),
             (llm_judge_factual_openrouter, or_fj_score, or_fj_justification, "eval_openrouter_factual_judge_score", "eval_openrouter_factual_judge_justification"),
+            (llm_judge_french_quality, fq_score, fq_justification, "eval_french_quality_judge_score", "eval_french_quality_judge_justification"),
         ]:
             if flag and not is_unanswerable:
                 enriched[score_key] = score_val
@@ -274,6 +281,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         "factual_judge_stats": dict(factual_judge_stats),
         "or_judge_stats": dict(or_judge_stats),
         "or_factual_judge_stats": dict(or_factual_judge_stats),
+        "french_quality_judge_stats": dict(french_quality_judge_stats),
     }
 
 
@@ -306,6 +314,7 @@ def print_report(eval_data: dict):
     factual_judge_stats = eval_data.get("factual_judge_stats", {})
     or_judge_stats = eval_data.get("or_judge_stats", {})
     or_factual_judge_stats = eval_data.get("or_factual_judge_stats", {})
+    french_quality_judge_stats = eval_data.get("french_quality_judge_stats", {})
 
     total = stats.get("total", 0)
     correct = stats.get("correct", 0)
@@ -369,6 +378,7 @@ def print_report(eval_data: dict):
     _print_judge_section("LLM-AS-A-JUDGE FACTUAL (answer + supporting facts)", factual_judge_stats)
     _print_judge_section(f"OPENROUTER LLM-AS-A-JUDGE (reasoning relevance, {OPENROUTER_JUDGE_MODEL})", or_judge_stats)
     _print_judge_section(f"OPENROUTER LLM-AS-A-JUDGE FACTUAL (answer + supporting facts, {OPENROUTER_JUDGE_MODEL})", or_factual_judge_stats)
+    _print_judge_section("LLM-AS-A-JUDGE FRENCH QUALITY (language quality)", french_quality_judge_stats)
 
     print("\n" + "="*60)
 
@@ -387,6 +397,8 @@ def main():
                         help=f"Run LLM-as-a-judge via OpenRouter ({OPENROUTER_JUDGE_MODEL}): rates reasoning relevance on 1-5 scale")
     parser.add_argument("--llm-judge-factual-openrouter", action="store_true",
                         help=f"Run factual LLM-as-a-judge via OpenRouter ({OPENROUTER_JUDGE_MODEL}): rates correctness given ground-truth")
+    parser.add_argument("--llm-judge-french-quality", action="store_true",
+                        help="Run French quality LLM-as-a-judge: rates language quality of French reasoning traces on 1-5 scale")
     parser.add_argument("--output", "-o", type=str, required=True,
                         help="Write enriched JSONL with eval columns added to each row")
     parser.add_argument("--export", type=str, help="Export aggregate stats to JSON file")
@@ -406,7 +418,8 @@ def main():
                          llm_judge=args.llm_judge,
                          llm_judge_factual=args.llm_judge_factual,
                          llm_judge_openrouter=args.llm_judge_openrouter,
-                         llm_judge_factual_openrouter=args.llm_judge_factual_openrouter)
+                         llm_judge_factual_openrouter=args.llm_judge_factual_openrouter,
+                         llm_judge_french_quality=args.llm_judge_french_quality)
     print_report(eval_data)
 
     with open(args.output, "w", encoding="utf-8") as f:
@@ -442,6 +455,8 @@ def main():
             export_data["or_judge_stats"] = eval_data["or_judge_stats"]
         if args.llm_judge_factual_openrouter:
             export_data["or_factual_judge_stats"] = eval_data["or_factual_judge_stats"]
+        if args.llm_judge_french_quality:
+            export_data["french_quality_judge_stats"] = eval_data["french_quality_judge_stats"]
         with open(args.export, "w") as f:
             json.dump(export_data, f, indent=2)
         print(f"Aggregate stats exported to: {args.export}")
