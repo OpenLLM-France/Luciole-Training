@@ -10,8 +10,11 @@ accordingly so the model learns to adapt to whatever format is described.
 For 30 % of examples, citation markers are moved to a **References** section at
 the end of the completion instead of being placed inline after each quote.
 
-Unanswerable variation: for unanswerable rows, the refusal phrase is randomly
-chosen from a pool of semantically equivalent formulations per language.
+Unanswerable variation: for unanswerable rows, a refusal phrase is randomly
+chosen from a pool of semantically equivalent formulations per language. For a
+subset of refusal examples, the system prompt specifies that exact phrase as
+the response to use when the context is insufficient, so the model learns to
+follow a declared refusal wording.
 """
 
 import json
@@ -27,24 +30,52 @@ from dataclasses import dataclass
 CONTEXT_SEPARATOR = "\n" + "-" * 10 + "\n\n"
 
 
-def reformat_context_chunks(raw_context: str) -> str:
-    """Reformat context chunks to use OpenRAG's separator while keeping [Title] headers.
+def _is_openrag_format(context: str) -> bool:
+    """Detect whether a context string uses the OpenRAG [CHUNK_START]...[CHUNK_END] format."""
+    return "[CHUNK_START]" in context and "[CHUNK_END]" in context
 
-    Dataset format (chunks separated by double newlines):
-        [Title 1]
-        Content of chunk 1...
 
-        [Title 2]
-        Content of chunk 2...
+def _reformat_openrag_chunks(raw_context: str) -> str:
+    """Reformat OpenRAG-style chunks with the standard separator between them.
 
-    Output format (OpenRAG separator, titles preserved for citation):
-        [Title 1]
-        Content of chunk 1...
-        ----------
-
-        [Title 2]
-        Content of chunk 2...
+    Handles both contextualised (``[CONTEXT]...``) and base (``* filename:...``) variants.
     """
+    chunk_pattern = re.compile(
+        r'((?:\[CONTEXT\].*?)?(?:\*\s*filename:.*?)\[CHUNK_START\].*?\[CHUNK_END\])',
+        re.DOTALL,
+    )
+    chunks = chunk_pattern.findall(raw_context)
+    if not chunks:
+        return raw_context.strip()
+    return CONTEXT_SEPARATOR.join(c.strip() for c in chunks)
+
+
+def reformat_context_chunks(raw_context: str) -> str:
+    """Reformat context chunks to use OpenRAG's separator.
+
+    Supports two input formats:
+
+    1. Classic ``[Title]`` format (chunks separated by double newlines):
+        [Title 1]
+        Content of chunk 1...
+
+        [Title 2]
+        Content of chunk 2...
+
+    2. OpenRAG contextualised format:
+        [CONTEXT]
+        summary...
+        * Title 1
+
+        [CHUNK_START]
+        Content of chunk 1...
+        [CHUNK_END]
+
+    Output always uses the ``----------`` separator between chunks.
+    """
+    if _is_openrag_format(raw_context):
+        return _reformat_openrag_chunks(raw_context)
+
     clean_context = raw_context.replace("-" * 10, "\n")  # remove old separators if any
     pattern = r'\n?\[([^\]]+)\]\n'
     parts = re.split(pattern, clean_context)
@@ -76,6 +107,15 @@ def normalize_cite_markers(content: str) -> str:
 
 # Probability of moving citation markers to end of completion (instead of inline)
 EOC_PROB = 0.30
+
+# Probability of using the English system prompt for non-English data
+# when --mixed-system-prompt is enabled (the query, docs, and answer stay in
+# the data language; only the system instructions switch to English).
+MIXED_SYSTEM_EN_PROB = 0.5
+
+# Probability, among unanswerable examples, of explicitly declaring the exact
+# refusal phrase to use in the system prompt.
+SPECIFIC_REFUSAL_INSTRUCTION_PROB = 0.30
 
 
 @dataclass
@@ -199,6 +239,40 @@ UNANSWERABLE_REFUSALS = {
 }
 
 
+def _pick_refusal(rng, language: str) -> str:
+    """Pick a random refusal phrase from the pool for the given language."""
+    refusals = UNANSWERABLE_REFUSALS.get(language, UNANSWERABLE_REFUSALS["en"])
+    return rng.choice(refusals)
+
+
+def _refusal_instruction(refusal: str, language: str) -> str:
+    """Build the system-prompt rule line specifying the refusal phrase to use."""
+    if language == "fr":
+        return (
+            f"Si le contexte est **insuffisant** pour répondre à la question, "
+            f"répondez exactement par : « {refusal} »"
+        )
+    return (
+        f"If the context is **insufficient** to answer the question, "
+        f"respond exactly with: \"{refusal}\""
+    )
+
+
+def _generic_refusal_instruction(language: str) -> str:
+    """Build the generic system-prompt rule for insufficient context."""
+    if language == "fr":
+        return (
+            "Si le contexte est **insuffisant** pour répondre à la question, "
+            "indiquez que les documents récupérés ne permettent pas de répondre "
+            "et invitez l'utilisateur à reformuler sa requête ou à ajouter des documents pertinents."
+        )
+    return (
+        "If the context is **insufficient** to answer the question, state that "
+        "the retrieved documents do not allow you to answer and invite the user "
+        "to rephrase the query or add relevant documents."
+    )
+
+
 # System prompt templates — prompt/completion format
 # (context + question embedded in the prompt; {citation_instruction} filled per-example)
 
@@ -211,7 +285,7 @@ Prioritize **clarity, accuracy, and completeness** in your responses.
 1. Use only the provided Context
    * Base your answer **exclusively** on the information contained in the `Context`.
    * **Never infer**, assume, or rely on any external knowledge.
-   * If the context is **insufficient**, **invite the user** to clarify their query or provide additional keywords.
+   * {refusal_instruction}
    * {citation_instruction}
 
 2. Language Consistency
@@ -235,7 +309,7 @@ Privilégiez la **clarté, l'exactitude et l'exhaustivité** dans vos réponses.
 1. Utilisez uniquement le Contexte fourni
    * Basez votre réponse **exclusivement** sur les informations contenues dans le `Contexte`.
    * **N'inférez jamais**, ne supposez pas et ne vous appuyez pas sur des connaissances externes.
-   * Si le contexte est **insuffisant**, **invitez l'utilisateur** à préciser sa requête ou à fournir des mots-clés supplémentaires.
+   * {refusal_instruction}
    * {citation_instruction}
 
 2. Cohérence linguistique
@@ -263,7 +337,7 @@ CHAT_SYSTEM_PROMPT = (
     "1. Use only the provided Context\n"
     "   * Base your answer **exclusively** on the information contained in the `Context`.\n"
     "   * **Never infer**, assume, or rely on any external knowledge.\n"
-    "   * If the context is **insufficient**, **invite the user** to clarify their query or provide additional keywords.\n"
+    "   * {refusal_instruction}\n"
     "   * {citation_instruction}\n"
     "\n"
     "2. Language Consistency\n"
@@ -285,7 +359,7 @@ CHAT_SYSTEM_PROMPT_FR = (
     "1. Utilisez uniquement le Contexte fourni\n"
     "   * Basez votre réponse **exclusivement** sur les informations contenues dans le `Contexte`.\n"
     "   * **N'inférez jamais**, ne supposez pas et ne vous appuyez pas sur des connaissances externes.\n"
-    "   * Si le contexte est **insuffisant**, **invitez l'utilisateur** à préciser sa requête ou à fournir des mots-clés supplémentaires.\n"
+    "   * {refusal_instruction}\n"
     "   * {citation_instruction}\n"
     "\n"
     "2. Cohérence linguistique\n"
@@ -306,7 +380,13 @@ class ConversionStats:
     skipped: int = 0
 
 
-def format_prompt(context: str, question: str, language: str, citation_instruction: str) -> str:
+def format_prompt(
+    context: str,
+    question: str,
+    language: str,
+    citation_instruction: str,
+    refusal_instruction: str,
+) -> str:
     """Format the prompt using the system template for the given language and citation style."""
     templates = {
         "en": SYSTEM_PROMPT_TEMPLATE,
@@ -317,6 +397,7 @@ def format_prompt(context: str, question: str, language: str, citation_instructi
         context=reformat_context_chunks(context),
         question=question,
         citation_instruction=citation_instruction,
+        refusal_instruction=refusal_instruction,
     )
 
 
@@ -327,27 +408,51 @@ def _pick_style_and_mode(rng) -> tuple:
     return style, end_of_completion
 
 
-def convert_row(row: dict, language: str = "en", rng=None) -> dict:
+def _pick_system_lang(rng, data_language: str, mixed_system_prompt: bool) -> str:
+    """Pick the language used for system prompt instructions.
+
+    When mixed_system_prompt is True and data is non-English, returns "en" with
+    probability MIXED_SYSTEM_EN_PROB so the model sees English instructions
+    alongside non-English data/answers.
+    """
+    if mixed_system_prompt and data_language != "en" and rng.random() < MIXED_SYSTEM_EN_PROB:
+        return "en"
+    return data_language
+
+
+def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: bool = False) -> dict:
     """Convert a single row to prompt/completion format with randomized citation style."""
     if rng is None:
         rng = random
 
     style, end_of_completion = _pick_style_and_mode(rng)
+    system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
+    is_unanswerable = row.get("is_unanswerable", False)
 
     instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
-    citation_instruction = instruction_dict.get(language, instruction_dict["en"])
+    citation_instruction = instruction_dict.get(system_lang, instruction_dict["en"])
+
+    # Refusal phrase stays in data language (assistant must reply in that language);
+    # the wrapping rule text follows system_lang.
+    refusal = _pick_refusal(rng, language)
+    specific_refusal_instruction = (
+        is_unanswerable and rng.random() < SPECIFIC_REFUSAL_INSTRUCTION_PROB
+    )
+    if specific_refusal_instruction:
+        refusal_instruction = _refusal_instruction(refusal, system_lang)
+    else:
+        refusal_instruction = _generic_refusal_instruction(system_lang)
 
     prompt = format_prompt(
         context=row["context"],
         question=row["question"],
-        language=language,
+        language=system_lang,
         citation_instruction=citation_instruction,
+        refusal_instruction=refusal_instruction,
     )
 
-    is_unanswerable = row.get("is_unanswerable", False)
     if is_unanswerable:
-        refusals = UNANSWERABLE_REFUSALS.get(language, UNANSWERABLE_REFUSALS["en"])
-        completion = rng.choice(refusals)
+        completion = refusal
     else:
         completion = normalize_cite_markers(row["reasoning_trace"])
         completion = apply_citation_style(completion, style, end_of_completion, language)
@@ -360,13 +465,17 @@ def convert_row(row: dict, language: str = "en", rng=None) -> dict:
     # Preserve metadata for reference
     metadata_fields = [
         # Original metadata
-        "id", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
+        "id", "original_dataset", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
         # Chunk composition metadata
         "chunks_relevant", "chunks_background_initial", "chunks_background_removed",
         "chunks_background_final", "chunks_total",
+        # Supporting facts metadata
+        "supporting_facts_titles",
         # Evaluation metadata (from evaluate_answers_v2.py)
         "eval_answer_correct", "eval_answer_match_type", "eval_extracted_answer",
         "eval_cited_titles", "eval_chunk_precision", "eval_chunk_recall", "eval_chunk_f1",
+        "eval_factual_judge_score", "eval_factual_judge_justification",
+        "eval_french_quality_judge_score", "eval_french_quality_judge_justification",
     ]
     for field in metadata_fields:
         if field in row:
@@ -375,6 +484,8 @@ def convert_row(row: dict, language: str = "en", rng=None) -> dict:
     # Citation variation metadata
     result["citation_style"] = style.name
     result["end_of_completion_citations"] = end_of_completion
+    result["system_prompt_language"] = system_lang
+    result["specific_refusal_instruction"] = specific_refusal_instruction
 
     return result
 
@@ -385,6 +496,7 @@ def convert_dataset(
     language: str = "en",
     include_metadata: bool = True,
     seed: int | None = None,
+    mixed_system_prompt: bool = False,
 ) -> ConversionStats:
     """Convert augmented dataset to prompt/completion format."""
     stats = ConversionStats()
@@ -397,13 +509,17 @@ def convert_dataset(
             row = json.loads(line)
 
             try:
-                converted = convert_row(row, language, rng)
+                converted = convert_row(row, language, rng, mixed_system_prompt=mixed_system_prompt)
 
                 if not include_metadata:
-                    converted = {
+                    minimal = {
                         "prompt": converted["prompt"],
                         "completion": converted["completion"],
                     }
+                    for keep_field in ("supporting_facts_titles", "chunks_total"):
+                        if keep_field in converted:
+                            minimal[keep_field] = converted[keep_field]
+                    converted = minimal
 
                 converted_rows.append(converted)
                 stats.converted += 1
@@ -428,6 +544,7 @@ def convert_to_chat_format(
     language: str = "en",
     include_metadata: bool = True,
     seed: int | None = None,
+    mixed_system_prompt: bool = False,
 ) -> ConversionStats:
     """Convert augmented dataset to chat/messages format for instruction fine-tuning."""
     stats = ConversionStats()
@@ -437,17 +554,20 @@ def convert_to_chat_format(
         "en": CHAT_SYSTEM_PROMPT,
         "fr": CHAT_SYSTEM_PROMPT_FR,
     }
-    system_prompt_template = system_prompts.get(language, CHAT_SYSTEM_PROMPT)
 
     metadata_fields = [
         # Original metadata
-        "id", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
+        "id", "original_dataset", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
         # Chunk composition metadata
         "chunks_relevant", "chunks_background_initial", "chunks_background_removed",
         "chunks_background_final", "chunks_total",
+        # Supporting facts metadata
+        "supporting_facts_titles",
         # Evaluation metadata (from evaluate_answers_v2.py)
         "eval_answer_correct", "eval_answer_match_type", "eval_extracted_answer",
         "eval_cited_titles", "eval_chunk_precision", "eval_chunk_recall", "eval_chunk_f1",
+        "eval_factual_judge_score", "eval_factual_judge_justification",
+        "eval_french_quality_judge_score", "eval_french_quality_judge_justification",
     ]
 
     with open(input_file, "r") as f_in, open(output_file, "w", encoding="utf-8") as f_out:
@@ -457,20 +577,32 @@ def convert_to_chat_format(
 
             try:
                 style, end_of_completion = _pick_style_and_mode(rng)
+                system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
+                is_unanswerable = row.get("is_unanswerable", False)
 
                 instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
-                citation_instruction = instruction_dict.get(language, instruction_dict["en"])
+                citation_instruction = instruction_dict.get(system_lang, instruction_dict["en"])
 
+                # Refusal phrase stays in data language; the wrapping rule text follows system_lang.
+                refusal = _pick_refusal(rng, language)
+                specific_refusal_instruction = (
+                    is_unanswerable and rng.random() < SPECIFIC_REFUSAL_INSTRUCTION_PROB
+                )
+                if specific_refusal_instruction:
+                    refusal_instruction = _refusal_instruction(refusal, system_lang)
+                else:
+                    refusal_instruction = _generic_refusal_instruction(system_lang)
+
+                system_prompt_template = system_prompts.get(system_lang, CHAT_SYSTEM_PROMPT)
                 reformatted_context = reformat_context_chunks(row["context"])
                 system_content = system_prompt_template.format(
                     context=reformatted_context,
                     citation_instruction=citation_instruction,
+                    refusal_instruction=refusal_instruction,
                 )
 
-                is_unanswerable = row.get("is_unanswerable", False)
                 if is_unanswerable:
-                    refusals = UNANSWERABLE_REFUSALS.get(language, UNANSWERABLE_REFUSALS["en"])
-                    assistant_content = rng.choice(refusals)
+                    assistant_content = refusal
                 else:
                     assistant_content = normalize_cite_markers(row["reasoning_trace"])
                     assistant_content = apply_citation_style(
@@ -491,6 +623,12 @@ def convert_to_chat_format(
                             chat_row[field] = row[field]
                     chat_row["citation_style"] = style.name
                     chat_row["end_of_completion_citations"] = end_of_completion
+                    chat_row["system_prompt_language"] = system_lang
+                    chat_row["specific_refusal_instruction"] = specific_refusal_instruction
+                else:
+                    for keep_field in ("supporting_facts_titles", "chunks_total"):
+                        if keep_field in row:
+                            chat_row[keep_field] = row[keep_field]
 
                 f_out.write(json.dumps(chat_row, ensure_ascii=False) + "\n")
                 stats.converted += 1
@@ -550,6 +688,10 @@ def main():
                         help="Exclude metadata (id, type, level) from output")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed for reproducible citation style and refusal choices")
+    parser.add_argument("--mixed-system-prompt", action="store_true",
+                        help=f"For non-English data, use English system-prompt instructions on "
+                             f"{int(MIXED_SYSTEM_EN_PROB*100)}%% of rows (query, docs, and answer stay in the data language). "
+                             f"Trains the model to handle English instructions paired with non-English content.")
 
     args = parser.parse_args()
 
@@ -570,6 +712,7 @@ def main():
     print(f"Language: {args.language}")
     print(f"Citation styles: {len(CITATION_STYLES)} variants, EOC ratio: {EOC_PROB:.0%}")
     print(f"Refusal variants: {len(UNANSWERABLE_REFUSALS.get(args.language, UNANSWERABLE_REFUSALS['en']))} per language")
+    print(f"Specific refusal instruction ratio: {SPECIFIC_REFUSAL_INSTRUCTION_PROB:.0%} of unanswerable rows")
     if args.seed is not None:
         print(f"Seed: {args.seed}")
 
@@ -579,6 +722,7 @@ def main():
             language=args.language,
             include_metadata=not args.no_metadata,
             seed=args.seed,
+            mixed_system_prompt=args.mixed_system_prompt,
         )
     else:
         stats = convert_dataset(
@@ -587,6 +731,7 @@ def main():
             language=args.language,
             include_metadata=not args.no_metadata,
             seed=args.seed,
+            mixed_system_prompt=args.mixed_system_prompt,
         )
 
     print_stats(stats, output_file)
