@@ -109,6 +109,7 @@ def format_context_chunks(
     max_remove_background_ratio: float = 0.7,
     min_chunks: int = 2,
     protected_background_titles: set[str] | None = None,
+    contextual_summaries: dict[str, str] | None = None,
 ) -> tuple[str, dict]:
     protected_background_titles = protected_background_titles or set()
     titles = context["title"]
@@ -153,13 +154,43 @@ def format_context_chunks(
     if shuffle:
         random.shuffle(final_chunks)
 
-    formatted = "\n\n".join(f"[{c['title']}]\n{c['text']}" for c in final_chunks)
+    # Renumber paragraph chunks sequentially so displayed order matches numbering.
+    # Non-paragraph titles (e.g. "Table") are kept as-is.
+    title_mapping: dict[str, str] = {}
+    para_counter = 0
+    for chunk in final_chunks:
+        old_title = chunk["title"]
+        if old_title.startswith("Paragraph"):
+            para_counter += 1
+            new_title = f"Paragraph {para_counter}"
+        else:
+            new_title = old_title
+        title_mapping[old_title] = new_title
+        chunk["title"] = new_title
+
+    if contextual_summaries:
+        # Map summaries to the new titles after renumbering
+        mapped_summaries: dict[str, str] = {}
+        for old_title, new_title in title_mapping.items():
+            if old_title in contextual_summaries:
+                mapped_summaries[new_title] = contextual_summaries[old_title]
+        parts = []
+        for c in final_chunks:
+            summary = mapped_summaries.get(c["title"], "")
+            parts.append(format_chunk_openrag(c["title"], c["text"], summary))
+        formatted = "\n\n".join(parts)
+    else:
+        formatted = "\n\n".join(
+            format_chunk_base(c["title"], c["text"]) for c in final_chunks
+        )
+
     stats = {
         "chunks_relevant": num_relevant,
         "chunks_background_initial": num_background_initial,
         "chunks_background_removed": num_background_removed,
         "chunks_background_final": num_background_initial - num_background_removed,
         "chunks_total": len(final_chunks),
+        "title_mapping": title_mapping,
     }
     return formatted, stats
 
@@ -253,6 +284,140 @@ async def call_llm(
         if data is not None:
             return data["choices"][0]["message"]["content"]
     return None
+
+
+# ---------------------------------------------------------------------------
+# Contextual Retrieval — OpenRAG chunk contextualisation
+# ---------------------------------------------------------------------------
+
+CONTEXTUALIZER_SYSTEM_PROMPT = """\
+You are an AI assistant and your task is to write a short, contextual \
+summary (1-2 sentences) for the current chunk using the following elements.
+
+- Filename: Document name and type identifying the source
+- First Chunks: Opening content establishing the document's main subject/purpose
+- Previous Chunks: Immediately preceding content showing continuation or transition
+- Current Chunk: The content being contextualized
+
+## Core Principles
+- Analyze continuity carefully: Determine if the current chunk continues, \
+concludes, or starts a new section relative to previous content
+- Write the contextual summary in the same language as the current chunk
+- For tables or image descriptions, focus on contextual significance \
+rather than repeating descriptive details
+
+## Output Format
+- Plain text only—no markdown, bullet points, or explanatory preamble
+- 1-2 concise sentences maximum
+- Standalone and independently comprehensible context
+
+## Examples
+- This part of the research paper presents the methodology following \
+the literature review on climate modeling.
+- This section includes performance charts and KPI metrics that quantify \
+the operational improvements.
+- The health study continues with demographic tables and numerical outcomes \
+from the clinical trial.
+- This section continues the listing of recommended measures to enhance sovereignty."""
+
+
+_LANG_NAMES = {"en": "English", "fr": "French", "de": "German", "es": "Spanish", "ru": "Russian"}
+
+
+def _build_contextualizer_user_prompt(
+    filename: str,
+    first_chunks: list[dict],
+    prev_chunks: list[dict],
+    current_chunk: dict,
+    language: str,
+) -> str:
+    first_text = "\n--\n".join(c["text"] for c in first_chunks)
+    prev_text = "\n--\n".join(c["text"] for c in prev_chunks) if prev_chunks else ""
+    lang_name = _LANG_NAMES.get(language, language)
+    return (
+        f"Here is the context to consider for generating the context:\n"
+        f"- Filename: {filename}\n"
+        f"- First chunks:\n{first_text}\n\n"
+        f"- Previous chunks:\n{prev_text}\n\n"
+        f"Here is the current chunk to contextualize strictly in this {lang_name} language:\n"
+        f"- Current chunk:\n\n{current_chunk['text']}"
+    )
+
+
+async def contextualize_chunks(
+    session: aiohttp.ClientSession,
+    chunks: list[dict],
+    semaphore: asyncio.Semaphore,
+    *,
+    api_key: str,
+    language: str = "en",
+    filename: str = "Document",
+    max_retries: int = 3,
+    timeout_seconds: int = 120,
+    debug_http: bool = False,
+) -> dict[str, str]:
+    """Generate contextual summaries for ordered chunks following OpenRAG logic.
+
+    *chunks* must be in document order: [{"title": str, "text": str}, ...].
+    Returns a mapping title → contextual summary (1-2 sentences).
+    """
+    if len(chunks) < 2:
+        return {}
+
+    first_chunks = chunks[:2]
+
+    async def _one(i: int) -> tuple[str, str]:
+        chunk = chunks[i]
+        prev = chunks[max(0, i - 2):i]
+        user_prompt = _build_contextualizer_user_prompt(
+            filename=filename,
+            first_chunks=first_chunks,
+            prev_chunks=prev,
+            current_chunk=chunk,
+            language=language,
+        )
+        payload = {
+            "model": LLM_MODEL,
+            "messages": [
+                {"role": "system", "content": CONTEXTUALIZER_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.1,
+            "max_tokens": 150,
+        }
+        async with semaphore:
+            data = await post_chat_completion(
+                session,
+                api_url=LLM_API_URL,
+                api_key=api_key,
+                payload=payload,
+                max_retries=max_retries,
+                timeout_seconds=timeout_seconds,
+                debug_http=debug_http,
+            )
+        if data is not None:
+            return chunk["title"], data["choices"][0]["message"]["content"].strip()
+        return chunk["title"], ""
+
+    results = await asyncio.gather(*[_one(i) for i in range(len(chunks))])
+    return dict(results)
+
+
+def format_chunk_base(title: str, text: str) -> str:
+    """Format a single chunk in the OpenRAG base style (no contextual summary)."""
+    return (
+        f"* filename: {title}\n\n"
+        f"[CHUNK_START]\n{text}\n[CHUNK_END]"
+    )
+
+
+def format_chunk_openrag(title: str, text: str, summary: str) -> str:
+    """Format a single chunk in the OpenRAG contextualised style."""
+    return (
+        f"[CONTEXT]\n{summary}\n"
+        f"* filename: {title}\n\n"
+        f"[CHUNK_START]\n{text}\n[CHUNK_END]"
+    )
 
 
 def _extract_json(text: str) -> dict:

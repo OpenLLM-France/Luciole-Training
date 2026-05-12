@@ -13,6 +13,7 @@ from utils import (
     LLM_MODEL,
     Metrics,
     call_llm,
+    contextualize_chunks,
     format_context_chunks,
     load_checkpoint_ids,
     load_env_key,
@@ -44,10 +45,27 @@ UNANSWERABLE_REFUSAL_EN = (
 def load_or_cache_dataset(dataset_path: str | None = None):
     if dataset_path:
         custom_path = Path(dataset_path)
-        if custom_path.exists():
-            log(f"Loading dataset from: {custom_path}")
-            return Dataset.load_from_disk(str(custom_path))
-        raise FileNotFoundError(f"Dataset not found: {custom_path}")
+        if not custom_path.exists():
+            raise FileNotFoundError(f"Dataset not found: {custom_path}")
+        if custom_path.suffix == ".jsonl":
+            log(f"Loading dataset from JSONL: {custom_path}")
+            rows = []
+            with open(custom_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        row = json.loads(line)
+                        # Preserve unanswerable flags when loading heterogeneous JSONL rows.
+                        row["_is_unanswerable"] = bool(row.get("_is_unanswerable", False))
+                        if "_unanswerable_reasoning" in row:
+                            row["_unanswerable_reasoning"] = row.get("_unanswerable_reasoning")
+                        rows.append(row)
+            all_keys = set().union(*(row.keys() for row in rows)) if rows else set()
+            for row in rows:
+                for key in all_keys:
+                    row.setdefault(key, None)
+            return Dataset.from_list(rows)
+        log(f"Loading dataset from: {custom_path}")
+        return Dataset.load_from_disk(str(custom_path))
 
     if DATASET_CACHE_DIR.exists():
         log(f"Loading dataset from cache: {DATASET_CACHE_DIR}")
@@ -133,8 +151,21 @@ async def process_row(
     language: str = "en",
     shuffle: bool = True,
     max_remove_background_ratio: float = 0.7,
+    contextualize: bool = False,
 ) -> dict | None:
     is_unanswerable = row.get("_is_unanswerable", False)
+
+    # Optionally compute contextual summaries (skip for unanswerable)
+    summaries: dict[str, str] | None = None
+    if contextualize and not is_unanswerable:
+        chunks = []
+        for title, sents in zip(row["context"]["title"], row["context"]["sentences"]):
+            text = " ".join(sents).strip() if isinstance(sents, list) else str(sents).strip()
+            chunks.append({"title": title, "text": text})
+        summaries = await contextualize_chunks(
+            session, chunks, semaphore,
+            api_key=LLM_API_KEY, language=language,
+        )
 
     context_str, chunk_stats = format_context_chunks(
         context=row["context"],
@@ -142,10 +173,15 @@ async def process_row(
         shuffle=shuffle,
         max_remove_background_ratio=max_remove_background_ratio,
         min_chunks=3,
+        contextual_summaries=summaries,
     )
 
     if is_unanswerable:
-        reasoning = row.get("_unanswerable_reasoning", UNANSWERABLE_REFUSAL_EN)
+        default_refusal = {
+            "en": UNANSWERABLE_REFUSAL_EN,
+            "fr": UNANSWERABLE_REASONING_FR,
+        }.get(language, UNANSWERABLE_REFUSAL_EN)
+        reasoning = row.get("_unanswerable_reasoning", default_refusal)
     else:
         system_prompt = {"en": SYSTEM_PROMPT, "fr": SYSTEM_PROMPT_FR}.get(language, SYSTEM_PROMPT)
         reasoning = await call_llm(
@@ -156,7 +192,11 @@ async def process_row(
     if reasoning is None:
         return None
 
-    sf_titles = list(dict.fromkeys(row["supporting_facts"]["title"]))
+    title_mapping = chunk_stats.pop("title_mapping", {})
+    sf_titles = list(dict.fromkeys(
+        title_mapping.get(t, t)
+        for t in row["supporting_facts"]["title"]
+    ))
     return {
         "id": row["id"],
         "question": row["question"],
@@ -181,10 +221,14 @@ async def main(
     shuffle: bool = True,
     max_remove_background_ratio: float = 0.7,
     seed: int | None = None,
+    contextualize_ratio: float = 0.0,
 ):
     if seed is not None:
         random.seed(seed)
         log(f"Random seed: {seed}")
+
+    if not 0.0 <= contextualize_ratio <= 1.0:
+        raise ValueError("--contextualize-ratio must be between 0.0 and 1.0")
 
     ds = load_or_cache_dataset(dataset_path)
 
@@ -208,6 +252,11 @@ async def main(
     if needs_llm and not LLM_API_KEY:
         raise ValueError("LLM_API_KEY is required to process answerable rows (set in .env file or environment)")
 
+    if contextualize_ratio > 0:
+        log(f"Contextualize ratio: {contextualize_ratio:.0%}")
+
+    ctx_flags = [random.random() < contextualize_ratio for _ in rows_to_process]
+
     log(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     metrics = Metrics(total_rows=len(rows_to_process))
     semaphore = asyncio.Semaphore(concurrency)
@@ -219,14 +268,16 @@ async def main(
 
             for bidx, batch_start in enumerate(range(0, len(rows_to_process), batch_size), start=1):
                 batch = rows_to_process[batch_start:batch_start + batch_size]
+                batch_flags = ctx_flags[batch_start:batch_start + batch_size]
                 tasks = [
                     process_row(
                         session, row, semaphore,
                         language=language,
                         shuffle=shuffle,
                         max_remove_background_ratio=max_remove_background_ratio,
+                        contextualize=flag,
                     )
-                    for row in batch
+                    for row, flag in zip(batch, batch_flags)
                 ]
                 results = await asyncio.gather(*tasks)
 
@@ -267,6 +318,8 @@ if __name__ == "__main__":
     parser.add_argument("--no-shuffle", action="store_true", help="Disable chunk shuffling")
     parser.add_argument("--max-remove-background-ratio", type=float, default=0.7, help="Max fraction of background chunks to remove")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
+    parser.add_argument("--contextualize-ratio", type=float, default=0.0,
+                        help="Fraction of rows to format with OpenRAG contextual summaries (0.0–1.0)")
 
     args = parser.parse_args()
 
@@ -280,4 +333,5 @@ if __name__ == "__main__":
         shuffle=not args.no_shuffle,
         max_remove_background_ratio=args.max_remove_background_ratio,
         seed=args.seed,
+        contextualize_ratio=args.contextualize_ratio,
     ))
