@@ -1,3 +1,8 @@
 custom|longbench_hotpotqa|0
 custom|longbench_musique|0
-custom|longbench_passage_retrieval_en|0
+custom|longbench_2wikimqa|0
+
+custom|hotpotqa_hotpotqa|0
+
+# Citation like
+# custom|longbench_passage_retrieval_en|0

@@ -192,6 +192,16 @@ task_group_mapping = {
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
         ("lighteval|gsm8k|0", "extractive_match"),
+        ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
+        ("custom|longbench_hotpotqa|0", "qa_f1_score"),
+        ("custom|longbench_musique|0", "qa_f1_score"),
+        ("custom|longbench_2wikimqa|0", "qa_f1_score"),
+    ],
+    "rag": [
+        ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
+        ("custom|longbench_hotpotqa|0", "qa_f1_score"),
+        ("custom|longbench_musique|0", "qa_f1_score"),
+        ("custom|longbench_2wikimqa|0", "qa_f1_score"),
     ],
 }
 

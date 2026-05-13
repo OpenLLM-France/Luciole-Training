@@ -307,7 +307,7 @@ def launch_evaluation(
                     task_to_evaluate="tasks/rag.txt",
                     multiple_of=multiple_of,
                     command=command,
-                    custom_tasks="longbench",
+                    custom_tasks="rag",
                     gpus=gpus,
                 ),
             ]
