@@ -76,7 +76,7 @@ class DolciFilter(BaseFilter):
         doc.metadata["tools"] = tools
 
         rendered = self.tokenizer.apply_chat_template(
-            [{"role": "system", "content": system_turn.get("content", "")}],
+            [{"role": "system", "content": ""}],
             tools=tools,
             tokenize=False,
         )
