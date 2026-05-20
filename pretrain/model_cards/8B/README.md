@@ -185,7 +185,7 @@ Pretraining consisted of three principal phases of training with a context lengt
 
 Pretraining was followed by one short mid-training phases to extend the context length to 131,072 tokens:
 
-5. Context extension: 100 billion tokens to extend context length from 32,768 to 131,072 tokens
+4. Context extension: 100 billion tokens to extend context length from 4,096 to 131,072 tokens
 
 <!-- This yields the following distributions.-->
 
@@ -270,8 +270,8 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
-| Total \# samples| 190,720 (25B tokens) |
-| Total \# steps  | 5,960 |
+| Total \# samples| 762,912 (100B tokens) |
+| Total \# steps  | 23,841|
 | Context length         | 131,072 |
 | Batch size             | 32 |
 | Context Parallelism (with 128 GPUs)  | 8          |

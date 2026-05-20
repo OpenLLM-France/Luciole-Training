@@ -221,7 +221,7 @@ with the following hyperparameters:
 | Activation                |  `relu2`|
 
 
-The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below Note that rotary positional embeddings (RoPE) are applied to the first 50% of the per-head query and key dimensions (`rotary_percent = 0.5`), with the remaining dimensions left unchanged.
+The "theta" parameter of Rotary Positional Embedding (RoPE) was increased during the context extension phases training process. Its values are indicated in the tables with training hyperparameters below. Note that rotary positional embeddings (RoPE) are applied to the first 50% of the per-head query and key dimensions (`rotary_percent = 0.5`), with the remaining dimensions left unchanged.
 
 #### Training Hyperparameters
 
