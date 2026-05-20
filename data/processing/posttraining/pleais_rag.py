@@ -8,54 +8,64 @@ from utils import instruct_adapter, _custom_adapter_for_hf, HF_SCHEMA
 
 
 def format_data(
-    data, rank: int = 0, world_size: int = 1, tokenizer=None, format="openrag"
+    data,
+    rank: int = 0,
+    world_size: int = 1,
+    tokenizer=None,
+    format="openrag",
 ):
-    SYSTEM_PROMPT = """You are a helpful AI assistant named Luciole, trained by LINAGORA and OpenLLM France.
+    RAG_PROMPT = """You are an AI conversational assistant specialized in information retrieval and synthesis.
+Your goal is to provide precise, reliable, and well-structured answers using only the retrieved documents.
+Prioritize clarity, accuracy, and completeness in your responses.
+"""
 
-## Rules:
-- Use only the provided sources; no external knowledge.
-- Write clear paragraph answers.
-- Every factual claim must include an inline citation: <ref name="source_k">exact quoted text</ref>
-- The source name must match the provided source IDs (e.g., source_1).
-- Quotes inside <ref> must be copied exactly from the sources.
-- Do not add unsupported information.
-- If the answer is not in the sources, say so explicitly.
+    CITATION_PROMPT = """
+## Citation:
 
+- Use inline <ref name="source_N">...</ref> tags immediately after the claim they support, with no space before the tag.
+- Inside the tag, copy or closely paraphrase the relevant excerpt from the source.
+- Name each reference after its source number (e.g. source_1, source_4).
+- The same name attribute can be reused for multiple citations from the same source, each time with the excerpt relevant to that specific claim.
+"""
+
+    SOURCES_PROMPT = """
 ## Sources:
+
 {sources}
 """
+    import random
+
     for doc in data:
-        # urls = [doc.metadata["query_seed_url"]]
-        # tool_calls = [url for url in urls]
-        # tool_messages = [
-        #     {"role": "assistant", "content": "", "tool_calls": tool_calls},
-        #     {"role": "tool", "content": "TOOL RESPONSE"},
-        # ]
+        remove_citation = random.random() < 0.1  # 10% of the time, remove citations
+        doc.metadata["remove_citation"] = remove_citation
+
+        SYSTEM_PROMPT = (
+            RAG_PROMPT
+            + (CITATION_PROMPT if not remove_citation else "")
+            + SOURCES_PROMPT.format(sources=doc.metadata.pop("constraints"))
+        )
+
+        answer = doc.metadata.pop("synthetic_answer")
+        if remove_citation:
+            # Remove all <ref name="source_N">...</ref> tags from the answer
+            import re
+
+            answer = re.sub(r'<ref name="source_\d+">.*?</ref>', "", answer)
+
         if "openrag" in format:
             messages = [
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT.format(
-                        sources=doc.metadata.pop("constraints")
-                    ),
-                },
+                {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": doc.metadata.pop("query")},
                 {
                     "role": "assistant",
-                    "content": doc.metadata.pop("synthetic_answer"),
-                    "reasoning_content": doc.metadata.get("synthetic_reasoning")
-                    if "thinking" in format
-                    else "",
+                    "content": "<think>\n\n"
+                    + doc.metadata.get("synthetic_reasoning").strip()
+                    + "\n\n</think>\n\n"
+                    + answer,
                 },
             ]
         else:
-            messages = [
-                {"role": "system", "content": ""},
-                {"role": "user", "content": doc.metadata.pop("query")},
-                {"role": "assistant", "content": "TOOL CALL"},
-                {"role": "tool", "content": doc.metadata.pop("constraints")},
-                {"role": "assistant", "content": doc.metadata.pop("synthetic_answer")},
-            ]
+            return NotImplementedError(f"Format {format} not implemented yet.")
         doc.metadata["messages"] = messages
         doc.text = tokenizer.apply_chat_template(
             messages,
@@ -64,25 +74,12 @@ def format_data(
         yield doc
 
 
-def add_thinking_tags(data, rank: int = 0, world_size: int = 1):
-    for doc in data:
-        messages = doc.metadata["messages"]
-        for message in messages:
-            if "reasoning_content" in message and message["reasoning_content"]:
-                message["content"] = (
-                    "<think>\n"
-                    + message.pop("reasoning_content").strip()
-                    + "\n</think>\n\n"
-                    + message["content"]
-                )
-        yield doc
-
-
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
         "--format",
-        choices=["tool", "openrag", "openrag_thinking"],
+        choices=["tool", "openrag"],
+        default="openrag",
         help="Use OpenRAG format (documents in the system prompt)",
     )
     args = parse_args(parser)
@@ -92,46 +89,52 @@ if __name__ == "__main__":
         "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
-    if not args.push_only:
-        pipeline = [
-            HuggingFaceDatasetReader(
-                "PleIAs/SYNTH",
-                {"split": "train"},
-                streaming=True,
-                adapter=instruct_adapter,
-            ),
-            LambdaFilter(
-                lambda doc: doc.metadata["model"].strip() == "qwen-3-8b-rag",
-            ),
-            partial(format_data, tokenizer=tokenizer, format=args.format),
-            JsonlWriter(
-                f"{DATA_PATH}/pleais_rag/{args.format}/data",
-                output_filename="${language}/${rank}.jsonl.gz",
-                expand_metadata=True,
-            ),
-        ]
+    ##########
+    # Process the data
+    ##########
 
-        main_processing_executor = create_executor(
-            pipeline,
-            local=args.local,
-            debug=args.debug,
-            logging_dir=f"{DATA_PATH}/pleais_rag/{args.format}/logs",
-            job_name="pleais_rag_{format}",
-            tasks=10,
-            time="00:30:00",
-            # partition="cpu_p1",
-            qos="qos_cpu-dev",
-            skip_completed=not args.force,
-        )
+    pipeline = [
+        HuggingFaceDatasetReader(
+            "PleIAs/SYNTH",
+            {"split": "train"},
+            streaming=True,
+            adapter=instruct_adapter,
+        ),
+        LambdaFilter(
+            lambda doc: doc.metadata["model"].strip() == "qwen-3-8b-rag",
+        ),
+        partial(format_data, tokenizer=tokenizer, format=args.format),
+        JsonlWriter(
+            f"{DATA_PATH}/pleais_rag/{args.format}/data",
+            output_filename="${language}/${rank}.jsonl.gz",
+            expand_metadata=True,
+        ),
+    ]
+
+    main_processing_executor = create_executor(
+        pipeline,
+        local=args.local,
+        debug=args.debug,
+        logging_dir=f"{DATA_PATH}/pleais_rag/{args.format}/logs",
+        job_name=f"pleais_rag_{args.format}",
+        tasks=10,
+        time="00:30:00",
+        # partition="cpu_p1",
+        qos="qos_cpu-dev",
+        skip_completed=not args.force,
+    )
+
+    if args.debug:
         main_processing_executor.run()
 
-    elif args.format == "openrag_thinking":
+    else:
+        ##########
         # Push to hub
+        ##########
         pipeline = [
             JsonlReader(
                 f"{DATA_PATH}/pleais_rag/{args.format}/data",
             ),
-            add_thinking_tags,
             HuggingFaceDatasetWriter(
                 dataset="OpenLLM-France/PleAIs_RAG",
                 private=True,
@@ -159,6 +162,7 @@ if __name__ == "__main__":
             job_name="pleais_rag",
             tasks=1,
             skip_completed=not args.force,
+            depends=main_processing_executor,
         )
 
         hf_executor.run()
