@@ -11,5 +11,5 @@
 if [ -z "$1" ]; then
     python auto_eval.py --help
 else
-    python auto_eval.py "$1"
+    python auto_eval.py "$@"
 fi
