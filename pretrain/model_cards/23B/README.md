@@ -248,7 +248,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Pipeline Parallelism (with 512 GPUs) | 2           |
 | Data Parallelism (with 512 GPUs)     | 64         |
 
-**2. Continual Pretraining**
+**2. Continued Pretraining**
 
 | **Hyperparameter**     | **Value**  |
 |------------------------|------------|
