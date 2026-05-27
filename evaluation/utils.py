@@ -122,6 +122,10 @@ def get_training_tokens_and_model_size(file_path):
         match = re.search(r"Qwen2-([0-9.]+)B", str(file_path))
         model_size = float(match.group(1))
         tokens = 7000
+    elif "Olmo-3" in str(file_path):
+        match = re.search(r"Olmo-3-([0-9.]+)B", str(file_path))
+        model_size = int(match.group(1))
+        tokens = 6000
     elif (
         ("luciol" in str(file_path).lower())
         or ("llama1b" in str(file_path).lower())
