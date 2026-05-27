@@ -3,36 +3,33 @@ from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from transformers import AutoTokenizer
-from utils import apply_chat_template, instruct_adapter
+from utils import (
+    apply_chat_template,
+    instruct_adapter,
+    check_last_message,
+    add_system_prompt,
+)
 
 
 def format_messages(
     data,
     rank: int = 0,
     world_size: int = 1,
-    tokenizer=None,
 ):
     import json
-    import re
     import random
 
     for doc in data:
         tools = doc.metadata.get("tools", [])
         tools = [json.loads(tool) for tool in tools]
+        tools = [{"type": "function", "function": tool} for tool in tools]
         random.shuffle(tools)
+        doc.metadata["tools"] = tools
 
-        system_prompt = tokenizer.apply_chat_template(
-            [{"role": "system", "content": ""}],
-            tools=tools,
-            tokenize=False,
-        )
-        system_prompt = re.search(
-            r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
-        ).group(1)
-
-        doc.metadata["messages"] = [
-            {"role": "system", "content": system_prompt},
-        ] + doc.metadata["messages"]
+        if any(
+            "<tool_calls>" in message["content"] for message in doc.metadata["messages"]
+        ):
+            raise ValueError("Tool calls should not be in the messages")
         yield doc
 
 
@@ -67,10 +64,13 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         annotate_refusal,
-        partial(format_messages, tokenizer=tokenizer),
+        format_messages,
+        # partial(replace_tool_name, rename_names=True, rename_params=False),
+        partial(add_system_prompt, tokenizer=tokenizer),
         partial(apply_chat_template, tokenizer=tokenizer),
+        check_last_message,
         JsonlWriter(
-            f"{DATA_PATH}/when2call/data",
+            f"{DATA_PATH}/when2call_oaiformat/data",
             output_filename="${refusal}/${rank}.jsonl",
             expand_metadata=True,
         ),
@@ -80,8 +80,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/when2call/logs",
-        job_name="when2call",
+        logging_dir=f"{DATA_PATH}/when2call_oaiformat/logs",
+        job_name="when2call_oaiformat",
         tasks=1,
         time="00:30:00",
         # partition="cpu_p1",

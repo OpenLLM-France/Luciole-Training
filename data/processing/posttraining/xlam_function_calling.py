@@ -8,6 +8,7 @@ from utils import (
     apply_chat_template,
     instruct_adapter,
     check_last_message,
+    add_system_prompt,
 )
 
 
@@ -15,29 +16,64 @@ def format_messages(
     data,
     rank: int = 0,
     world_size: int = 1,
-    tokenizer=None,
 ):
     import json
-    import re
     import random
+
+    def convert_to_openai_format(tool: dict) -> dict:
+        """
+        Converts a custom tool schema to OpenAI function calling format.
+
+        Args:
+            tool: Dictionary with name, description, and parameters fields
+
+        Returns:
+            OpenAI-compatible tool definition
+        """
+        properties = {}
+        required = []
+
+        for param_name, param_info in tool.get("parameters", {}).items():
+            prop = {
+                "type": param_info.get("type", "string")
+                .split(",")[0]
+                .strip(),  # handle "str, optional"
+                "description": param_info.get("description", ""),
+            }
+
+            # Add default if present
+            if "default" in param_info:
+                prop["default"] = param_info["default"]
+
+            properties[param_name] = prop
+
+            # Mark as required only if not optional
+            if "optional" not in param_info.get("type", ""):
+                required.append(param_name)
+
+        return {
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool.get("description", ""),
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
+            },
+        }
 
     for doc in data:
         tools = doc.metadata.get("tools", None)
         tools = json.loads(tools)
+        # Format argument as OpenAI
+        tools = [convert_to_openai_format(tool) for tool in tools]
         if tools:
             random.shuffle(tools)
-
-        system_prompt = tokenizer.apply_chat_template(
-            [{"role": "system", "content": ""}],
-            tools=tools,
-            tokenize=False,
-        )
-        system_prompt = re.search(
-            r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
-        ).group(1)
+        doc.metadata["tools"] = tools
 
         doc.metadata["messages"] = [
-            {"role": "system", "content": system_prompt},
             {"role": "user", "content": doc.metadata.pop("query")},
             {
                 "role": "assistant",
@@ -60,17 +96,19 @@ if __name__ == "__main__":
         HuggingFaceDatasetReader(
             "Salesforce/xlam-function-calling-60k",
             {"split": "train"},
-            streaming=True,
+            # streaming=True,
             adapter=instruct_adapter,
         ),
-        partial(format_messages, tokenizer=tokenizer),
+        format_messages,
+        # partial(replace_tool_name, rename_names=True, rename_params=False),
+        partial(add_system_prompt, tokenizer=tokenizer),
         partial(apply_chat_template, tokenizer=tokenizer),
         check_last_message,
         FilterChinese(
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/xlam/chinese_heavy"),
         ),
         JsonlWriter(
-            f"{DATA_PATH}/xlam/data",
+            f"{DATA_PATH}/xlam_oaiformat/data",
             expand_metadata=True,
         ),
     ]
@@ -79,8 +117,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/xlam/logs",
-        job_name="xlam",
+        logging_dir=f"{DATA_PATH}/xlam_oaiformat/logs",
+        job_name="xlam_oaiformat",
         tasks=1,
         time="00:30:00",
         partition="cpu_p1",

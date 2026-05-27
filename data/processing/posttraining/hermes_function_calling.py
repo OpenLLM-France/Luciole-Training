@@ -8,12 +8,16 @@ from utils import (
     apply_chat_template,
     instruct_adapter,
     check_last_message,
+    add_system_prompt,
 )
 from smolagents_toolcalling import clean_tool_response
 
 
-def reformat_messages(data, rank: int = 0, world_size: int = 1):
-    def _reformat_messages(messages):
+def format_messages(data, rank: int = 0, world_size: int = 1):
+    import json
+    import re
+
+    def _format_messages(messages):
         role_map = {
             "system": "system",
             "human": "user",
@@ -26,44 +30,45 @@ def reformat_messages(data, rank: int = 0, world_size: int = 1):
             for turn in messages
         ]
 
+    def extract_tools_from_system_prompt(text: str) -> list[dict]:
+        matches = re.findall(r"<tools>(.*?)</tools>", text, re.DOTALL)
+        tools_json_str = next((m.strip() for m in matches if m.strip()), None)
+        if tools_json_str:
+            return json.loads(tools_json_str)
+        return []
+
     for doc in data:
+        # HF conv format
         messages = doc.metadata.pop("conversations")
-        doc.metadata["messages"] = _reformat_messages(messages)
-        yield doc
+        messages = _format_messages(messages)
 
-
-def reset_system_prompt(
-    data,
-    rank: int = 0,
-    world_size: int = 1,
-    tokenizer=None,
-):
-    import re
-    import json
-    import random
-
-    for document in data:
-        messages = document.metadata["messages"]
+        # Remove system prompt if exists, we will add it back later to ensure consistency
         if messages[0]["role"] == "system":
-            messages = messages[1:]
+            system_prompt, messages = messages[0], messages[1:]
+        else:
+            raise ValueError("First message should be system prompt")
+        doc.metadata["messages"] = messages
 
-        tools = document.metadata.get("tools", None)
-        tools = json.loads(tools)
-        if tools:
-            random.shuffle(tools)
+        # Format tools
+        doc.metadata.pop("tools")  # Not always correct
+        try:
+            doc.metadata["tools"] = extract_tools_from_system_prompt(
+                system_prompt["content"]
+            )
+        except Exception:
+            continue
 
-        system_prompt = tokenizer.apply_chat_template(
-            [{"role": "system", "content": ""}],
-            tools=tools,
-            tokenize=False,
-        )
-        system_prompt = re.search(
-            r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
-        ).group(1)
-        document.metadata["messages"] = [
-            {"role": "system", "content": system_prompt}
-        ] + messages
-        yield document
+        # Format tool_calls
+        for message in doc.metadata["messages"]:
+            if message["role"] == "assistant" and "<tool_call>" in message:
+                tool_calls = re.sub(
+                    r"<tool_call>(.*?)</tool_call>",
+                    r"\1",
+                    message["content"],
+                    flags=re.DOTALL,
+                )
+                message["tool_calls"] = json.loads(tool_calls)
+        yield doc
 
 
 if __name__ == "__main__":
@@ -75,7 +80,7 @@ if __name__ == "__main__":
         "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
-    for subset in ["func_calling", "func_calling_singleturn", "glaive_func_calling"]:
+    for subset in ["func_calling", "glaive_func_calling"]:
         pipeline = [
             HuggingFaceDatasetReader(
                 "NousResearch/hermes-function-calling-v1",
@@ -83,18 +88,19 @@ if __name__ == "__main__":
                 streaming=True,
                 adapter=instruct_adapter,
             ),
-            reformat_messages,
-            partial(reset_system_prompt, tokenizer=tokenizer),
+            format_messages,
+            # partial(replace_tool_name, rename_names=True, rename_params=False),
+            partial(add_system_prompt, tokenizer=tokenizer),
             clean_tool_response,
             check_last_message,
             partial(apply_chat_template, tokenizer=tokenizer),
             FilterChinese(
                 exclusion_writer=JsonlWriter(
-                    f"{DATA_PATH}/hermes_function_calling/{subset}/chinese_heavy"
+                    f"{DATA_PATH}/hermes_oai_format/{subset}/chinese_heavy"
                 ),
             ),
             JsonlWriter(
-                f"{DATA_PATH}/hermes_function_calling/{subset}/data",
+                f"{DATA_PATH}/hermes_oai_format/{subset}/data",
                 expand_metadata=True,
             ),
         ]
@@ -103,8 +109,8 @@ if __name__ == "__main__":
             pipeline,
             local=args.local,
             debug=args.debug,
-            logging_dir=f"{DATA_PATH}/hermes_function_calling/{subset}/logs",
-            job_name="hermes_function_calling",
+            logging_dir=f"{DATA_PATH}/hermes_oai_format/{subset}/logs",
+            job_name="hermes_oai_format",
             tasks=1,
             time="00:30:00",
             # partition="cpu_p1",
