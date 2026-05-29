@@ -76,7 +76,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--rate",
-        default=0.1,
+        default=1.,
         type=float
     )
     args = parse_args(parser)
