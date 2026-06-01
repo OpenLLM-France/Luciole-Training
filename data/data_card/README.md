@@ -1,9 +1,12 @@
 # Data card for The Luciole Training Dataset 
 
- <!--![transparent_text.png](transparent_text.png)-->
+![luciole_logo.png](luciole_logo.png)
+
+<!-- inspired from the following template:
+https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/datasetcard_template.md
+-->
 
 **Table of Contents**
-
 * [Dataset Description](#dataset-description)
   * [Curation Rationale](#curation-rationale)
     * [Web Data Opt-Outs](#web-data-opt-outs)
@@ -11,10 +14,9 @@
   * [Bias, Risks, and Limitations](#bias-risks-and-limitations)
     * [Recommendations](#recommendations)
   * [Sample Metadata](#sample-metadata)
-  <!-- * [Dataset Composition](#dataset-composition) -->
 * [Downloading the Data](#downloading-the-data)
   * [Sample Use in Python](#sample-use-in-python)
-  * [Accessing the English Web Data](#accessing-the-english-web-data)
+  * [Accessing the English Web Data and OpenMathInstruct-1](#accessing-the-english-web-data-and-openmathinstruct-1)
 * [Details on Data Sources](#details-on-data-sources)
 * [Citation](#citation)
 * [Acknowledgements](#acknowledgements)
@@ -27,11 +29,11 @@
 The Luciole Training Dataset is a curated collection of multilingual text data designed for language model pretraining. The data are culled from a variety of sources including: web data, video subtitles, academic papers,
 digital books, newspapers, and magazines, some of which were processed by Optical Character Recognition (OCR). The dataset also contains samples of diverse programming languages and some instruction-style and reasoning data.
 
-The Luciole Training Dataset was created by the consortium of the [OpenLLM France](https://openllm-france.fr/) project funded by [BPI France](https://www.bpifrance.fr/) as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program. Datasets were processed and stored on the [GENCI](https://www.genci.fr/) supercomputer Jean Zay, managed by [IDRIS](http://www.idris.fr/eng/index.html).
+The Luciole Training Dataset was created by the consortium of the [OpenLLM France](https://openllm-france.fr/) project funded by [BPI France](https://www.bpifrance.fr/) as a part of the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program. Datasets were processed and stored on the [GENCI](https://www.genci.fr/) supercomputer Jean Zay, managed by [IDRIS](http://www.idris.fr/docs/idris/missions).
 
 It was used to pretrain the Luciole family of models, including [Luciole-1B-Base](https://huggingface.co/OpenLLM-France/Luciole-1B-Base), [Luciole-8B-Base](https://huggingface.co/OpenLLM-France/Luciole-8B-Base) and [Luciole-23B-Base](https://huggingface.co/OpenLLM-France/Luciole-23B-Base), foundation LLMs with strong capabilities in French and English. 
 
-Due to storage constraints, the English web data from the Luciole Training Dataset is published elsewhere (see [Accessing the English Web Data](#accessing-the-english-web-data) below for instructions on how to access this data). We share the
+Due to storage constraints, the English web data from the Luciole Training Dataset is published elsewhere (see [Accessing the English Web Data and OpenMathInstruct-1](#accessing-the-english-web-data-and-openmathinstruct-1) below for instructions on how to access this data). We share the
 OpenMathInstruct-1 dataset in the same location under an Nvidia license.
 
 The full dataset contains around 4.65 trillion tokens of multilingual data, including English (53.4%), French (16.3%), German (5.6%), Spanish (4.9%), Italian (2.8%), Portuguese (1.9%), Dutch (1.4%), Arabic (0.7%), and a small subset of regional languages including regional languages of the French metropolitan area, French variants, and French creoles from around the world (0.4%). The latter were selected from the [FineWeb 2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2) dataset and include Basque, Breton, Catalan, Corsican, Franco-Provençal, Guadeloupean Creole French, Guianese Creole French, Occitan, Picard, Réunion Creole French, Saint Lucian Creole French, Seselwa Creole French, Tahitian, and Walloon.
@@ -88,9 +90,6 @@ In addition to the `text` field, which provides the content of the sample, each 
   - a list of ISO 639-1 codes separated by "-" for data containing parallel translations ("fr-en", "de-fr", "es-en", "it-en", …).
 * [`messages`] (optional): if applicable, the text formatted as a conversation following the Hugging Face chat format.
 * [`metadata`] (optional): additional metadata about the text sample, in JSON format. This may include information such as the source subset, rights, URL, date, etc.
-
-<!-- ### Dataset Composition -->
-<!-- Olivier -->
 
 ## Downloading the Data
 
@@ -193,15 +192,14 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 
 #### Claire (French and English)
 * <u>Sources</u>:
-  * French dataset: [OpenLLM-France/Claire-Dialogue-French-0.1](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-French-0.1). License: [CC BY-NC-SA 4.0](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-French-0.1).
-  * English dataset: [OpenLLM-France/Claire-Dialogue-English-0.1](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-English-0.1). License: [CC BY-NC-SA 4.0](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-English-0.1).
-* <u>Extracted from</u>: see the datacards for the [French](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-French-0.1) and [English](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-English-0.1) datasets.
+  * French dataset: [OpenLLM-France/Claire-Dialogue-French-0.1](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-French-0.1). License: CC BY-NC-SA 4.0.
+  * English dataset: [OpenLLM-France/Claire-Dialogue-English-0.1](https://huggingface.co/datasets/OpenLLM-France/Claire-Dialogue-English-0.1). License: CC BY-NC-SA 4.0.
+* <u>Extracted from</u>: see the datacards for the French and English datasets.
 * <u>Description</u>: The Claire datasets are composed of transcripts of spoken conversations -- including parliamentary proceedings, interviews, debates, meetings, and free conversations -- as well as some written conversations from theater plays and written chats. The dataset is designed to help downstream performance of models fine-tuned for tasks requiring the comprehension of spontaneous spoken conversation, such as meeting summarization. Each dialogue is split into speech turns, and each speech turn is labeled with the name of the speaker or a unique identifier. See the composition details for the <a href="https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset/blob/main/figures/fig_distribution_claire-french_pie.png">French dataset</a> and the <a href="https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset/blob/main/figures/fig_distribution_claire-english_pie.png">English dataset</a> for a high-level view of the distribution of different types of documents in each dataset.
 * <u>Citation</u>: Julie Hunter, Jérôme Louradour, Virgile Rennard, Ismaïl Harrando, Guokan Shang, Jean-Pierre Lorré (2023). The Claire French Dialogue Dataset. [arXiv:2311.16840](https://arxiv.org/abs/2311.16840).
 
 
 #### Common Corpus
-<!-- Julie -->
 * <u>Source</u>: [PleIAs/common_corpus](https://huggingface.co/datasets/PleIAs/common_corpus). License: Public Domain or mixed open licenses.
 * <u>Description</u>: "The data assembled in Common Corpus are either uncopyrighted or under permissible licenses and amount to about two trillion tokens. The dataset contains a wide variety of languages, ranging from the high-resource European languages to some low-resource languages rarely represented in pre-training datasets. In addition, it includes a large portion of code data" (Langlais et al, 2026).
 * <u>Subsets</u>: We used the following subsets (and languages) of Common Corpus. We assigned language labels using fastText classifiers.
@@ -211,14 +209,12 @@ For each dataset that underwent preprocessing, details can be found in the scrip
   * TED EU Tenders (ca, de, en, es, fr, it, nl, pt) 
   * GATT Library (de, en, es, fr) 
   * BNL Newspapers 1841-1879 (de, fr, it, nl) 
-<!-- <u>Pre-processing</u>: -->
 * <u>Citation</u>: Pierre-Carl Langlais, Pavel Chizhov, Catherine Arnett, Carlos Hinostroza, Mattia Nee, Eliot Jones, Irène Girard, David Mach, Anastasia Stasenko, Ivan Yamshchikov (2026). Common Corpus: The Largest Collection of Ethical Data for LLM Pre-Training. ICLR 2026. [arXiv:2506.01732](https://arxiv.org/pdf/2506.01732)
 
 #### Common Pile (v0.1)
 * <u>Source</u>: [common-pile/common-pile-v01-filtered-data](https://huggingface.co/collections/common-pile/common-pile-v01-filtered-data). License: Mixed open licenses (see document details for each subset).
 * <u>Description</u>: The Common Pile v0.1 is a curated "eight terabyte collection of openly licensed text designed for LLM pretraining. The Common Pile comprises content from 30 sources that span diverse domains including research papers, code, books, encyclopedias, educational materials, audio transcripts, and more" (Kandpal et al., 2025).
 * <u>Subsets</u>: LibreTexts, Library of Congress, Foodista, Regulations.gov, Data Provenance Initiative, Stack Exchange, ArXiv Papers, ArXiv Abstracts, pre-1929 books, Directory of Open Access Books (DOAB), Python Enhancement Proposals (PEPs), peS2o, PressBooks, Biodiversity Heritage Library, YouTube, Public Domain Review, GitHub Archive, News, Ubuntu IRC, PubMed, OERCommons, Caselaw Access Project.
-<!-- <u>Pre-processing</u>: -->
 * <u>Citation</u>: Nikhil Kandpal, Brian Lester, Colin Raffel, Sebastian Majstorovic, Stella Biderman, Baber Abbasi, Luca Soldaini, Enrico Shippole, A. Feder Cooper, Aviya Skowron, John Kirchenbauer, Shayne Longpre, Lintang Sutawika, Alon Albalak, Zhenlin Xu, Guilherme Penedo, Loubna Ben Allal, Elie Bakouch, John David Pressman, Honglu Fan, Dashiell Stander, Guangyu Song, Aaron Gokaslan, Tom Goldstein, Brian R. Bartoldson, Bhavya Kailkhura, and Tyler Murray (2025). The Common Pile v0.1: An 8TB Dataset of Public Domain and Openly Licensed Text. [arXiv:2506.05209](https://arxiv.org/abs/2506.05209)
 
 #### Croissant Aligned
@@ -237,7 +233,7 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 * <u>Source</u>: [uonlp/CulturaX](https://huggingface.co/datasets/uonlp/CulturaX) Licence: [mC4 license](https://huggingface.co/datasets/allenai/c4#license), [OSCAR license](https://huggingface.co/datasets/uonlp/CulturaX).
 * <u>Description</u>: A combination of mC4 and OSCAR corpora; a "substantial multilingual dataset with 6.3 trillion tokens in 167 languages, tailored for large language model (LLM) development. Our dataset undergoes meticulous cleaning and deduplication through a rigorous pipeline of multiple stages to accomplish the best quality for model training, including language identification, URL-based filtering, metric-based cleaning, document refinement, and data deduplication" (CulturaX [data card](https://huggingface.co/datasets/uonlp/CulturaX)).
 * <u>Citation</u>: Thuat Nguyen, Chien Van Nguyen, Viet Dac Lai, Hieu Man, Nghia Trung Ngo, Franck Dernoncourt,
-      Ryan A.Rossi, and Thien Huu Nguyen (2024). CulturaX: A Cleaned, Enormous, and Multilingual Dataset for Large Language Models in 167 Languages. In Calzolari et al, (eds.), Proceedings of the 2024 Joint International Conference on Computational Linguistics, Language Resources and Evaluation (LREC-COLING 2024). pp. 4226-4237. [paper](https://aclanthology.org/2024.lrec-main.377)
+      Ryan A.Rossi, and Thien Huu Nguyen (2024). [CulturaX: A Cleaned, Enormous, and Multilingual Dataset for Large Language Models in 167 Languages](https://aclanthology.org/2024.lrec-main.377). In Calzolari et al, (eds.), Proceedings of the 2024 Joint International Conference on Computational Linguistics, Language Resources and Evaluation (LREC-COLING 2024). pp. 4226-4237. 
 
 #### DCLM Dolmino (via external server)
 * <u>Source</u>: [allenai/dolmino-mix-1124](https://huggingface.co/datasets/allenai/dolmino-mix-1124), DCLM subset. Licence: ODC-BY.
@@ -249,7 +245,6 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 #### Dolma3 Longmino
 * <u>Source</u>: [allenai/dolma3_longmino_mix-100B-1125](https://huggingface.co/datasets/allenai/dolma3_longmino_mix-100B-1125). License: ODC-By.
 * <u>Description</u>: The full Longmino dataset contains over 22 million long documents from the olmOCR pool of science PDFs. These documents are filtered and synthetically augmented by injecting certain aggregation tasks at regular intervals. (For more details, see the [Olmo3 paper](https://arxiv.org/pdf/2512.13961).) The Dolma 3 Longmino Mix (100B) is a selection of documents from the larger Dolmino pool that was used during the third stage of training for the Olmo 3 32B model.
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Team Olmo, Allyson Ettinger, Amanda Bertsch, Bailey Kuehl, David Graham, David Heineman, Dirk Groeneveld,  Faeze Brahman,  Finbarr Timbers,  Hamish Ivison,  et al. (2025). Olmo 3. [arXiv:2512.13961](https://arxiv.org/pdf/2512.13961).
 
 #### Europarl and EuroparlAligned. 
@@ -265,10 +260,9 @@ For each dataset that underwent preprocessing, details can be found in the scrip
   * Translation-Instruct: Olivier Gouvert, Julie Hunter, Jérôme Louradour, Christophe Cérisara, Evan Dufraisse, Yaya Sy, Laura Rivière, Jean-Pierre Lorré (2025). The Lucie-7B LLM and the Lucie Training Dataset: Open resources for multilingual language generation. [arxiv:2503.12294](https://arxiv.org/abs/2503.12294).
 
 #### Eurovoc
-* <u>Source</u>:   [EuropeanParliament/Eurovoc](https://huggingface.co/datasets/EuropeanParliament/Eurovoc). License: [EUPL 1.1](https://huggingface.co/datasets/EuropeanParliament/Eurovoc).
+* <u>Source</u>:   [EuropeanParliament/Eurovoc](https://huggingface.co/datasets/EuropeanParliament/Eurovoc). License: EUPL 1.1.
 * <u>Extracted from</u>: [Cellar](https://op.europa.eu/en/web/cellar). License: [CC BY-4.0](https://op.europa.eu/en/web/about-us/legal-notices/publications-office-of-the-european-union-copyright).
 * <u>Description</u>: A collection of mutlilingual documents from the data repository of the Publications Office of the European Union annotated with Eurovoc labels. The corpus contains legal, policy-related, historical and organizational information about the EU. Dataset containing text retrieved through OCR.
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citations</u>:
   * Ilias Chalkidis, Emmanouil Fergadiotis, Prodromos Malakasiotis, Nikolaos Aletras, and Ion Androutsopoulos (2019). "[Extreme Multi-Label Legal Text Classification: A Case Study in EU Legislation](https://arxiv.org/pdf/1905.10892)," Proceedings of the Natural Legal Language Processing Workshop 2019, pages 78–87, Minneapolis, Minnesota. Association for Computational Linguistics.
   * Ilias Chalkidis,  Manos Fergadiotis, Prodromos Malakasiotis and Ion Androutsopoulos (2019). "[Large-Scale Multi-Label Text Classification on EU Legislation](https://arxiv.org/pdf/1906.02192)," Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL 2019), Florence, Italy, (short papers).
@@ -278,33 +272,28 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 #### FineMath and InfiMM-WebMath
 * <u>Source</u>: [HuggingFaceTB/finemath](https://huggingface.co/datasets/HuggingFaceTB/finemath). License: ODC-BY.
 * <u>Description</u>: "FineMath consists of 34B tokens (FineMath-3+) and 54B tokens (FineMath-3+ with InfiMM-WebMath-3+) of mathematical educational content filtered from CommonCrawl. To curate this dataset, we trained a mathematical content classifier using annotations generated by LLama-3.1-70B-Instruct. We used the classifier to retain only the most educational mathematics content, focusing on clear explanations and step-by-step problem solving rather than advanced academic papers" (FineMath [data card](https://huggingface.co/datasets/HuggingFaceTB/finemath)).
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Loubna Ben Allal, Anton Lozhkov, Elie Bakouch, Gabriel Martín Blázquez, Guilherme Penedo, Lewis Tunstall, Andrés Marafioti, Hynek Kydlíček, Agustín Piqueres Lajarín,  Vaibhav Srivastav,  Joshua Lochner, Caleb Fahlgren, Xuan-Son Nguyen, Clémentine Fourrier, Ben Burtenshaw, Hugo Larcher, Haojun Zhao, Cyril Zakka, Mathieu Morlon, Colin Raffel, Leandro von Werra and Thomas Wolf (2025). SmolLM2: When Smol Goes Big -- Data-Centric Training of a Small Language Model. [arXiv:2502.02737](https://arxiv.org/abs/2502.02737). 
 
 #### FineWeb2
 * <u>Source</u>: [HuggingFaceFW/fineweb-2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2). License: ODC-BY.
 * <u>Description</u>: FineWeb2 extends the original [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) dataset by adding pretraining data for over 1000 languages. "The data was sourced from 96 CommonCrawl snapshots, spanning the summer of 2013 to April 2024, and processed using datatrove, our large scale data processing library. This carefully deduplicated and filtered dataset comprises roughly 20 terabytes, across 5 billion documents, with over 3 trillion words" (FineWeb2 [data card](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2)). 
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Guilherme Penedo,  Hynek Kydlíček,  Vinko Sabolčec,  Bettina Messmer,  Negar Foroutan,  Amir Hossein Kargaran,  Colin Raffel,  Martin Jaggi, Leandro Von Werra and Thomas Wolf (2025). FineWeb2: One Pipeline to Scale Them All -- Adapting Pre-Training Data Processing to Every Language. [arXiv:2506.20920](https://arxiv.org/abs/2506.20920).
 
 
 #### FineWeb HQ (via external server)
 * <u>Source</u>: [epfml/FineWeb-HQ](https://huggingface.co/datasets/epfml/FineWeb-HQ). License: ODC-BY.
 * <u>Description</u>: "FineWeb-HQ is a high-quality, model-filtered pretraining dataset derived as a subset of [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb). FineWeb-HQ was created by selecting the top 10% of FineWeb documents based on a deep learning classifier trained to identify structured and knowledge-rich samples. This classifier uses XLM-RoBERTa embeddings to score documents."
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Bettina Messmer, Vinko Sabolčec and Martin Jaggi (2025). Enhancing Multilingual LLM Pretraining with Model-Based Data Selection. [arXiv:2502.10361](https://arxiv.org/abs/2502.10361).
 
 #### FineWeb 2 HQ
 * <u>Source</u>: [epfml/FineWeb2-HQ](https://huggingface.co/datasets/epfml/FineWeb2-HQ). License: ODC-BY.
 * <u>Description</u>: "FineWeb2-HQ is a high-quality, model-filtered pretraining dataset derived as a subset of [FineWeb2](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2), spanning 20 languages. It enables around 6x faster pretraining compared to the base dataset. FineWeb2-HQ was created by selecting the top 10% quality documents of FineWeb2 in each language, based on scores assigned by a deep learning classifier trained to identify structured and knowledge-rich samples using XLM-RoBERTa embeddings."
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Bettina Messmer, Vinko Sabolčec and Martin Jaggi (2025). Enhancing Multilingual LLM Pretraining with Model-Based Data Selection. [arXiv:2502.10361](https://arxiv.org/abs/2502.10361).
 
 #### FineWebEdu (via external server)
 * <u>Source</u>: [HuggingFaceFW/fineweb-edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu). License: [ODC-BY](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu).
 * <u>Extracted from</u>: [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb). License: [ODC-BY](https://huggingface.co/datasets/HuggingFaceFW/fineweb).
 * <u>Description</u>: A 1.3 trillion token selection from [FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb), which contains 15 trillion tokens of curated data from 96 Common Crawl dumps. Content in FineWebEdu has been selected by a custom designed classifier for its high-quality, educational content. Most recent crawl: 2024-10 (see <a href="https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset/blob/main/figures/fig_distribution_finewebedu-english_histogram.png">composition details</a> for information about the crawls included in this dataset.)
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Guilherme Penedo, Hynek Kydlíček, Loubna Ben allal, Anton Lozhkov, Margaret Mitchell, Colin Raffel, Leandro Von Werra, Thomas Wolf (2024). "The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale," [	arXiv:2406.17557](https://arxiv.org/abs/2406.17557).
 
 #### Gallica
@@ -313,7 +302,6 @@ For each dataset that underwent preprocessing, details can be found in the scrip
   * Press: [PleIAs/French-PD-Newspapers](https://huggingface.co/datasets/PleIAs/French-PD-Newspapers). License: Public domain.
 * <u>Extracted from</u>: [Gallicagram](https://shiny.ens-paris-saclay.fr/app/gallicagram).
 * <u>Description</u>: A large collection of French monographies, newspapers and periodicals in the public domain made available through the French National Library ([Gallica](https://gallica.bnf.fr/accueil/fr/content/accueil-fr?mode=desktop)). Dataset containing text retrieved through OCR.
-<!-- * <u>Pre-processing</u>: -->
 
 
 #### Gutenberg
@@ -327,24 +315,20 @@ For each dataset that underwent preprocessing, details can be found in the scrip
   * <u>Text cleaning</u>: Headers and footers containing information about Project Gutenberg were removed (see [code details](https://github.com/OpenLLM-France/Lucie-Training/blob/cdec8fd6369385455829ab39c2f04bcb1a8a475a/tokenization/text.py#L93)).
 
 #### HAL
-* <u>Source</u>: Corpus processed by OpenLLM partners (CEA List). <!--  and published separately as [](). License: -->
+* <u>Source</u>: Corpus processed by OpenLLM partners (CEA List). 
 * <u>Original source</u>:  based on [almanach/halvest](https://huggingface.co/datasets/almanach/halvest). License: [HAL license](https://doc.hal.science/en/legal-aspects/).
 * <u>Extracted from</u>: [HAL](https://hal.science/) ([Open access](https://about.hal.science/)).
 * <u>Description</u>: A collection of scientific papers and manuscripts distributed through the open science platform HAL. Dataset containing text retrieved through OCR.
-<!-- * <u>Pre-processing</u>: -->
-  
-<!-- * <u>Citation</u>: -->
 
 
 #### HPLT 2
 * <u>Source</u>: [HPLT/HPLT2.0_cleaned](https://huggingface.co/datasets/HPLT/HPLT2.0_cleaned). Licence: CC-0 1.0.
 * <u>Description</u>: A cleaned, "large-scale collection of web-crawled documents in 191 world languages, produced by the HPLT project. The source of the data is mostly Internet Archive with some additions from Common Crawl" (HPLT 2 [data card](https://huggingface.co/datasets/HPLT/HPLT2.0_cleaned)).
-<!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: Laurie Burchell, Ona de Gibert, Nikolay Arefyev, Mikko Aulamo, Marta Bañón, Pinzhen Chen, Mariia Fedorova, Liane Guillou, Barry Haddow, Jan Hajic, Jindrich Helcl, Erik Henriksson, Mateusz Klimaszewski, Ville Komulainen, Andrey Kutuzov, Joona Kytöniemi, Veronika Laippala, Petter Mæhlum, Bhavitvya Malik, Farrokh Mehryary, Vladislav Mikhailov, Nikita Moghe, Amanda Myntti, Dayyán O’Brien, Stephan Oepen, Proyag Pal, Jousia Piha, Sampo Pyysalo, Gema Ramírez-Sánchez, David Samuel, Pavel Stepachev, Jörg Tiedemann, Duan Variš, Tereza Vojtechová and Jaume Zaragoza-Bernabeu (2025). An Expanded Massive Multilingual Dataset for High-Performance Language Technologies (HPLT). Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers). pp. 17452-17485. [paper](https://aclanthology.org/2025.acl-long.854/)
+* <u>Citation</u>: Laurie Burchell, Ona de Gibert, Nikolay Arefyev, Mikko Aulamo, Marta Bañón, Pinzhen Chen, Mariia Fedorova, Liane Guillou, Barry Haddow, Jan Hajic, Jindrich Helcl, Erik Henriksson, Mateusz Klimaszewski, Ville Komulainen, Andrey Kutuzov, Joona Kytöniemi, Veronika Laippala, Petter Mæhlum, Bhavitvya Malik, Farrokh Mehryary, Vladislav Mikhailov, Nikita Moghe, Amanda Myntti, Dayyán O’Brien, Stephan Oepen, Proyag Pal, Jousia Piha, Sampo Pyysalo, Gema Ramírez-Sánchez, David Samuel, Pavel Stepachev, Jörg Tiedemann, Duan Variš, Tereza Vojtechová and Jaume Zaragoza-Bernabeu (2025). [An Expanded Massive Multilingual Dataset for High-Performance Language Technologies (HPLT)](https://aclanthology.org/2025.acl-long.854/). Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers). pp. 17452-17485.
 
 
 #### INSEE
-* <u>Source</u>: Corpus processed by OpenLLM partners (CEA List). <!--  and published separately as [](). License: -->
+* <u>Source</u>: Corpus processed by OpenLLM partners (CEA List). 
 * <u>Extracted from</u>: [INSEE](https://www.insee.fr/fr/statistiques).
 * <u>Description</u>: A large-scale French-language corpus of statistical publications from the *Institut National de la Statistique et des Etudes Economiques (INSEE)*, the French national statistics office. The dataset contains 17,947 articles covering economic analyses, demographic studies, regional statistics, and methodological documentation, converted to Markdown format.
 
@@ -358,13 +342,11 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 #### MegaMath Web
 * <u>Source</u>: [LLM360/MegaMath](https://huggingface.co/datasets/LLM360/MegaMath). Licence: ODC-BY.
 * <u>Description</u>: MegaMath is "an open math pretraining dataset curated from diverse, math-focused sources, with over 300B tokens". MegaMath Web includes "re-extracted mathematical documents from Common Crawl with math-oriented HTML optimizations, fasttext-based filtering and deduplication, all for acquiring higher-quality data on the Internet" (MegaMath [data card](https://huggingface.co/datasets/LLM360/MegaMath)).
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Fan Zhou, Zengzhi Wang,  Nikhil Ranjan,  Zhoujun  Cheng, Liping Tang,  Guowei He,  Zhengzhong Liu, and Eric P. Xing (2025). MegaMath: Pushing the Limits of Open Math Corpora. [arXiv:2504.02807](https://arxiv.org/abs/2504.02807).
 
 #### Nemotron Post-Training v2
 * <u>Source</u>: [nvidia/Nemotron-Post-Training-Dataset-v2](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2). Licence: CC-BY 4.0.
 * <u>Description</u>: A collection of instruction-style, supervised-fine tuning data in math, code, STEM (science-technology-engineering-math), and general chat. This version contains instructions in French, Spanish, Italian, German, and Japanese. For the French subset, we [translated the thinking traces into French](https://github.com/OpenLLM-France/Luciole-Training/blob/main/data/processing/pretraining/nemotron_posttraining_translation.py) to create a fully French version in addition to the original, which contains thinking traces in English. 
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: 
   * Dhruv Nathawani, Shuoyang Ding,  Vitaly Lavrukhin,  Igor Gitman,  Somshubra Majumdar,  Evelina Bakhturina,  Boris Ginsburg,  and Jane Polak Scowcroft (2025). Nemotron-Post-Training-Dataset-v2. [Hugging Face](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2).
   * NVIDIA (2025). NVIDIA Nemotron Nano 2: An Accurate and Efficient Hybrid Mamba-Transformer Reasoning Model. [arXiv:2508.14444](https://arxiv.org/abs/2508.14444).
@@ -375,34 +357,29 @@ For each dataset that underwent preprocessing, details can be found in the scrip
   * CodeForces problems:  [CodeForces](http://codeforces.com).
   * Question collections: [TACO](https://huggingface.co/datasets/BAAI/TACO), [APPS](https://huggingface.co/datasets/codeparrot/apps), [CodeContests](https://huggingface.co/datasets/deepmind/code_contests), and [open-r1/codeforces](https://huggingface.co/datasets/open-r1/codeforces).
 * <u>Description</u>: OpenCodeReasoning "comprises 735,255 samples in Python across 28,319 unique competitive programming questions. OpenCodeReasoning is designed for supervised fine-tuning (SFT)" (OpenCodeReasoning [data card](https://huggingface.co/datasets/nvidia/OpenCodeReasoning)).
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Wasi Uddin Ahmad, Sean Narenthiran, Somshubra Majumdar, Aleksander Ficek, Siddhartha Jain, Jocelyn Huang, Vahid Noroozi, and Boris Ginsburg (2025). OpenCodeReasoning: Advancing Data Distillation for Competitive Coding. [arXiv:2504.01943](https://arxiv.org/abs/2504.01943).
 
 #### OpenData
 * <u>Source</u>: [Nicolas-BZRD/DILA_OPENDATA_FR_2023](https://huggingface.co/datasets/Nicolas-BZRD/DILA_OPENDATA_FR_2023/tree/main) (balo, dole, inca, kali, legi and sarde subsets). License: [ODC-BY](https://huggingface.co/datasets/Nicolas-BZRD/DILA_OPENDATA_FR_2023/tree/main).
 * <u>Extracted from</u>: [OpenData](https://echanges.dila.gouv.fr/OPENDATA/) (Data collection date: October, 2023).
 * <u>Description</u>: "The French Government Open Data (DILA) Dataset is a collection of text data extracted from various sources provided by the French government, specifically the Direction de l'information légale et administrative (DILA). This dataset contains a wide range of legal, administrative, and legislative documents. The data has been organized into several categories for easy access and analysis" (from the [dataset card](https://huggingface.co/datasets/Nicolas-BZRD/DILA_OPENDATA_FR_2023/tree/main)).
-<!-- * <u>Citation</u>: No paper found. -->
 
 
 #### Open Math Instruct (v1)
 * <u>Source</u>: [nvidia/OpenMathInstruct-1](https://huggingface.co/datasets/nvidia/OpenMathInstruct-1). Licence: NVIDIA.
 * <u>Description</u>: "OpenMathInstruct-1 is a math instruction tuning dataset with 1.8M problem-solution pairs generated using permissively licensed Mixtral-8x7B model. The problems are from GSM8K and MATH training subsets and the solutions are synthetically generated by allowing Mixtral model to use a mix of text reasoning and code blocks executed by Python interpreter" (OpenMathInstruct [data card](https://huggingface.co/datasets/nvidia/OpenMathInstruct-1)).
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Shubham Toshniwal, Ivan Moshkov, Sean Narenthiran, Daria Gitman, Fei Jia and Igor Gitman (2024). OpenMathInstruct-1: A 1.8 Million Math Instruction Tuning Dataset. [arXiv:2402.10176](https://arxiv.org/abs/2402.10176).
 
 #### Open Thoughts
 * <u>Source</u>: [open-thoughts/OpenThoughts3-1.2M](https://huggingface.co/datasets/open-thoughts/OpenThoughts3-1.2M). Licence: Apache 2.0.
 * <u>Description</u>: "This dataset comprises 1.2 million questions across math, code, and science domains, with reasoning traces annotated from QwQ-32B. OpenThoughts3-1.2M is the result of over 1,000+ rigorous experiments on each stage in the reasoning dataset construction pipeline" (OpenThoughts3 [blog](https://www.openthoughts.ai/blog/ot3)).
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Etash Guha, Ryan Marten, Sedrick Keh, Negin Raoof, Georgios Smyrnis, Hritik Bansal, Marianna Nezhurina, Jean Mercat, Trung Vu, Zayne Sprague, Ashima Suvarna, Benjamin Feuer, Liangyu Chen, Zaid Khan, Eric Frankel, Sachin Grover, Caroline Choi, Niklas Muennighoff, Shiye Su, Wanjia Zhao, John Yang, Shreyas Pimpalgaonkar, Kartik Sharma, Charlie Cheng-Jie Ji, Yichuan Deng, Sarah Pratt, Vivek Ramanujan, Jon Saad-Falcon, Jeffrey Li, Achal Dave, Alon Albalak, Kushal Arora, Blake Wulfe, Chinmay Hegde, Greg Durrett, Sewoong Oh, Mohit Bansal, Saadia Gabriel, Aditya Grover, Kai-Wei Chang, Vaishaal Shankar, Aaron Gokaslan, Mike A. Merrill, Tatsunori Hashimoto, Yejin Choi, Jenia Jitsev, Reinhard Heckel, Maheswaran Sathiamoorthy, Alexandros G. Dimakis, and Ludwig Schmidt (2025). OpenThoughts: Data Recipes for Reasoning Models. [arXiv:2506.04178](https://arxiv.org/abs/2506.04178).
 
 
 #### Paradocs
 * <u>Source</u>: [jhu-clsp/paradocs](https://huggingface.co/datasets/jhu-clsp/paradocs). Licence: Apache 2.0.
 * <u>Description</u>: "ParaDocs is a publicly available dataset that produces parallel annotations for the document-level metadata of three large publicly available corpora (ParaCrawl, Europal, and News Commentary) in many languages" (ParaDocs [data card](https://huggingface.co/datasets/jhu-clsp/paradocs)).
-<!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: Rachel Wicks, Matt Post, and Philipp Koehn (2024). Recovering document annotations for sentence-level bitext. In Findings of the Association for Computational Linguistics: ACL 2024, pages 9876–9890. Association for Computational Linguistics. [paper](https://aclanthology.org/2024.findings-acl.589/).
+* <u>Citation</u>: Rachel Wicks, Matt Post, and Philipp Koehn (2024). [Recovering document annotations for sentence-level bitext](https://aclanthology.org/2024.findings-acl.589/). In Findings of the Association for Computational Linguistics: ACL 2024, pages 9876–9890. Association for Computational Linguistics.  
 
 #### Parlement
 * <u>Source</u>: [OpenLLM-France/Lucie-Training-Dataset](https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset). Subsets: AmendementsParlement, DiscoursPublics, InterventionsParlement, QuestionsEcritesParlement.
@@ -414,25 +391,20 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 #### Pleias SYNTH
 * <u>Source</u>: [PleIAs/SYNTH](https://huggingface.co/datasets/PleIAs/SYNTH). Licence: CDLA-permissive 2.0.
 * <u>Description</u>: SYNTH is a synthetic dataset created on the basis of seed data from Wikipedia, Wikipedia:Vital, Wikibooks and hand-crafted data. These seed data are used to generate a variety of queries and responses, including negative queries, which make up the resulting SYNTH data. 
-<!-- * <u>Pre-processing</u>: -->
-<!--* <u>Citation</u>: -->
 
 #### Scholar 
 * <u>Source</u>: [kurakurai/scholar](https://huggingface.co/datasets/kurakurai/scholar) Licence: ODC-BY.
 * <u>Description</u>: "This dataset was created to address the lack of high-quality scientific datasets in French. It is based on Baccalauréat and Classes Préparatoires (CPGE) exam questions and their detailed solutions, covering a wide range of subjects, primarily mathematics, physics and chemistry and computer science. The dataset includes 30.3K annotated samples designed to support both educational and research applications in French-language NLP" (Scholar [data card](https://huggingface.co/datasets/kurakurai/scholar)).
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Maxence Lasbordes and Sinoué Gad (2025). Luth: Efficient French Specialization for Small Language Models and Cross-Lingual Transfer. [arXiv:2510.05846](https://arxiv.org/abs/2510.05846).
 
 #### StarCoder Data
 * <u>Source</u>: [bigcode/starcoderdata](https://huggingface.co/datasets/bigcode/starcoderdata). Licence: Mixed Open Licenses.
 * <u>Description</u>: StarCoder "contains 783GB of code in 86 programming languages, and includes 54GB GitHub Issues + 13GB Jupyter notebooks in scripts and text-code pairs, and 32GB of GitHub commits, which is approximately 250 Billion tokens" (StarCoder [data card](https://huggingface.co/datasets/bigcode/starcoderdata)).
-<!-- * <u>Pre-processing</u>: -->
-* <u>Citation</u>: Raymond Li, Loubna Ben allal, Yangtian Zi, Niklas Muennighoff, Denis Kocetkov, Chenghao Mou, Marc Marone, Christopher Akiki, Jia LI, Jenny Chim, Qian Liu, Evgenii Zheltonozhskii, Terry Yue Zhuo, Thomas Wang, Olivier Dehaene, Joel Lamy-Poirier, Joao Monteiro, Nicolas Gontier, Ming-Ho Yee, Logesh Kumar Umapathi, Jian Zhu, Ben Lipkin, Muhtasham Oblokulov, Zhiruo Wang, Rudra Murthy, Jason T Stillerman, Siva Sankalp Patel, Dmitry Abulkhanov, Marco Zocca, Manan Dey, Zhihan Zhang, Urvashi Bhattacharyya, Wenhao Yu, Sasha Luccioni, Paulo Villegas, Fedor Zhdanov, Tony Lee, Nadav Timor, Jennifer Ding, Claire S Schlesinger, Hailey Schoelkopf, Jan Ebert, Tri Dao, Mayank Mishra, Alex Gu, Carolyn Jane,erson, Brendan Dolan-Gavitt, Danish Contractor, Siva Reddy, Daniel Fried, Dzmitry Bahdanau, Yacine Jernite, Carlos Muñoz Ferrandis, Sean Hughes, Thomas Wolf, Arjun Guha, Leandro Von Werra, Harm de Vries (2023). StarCoder: May the Source Be With You!. In Transactions on Machine Learning Research, pages 2835-8856.  [paper](https://openreview.net/forum?id=KoFOg41haE)
+* <u>Citation</u>: Raymond Li, Loubna Ben allal, Yangtian Zi, Niklas Muennighoff, Denis Kocetkov, Chenghao Mou, Marc Marone, Christopher Akiki, Jia LI, Jenny Chim, Qian Liu, Evgenii Zheltonozhskii, Terry Yue Zhuo, Thomas Wang, Olivier Dehaene, Joel Lamy-Poirier, Joao Monteiro, Nicolas Gontier, Ming-Ho Yee, Logesh Kumar Umapathi, Jian Zhu, Ben Lipkin, Muhtasham Oblokulov, Zhiruo Wang, Rudra Murthy, Jason T Stillerman, Siva Sankalp Patel, Dmitry Abulkhanov, Marco Zocca, Manan Dey, Zhihan Zhang, Urvashi Bhattacharyya, Wenhao Yu, Sasha Luccioni, Paulo Villegas, Fedor Zhdanov, Tony Lee, Nadav Timor, Jennifer Ding, Claire S Schlesinger, Hailey Schoelkopf, Jan Ebert, Tri Dao, Mayank Mishra, Alex Gu, Carolyn Jane,erson, Brendan Dolan-Gavitt, Danish Contractor, Siva Reddy, Daniel Fried, Dzmitry Bahdanau, Yacine Jernite, Carlos Muñoz Ferrandis, Sean Hughes, Thomas Wolf, Arjun Guha, Leandro Von Werra, Harm de Vries (2023). [StarCoder: May the Source Be With You!](https://openreview.net/forum?id=KoFOg41haE) In Transactions on Machine Learning Research, pages 2835-8856.   
 
 #### Starcoder Olmomix
 * <u>Source</u>: [allenai/olmo-mix-1124](https://huggingface.co/datasets/allenai/olmo-mix-1124). Licence: ODC-BY.
 * <u>Description</u>: A filtered subset of [StarCoder Data](#starcoder-data). Documents are filtered to remove documents with fewer than 2 stars on GitHub, with only binary format or numerical content, or repeated sequences of 32 or more n-grams. 
-<!-- * <u>Pre-processing</u>: -->
 * <u>Citation</u>: Dolmino Mix: Team OLMo, Pete Walsh, Luca Soldaini, Dirk Groeneveld, Kyle Lo, Shane Arora, Akshita Bhagia, Yuling Gu, Shengyi Huang, and Matt Jordan, et al. (2024). 2 OLMo 2 Furious. [arXiv:2501.00656](https://arxiv.org/abs/2501.00656).
 
 #### StackEdu 
@@ -448,13 +420,11 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 #### Synth FineWeb 2
 * <u>Source</u>: Original subset of the Luciole Training Corpus.
 * <u>Description</u>: Using Qwen 3 8B, we synthetically augmented documents from FineWeb 2 by prompting the model to reformulate them using three different levels of difficulty: easy, medium, difficult. The documents in this corpus consist of the medium and difficult reformulations.
-<!-- * <u>Pre-processing</u>: -->
 
 
 #### Synth Wikipedia
 * <u>Source</u>: Original subset of the Luciole Training Corpus.
 * <u>Description</u>: Using Qwen 3 8B, we synthetically augmented documents from Wikipedia by generating question/response pairs based on the content of the Wikipedia document. The question/answer pairs were appended to the end of the document concerned.
-<!-- * <u>Pre-processing</u>: -->
 
 
 #### Theses
@@ -462,27 +432,24 @@ For each dataset that underwent preprocessing, details can be found in the scrip
 * <u>Extracted from</u>: [theses.fr](https://theses.fr/?domaine=theses) (License: [Licence Ouverte / Open Licence version 2.0](https://www.data.gouv.fr/fr/datasets/theses-soutenues-en-france-depuis-1985/)) and  [HAL](https://hal.science/) ([Open access](https://about.hal.science/)).
 * <u>Description</u>: A collection of doctoral theses published in France. Dataset containing text retrieved through OCR.
 
-<!-- * <u>Citation</u>: No paper found. -->
 
 
 #### Vikidia
 * <u>Source</u>: [vikidia.org](https://dumps.vikidia.org/). Licence: [GFDL](https://fr.vikidia.org/wiki/Vikidia:R%C3%A9utilisation_du_contenu_de_Vikidia).
 * <u>Description</u>: "Vikidia est un projet encyclopédique multilingue en ligne, en format wiki, destiné aux 8-13 ans comme lecteurs mais aussi comme participants. Le site est indépendant de la fondation Wikimédia, dont dépend Wikipédia. Il a été lancé le 17 novembre 2006" ([vikidia.org](https://fr.vikidia.org/wiki/Vikidia:%C3%80_propos)).
-<!-- * <u>Pre-processing</u>: -->
+
 
 
 #### Wikimedia
 * <u>Source</u>: [OpenLLM-France/wikimedia](https://huggingface.co/datasets/OpenLLM-France/wikimedia)
 * <u>Extracted from</u>: [Wikimedia dumps](https://dumps.wikimedia.org/other/enterprise_html/runs/). License: [GFDL/CC BY-SA](https://dumps.wikimedia.org/legal.html).
 * <u>Description</u>: A curated collection of Wikimedia pages in markdown format, compiled from various Wikimedia projects across multiple languages, including: Wikipedia, Wikibooks, Wikinews, Wikiquote, Wikisource, Wikiversity, Wikivoyage, Wiktionary.
-<!-- * <u>Pre-processing</u>: TODO -->
-<!-- * <u>Citation</u>: No paper found. -->
+
 
 #### YouTube
-<!-- Julie -->
 * <u>Source</u>: [OpenLLM-France/Lucie-Training-Dataset](https://huggingface.co/datasets/OpenLLM-France/Lucie-Training-Dataset).
-* <u>Extracted from</u>: [YouTube](https://www.youtube.com/). <!-- License: TODO? -->
-* <u>Description</u>: French subtitles from videos published with permissive licenses on YouTube. <!-- TODO -->
+* <u>Extracted from</u>: [YouTube](https://www.youtube.com/).
+* <u>Description</u>: French subtitles from videos published with permissive licenses on YouTube. 
 
 
 

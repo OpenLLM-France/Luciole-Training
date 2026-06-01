@@ -33,6 +33,10 @@ widget:
 https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/modelcard_template.md?plain=1
 -->
 
+![luciole_logo.png](luciole_logo.png)
+
+
+**Table of Contents**
 - [Model Card for Luciole-1B-Base](#model-card-for-luciole-1b-base)
   - [Model Description](#model-description)
   - [Uses](#uses)
