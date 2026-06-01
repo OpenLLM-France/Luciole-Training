@@ -33,29 +33,34 @@ widget:
 https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/modelcard_template.md?plain=1
 -->
 
-* [Model Description](#model-description)
-* [Uses](#uses)
-* [Bias, Risks, and Limitations](#bias-risks-and-limitations)
-* [Example Code in Python](#example-code-in-python)
-  * [Load the model](#load-the-model)
-  * [Sentence completion](#sentence-completion)
-* [Loading Intermediate Checkpoints](#loading-intermediate-checkpoints)
-* [Training Details](#training-details)
-  * [Training Data](#training-data)
-  * [Training Procedure](#training-procedure)
-    * [Neural Network Architecture](#neural-network-architecture)
-    * [Training Hyperparameters](#training-hyperparameters)
-  * [Training Convergence and Evaluation](#training-convergence-and-evaluation)
-    * [Training loss](#training-loss)
-    * [Evaluation](#evaluation)
-* [Citation](#citation)
-* [Acknowledgements](#acknowledgements)
-* [Contact](#contact)
+- [Model Card for Luciole-23B-Base](#model-card-for-luciole-23b-base)
+  - [Model Description](#model-description)
+  - [Uses](#uses)
+    - [Direct use](#direct-use)
+    - [Downstream use](#downstream-use)
+    - [Out-of-Scope Use](#out-of-scope-use)
+  - [Bias, Risks, and Limitations](#bias-risks-and-limitations)
+    - [Recommendations](#recommendations)
+  - [Example Code in Python](#example-code-in-python)
+    - [Load the model](#load-the-model)
+    - [Sentence completion](#sentence-completion)
+  - [Loading Intermediate Checkpoints](#loading-intermediate-checkpoints)
+  - [Training Details](#training-details)
+    - [Training Data](#training-data)
+    - [Training Procedure](#training-procedure)
+      - [Neural Network Architecture](#neural-network-architecture)
+      - [Training Hyperparameters](#training-hyperparameters)
+    - [Training Convergence and Evaluation](#training-convergence-and-evaluation)
+      - [Training loss](#training-loss)
+      - [Evaluation](#evaluation)
+  - [Citation](#citation)
+  - [Acknowledgements](#acknowledgements)
+  - [Contact](#contact)
 
 ## Model Description
 
 Luciole-23B-Base is a pretrained 23B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and the [OpenLLM-France](https://openllm-france.fr/) consortium as a part of the OpenLLM France project, funded by [BPI France](https://www.bpifrance.fr/) through the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
-It was trained on the [GENCI](https://www.genci.fr/) supercomputer Jean Zay, managed by [IDRIS](http://www.idris.fr/eng/index.html)
+It was trained on the [GENCI](https://www.genci.fr/) supercomputer Jean Zay, managed by [IDRIS](http://www.idris.fr/docs/idris/missions).
 
 Luciole-23B-Base was trained on around 5 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), and a small subset of regional languages including regional languages of the French metropolitan area, French variants, and French creoles from around the world (0.4%). 
 
@@ -138,7 +143,6 @@ Quelle est la capitale de l'Italie ? Rome
 ...
 ```
 
-<!-- If running on GPU (`cuda` device), you will need at least 6GB of VRAM to run inference using 4bit quantization (16GB of VRAM without 4bit quantization). -->
 
 ## Loading Intermediate Checkpoints
 
@@ -173,11 +177,6 @@ the `config.json` file (under the keys `"training_steps"` and `"training_tokens"
 
 The training dataset used for the pretraining of Luciole-23B-Base is available
 at [OpenLLM-France/Luciole-Training-Dataset](https://huggingface.co/datasets/OpenLLM-France/Luciole-Training-Dataset). Information on data preprocessing can be found on the data card or in the [Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training) repository.
-<!-- and described in ["" (2024/12)](). -->
-
-<!-- The initial composition of the training data is as follows:-->
-
-<!-- ![Initial Data Composition]()-->
 
 Pretraining consisted of three principal phases of training with a context length of 4,096 tokens. The token breakdowns for the three phases are as follows:
 
@@ -190,20 +189,16 @@ Pretraining was followed by two short mid-training phases to extend the context 
 4. First context extension: 50 billion tokens to extend context length from 4,096 to 32,768 tokens 
 5. Second context extension: 50 billion tokens to extend context length from 32,768 to 131,072 tokens
 
-<!-- This yields the following distributions.-->
-
-<!-- ![Training Data Composition]()-->
 
 ### Training Procedure 
 
 Luciole-23B-Base is a causal decoder-only model trained on a causal language modeling task (i.e., predict the next token).
 
-It was pre-trained on 256 - 512 H100 80GB GPUs (64 - 128 nodes) for about 576,587 GPU hours (1,186 hours) on the [Jean Zay supercomputer](http://www.idris.fr/eng/jean-zay/jean-zay-presentation-eng.html).
+It was pre-trained on 256 - 512 H100 80GB GPUs (64 - 128 nodes) for about 576,587 GPU hours (1,186 hours) on the [Jean Zay supercomputer](http://www.idris.fr/docs/category/jean-zay).
 
-The training code is available at [https://github.com/OpenLLM-France/Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training). Training used version 2.3.1 of NVIDIA's [NeMo framework](https://github.com/NVIDIA-NeMo/NeMo).
+The training code is available at [https://github.com/OpenLLM-France/Luciole-Training](https://github.com/OpenLLM-France/Luciole-Training). Training used version 2.3.1 of NVIDIA's [NeMo framework](https://github.com/NVIDIA-NeMo/NeMo) (now transferred to [NeMo Automodel or NeMo Megatron-Bridge](https://github.com/NVIDIA-NeMo)).
 
 
-<!-- Optimizer checkpoints are available at [OpenLLM-France/Lucie-7B-optimizer-states](https://huggingface.co/OpenLLM-France/Lucie-7B-optimizer-states). -->
 
 #### Neural Network Architecture
 
