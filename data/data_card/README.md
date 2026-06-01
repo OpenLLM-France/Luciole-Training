@@ -93,80 +93,124 @@ In addition to the `text` field, which provides the content of the sample, each 
 
 ## Downloading the Data
 
-### Sample Use in Python
+### Available Configurations
 
-### Load the dataset
+The dataset is organized into **configurations**, each corresponding to a specific data source (e.g. Wikipedia, FineWeb2, Europarl, CommonPile, etc.). You can load a single source or the entire collection using the `all` configuration.
 
-Load and iterate over the full dataset using the `datasets` library:
+The list of available configurations can be obtained programmatically:
+
 ```python
-from datasets import load_dataset
+from datasets import get_dataset_config_names
 
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", split="train", streaming=True)
-
-for sample in dataset:
-   
-   text = sample["text"]
-
-   # … do something with the text
-```
-
-### Iterate over a subset
-
-Several configurations are available to select a subset of the dataset.
-
-The list of possible configurations can be obtained programmatically:
-```python
-from datasets import load_dataset_builder
-
-config_names = list(load_dataset_builder("OpenLLM-France/Luciole-Training-Dataset").builder_configs)
-
+config_names = get_dataset_config_names(
+    "OpenLLM-France/Luciole-Training-Dataset"
+)
 print(config_names)
 ```
 ```plaintext
-['default', '_robots_txt', 'Aya', 'Claire', 'CommonCorpus', 'CommonPile', 'CroissantAligned', 'Culturax-fr', 'Dolma3Longmino', 'Europarl', 'Eurovoc', 'Finemath-3plus', 'Finemath-4plus', 'Fineweb2-acf', 'Fineweb2-ar', 'Fineweb2-br', 'Fineweb2-ca', 'Fineweb2-co', 'Fineweb2-crs', 'Fineweb2-de', 'Fineweb2-es', 'Fineweb2-eu', 'Fineweb2-fr', 'Fineweb2-fr-3plus', 'Fineweb2-frp', 'Fineweb2-gcf', 'Fineweb2-gcr', 'Fineweb2-it', 'Fineweb2-nl', 'Fineweb2-oc', 'Fineweb2-pcd', 'Fineweb2-pt', 'Fineweb2-rcf', 'Fineweb2-ty', 'Fineweb2-wa', 'Fineweb2HQ-ar', 'Fineweb2HQ-de', 'Fineweb2HQ-es', 'Fineweb2HQ-fr', 'Fineweb2HQ-it', 'Fineweb2HQ-nl', 'Fineweb2HQ-pt', 'Gallica', 'Gutenberg', 'HAL', 'HPLT2-fr', 'Infiwebmath-3plus', 'Infiwebmath-4plus', 'INSEE', 'MathPile', 'MegamathWeb', 'NemotronPosttraining', 'OpenCodeReasoning', 'OpenMathInstruct', 'OpenThoughts', 'Opendata', 'Paradocs', 'Parlement', 'PleiasSynth', 'Scholar', 'StackEdu', 'StarcoderData', 'StarcoderOlmomix', 'SynthFineweb2', 'SyntheticWikipediaQA', 'Theses', 'Vikidia', 'Wikimedia', 'Youtube', 'acf', 'ar', 'br', 'ca', 'co', 'crs', 'de', 'en', 'es', 'eu', 'fr', 'frp', 'gcf', 'gcr', 'it', 'nl', 'oc', 'pcd', 'pt', 'rcf', 'ty', 'wa', 'de-fr', 'en-de', 'en-es', 'en-fr', 'en-it', 'en-nl', 'en-pt', 'es-pt']
+['all', 'Aya', 'Claire', 'CommonCorpus-bnl-newspapers-1841-1879', 'CommonCorpus-eurlex', 'CommonCorpus-gatt-library', 'CommonCorpus-oecd', 'CommonCorpus-tedeutenders', 'CommonCorpus-wto', 'CommonPile-arxiv_abstracts_filtered', 'CommonPile-arxiv_papers_filtered', 'CommonPile-biodiversity_heritage_library_filtered', 'CommonPile-caselaw_access_project_filtered', 'CommonPile-data_provenance_initiative_filtered', 'CommonPile-doab_filtered', 'CommonPile-foodista_filtered', 'CommonPile-github_archive_filtered', 'CommonPile-library_of_congress_filtered', 'CommonPile-libretexts_filtered', 'CommonPile-news_filtered', 'CommonPile-oercommons_filtered', 'CommonPile-peS2o_filtered', 'CommonPile-pre_1929_books_filtered', 'CommonPile-pressbooks_filtered', 'CommonPile-public_domain_review_filtered', 'CommonPile-pubmed_filtered', 'CommonPile-python_enhancement_proposals_filtered', 'CommonPile-regulations_filtered', 'CommonPile-stackexchange_filtered', 'CommonPile-ubuntu_irc_filtered', 'CommonPile-youtube_filtered', 'CroissantAligned', 'Culturax', 'Dolma3Longmino-lc_synth-cwe', 'Dolma3Longmino-lc_synth-rex', 'Dolma3Longmino-olmocr_science_pdfs', 'Europarl', 'Eurovoc', 'Finemath-3plus', 'Finemath-4plus', 'Fineweb2', 'Fineweb2-3plus', 'Fineweb2-HQ', 'Gallica-monographies', 'Gallica-press', 'Gutenberg', 'HAL', 'HPLT2', 'InfiwebMath-3plus', 'InfiwebMath-4plus', 'Insee', 'MathPile', 'MegamathWeb', 'NemotronPosttraining-chat', 'NemotronPosttraining-code', 'NemotronPosttraining-math', 'NemotronPosttraining-multilingual_w_thinking', 'NemotronPosttraining-multilingual_wo_thinking', 'NemotronPosttraining-stem', 'OpenCodeReasoning', 'OpenThoughts-code', 'OpenThoughts-science', 'Opendata', 'Paradocs', 'Parlement-amendements_parlement', 'Parlement-discours_publics', 'Parlement-interventions_parlement', 'Parlement-questions_ecrites_parlement', 'PleiasSynth', 'Scholar', 'StackEdu', 'StarcoderData', 'StarcoderOlmomix', 'SynthFineweb2', 'SyntheticWikipediaQA', 'Theses', 'Vikidia', 'Wikimedia-wikibooks', 'Wikimedia-wikinews', 'Wikimedia-wikipedia', 'Wikimedia-wikiquote', 'Wikimedia-wikisource', 'Wikimedia-wikiversity', 'Wikimedia-wikivoyage', 'Wikimedia-wiktionary', 'Youtube']
 ```
 
-Below are some examples of how to load data from different sources and in different languages.
+### Available Language Splits
 
-Load data in French:
+Each configuration is further divided into language-specific splits.
+
+Using `split="all"` loads all available languages for the selected configuration.
+
+The list of available splits for a given configuration can be obtained programmatically:
+
+```python
+from datasets import get_dataset_split_names
+
+splits = get_dataset_split_names(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    "Fineweb2"
+)
+print(splits)
+```
+```plaintext
+['all', 'acf', 'ar', 'br', 'ca', 'co', 'crs', 'de', 'es', 'eu',
+ 'fr', 'frp', 'gcf', 'gcr', 'it', 'nl', 'oc', 'pcd', 'pt',
+ 'rcf', 'ty', 'wa']
+```
+
+> **Note**
+>
+> Available language splits depend on the selected configuration. Some configurations may also provide additional multilingual or aligned-language splits.
+
+### Loading Examples
+
+All examples below use `streaming=True`, which is recommended for large-scale processing since the dataset can be streamed without being fully downloaded locally.
+
+Load the full dataset:
 ```python
 from datasets import load_dataset
 
-kwargs = dict(split="train", streaming=True)
-
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "fr", **kwargs)
+dataset = load_dataset(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    "all",
+    split="all",
+    streaming=True,
+)
 ```
-Load data where French and English are aligned:
+
+Load all French-language data:
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "en-fr", **kwargs)
+dataset = load_dataset(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    "all",
+    split="fr",
+    streaming=True,
+)
 ```
 
-Load data from Wikimedia:
+Load aligned French-English data:
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "Wikimedia", **kwargs)
+dataset = load_dataset(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    "all",
+    split="en_fr",
+    streaming=True,
+)
 ```
 
-Load the Fineweb2-fr dataset:
+Load Wikipedia data:
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "Fineweb2-fr", **kwargs)
+dataset = load_dataset(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    "Wikimedia-wikipedia",
+    split="all",
+    streaming=True,
+)
 ```
 
-Load the subset Fineweb2-fr-3plus from the Pile dataset:
+Load the French split of FineWeb2:
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", "Fineweb2-fr-3plus", **kwargs)
+dataset = load_dataset(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    "Fineweb2",
+    split="fr",
+    streaming=True,
+)
 ```
 
-Note that you can also access configurations that are not explicitly specified by exploring the [data hierarchy](data_hierarchy.txt).
+### Accessing Data Through the Directory Hierarchy
 
-For instance, to access the French subset of Wikimedia:
+In addition to the predefined configurations, data can be loaded directly from specific directories in the dataset hierarchy using the `data_dir` argument.
+
+The complete organization of the dataset is described in [`data_hierarchy.txt`](data_hierarchy.txt).
+
+For example, to load all Python-related data:
+
 ```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", data_dir="data/wikimedia/*/fr", **kwargs)
+dataset = load_dataset(
+    "OpenLLM-France/Luciole-Training-Dataset",
+    data_dir="data/**/python",
+    streaming=True,
+)
 ```
 
-Or to load Python data:
-```python
-dataset = load_dataset("OpenLLM-France/Luciole-Training-Dataset", data_dir="data/**/python", **kwargs)
-```
+This approach can be useful for selecting data subsets that span multiple configurations or that are not exposed as dedicated configuration names.
 
 ### Accessing the English Web Data and OpenMathInstruct-1
 
