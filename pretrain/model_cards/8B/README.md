@@ -33,28 +33,33 @@ widget:
 https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/templates/modelcard_template.md?plain=1
 -->
 
-* [Model Description](#model-description)
-* [Uses](#uses)
-* [Bias, Risks, and Limitations](#bias-risks-and-limitations)
-* [Example Code in Python](#example-code-in-python)
-  * [Load the model](#load-the-model)
-  * [Sentence completion](#sentence-completion)
-* [Loading Intermediate Checkpoints](#loading-intermediate-checkpoints)
-* [Training Details](#training-details)
-  * [Training Data](#training-data)
-  * [Training Procedure](#training-procedure)
-    * [Neural Network Architecture](#neural-network-architecture)
-    * [Training Hyperparameters](#training-hyperparameters)
-  * [Training Convergence and Evaluation](#training-convergence-and-evaluation)
-    * [Training loss](#training-loss)
-    * [Evaluation](#evaluation)
-* [Citation](#citation)
-* [Acknowledgements](#acknowledgements)
-* [Contact](#contact)
+- [Model Card for Luciole-8B-Base](#model-card-for-luciole-8b-base)
+  - [Model Description](#model-description)
+  - [Uses](#uses)
+    - [Direct use](#direct-use)
+    - [Downstream use](#downstream-use)
+    - [Out-of-Scope Use](#out-of-scope-use)
+  - [Bias, Risks, and Limitations](#bias-risks-and-limitations)
+    - [Recommendations](#recommendations)
+  - [Example Code in Python](#example-code-in-python)
+    - [Load the model](#load-the-model)
+    - [Sentence completion](#sentence-completion)
+  - [Loading Intermediate Checkpoints](#loading-intermediate-checkpoints)
+  - [Training Details](#training-details)
+    - [Training Data](#training-data)
+    - [Training Procedure](#training-procedure)
+      - [Neural Network Architecture](#neural-network-architecture)
+      - [Training Hyperparameters](#training-hyperparameters)
+    - [Training Convergence and Evaluation](#training-convergence-and-evaluation)
+      - [Training loss](#training-loss)
+      - [Evaluation](#evaluation)
+  - [Citation](#citation)
+  - [Acknowledgements](#acknowledgements)
+  - [Contact](#contact)
 
 ## Model Description
 
-Luciole-8B-Base is a pretrained 8B parameter causal language model developed by [LINAGORA](https://labs.linagora.com/) and the [OpenLLM-France](https://openllm-france.fr/) consortium as a part of the OpenLLM France project, funded by [BPI France](https://www.bpifrance.fr/) through the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
+Luciole-8B-Base is a pretrained 8B parameter causal language model with a hybrid Mamba-transformer architecture. It was developed by [LINAGORA](https://labs.linagora.com/) and the [OpenLLM-France](https://openllm-france.fr/) consortium as a part of the OpenLLM France project, funded by [BPI France](https://www.bpifrance.fr/) through the [France 2030](https://www.info.gouv.fr/grand-dossier/france-2030) program.
 It was trained on the [GENCI](https://www.genci.fr/) supercomputer Jean Zay, managed by [IDRIS](http://www.idris.fr/eng/index.html)
 
 Luciole-8B-Base was trained on around 5 trillion tokens of multilingual data, including English (41.9%), French (30.4%), German (3.8%), Spanish (3.5%), Italian (1.9%), Portuguese (1.3%), Dutch (1.0%), Arabic (0.5%), and a small subset of regional languages including regional languages of the French metropolitan area, French variants, and French creoles from around the world (0.4%). 
