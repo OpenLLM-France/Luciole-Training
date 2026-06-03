@@ -697,6 +697,12 @@ configs:
         path: data/nemotron_posttraining/multilingual/wo_thinking/fr/**/*.parquet
       - split: it
         path: data/nemotron_posttraining/multilingual/wo_thinking/it/**/*.parquet
+  - config_name: NemotronPosttraining-multilingual_translated
+    data_files:
+      - split: all
+        path: data/nemotron_postraining/multilingual/translation/**/*.parquet
+      - split: fr
+        path: data/nemotron_postraining/multilingual/translation/fr/**/*.parquet
   - config_name: NemotronPosttraining-stem
     data_files:
       - split: all
