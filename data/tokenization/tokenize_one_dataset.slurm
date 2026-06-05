@@ -34,7 +34,6 @@ python preprocess_data_for_megatron.py \
     --tokenizer-model-name=$TOKENIZER_NAME \
     --use-fast \
     --append-eod \
-    --apply-ftfy \
     --workers=40 \
     --regex-filter $REGEX_FILTER \
     --log-interval 10000 \
