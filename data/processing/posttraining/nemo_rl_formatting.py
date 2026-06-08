@@ -2,6 +2,7 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import SamplerFilter
+from utils import instruct_adapter
 
 def nemo_rl_format(
     data,
@@ -9,7 +10,9 @@ def nemo_rl_format(
     world_size: int = 1,
 ):
     import json
+    import warnings
     ALLOWED_KEYS = {"role", "content"}
+    warned_keys = set()
 
     def format_tool_calls(tool_calls: list, content: str = "") -> str:
         parts = []
@@ -49,9 +52,11 @@ def nemo_rl_format(
 
             # Keys must be in role, content
             extra_keys = set(message.keys()) - ALLOWED_KEYS
-            if extra_keys:
-                raise ValueError(
-                    f"Message contains unexpected keys: {extra_keys}. "
+            new_keys = extra_keys - warned_keys
+            if new_keys:
+                warned_keys.update(new_keys)
+                warnings.warn(
+                    f"Message contains unexpected keys: {new_keys}. "
                     f"Allowed keys are: {ALLOWED_KEYS}. "
                     f"Message role: {message.get('role')!r}"
                 )
@@ -84,7 +89,8 @@ if __name__ == "__main__":
     pipeline = [
         JsonlReader(
             args.input_path,
-            glob_pattern=args.global_pattern
+            glob_pattern=args.global_pattern,
+            adapter=instruct_adapter,
         ),
         SamplerFilter(rate=args.rate, seed=42),
         nemo_rl_format,
