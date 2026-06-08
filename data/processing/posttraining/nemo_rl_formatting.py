@@ -10,9 +10,6 @@ def nemo_rl_format(
     world_size: int = 1,
 ):
     import json
-    import warnings
-    ALLOWED_KEYS = {"role", "content"}
-    warned_keys = set()
 
     def format_tool_calls(tool_calls: list, content: str = "") -> str:
         parts = []
@@ -36,32 +33,27 @@ def nemo_rl_format(
 
     for doc in data:
         messages = doc.metadata["messages"]
+        new_messages = []
         for message in messages:
-            if "tool_calls" in message and message["tool_calls"] is not None:
-                content = message.get("content") or ""
-                message["content"] = format_tool_calls(message.pop("tool_calls"), content)
+            content = message.get("content") or ""
 
-            if "reasoning_content" in message and message["reasoning_content"] is not None:
-                content = message.get("content") or ""
-                message["content"] = (
+            reasoning_content = message.get("reasoning_content")
+            if reasoning_content:
+                content = (
                     "<think>\n"
-                    + message.pop("reasoning_content").strip("\n")
+                    + reasoning_content.strip("\n")
                     + "\n</think>\n\n"
                     + content.lstrip("\n")
                 )
 
-            # Keys must be in role, content
-            extra_keys = set(message.keys()) - ALLOWED_KEYS
-            new_keys = extra_keys - warned_keys
-            if new_keys:
-                warned_keys.update(new_keys)
-                warnings.warn(
-                    f"Message contains unexpected keys: {new_keys}. "
-                    f"Allowed keys are: {ALLOWED_KEYS}. "
-                    f"Message role: {message.get('role')!r}"
-                )
+            tool_calls = message.get("tool_calls")
+            if tool_calls:
+                content = format_tool_calls(tool_calls, content)
 
-        doc.metadata = {"messages": messages}
+            new_message = {"role": message["role"], "content": content}
+            new_messages.append(new_message)
+
+        doc.metadata = {"messages": new_messages}
         yield doc
 
 
