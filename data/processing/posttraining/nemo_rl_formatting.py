@@ -37,11 +37,11 @@ def nemo_rl_format(
     for doc in data:
         messages = doc.metadata["messages"]
         for message in messages:
-            if "tool_calls" in message:
+            if "tool_calls" in message and message["tool_calls"] is not None:
                 content = message.get("content") or ""
                 message["content"] = format_tool_calls(message.pop("tool_calls"), content)
 
-            if "reasoning_content" in message:
+            if "reasoning_content" in message and message["reasoning_content"] is not None:
                 content = message.get("content") or ""
                 message["content"] = (
                     "<think>\n"
