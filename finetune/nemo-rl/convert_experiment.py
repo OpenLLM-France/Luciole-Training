@@ -37,6 +37,7 @@ def convert_one_checkpoint(
         for file in os.listdir(tokenizer_name):
             if file not in tokenizer_files:
                 continue
+
             src_file = os.path.join(tokenizer_name, file)
             dst_file = os.path.join(hf_ckpt_path, file)
             if os.path.isfile(src_file):
