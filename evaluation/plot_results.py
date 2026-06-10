@@ -610,7 +610,9 @@ def plot_aggregate(
     experiment_tasks = {}
 
     # Collect per-experiment normalized scores at each checkpoint
-    # expe_name -> {(tokens, xval) -> [normalized_scores]}
+    # expe_name -> {(tokens, xval) -> {"scores": [...], "tasks": set()}}
+    # We track the contributing tasks per checkpoint (not just the scores) so we
+    # can later keep only checkpoints that cover the full benchmark set.
     experiment_data = {}
 
     averaged_metrics = set()
@@ -659,9 +661,10 @@ def plot_aggregate(
             ):
                 key = (tokens_val, xval)
                 if key not in experiment_data[expe_name]:
-                    experiment_data[expe_name][key] = []
+                    experiment_data[expe_name][key] = {"scores": [], "tasks": set()}
                 norm_score = normalize_within_range(score_val, random_baseline, 1.0)
-                experiment_data[expe_name][key].append(norm_score)
+                experiment_data[expe_name][key]["scores"].append(norm_score)
+                experiment_data[expe_name][key]["tasks"].add((task, metric))
 
     # Exclude experiments missing at least one task
     num_tasks = len(all_tasks)
@@ -677,15 +680,35 @@ def plot_aggregate(
         )
         del experiment_data[name]
 
-    # Build series from aggregated data
+    # Build series from aggregated data.
+    # Only keep checkpoints that cover the full benchmark set, so that every
+    # plotted point is the average over the *same* benchmarks. Benchmarks are
+    # often evaluated at different sets of checkpoints (e.g. some only at the
+    # final checkpoint): averaging whatever happens to be present at each
+    # checkpoint mixes a varying subset and produces a misleading curve (an
+    # apparent "drop" at the last point where the final-only benchmarks join).
     series = []
     for expe_name, data in experiment_data.items():
-        sorted_keys = sorted(data.keys())
+        full_keys = [k for k, v in data.items() if len(v["tasks"]) == num_tasks]
+        dropped = len(data) - len(full_keys)
+        if dropped:
+            print(
+                f"INFO: '{expe_name}' aggregate: kept {len(full_keys)}/{len(data)} "
+                f"checkpoint(s) covering all {num_tasks} benchmarks; dropped "
+                f"{dropped} partially-evaluated checkpoint(s) from the average."
+            )
+        if not full_keys:
+            print(
+                f"WARNING: '{expe_name}' has no checkpoint covering all {num_tasks} "
+                f"benchmarks; excluded from aggregate."
+            )
+            continue
+        sorted_keys = sorted(full_keys)
         series.append(
             {
                 "expe_name": expe_name,
                 "X": [k[1] for k in sorted_keys],
-                "Y": [np.mean(data[k]) for k in sorted_keys],
+                "Y": [np.mean(data[k]["scores"]) for k in sorted_keys],
             }
         )
 
@@ -1207,7 +1230,7 @@ def plot_experiments(df, args, max_subplot=19):
             list_of_tasks_to_plot = task_group_mapping[g]
 
         add_aggregate = g not in ("all", "agg") and not args.hide_average
-        info_str = f'{"_xlog" if args.xlog else ""}{"_fit" if args.fit else ""}{"_flops" if args.unit == "FLOPs" else ""}'
+        info_str = f"{'_xlog' if args.xlog else ''}{'_fit' if args.fit else ''}{'_flops' if args.unit == 'FLOPs' else ''}"
         info_str += "_average" if (args.hide_details and add_aggregate) else "_details"
         filename = f"{args.filename_prefix}{g}{info_str}{args.filename_suffix}.png"
 
