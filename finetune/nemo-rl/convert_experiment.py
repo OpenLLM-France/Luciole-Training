@@ -32,8 +32,11 @@ def convert_one_checkpoint(
     )
 
     # Copy tokenizer folder if exists
+    tokenizer_files = ["chat_template.jinja","special_tokens_map.json","tokenizer_config.json","tokenizer.json"]
     if os.path.exists(tokenizer_name):
         for file in os.listdir(tokenizer_name):
+            if file not in tokenizer_files:
+                continue
             src_file = os.path.join(tokenizer_name, file)
             dst_file = os.path.join(hf_ckpt_path, file)
             if os.path.isfile(src_file):
