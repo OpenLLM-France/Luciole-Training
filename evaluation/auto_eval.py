@@ -291,12 +291,12 @@ def launch_evaluation(
                     max_samples=1000,
                     gpus=gpus,
                 ),
-                dict(
-                    task_to_evaluate="tasks/gsm8k.txt",
-                    multiple_of=multiple_of,
-                    command=command,
-                    gpus=gpus,
-                ),
+                # dict(
+                #     task_to_evaluate="tasks/gsm8k.txt",
+                #     multiple_of=multiple_of,
+                #     command=command,
+                #     gpus=gpus,
+                # ),
                 dict(
                     task_to_evaluate="tasks/gsm8k_lighteval.txt",
                     multiple_of=multiple_of,

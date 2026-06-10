@@ -181,7 +181,7 @@ task_group_mapping = {
         ("custom|mmlu_pro_cf|0", "acc_norm_token"),
         # ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
         # ("community|gpqa-fr|0", "acc"),
-        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
+        # ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("lighteval|gsm_plus|0", "extractive_match"),
         # ("lighteval|aime25|0", "pass@k_with_k&n"),
         ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
