@@ -23,6 +23,8 @@ class DPOFilter(BaseFilter):
         super().__init__(exclusion_writer)
 
     def filter(self, doc: Document) -> bool:
+        import re
+
         inference_results_1b = doc.metadata["inference_results_1b"][0]
         inference_results_32b = doc.metadata["inference_results_32b"][0]
 
@@ -33,6 +35,12 @@ class DPOFilter(BaseFilter):
         # Filter
         if inference_results_1b["finish_reason"] != "stop" or inference_results_32b["finish_reason"] != "stop":
             return False, "finish_reason_not_stop"
+
+        if "Qwen" in inference_results_32b["text"]:
+            return False, "chosen_contains_qwen_mention"
+        
+        if re.search(r"[一-鿿]", inference_results_32b["text"]):
+            return False, "chosen_contains_chinese"
 
         if abs(inference_results_1b["usage"]["completion_tokens"] - inference_results_32b["usage"]["completion_tokens"]) > 100:
             return False, "tokens_diff_too_large"
