@@ -1,1 +1,1 @@
-community|gpqa-fr|0
+community|gpqa-fr:diamond|0
