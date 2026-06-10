@@ -78,17 +78,19 @@ if __name__ == "__main__":
 
         samples = []
 
+        kwargs = dict(
+            max_new_tokens=256,
+            num_return_sequences=args.num_sequences,
+            do_sample=args.temperature > 0,
+            top_k=50,
+            top_p=args.top_p,
+            temperature=args.temperature,
+        )
+        if args.eos_token_id:
+            kwargs["eos_token_id"] = args.eos_token_id
+
         with torch.no_grad():
-            output = model.generate(
-                input_ids,
-                max_new_tokens=256,
-                num_return_sequences=args.num_sequences,
-                do_sample=True,
-                top_k=50,
-                top_p=args.top_p,
-                temperature=args.temperature,
-                eos_token_id=args.eos_token_id,
-            )
+            output = model.generate(input_ids, **kwargs)
 
         for j, seq in enumerate(output):
             text = tokenizer.decode(seq, skip_special_tokens=False)
