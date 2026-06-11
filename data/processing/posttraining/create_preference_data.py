@@ -123,7 +123,13 @@ if __name__ == "__main__":
             glob_pattern=args.glob_pattern,
             adapter=instruct_adapter,
         ),
-        SamplerFilter(rate=args.rate, seed=42),
+        SamplerFilter(
+            rate=args.rate, seed=42,
+            exclusion_writer=JsonlWriter(
+                f"{args.output_dir}/1b_sampling/excluded_samples",
+                output_filename="${rank}.jsonl",
+            ),
+        ),
         preproc,
         InferenceRunner(
             query_builder=simple_query_builder,
@@ -219,7 +225,7 @@ if __name__ == "__main__":
         DPOFilter(
             exclusion_writer=JsonlWriter(
                 f"{args.output_dir}/filtered_data/excluded_pairs",
-                output_filename="${rank}_chunk_bad.jsonl",#test
+                output_filename="${rank}.jsonl",
             )
         ),
         JsonlWriter(
