@@ -1,7 +1,7 @@
 # Script that input instruct data and output preference data for posttraining
 
 import os
-
+import pathlib
 from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import JsonlReader
@@ -14,7 +14,8 @@ from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 
-
+#_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 
 class DPOFilter(BaseFilter):
     name = "✅❌ DPO Preference Filtering"
@@ -80,6 +81,7 @@ def preproc(
 
 def postprocess_fn(self, doc, model_size):
     doc.metadata[f"inference_results_{model_size}"] = doc.metadata.pop("inference_results")
+    doc.metadata[f"full_text_{model_size}"] = doc.metadata["context"] + doc.metadata[f"inference_results_{model_size}"]
     return doc
 
 
@@ -147,7 +149,8 @@ if __name__ == "__main__":
         qos="qos_gpu_h100-t3",
         partition="gpu_p6",
         cpus_per_task=32,
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+        env_command=f"source {_DATA_DIR}/set_env_inference.sh",
+        #env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
         sbatch_args={
             "account": "wuh@h100",
             "constraint": "h100",
@@ -191,7 +194,8 @@ if __name__ == "__main__":
         qos="qos_gpu_h100-t3",
         partition="gpu_p6",
         cpus_per_task=32,
-        env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+        #env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+        env_command=f"source {_DATA_DIR}/set_env_inference.sh",
         sbatch_args={
             "account": "wuh@h100",
             "constraint": "h100",
@@ -215,7 +219,7 @@ if __name__ == "__main__":
         DPOFilter(
             exclusion_writer=JsonlWriter(
                 f"{args.output_dir}/filtered_data/excluded_pairs",
-                output_filename="${rank}_chunk_${chunk_index}.jsonl",
+                output_filename="${rank}_chunk_bad.jsonl",#test
             )
         ),
         JsonlWriter(
