@@ -161,6 +161,15 @@ def get_training_tokens_and_model_size(file_path):
                     + steps_phase3_annealing
                     + steps_extension
                 )
+            elif "sft" in str(file_path).lower():
+                steps += (
+                    steps_phase1
+                    + steps_phase2
+                    + steps_phase3_annealing
+                    + 2 * steps_extension
+                )
+                if model_size > 7.9 and model_size < 8.1:
+                    steps += 11921
             else:  # if "annealin" in str(file_path):
                 steps += steps_phase1 + steps_phase2
 
