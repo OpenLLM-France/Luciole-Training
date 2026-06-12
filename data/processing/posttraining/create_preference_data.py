@@ -30,8 +30,8 @@ class DPOFilter(BaseFilter):
         inference_results_32b = doc.metadata["inference_results_32b"][0]
 
         # Format
-        doc.metadata["chosen"] = [{"role": "assistant", "content": inference_results_32b["text"]}]
-        doc.metadata["rejected"] = [{"role": "user", "content": inference_results_1b["text"]}]
+        doc.metadata["chosen"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_32b["text"]}]
+        doc.metadata["rejected"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_1b["text"]}]
 
         # Filter
         if inference_results_1b["finish_reason"] != "stop" or inference_results_32b["finish_reason"] != "stop":
@@ -43,13 +43,15 @@ class DPOFilter(BaseFilter):
         if re.search(r"[一-鿿]", inference_results_32b["text"]):
             return False, "chosen_contains_chinese"
 
-        if abs(inference_results_1b["usage"]["completion_tokens"] - inference_results_32b["usage"]["completion_tokens"]) > 100:
+        token_diff = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
+        doc.metadata["token_diff"] = token_diff
+        if abs(token_diff) > 250:
             return False, "tokens_diff_too_large"
 
         return True
 
 
-def simple_query_builder(runner, doc):
+def simple_query_builder(runner, doc, temperature=0.7):
     return {
         "messages": doc.metadata["context"],
         "max_tokens": 2048,
@@ -58,7 +60,7 @@ def simple_query_builder(runner, doc):
         # Qwen3 recommended non-thinking sampling settings 
         # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
         # https://huggingface.co/Qwen/Qwen3-32B#best-practices
-        "temperature": 0.7,
+        "temperature": temperature,
         "top_p": 0.8,
         "top_k": 20,
         "min_p": 0.0,
@@ -81,7 +83,6 @@ def preproc(
 
 def postprocess_fn(self, doc, model_size):
     doc.metadata[f"inference_results_{model_size}"] = doc.metadata.pop("inference_results")
-    doc.metadata[f"full_text_{model_size}"] = doc.metadata["context"] + doc.metadata[f"inference_results_{model_size}"]
     return doc
 
 
@@ -91,6 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("--glob_pattern", type=str, default=None, help="Glob pattern to match input files")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--rate", type=float, default=0.05, help="Sampling rate")
+    parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
     args = parse_args(parser)
 
     config_1b: InferenceConfig = InferenceConfig(
@@ -132,7 +134,7 @@ if __name__ == "__main__":
         ),
         preproc,
         InferenceRunner(
-            query_builder=simple_query_builder,
+            query_builder=partial(simple_query_builder, temperature=args.temperature),
             config=config_1b,
             records_per_chunk=500,
             checkpoints_local_dir=f"{args.output_dir}/1b_sampling/checkpoints",
