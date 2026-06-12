@@ -226,8 +226,58 @@ def format_expe_name_for_color(expe_name):
     )
 
 
-def assign_colors(df, apply_phase_style=True):
+_VALID_COLOR_CHARS = set("bgrcmykw")
+_VALID_LINESTYLES = {"-", "--", "-.", ":"}
+
+
+def parse_color_spec(spec):
+    """Parse a --color string into a list of (color, linestyle) tuples.
+
+    Each system is described by a single-character matplotlib color code (one
+    of 'bgrcmykw') optionally followed by a linestyle ('-', '--', '-.', ':').
+    A missing linestyle defaults to solid '-'. Systems are concatenated with no
+    separator; the next color letter starts the next system.
+
+    Example:
+        'gg--g:bb--b:' (equivalently 'g-g--g:b-b--b:') ->
+        [('g', '-'), ('g', '--'), ('g', ':'),
+         ('b', '-'), ('b', '--'), ('b', ':')]
+    """
+    linestyle_chars = set("-.:")
+    result = []
+    i, n = 0, len(spec)
+    while i < n:
+        color = spec[i]
+        if color not in _VALID_COLOR_CHARS:
+            raise ValueError(
+                f"Invalid color '{color}' in --color spec '{spec}'. "
+                f"Expected one of '{''.join(sorted(_VALID_COLOR_CHARS))}'."
+            )
+        i += 1
+        j = i
+        while j < n and spec[j] in linestyle_chars:
+            j += 1
+        linestyle = spec[i:j] if j > i else "-"
+        if linestyle not in _VALID_LINESTYLES:
+            raise ValueError(
+                f"Invalid linestyle '{linestyle}' in --color spec '{spec}'. "
+                f"Expected one of {sorted(_VALID_LINESTYLES)}."
+            )
+        result.append((color, linestyle))
+        i = j
+    if not result:
+        raise ValueError(f"Empty --color spec '{spec}'.")
+    return result
+
+
+def assign_colors(df, apply_phase_style=True, color_spec=None):
     unique_experiments = df["expe_name"].unique()
+    if color_spec is not None:
+        parsed = parse_color_spec(color_spec)
+        return {
+            name: parsed[i % len(parsed)][0]
+            for i, name in enumerate(unique_experiments)
+        }
     colors = _PALETTE
     color_map = {}
     i = -1
@@ -246,8 +296,14 @@ def assign_colors(df, apply_phase_style=True):
     return color_map
 
 
-def assign_styles(df, apply_phase_style=True):
+def assign_styles(df, apply_phase_style=True, color_spec=None):
     unique_experiments = df["expe_name"].unique()
+    if color_spec is not None:
+        parsed = parse_color_spec(color_spec)
+        return {
+            name: parsed[i % len(parsed)][1]
+            for i, name in enumerate(unique_experiments)
+        }
     style_map = {}
     for name in unique_experiments:
         if apply_phase_style:
@@ -791,6 +847,7 @@ def plot_list_of_tasks(
     add_aggregate=False,
     separate_legend=False,
     rows_cols=None,
+    color_spec=None,
 ):
     legend_fig = None
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
@@ -801,8 +858,14 @@ def plot_list_of_tasks(
             return expe_name
 
         # Ruler
-        color_map = assign_colors(df, apply_phase_style=apply_phase_style)
+        color_map = assign_colors(
+            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+        )
+        style_map = assign_styles(
+            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+        )
         ruler_color_map = {}  # maps expe_name_with_tokens -> color
+        ruler_style_map = {}  # maps expe_name_with_tokens -> linestyle
         df_filtered = df[df["metric"] == "ruler_match"]
         data = {}
         all_data = {}
@@ -844,6 +907,7 @@ def plot_list_of_tasks(
                         and expe_name in color_map
                     ):
                         ruler_color_map[expe_name_with_tokens] = color_map[expe_name]
+                        ruler_style_map[expe_name_with_tokens] = style_map[expe_name]
                     data[expe_name_with_tokens]["context_length"].append(context_length)
                     data[expe_name_with_tokens]["score"].append(score)
             for subtask in subtasks:
@@ -859,6 +923,9 @@ def plot_list_of_tasks(
                             and expe_name in color_map
                         ):
                             ruler_color_map[expe_name_with_tokens] = color_map[
+                                expe_name
+                            ]
+                            ruler_style_map[expe_name_with_tokens] = style_map[
                                 expe_name
                             ]
                         if expe_name_with_tokens not in all_data[subtask]:
@@ -901,13 +968,17 @@ def plot_list_of_tasks(
                     else False
                 )
                 color = ruler_color_map.get(expe_name_with_tokens)
+                if color_spec is not None:
+                    linestyle = ruler_style_map.get(expe_name_with_tokens, "-")
+                else:
+                    linestyle = "-" if is_first else "--"
                 ax.plot(
                     values["context_length"],
                     values["score"],
                     marker="o",  # if is_first else None,
                     # markersize=10,
                     # markeredgewidth=2,
-                    linestyle="-" if is_first else "--",
+                    linestyle=linestyle,
                     label=expe_name_with_tokens,
                     color=color,
                 )
@@ -1052,6 +1123,7 @@ def plot_list_of_tasks(
                     add_aggregate=add_aggregate,
                     separate_legend=separate_legend,
                     rows_cols=rows_cols,
+                    color_spec=color_spec,
                 )
             return
 
@@ -1061,9 +1133,11 @@ def plot_list_of_tasks(
             num_tasks = len(list_of_tasks_to_plot)
 
         color_map = assign_colors(
-            df, apply_phase_style=apply_phase_style
+            df, apply_phase_style=apply_phase_style, color_spec=color_spec
         )  # Global color map
-        style_map = assign_styles(df, apply_phase_style=apply_phase_style)
+        style_map = assign_styles(
+            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+        )
 
         if add_aggregate:
             # Layout: first row for aggregate + legend, remaining rows for details
@@ -1255,6 +1329,7 @@ def plot_experiments(df, args, max_subplot=19):
             separate_legend=args.separate_legend,
             title=format_group_name_for_title(g),
             rows_cols=args.rows_cols,
+            color_spec=args.color,
         )
 
     if not args.output_path:
@@ -1436,6 +1511,20 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Enforce subplot grid as ROWSxCOLS (e.g. 3x4). Fails if not enough subplots.",
+    )
+    parser.add_argument(
+        "--color",
+        type=str,
+        default=None,
+        help=(
+            "Choose consecutive colors/linestyles per system (one curve/bar per "
+            "system, in input order). Each system is a single-char color "
+            "('bgrcmykw') optionally followed by a linestyle ('-', '--', '-.', "
+            "':'); a missing linestyle defaults to solid. Systems are "
+            "concatenated with no separator. Example: 'gg--g:bb--b:' (== "
+            "'g-g--g:b-b--b:') means green, green dashed, green dotted, blue, "
+            "blue dashed, blue dotted. Cycles if fewer entries than systems."
+        ),
     )
     parser.add_argument(
         "--save_csv",
