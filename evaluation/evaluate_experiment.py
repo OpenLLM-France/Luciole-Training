@@ -26,7 +26,7 @@ SBATCH_ARRAY_TEMPLATE = (
 #SBATCH --account={account}
 #SBATCH --constraint={gpu}
 #SBATCH --array=0-{max_index}
-#SBATCH --mail-type=FAIL
+#SBATCH --mail-type=FAIL,TIME_LIMIT
 {dependency}
 
 set -e
@@ -189,14 +189,14 @@ def get_checkpoints_and_revisions(
     experiment_path, hf_model=None, infer_ckpt_name=False, is_nemo_rl=False
 ):
     if hf_model is not None:
-        if hf_model.startswith("/"): # Absolute path
+        if hf_model.startswith("/"):  # Absolute path
             hf_model = Path(hf_model)
             revisions = [""]
             checkpoints = [hf_model.name]
             hf_dir = hf_model.parent
         else:
             checkpoints, revisions, hf_dir = get_hf_model(hf_model)
-            
+
     else:
         hf_dir = experiment_path / "huggingface_checkpoints"
         if infer_ckpt_name:
