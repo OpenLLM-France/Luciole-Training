@@ -43,11 +43,10 @@ class DPOFilter(BaseFilter):
         if re.search(r"[一-鿿]", inference_results_32b["text"]):
             return False, "chosen_contains_chinese"
 
-        token_diff = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
-        doc.metadata["token_diff"] = token_diff
-        if abs(token_diff) > 250:
-            return False, "tokens_diff_too_large"
-
+        doc.metadata["token_diff"] = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
+        doc.metadata["token_ratio"] = inference_results_32b["usage"]["completion_tokens"] / inference_results_1b["usage"]["completion_tokens"] 
+        if doc.metadata["token_ratio"] > 1.3 or doc.metadata["token_ratio"] < (1./1.3) :
+            return False, "tokens_ratio_too_large"
         return True
 
 
