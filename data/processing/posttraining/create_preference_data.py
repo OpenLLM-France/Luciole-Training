@@ -32,6 +32,8 @@ class DPOFilter(BaseFilter):
         # Format
         doc.metadata["chosen"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_32b["text"]}]
         doc.metadata["rejected"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_1b["text"]}]
+        doc.metadata["token_diff"] = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
+        doc.metadata["token_ratio"] = inference_results_32b["usage"]["completion_tokens"] / inference_results_1b["usage"]["completion_tokens"] 
 
         # Filter
         if inference_results_1b["finish_reason"] != "stop" or inference_results_32b["finish_reason"] != "stop":
@@ -43,8 +45,6 @@ class DPOFilter(BaseFilter):
         if re.search(r"[一-鿿]", inference_results_32b["text"]):
             return False, "chosen_contains_chinese"
 
-        doc.metadata["token_diff"] = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
-        doc.metadata["token_ratio"] = inference_results_32b["usage"]["completion_tokens"] / inference_results_1b["usage"]["completion_tokens"] 
         if doc.metadata["token_ratio"] > 1.3 or doc.metadata["token_ratio"] < (1./1.3) :
             return False, "tokens_ratio_too_large"
         return True
@@ -142,6 +142,7 @@ if __name__ == "__main__":
                 output_filename="${rank}_chunk_${chunk_index}.jsonl",
             ),
             postprocess_fn=partial(postprocess_fn, model_size="1b"),
+            skip_bad_requests=True
         ),
     ]
 
@@ -187,6 +188,7 @@ if __name__ == "__main__":
                 output_filename="${rank}_chunk_${chunk_index}.jsonl",
             ),
             postprocess_fn=partial(postprocess_fn, model_size="32b"),
+            skip_bad_requests=True
         ),
     ]
 
