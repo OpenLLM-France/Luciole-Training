@@ -45,7 +45,9 @@ class DPOFilter(BaseFilter):
         if re.search(r"[一-鿿]", inference_results_32b["text"]):
             return False, "chosen_contains_chinese"
 
-        if doc.metadata["token_ratio"] > 1.3 or doc.metadata["token_ratio"] < (1./1.3) :
+        ratio_constraint = doc.metadata["token_ratio"] > 1.3 or doc.metadata["token_ratio"] < (1./1.3)
+        diff_constraint = doc.metadata["token_diff"] > 100 or doc.metadata["token_diff"] < -100
+        if ratio_constraint and diff_constraint:
             return False, "tokens_ratio_too_large"
         return True
 
@@ -92,6 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--rate", type=float, default=0.05, help="Sampling rate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
+    parser.add_argument("--redo_filter", action="store_true", help="Redo the filtering phase only")
     args = parse_args(parser)
 
     config_1b: InferenceConfig = InferenceConfig(
@@ -246,7 +249,7 @@ if __name__ == "__main__":
         time="02:00:00",
         partition="cpu_p1",
         qos="qos_cpu-dev",
-        skip_completed=not args.force,
+        skip_completed=not (args.force or args.redo_filter),
         depends=executor_32b
     )
     executor_filtering.run()
