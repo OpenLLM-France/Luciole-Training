@@ -30,13 +30,14 @@ class DPOFilter(BaseFilter):
         inference_results_1b = doc.metadata["inference_results_1b"][0]
         inference_results_32b = doc.metadata["inference_results_32b"][0]
 
-        # Format
+        if ("text" not in inference_results_32b) or ("text" not in inference_results_1b):
+            return False, "no_generation"
+
         doc.metadata["chosen"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_32b["text"]}]
         doc.metadata["rejected"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_1b["text"]}]
         doc.metadata["token_diff"] = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
         doc.metadata["token_ratio"] = inference_results_32b["usage"]["completion_tokens"] / inference_results_1b["usage"]["completion_tokens"] 
 
-        # Filtering
         if inference_results_1b["finish_reason"] != "stop" or inference_results_32b["finish_reason"] != "stop":
             return False, "finish_reason_not_stop"
         
