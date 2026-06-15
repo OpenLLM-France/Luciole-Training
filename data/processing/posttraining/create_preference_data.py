@@ -20,8 +20,9 @@ _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 class DPOFilter(BaseFilter):
     name = "✅❌ DPO Preference Filtering"
 
-    def __init__(self, exclusion_writer: DiskWriter = None):
+    def __init__(self, filter_by_length=False, exclusion_writer: DiskWriter = None):
         super().__init__(exclusion_writer)
+        self.filter_by_length = filter_by_length
 
     def filter(self, doc: Document) -> bool:
         import re
@@ -35,9 +36,18 @@ class DPOFilter(BaseFilter):
         doc.metadata["token_diff"] = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
         doc.metadata["token_ratio"] = inference_results_32b["usage"]["completion_tokens"] / inference_results_1b["usage"]["completion_tokens"] 
 
-        # Filter
+        # Filtering
         if inference_results_1b["finish_reason"] != "stop" or inference_results_32b["finish_reason"] != "stop":
             return False, "finish_reason_not_stop"
+        
+        def normalize(text):
+            text = text.lower().strip()
+            text = " ".join(text.split())          # normalize whitespace
+            text = re.sub(r'[^\w\s]', '', text)   # remove punctuation
+            return text
+
+        if normalize(inference_results_32b["text"]) == normalize(inference_results_1b["text"]):
+            return False, "same_output"
 
         if "Qwen" in inference_results_32b["text"]:
             return False, "chosen_contains_qwen_mention"
@@ -45,10 +55,11 @@ class DPOFilter(BaseFilter):
         if re.search(r"[一-鿿]", inference_results_32b["text"]):
             return False, "chosen_contains_chinese"
 
-        ratio_constraint = doc.metadata["token_ratio"] > 1.3 or doc.metadata["token_ratio"] < (1./1.3)
-        diff_constraint = doc.metadata["token_diff"] > 100 or doc.metadata["token_diff"] < -100
-        if ratio_constraint and diff_constraint:
-            return False, "tokens_ratio_too_large"
+        if self.filter_by_length:
+            ratio_constraint = doc.metadata["token_ratio"] > 1.3 or doc.metadata["token_ratio"] < (1./1.3)
+            diff_constraint = doc.metadata["token_diff"] > 100 or doc.metadata["token_diff"] < -100
+            if ratio_constraint and diff_constraint:
+                return False, "tokens_ratio_too_large"
         return True
 
 
@@ -229,9 +240,10 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         DPOFilter(
+            filter_by_length=False,
             exclusion_writer=JsonlWriter(
                 f"{args.output_dir}/filtered_data/excluded_pairs",
-                output_filename="${rank}.jsonl",
+                output_filename="${filter_reason}/${rank}.jsonl",
             )
         ),
         JsonlWriter(
