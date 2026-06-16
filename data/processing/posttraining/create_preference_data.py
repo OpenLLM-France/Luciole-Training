@@ -98,10 +98,17 @@ def postprocess_fn(self, doc, model_size):
     doc.metadata[f"inference_results_{model_size}"] = doc.metadata.pop("inference_results")
     return doc
 
-def postprocess_unicode(self, doc):
-    doc.metadata["chosen"] = doc.metadata["chosen"].replace("\u2003", " ")
-    doc.metadata["rejected"] = doc.metadata["rejected"].replace("\u2003", " ")
-    return doc
+
+def postprocess_unicode(#TBD
+        data, 
+        rank: int = 0, 
+        world_size: int = 1,
+):
+    for doc in data:
+        for i in range(len(doc.metadata["chosen"])):
+            doc.metadata["chosen"][i]["content"] = doc.metadata["chosen"][i]["content"].replace("\u2003", " ")
+            doc.metadata["rejected"][i]["content"] = doc.metadata["rejected"][i]["content"].replace("\u2003", " ")
+    yield doc
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -251,7 +258,7 @@ if __name__ == "__main__":
                 output_filename="${filter_reason}/${rank}.jsonl",
             )
         ),
-        postprocess_unicode = partial(postprocess_unicode),
+        #postprocess_unicode,
         JsonlWriter(
             f"{args.output_dir}/filtered_data/valid_pairs",
             expand_metadata=True,
