@@ -249,6 +249,7 @@ if __name__ == "__main__":
         ),
         JsonlWriter(
             f"{args.output_dir}/filtered_data/valid_pairs",
+            expand_metadata=True,
         ),
     ]
 
