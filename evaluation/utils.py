@@ -88,7 +88,7 @@ def get_training_tokens_and_model_size(file_path):
         else:
             tokens = 3131.7
         model_size = 7.0
-    elif "CroissantLLMBase" in str(file_path):
+    elif "CroissantLLM" in str(file_path):
         tokens = 3000
         model_size = 1.3
     elif "Llama-2-7b" in str(file_path):
