@@ -98,6 +98,10 @@ def postprocess_fn(self, doc, model_size):
     doc.metadata[f"inference_results_{model_size}"] = doc.metadata.pop("inference_results")
     return doc
 
+def postprocess_unicode(self, doc):
+    doc.metadata["chosen"] = doc.metadata["chosen"].replace("\u2003", " ")
+    doc.metadata["rejected"] = doc.metadata["rejected"].replace("\u2003", " ")
+    return doc
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -247,6 +251,7 @@ if __name__ == "__main__":
                 output_filename="${filter_reason}/${rank}.jsonl",
             )
         ),
+        postprocess_unicode = partial(postprocess_unicode),
         JsonlWriter(
             f"{args.output_dir}/filtered_data/valid_pairs",
             expand_metadata=True,
