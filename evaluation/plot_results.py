@@ -1,4 +1,5 @@
 import os
+import re
 import math
 import argparse
 from utils import process_results, read_experiment_results, format_task_for_title
@@ -214,6 +215,32 @@ task_group_mapping["common"] = [
     )
     if task in task_group_mapping["finetune"]
 ]
+
+
+def resolve_group(g):
+    """Resolve a group spec into a list of (task, metric) tuples.
+
+    A spec is either the name of a predefined group (e.g. ``finetune``) or
+    ``group/regex`` (e.g. ``finetune/mixeval``), in which case the part after
+    the ``/`` is a regular expression used to keep only the tasks of the base
+    group whose task name matches it.
+    """
+    base, sep, pattern = g.partition("/")
+    if base not in task_group_mapping:
+        raise ValueError(
+            f"Unknown group '{base}'. Available groups: "
+            f"{', '.join(sorted(task_group_mapping))}."
+        )
+    tasks = task_group_mapping[base]
+    if not sep:
+        return tasks
+    if not pattern:
+        raise ValueError(f"Empty regex in group spec '{g}'.")
+    regex = re.compile(pattern)
+    filtered = [t for t in tasks if regex.search(t[0])]
+    if not filtered:
+        raise ValueError(f"Regex '{pattern}' matched no task in group '{base}'.")
+    return filtered
 
 
 def format_expe_name_for_color(expe_name):
@@ -848,6 +875,7 @@ def plot_list_of_tasks(
     separate_legend=False,
     rows_cols=None,
     color_spec=None,
+    suptitle=None,
 ):
     legend_fig = None
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
@@ -1124,6 +1152,7 @@ def plot_list_of_tasks(
                     separate_legend=separate_legend,
                     rows_cols=rows_cols,
                     color_spec=color_spec,
+                    suptitle=suptitle,
                 )
             return
 
@@ -1257,8 +1286,11 @@ def plot_list_of_tasks(
             if i + cols < num_tasks:
                 axes[detail_start + i].set_xlabel("")
 
-        if title and not add_aggregate:
+        if title and not add_aggregate and not suptitle:
             fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)
+
+    if suptitle:
+        fig.suptitle(suptitle, fontsize=16, fontweight="bold", y=1.02)
 
     fig.tight_layout(h_pad=1.5, w_pad=1.5)
     if output_file:
@@ -1273,6 +1305,38 @@ def plot_list_of_tasks(
             legend_fig.savefig(legend_file, dpi=dpi, bbox_inches="tight")
             print(f"Saved legend to {legend_file}")
             plt.close(legend_fig)
+
+
+def check_all_systems_have_results(
+    df, list_of_tasks_to_plot, group_name, ignore_no_results=False
+):
+    """Raise if any system (expe_name) has no result among the tasks to plot.
+
+    With ignore_no_results=True, warn instead of raising.
+    """
+    task_metric_pairs = set(list_of_tasks_to_plot)
+    plotted_systems = set()
+    for _, row in df.iterrows():
+        if (row["task"], row["metric"]) not in task_metric_pairs:
+            continue
+        score = row["score"]
+        has_data = (
+            len(score) > 0
+            if isinstance(score, (list, tuple, np.ndarray))
+            else score is not None
+        )
+        if has_data:
+            plotted_systems.add(row["expe_name"])
+    missing = sorted(set(df["expe_name"].unique()) - plotted_systems)
+    if missing:
+        message = (
+            f"No results to plot for group '{group_name}' for the following "
+            f"system(s): {', '.join(missing)}."
+        )
+        if ignore_no_results:
+            print(f"WARNING: {message}")
+        else:
+            raise RuntimeError(message)
 
 
 def plot_experiments(df, args, max_subplot=19):
@@ -1301,12 +1365,17 @@ def plot_experiments(df, args, max_subplot=19):
                 .itertuples(index=False, name=None)
             )
         else:
-            list_of_tasks_to_plot = task_group_mapping[g]
+            list_of_tasks_to_plot = resolve_group(g)
+
+        check_all_systems_have_results(
+            df, list_of_tasks_to_plot, g, ignore_no_results=args.ignore_no_results
+        )
 
         add_aggregate = g not in ("all", "agg") and not args.hide_average
         info_str = f"{'_xlog' if args.xlog else ''}{'_fit' if args.fit else ''}{'_flops' if args.unit == 'FLOPs' else ''}"
         info_str += "_average" if (args.hide_details and add_aggregate) else "_details"
-        filename = f"{args.filename_prefix}{g}{info_str}{args.filename_suffix}.png"
+        g_for_filename = g.replace("/", "_")
+        filename = f"{args.filename_prefix}{g_for_filename}{info_str}{args.filename_suffix}.png"
 
         output_file = (
             os.path.join(args.output_path, filename) if args.output_path else None
@@ -1330,6 +1399,7 @@ def plot_experiments(df, args, max_subplot=19):
             title=format_group_name_for_title(g),
             rows_cols=args.rows_cols,
             color_spec=args.color,
+            suptitle=args.title,
         )
 
     if not args.output_path:
@@ -1346,6 +1416,7 @@ def process_experiments(args):
         ), "Length of legend must match number of experiment paths."
 
     benchmarks_per_tasktype_ref = None
+    missing_systems = []
     for iexpe, path in enumerate(args.experiment_path):
         # Step 1: read experiment results
         expe_name = args.legend[iexpe].replace("_", " ") if args.legend else None
@@ -1356,7 +1427,7 @@ def process_experiments(args):
         )
 
         if df is None or df.empty:
-            print(f"No results found in {path}, skipping...")
+            missing_systems.append(expe_name if expe_name else path)
             continue
 
         # Step 2: calculate aggregated scores if needed
@@ -1386,6 +1457,15 @@ def process_experiments(args):
 
         # Step 4: collect results
         all_results.append(df)
+
+    if missing_systems:
+        message = "No results found for the following system(s): " + ", ".join(
+            missing_systems
+        )
+        if args.ignore_no_results:
+            print(f"WARNING: {message}")
+        else:
+            raise RuntimeError(message)
 
     # Combine all results into a single DataFrame
     final_df = pd.concat(all_results, ignore_index=True)
@@ -1418,9 +1498,26 @@ if __name__ == "__main__":
         "--group",
         type=str,
         nargs="+",
-        choices=["all", "agg"] + list(task_group_mapping.keys()),
         default=["all"],
-        help="List of predefined groups of tasks you want to plot. You can add groups in the mapping if you want.",
+        help="List of predefined groups of tasks you want to plot (you can add "
+        "groups in the mapping if you want), plus the special groups 'all' and "
+        "'agg'. A group can be restricted to a subset of its tasks with the "
+        "'group/regex' syntax: e.g. 'finetune/mixeval' keeps only the tasks of "
+        "the 'finetune' group whose name matches the regex 'mixeval'. "
+        f"Available groups: {', '.join(['all', 'agg'] + list(task_group_mapping.keys()))}.",
+    )
+    parser.add_argument(
+        "--ignore-no-results",
+        dest="ignore_no_results",
+        action="store_true",
+        help="Do not raise an exception when a system has no results to plot; "
+        "warn and skip it instead.",
+    )
+    parser.add_argument(
+        "--title",
+        type=str,
+        default=None,
+        help="Global title (suptitle) added at the top of each figure.",
     )
     parser.add_argument(
         "--output_path",
@@ -1534,6 +1631,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Validate group specs early (resolve_group raises on unknown group / bad regex)
+    for g in args.group:
+        if g not in ("all", "agg"):
+            resolve_group(g)
+
     if args.rows_cols is not None:
         parts = args.rows_cols.split("x")
         assert (
@@ -1547,7 +1649,10 @@ if __name__ == "__main__":
     if args.save_csv:
         if args.group != ["all"]:
             list_of_tasks_to_plot = [
-                task for g in args.group for task in task_group_mapping.get(g, [])
+                task
+                for g in args.group
+                if g not in ("all", "agg")
+                for task in resolve_group(g)
             ]
             mask = (
                 df[["task", "metric"]].apply(tuple, axis=1).isin(list_of_tasks_to_plot)
