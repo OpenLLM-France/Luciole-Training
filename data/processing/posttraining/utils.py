@@ -63,3 +63,25 @@ def apply_chat_template(data, rank: int = 0, world_size: int = 1, tokenizer=None
         )
         yield doc
 
+
+def format_tool_calls(tool_calls: list, content: str = "") -> str:
+    import json
+    parts = []
+
+    for i, tool_call in enumerate(tool_calls):
+        if (i == 0 and content) or (i > 0):
+            parts.append("\n")
+
+        if isinstance(tool_call, dict) and "function" in tool_call:
+            tool_call = tool_call["function"]
+
+        arguments = tool_call.get("arguments", {})
+        if not isinstance(arguments, str):
+            arguments = json.dumps(arguments)
+
+        parts.append(
+            f'<tool_call>\n{{"name": "{tool_call["name"]}", "arguments": {arguments}}}\n</tool_call>'
+        )
+
+    return content + "".join(parts)
+

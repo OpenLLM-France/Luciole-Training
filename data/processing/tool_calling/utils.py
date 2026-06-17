@@ -1,67 +1,27 @@
 import os
 import importlib.util
-from datatrove.data import Document
-from datatrove.pipeline.filters.base_filter import BaseFilter
-from datatrove.pipeline.writers.disk_base import DiskWriter
 
-# Directly load pretraining/utils.py under a unique module name to avoid
-# a circular import, since this file is also named 'utils'.
+# Directly load posttraining/utils.py under a unique module name to avoid
+# a circular import, since this file is also named 'utils'. It re-exports the
+# pretraining helpers and defines the shared instruct/formatting utilities.
 
 spec = importlib.util.spec_from_file_location(
-    "pretraining_utils",
-    os.path.join(os.path.dirname(__file__), "..", "pretraining", "utils.py"),
+    "posttraining_utils",
+    os.path.join(os.path.dirname(__file__), "..", "posttraining", "utils.py"),
 )
-pretraining_utils = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(pretraining_utils)
+posttraining_utils = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(posttraining_utils)
 
-create_parser = pretraining_utils.create_parser
-parse_args = pretraining_utils.parse_args
-create_executor = pretraining_utils.create_executor
-add_sampler_filter = pretraining_utils.add_sampler_filter
-_custom_adapter_for_hf = pretraining_utils._custom_adapter_for_hf
-HF_SCHEMA = pretraining_utils.HF_SCHEMA
-
-
-def instruct_adapter(self, data: dict, path: str, id_in_file: int | str):
-    return {
-        "text": data.pop(self.text_key, "<empty>"),
-        "id": data.pop(self.id_key, f"{path}/{id_in_file}"),
-        "media": data.pop("media", []),
-        "metadata": (
-            data.pop("metadata", {}) if isinstance(data.get("metadata"), dict) else {}
-        )
-        | data,  # pop metadata only if it's a dict
-    }
-
-
-class FilterChinese(BaseFilter):
-    name = "🀄 Chinese Filter"
-
-    def __init__(
-        self, chinese_threshold: float = 0.2, exclusion_writer: DiskWriter = None
-    ):
-        super().__init__(exclusion_writer)
-        self.chinese_threshold = chinese_threshold
-
-    def filter(self, doc: Document) -> bool:
-        def chinese_proportion(text):
-            import re
-
-            if not text:
-                return 0.0
-            chinese_pattern = re.compile(r"[\u4e00-\u9fff]")
-            chinese_count = len(chinese_pattern.findall(text))
-            return chinese_count / len(text)
-
-        return chinese_proportion(doc.text) < self.chinese_threshold
-
-
-def apply_chat_template(data, rank: int = 0, world_size: int = 1, tokenizer=None):
-    for doc in data:
-        doc.text = tokenizer.apply_chat_template(
-            doc.metadata["messages"], tokenize=False
-        )
-        yield doc
+create_parser = posttraining_utils.create_parser
+parse_args = posttraining_utils.parse_args
+create_executor = posttraining_utils.create_executor
+add_sampler_filter = posttraining_utils.add_sampler_filter
+_custom_adapter_for_hf = posttraining_utils._custom_adapter_for_hf
+HF_SCHEMA = posttraining_utils.HF_SCHEMA
+instruct_adapter = posttraining_utils.instruct_adapter
+FilterChinese = posttraining_utils.FilterChinese
+apply_chat_template = posttraining_utils.apply_chat_template
+format_tool_calls = posttraining_utils.format_tool_calls
 
 
 def check_last_message(data, rank: int = 0, world_size: int = 1, tokenizer=None):
@@ -197,6 +157,18 @@ def replace_tool_name(
         yield doc
 
 
+def from_tools_to_system(system_content, tools, tokenizer):
+    import re
+    system_prompt = tokenizer.apply_chat_template(
+        [{"role": "system", "content": system_content}],
+        tools=tools,
+        tokenize=False,
+    )
+    system_prompt = re.search(
+        r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
+    ).group(1)
+    return system_prompt
+
 def add_system_prompt(
     data,
     rank: int = 0,
@@ -204,18 +176,16 @@ def add_system_prompt(
     tokenizer=None,
     system_key=None,
 ):
-    import re
-
+    import json
     for doc in data:
-        system_prompt = tokenizer.apply_chat_template(
-            [{"role": "system", "content": doc.metadata.get(system_key, "")}],
-            tools=doc.metadata.get("tools", None),
-            tokenize=False,
+        tools = doc.metadata.get("tools", [])
+        doc.metadata["tools"] = json.dumps(tools)
+        
+        system_prompt = from_tools_to_system(
+            doc.metadata.get(system_key, ""),
+            tools,
+            tokenizer
         )
-        system_prompt = re.search(
-            r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
-        ).group(1)
-
         doc.metadata["messages"] = [
             {"role": "system", "content": system_prompt}
         ] + doc.metadata["messages"]

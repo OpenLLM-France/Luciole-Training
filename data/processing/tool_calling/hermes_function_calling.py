@@ -16,7 +16,8 @@ from data.processing.tool_calling.smolagents_toolcalling import clean_tool_respo
 def format_messages(data, rank: int = 0, world_size: int = 1):
     import json
     import re
-
+    import random
+    
     def _format_messages(messages):
         role_map = {
             "system": "system",
@@ -52,9 +53,11 @@ def format_messages(data, rank: int = 0, world_size: int = 1):
         # Format tools
         doc.metadata.pop("tools")  # Not always correct
         try:
-            doc.metadata["tools"] = extract_tools_from_system_prompt(
+            tools = extract_tools_from_system_prompt(
                 system_prompt["content"]
             )
+            random.shuffle(tools)
+            doc.metadata["tools"] = tools
         except Exception:
             continue
 
