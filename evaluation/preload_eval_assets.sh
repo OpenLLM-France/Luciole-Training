@@ -17,4 +17,4 @@ python -c "from comet import download_model, load_from_checkpoint; model_path = 
 python -c "from transformers import MT5ForConditionalGeneration, AutoTokenizer; MT5ForConditionalGeneration.from_pretrained('google/metricx-24-hybrid-large-v2p6'); AutoTokenizer.from_pretrained('google/mt5-large')"  # translation (FLORES)
 
 # lighteval/src/lighteval/tasks/extended/tiny_benchmarks/tinyBenchmarks.pkl
-lighteval accelerate "pretrained=gpt2" "leaderboard|gsm8k|5" --max-samples 1
+lighteval accelerate "model_name=gpt2" "leaderboard|gsm8k|5" --max-samples 1
