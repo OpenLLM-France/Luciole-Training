@@ -136,8 +136,9 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
     parser.add_argument("--redo_filtering_only", action="store_true", help="Redo the filtering phase only")
     parser.add_argument("--skip_chosen", action="store_true", help="Skip the chosen generation phase (stage 2), e.g. when the chosen samples have already been generated")
-    parser.add_argument("--chosen_size", type=str, default="32b", choices=MODEL_SIZES.keys())
-    parser.add_argument("--rejected_size", type=str, default="1b")
+    parser.add_argument("--skip_preproc", action="store_true", help="Skip the prepoc stage if context is already in metadata.")
+    parser.add_argument("--chosen_size", type=str, default="32b", choices=MODEL_SIZES.keys(), help="Size of the chosen model")
+    parser.add_argument("--rejected_size", type=str, default="1b", choices=MODEL_SIZES.keys(), help="Size of the rejected model")
     args = parse_args(parser)
 
     config_rejected: InferenceConfig = InferenceConfig(
@@ -176,8 +177,11 @@ if __name__ == "__main__":
                 f"{args.output_dir}/{args.rejected_size}_sampling/excluded_samples",
                 output_filename="${rank}.jsonl",
             ),
-        ),
-        preproc,
+        )
+    ]
+    if not args.skip_preproc:
+        pipeline.append(preproc)
+    pipeline += [
         InferenceRunner(
             query_builder=partial(simple_query_builder, temperature=args.temperature),
             config=config_rejected,
@@ -270,7 +274,7 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            f"{args.output_dir}/{args.chosen_size}_sampling/data",
+            f"{args.output_dir}/{args.rejected_size}_sampling/data" if args.skip_chosen else f"{args.output_dir}/{args.chosen_size}_sampling/data",
             adapter=instruct_adapter,
         ),
         DPOFilter(
