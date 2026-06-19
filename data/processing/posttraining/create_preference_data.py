@@ -20,25 +20,29 @@ _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 class DPOFilter(BaseFilter):
     name = "✅❌ DPO Preference Filtering"
 
-    def __init__(self, filter_by_length=False, exclusion_writer: DiskWriter = None):
+    def __init__(self, rejected_size, chosen_size, filter_by_length=False, exclusion_writer: DiskWriter = None):
         super().__init__(exclusion_writer)
         self.filter_by_length = filter_by_length
+        self.rejected_size = rejected_size
+        self.chosen_size = chosen_size
 
     def filter(self, doc: Document) -> bool:
         import re
 
-        inference_results_1b = doc.metadata["inference_results_1b"][0]
-        inference_results_32b = doc.metadata["inference_results_32b"][0]
+        inference_results_rejected = doc.metadata[f"inference_results_{self.rejected_size}"][0]
+        inference_results_chosen = doc.metadata[f"inference_results_{self.chosen_size}"][0]
 
-        if ("text" not in inference_results_32b) or ("text" not in inference_results_1b):
+        if ("text" not in inference_results_chosen) or ("text" not in inference_results_rejected):
             return False, "no_generation"
 
-        doc.metadata["chosen"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_32b["text"]}]
-        doc.metadata["rejected"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_1b["text"]}]
-        doc.metadata["token_diff"] = inference_results_32b["usage"]["completion_tokens"] - inference_results_1b["usage"]["completion_tokens"]
-        doc.metadata["token_ratio"] = inference_results_32b["usage"]["completion_tokens"] / inference_results_1b["usage"]["completion_tokens"] 
+        doc.metadata["chosen"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_chosen["text"]}]
+        doc.metadata["rejected"] = doc.metadata["context"] + [{"role": "assistant", "content": inference_results_rejected["text"]}]
+        doc.metadata["chosen_size"] = self.chosen_size
+        doc.metadata["rejected_size"] = self.rejected_size
+        doc.metadata["token_diff"] = inference_results_chosen["usage"]["completion_tokens"] - inference_results_rejected["usage"]["completion_tokens"]
+        doc.metadata["token_ratio"] = inference_results_chosen["usage"]["completion_tokens"] / inference_results_rejected["usage"]["completion_tokens"] 
 
-        if inference_results_1b["finish_reason"] != "stop" or inference_results_32b["finish_reason"] != "stop":
+        if inference_results_rejected["finish_reason"] != "stop" or inference_results_chosen["finish_reason"] != "stop":
             return False, "finish_reason_not_stop"
         
         def normalize(text):
@@ -47,13 +51,13 @@ class DPOFilter(BaseFilter):
             text = re.sub(r'[^\w\s]', '', text)   # remove punctuation
             return text
 
-        if normalize(inference_results_32b["text"]) == normalize(inference_results_1b["text"]):
+        if normalize(inference_results_chosen["text"]) == normalize(inference_results_rejected["text"]):
             return False, "same_output"
 
-        if "Qwen" in inference_results_32b["text"]:
+        if "Qwen" in inference_results_chosen["text"]:
             return False, "chosen_contains_qwen_mention"
         
-        if re.search(r"[一-鿿]", inference_results_32b["text"]):
+        if re.search(r"[一-鿿]", inference_results_chosen["text"]):
             return False, "chosen_contains_chinese"
 
         if self.filter_by_length:
@@ -64,19 +68,25 @@ class DPOFilter(BaseFilter):
         return True
 
 
-def simple_query_builder(runner, doc, temperature=0.7):
+def generation_config(temperature=0.7):
     return {
-        "messages": doc.metadata["context"],
         "max_tokens": 2048,
         # turn off reasoning traces for Qwen3
         "chat_template_kwargs": {"enable_thinking": False},
-        # Qwen3 recommended non-thinking sampling settings 
+        # Qwen3 recommended non-thinking sampling settings
         # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
         # https://huggingface.co/Qwen/Qwen3-32B#best-practices
         "temperature": temperature,
         "top_p": 0.8,
         "top_k": 20,
         "min_p": 0.0,
+    }
+
+
+def simple_query_builder(runner, doc, temperature=0.7):
+    return {
+        "messages": doc.metadata["context"],
+        **generation_config(temperature=temperature),
     }
 
 
@@ -94,8 +104,9 @@ def preproc(
         yield doc
 
 
-def postprocess_fn(self, doc, model_size):
+def postprocess_fn(self, doc, model_size, gen_config):
     doc.metadata[f"inference_results_{model_size}"] = doc.metadata.pop("inference_results")
+    doc.metadata[f"generation_config_{model_size}"] = {"model_name_or_path": MODEL_SIZES[model_size], **gen_config}
     return doc
 
 
@@ -110,6 +121,12 @@ def postprocess_unicode(#TBD
             doc.metadata["rejected"][i]["content"] = doc.metadata["rejected"][i]["content"].replace("\u2003", " ")
     yield doc
 
+MODEL_SIZES = {
+    "0.6b": "Qwen/Qwen3-0.6B",
+    "1b": "Qwen/Qwen3-1.7B",
+    "32b": "Qwen/Qwen3-32B",
+}
+
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--input_path", type=str, required=True, help="Path to input instruct data")
@@ -117,12 +134,15 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--rate", type=float, default=0.05, help="Sampling rate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
-    parser.add_argument("--redo_filter", action="store_true", help="Redo the filtering phase only")
+    parser.add_argument("--redo_filtering_only", action="store_true", help="Redo the filtering phase only")
+    parser.add_argument("--skip_chosen", action="store_true", help="Skip the chosen generation phase (stage 2), e.g. when the chosen samples have already been generated")
+    parser.add_argument("--chosen_size", type=str, default="32b", choices=MODEL_SIZES.keys())
+    parser.add_argument("--rejected_size", type=str, default="1b")
     args = parse_args(parser)
 
-    config_1b: InferenceConfig = InferenceConfig(
+    config_rejected: InferenceConfig = InferenceConfig(
         server_type="vllm",
-        model_name_or_path="Qwen/Qwen3-1.7B",
+        model_name_or_path=MODEL_SIZES[args.rejected_size],
         tp=1,
         model_max_context=32768,
         max_concurrent_requests=500,
@@ -130,9 +150,9 @@ if __name__ == "__main__":
         metric_interval=120,
     )
 
-    config_32b: InferenceConfig = InferenceConfig(
+    config_chosen: InferenceConfig = InferenceConfig(
         server_type="vllm",
-        model_name_or_path="Qwen/Qwen3-32B",
+        model_name_or_path=MODEL_SIZES[args.chosen_size],
         tp=2,
         model_max_context=32768,
         max_concurrent_requests=500,
@@ -141,7 +161,7 @@ if __name__ == "__main__":
     )
 
     #########
-    # Generate 1B rejected samples
+    # Generate rejected samples
     #########
 
     pipeline = [
@@ -153,31 +173,31 @@ if __name__ == "__main__":
         SamplerFilter(
             rate=args.rate, seed=42,
             exclusion_writer=JsonlWriter(
-                f"{args.output_dir}/1b_sampling/excluded_samples",
+                f"{args.output_dir}/{args.rejected_size}_sampling/excluded_samples",
                 output_filename="${rank}.jsonl",
             ),
         ),
         preproc,
         InferenceRunner(
             query_builder=partial(simple_query_builder, temperature=args.temperature),
-            config=config_1b,
+            config=config_rejected,
             records_per_chunk=500,
-            checkpoints_local_dir=f"{args.output_dir}/1b_sampling/checkpoints",
+            checkpoints_local_dir=f"{args.output_dir}/{args.rejected_size}_sampling/checkpoints",
             output_writer=JsonlWriter(
-                f"{args.output_dir}/1b_sampling/data",
+                f"{args.output_dir}/{args.rejected_size}_sampling/data",
                 output_filename="${rank}_chunk_${chunk_index}.jsonl",
             ),
-            postprocess_fn=partial(postprocess_fn, model_size="1b"),
+            postprocess_fn=partial(postprocess_fn, model_size=args.rejected_size, gen_config=generation_config(temperature=args.temperature)),
             skip_bad_requests=True
         ),
     ]
 
-    executor_1b = create_executor(
+    executor_rejected = create_executor(
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{args.output_dir}/1b_sampling/logs",
-        job_name="1b_sampling",
+        logging_dir=f"{args.output_dir}/{args.rejected_size}_sampling/logs",
+        job_name=f"{args.rejected_size}_sampling",
         tasks=1,
         time="10:00:00",
         qos="qos_gpu_h100-t3",
@@ -196,51 +216,53 @@ if __name__ == "__main__":
     )
 
     #########
-    # Generate 32B accepted samples
+    # Generate chosen samples
     #########
 
-    pipeline = [
-        JsonlReader(
-            f"{args.output_dir}/1b_sampling/data",
-            adapter=instruct_adapter,
-        ),
-        InferenceRunner(
-            query_builder=simple_query_builder,
-            config=config_32b,
-            records_per_chunk=500,
-            checkpoints_local_dir=f"{args.output_dir}/32b_sampling/checkpoints",
-            output_writer=JsonlWriter(
-                f"{args.output_dir}/32b_sampling/data",
-                output_filename="${rank}_chunk_${chunk_index}.jsonl",
+    executor_chosen = None
+    if not args.skip_chosen:
+        pipeline = [
+            JsonlReader(
+                f"{args.output_dir}/{args.rejected_size}_sampling/data",
+                adapter=instruct_adapter,
             ),
-            postprocess_fn=partial(postprocess_fn, model_size="32b"),
-            skip_bad_requests=True
-        ),
-    ]
+            InferenceRunner(
+                query_builder=partial(simple_query_builder, temperature=args.temperature),
+                config=config_chosen,
+                records_per_chunk=500,
+                checkpoints_local_dir=f"{args.output_dir}/{args.chosen_size}_sampling/checkpoints",
+                output_writer=JsonlWriter(
+                    f"{args.output_dir}/{args.chosen_size}_sampling/data",
+                    output_filename="${rank}_chunk_${chunk_index}.jsonl",
+                ),
+                postprocess_fn=partial(postprocess_fn, model_size=args.chosen_size, gen_config=generation_config(temperature=args.temperature)),
+                skip_bad_requests=True
+            ),
+        ]
 
-    executor_32b = create_executor(
-        pipeline,
-        local=args.local,
-        debug=args.debug,
-        logging_dir=f"{args.output_dir}/32b_sampling/logs",
-        job_name="32b_sampling",
-        tasks=1,
-        time="10:00:00",
-        qos="qos_gpu_h100-t3",
-        partition="gpu_p6",
-        cpus_per_task=32,
-        #env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
-        env_command=f"source {_DATA_DIR}/set_env_inference.sh",
-        sbatch_args={
-            "account": "wuh@h100",
-            "constraint": "h100",
-            "gres": "gpu:2",
-            "nodes": 1,
-            "hint": "nomultithread",
-        },
-        skip_completed=not args.force,
-        depends=executor_1b
-    )
+        executor_chosen = create_executor(
+            pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{args.output_dir}/{args.chosen_size}_sampling/logs",
+            job_name=f"{args.chosen_size}_sampling",
+            tasks=1,
+            time="10:00:00",
+            qos="qos_gpu_h100-t3",
+            partition="gpu_p6",
+            cpus_per_task=32,
+            #env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
+            env_command=f"source {_DATA_DIR}/set_env_inference.sh",
+            sbatch_args={
+                "account": "wuh@h100",
+                "constraint": "h100",
+                "gres": "gpu:2",
+                "nodes": 1,
+                "hint": "nomultithread",
+            },
+            skip_completed=not args.force,
+            depends=executor_rejected
+        )
 
     #########
     # Filtering pairs
@@ -248,10 +270,12 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            f"{args.output_dir}/32b_sampling/data",
+            f"{args.output_dir}/{args.chosen_size}_sampling/data",
             adapter=instruct_adapter,
         ),
         DPOFilter(
+            rejected_size=args.rejected_size,
+            chosen_size=args.chosen_size,
             filter_by_length=False,
             exclusion_writer=JsonlWriter(
                 f"{args.output_dir}/filtered_data/excluded_pairs",
@@ -275,7 +299,7 @@ if __name__ == "__main__":
         time="02:00:00",
         partition="cpu_p1",
         qos="qos_cpu-dev",
-        skip_completed=not (args.force or args.redo_filter),
-        depends=executor_32b
+        skip_completed=not (args.force or args.redo_filtering_only),
+        depends=executor_chosen if executor_chosen is not None else executor_rejected
     )
     executor_filtering.run()
