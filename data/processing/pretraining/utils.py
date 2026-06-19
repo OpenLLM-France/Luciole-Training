@@ -102,6 +102,18 @@ def create_executor(pipeline, local=False, debug=False, **kwargs):
             pipeline=pipeline, **local_kwargs
         )
     else:
+        # The SlurmPipelineExecutor is dill-pickled to executor.pik and the worker
+        # loads it via `launch_pickled_pipeline` WITHOUT re-importing the user script.
+        # With dill's default recurse=False, module-level helpers/constants that a
+        # pipeline function references (defined in the script's __main__) are not
+        # serialized and blow up on the worker with NameError. recurse=True makes
+        # dill trace the full transitive global closure and pickle it by value, so
+        # pipeline functions can freely use module-level helpers. datatrove's
+        # dill.dump() does not pass recurse=, so it honors this global setting.
+        import dill
+
+        dill.settings["recurse"] = True
+
         tasks = kwargs.pop("tasks", 50)
         time = kwargs.pop("time", "20:00:00")
         qos = kwargs.pop("qos", "qos_cpu-t3")

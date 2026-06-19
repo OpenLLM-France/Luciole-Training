@@ -167,6 +167,7 @@ Follow [BFCL README](https://github.com/ShishirPatil/gorilla/blob/main/berkeley-
 module purge
 module load arch/h100
 module load anaconda-py3/2024.06
+module load cuda/12.4.1
 module load gcc/14.2.0
 
 # Create a new Conda environment with Python 3.10
@@ -185,15 +186,17 @@ cd gorilla/berkeley-function-call-leaderboard
 # Vllm for local model
 pip install -e .[oss_eval_vllm]
 pip install -U "vllm>=0.10" transformers
+pip install soundfile
 ```
 
 ### Evaluate
 
 ```bash
 module purge
-module load arch/a100 anaconda-py3/2024.06 gcc/14.2.0 # on a100
-module load arch/h100 anaconda-py3/2024.06 gcc/14.2.0 # on h100
+module load arch/a100 anaconda-py3/2024.06 cuda/12.4.1 gcc/14.2.0 # on a100
+module load arch/h100 anaconda-py3/2024.06 cuda/12.4.1 gcc/14.2.0 # on h100
 conda activate BFCL
+export VLLM_USE_FLASHINFER_SAMPLER=0
 
 # JZ
 export MODEL_PATH=...
@@ -207,7 +210,7 @@ mkdir -p "$RESULT_DIR" "$SCORE_DIR"
 
 # 1. Generate model responses (vLLM inference — same flags you've been using)
 bfcl generate \
-  --model linagora/nemotron3-1b-FC \
+  --model OpenLLM-France/Luciole-1B-FC \
   --local-model-path "$MODEL_PATH" \
   --backend vllm \
   --num-gpus 1 \
@@ -217,7 +220,7 @@ bfcl generate \
   
 # 2. Score the responses
 bfcl evaluate \
-  --model linagora/nemotron3-1b-FC \
+  --model OpenLLM-France/Luciole-1B-FC \
   --test-category "$CATS" \
   --result-dir $RESULT_DIR \
   --score-dir  $SCORE_DIR
