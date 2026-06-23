@@ -73,7 +73,7 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
     # https://huggingface.co/Qwen/Qwen3-32B#best-practices
     if enable_thinking:
         if not temperature:
-            temperature = 0.7
+            temperature = 0.6
         if not max_tokens:
             max_tokens = 32768
         return {
@@ -86,7 +86,7 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
         }    
     else:
         if not temperature:
-            temperature = 0.6
+            temperature = 0.7
         if not max_tokens:
             max_tokens = 2048 
         return {
