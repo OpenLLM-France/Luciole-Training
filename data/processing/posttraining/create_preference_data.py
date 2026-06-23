@@ -68,17 +68,17 @@ class DPOFilter(BaseFilter):
         return True
 
 
-def generation_config(temperature=None, enable_thinking=False, max_tokens=2048):
+def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
+    # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
+    # https://huggingface.co/Qwen/Qwen3-32B#best-practices
     if enable_thinking:
         if not temperature:
             temperature = 0.7
+        if not max_tokens:
+            max_tokens = 32768
         return {
             "max_tokens": max_tokens,
-            # turn off reasoning traces for Qwen3
-            "chat_template_kwargs": {"enable_thinking": enable_thinking},
-            # Qwen3 recommended non-thinking sampling settings
-            # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
-            # https://huggingface.co/Qwen/Qwen3-32B#best-practices
+            "chat_template_kwargs": {"enable_thinking": True},
             "temperature": temperature,
             "top_p": 0.8,
             "top_k": 20,
@@ -87,13 +87,11 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=2048):
     else:
         if not temperature:
             temperature = 0.6
+        if not max_tokens:
+            max_tokens = 2048 
         return {
             "max_tokens": max_tokens,
-            # turn off reasoning traces for Qwen3
-            "chat_template_kwargs": {"enable_thinking": enable_thinking},
-            # Qwen3 recommended non-thinking sampling settings
-            # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
-            # https://huggingface.co/Qwen/Qwen3-32B#best-practices
+            "chat_template_kwargs": {"enable_thinking": False},
             "temperature": temperature,
             "top_p": 0.95,
             "top_k": 20,
@@ -101,7 +99,7 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=2048):
         }
 
 
-def simple_query_builder(runner, doc, temperature=None, enable_thinking=False, max_tokens=2048):
+def simple_query_builder(runner, doc, temperature=None, enable_thinking=False, max_tokens=None):
     return {
         "messages": doc.metadata["context"],
         **generation_config(temperature=temperature, enable_thinking=enable_thinking, max_tokens=max_tokens),
@@ -151,9 +149,9 @@ if __name__ == "__main__":
     parser.add_argument("--glob_pattern", type=str, default=None, help="Glob pattern to match input files")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--rate", type=float, default=0.05, help="Sampling rate")
-    parser.add_argument("--temperature", type=float, default=None, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
+    parser.add_argument("--temperature", type=float, default=None, help="Temperature for sampling")
     parser.add_argument("--enable_thinking", action="store_true", help="Enable thinking.")
-    parser.add_argument("--max_tokens", type=int, default=2048, help="Max tokens to generate")
+    parser.add_argument("--max_tokens", type=int, default=None, help="Max tokens to generate (defaults: 32768 thinking, 2048 non-thinking)")
     parser.add_argument("--redo_filtering_only", action="store_true", help="Redo the filtering phase only")
     parser.add_argument("--skip_chosen", action="store_true", help="Skip the chosen generation phase (stage 2), e.g. when the chosen samples have already been generated")
     parser.add_argument("--skip_preproc", action="store_true", help="Skip the prepoc stage if context is already in metadata.")
@@ -211,7 +209,7 @@ if __name__ == "__main__":
                 f"{args.output_dir}/{args.rejected_size}_sampling/data",
                 output_filename="${rank}_chunk_${chunk_index}.jsonl",
             ),
-            postprocess_fn=partial(postprocess_fn, model_size=args.rejected_size, gen_config=generation_config(temperature=args.temperature)),
+            postprocess_fn=partial(postprocess_fn, model_size=args.rejected_size, gen_config=generation_config(temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens)),
             skip_bad_requests=True
         ),
     ]
@@ -251,7 +249,7 @@ if __name__ == "__main__":
                 adapter=instruct_adapter,
             ),
             InferenceRunner(
-                query_builder=partial(simple_query_builder, temperature=args.temperature),
+                query_builder=partial(simple_query_builder, temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens),
                 config=config_chosen,
                 records_per_chunk=500,
                 checkpoints_local_dir=f"{args.output_dir}/{args.chosen_size}_sampling/checkpoints",
@@ -259,7 +257,7 @@ if __name__ == "__main__":
                     f"{args.output_dir}/{args.chosen_size}_sampling/data",
                     output_filename="${rank}_chunk_${chunk_index}.jsonl",
                 ),
-                postprocess_fn=partial(postprocess_fn, model_size=args.chosen_size, gen_config=generation_config(temperature=args.temperature)),
+                postprocess_fn=partial(postprocess_fn, model_size=args.chosen_size, gen_config=generation_config(temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens)),
                 skip_bad_requests=True
             ),
         ]
