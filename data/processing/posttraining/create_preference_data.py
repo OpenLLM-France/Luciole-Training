@@ -80,7 +80,7 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
             "max_tokens": max_tokens,
             "chat_template_kwargs": {"enable_thinking": True},
             "temperature": temperature,
-            "top_p": 0.8,
+            "top_p": 0.95,
             "top_k": 20,
             "min_p": 0.0,
         }    
@@ -93,7 +93,7 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
             "max_tokens": max_tokens,
             "chat_template_kwargs": {"enable_thinking": False},
             "temperature": temperature,
-            "top_p": 0.95,
+            "top_p": 0.80,
             "top_k": 20,
             "min_p": 0.0,
         }
