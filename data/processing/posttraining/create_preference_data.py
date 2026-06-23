@@ -68,11 +68,11 @@ class DPOFilter(BaseFilter):
         return True
 
 
-def generation_config(temperature=0.7):
+def generation_config(temperature=0.7, enable_thinking=False, max_tokens=2048):
     return {
-        "max_tokens": 2048,
+        "max_tokens": max_tokens,
         # turn off reasoning traces for Qwen3
-        "chat_template_kwargs": {"enable_thinking": False},
+        "chat_template_kwargs": {"enable_thinking": enable_thinking},
         # Qwen3 recommended non-thinking sampling settings
         # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
         # https://huggingface.co/Qwen/Qwen3-32B#best-practices
@@ -83,10 +83,10 @@ def generation_config(temperature=0.7):
     }
 
 
-def simple_query_builder(runner, doc, temperature=0.7):
+def simple_query_builder(runner, doc, temperature=0.7, enable_thinking=False, max_tokens=2048):
     return {
         "messages": doc.metadata["context"],
-        **generation_config(temperature=temperature),
+        **generation_config(temperature=temperature, enable_thinking=enable_thinking, max_tokens=max_tokens),
     }
 
 
@@ -134,6 +134,8 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--rate", type=float, default=0.05, help="Sampling rate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
+    parser.add_argument("--enable_thinking", action="store_true", help="Enable thinking.")
+    parser.add_argument("--max_tokens", type=int, default=2048, help="Max tokens to generate")
     parser.add_argument("--redo_filtering_only", action="store_true", help="Redo the filtering phase only")
     parser.add_argument("--skip_chosen", action="store_true", help="Skip the chosen generation phase (stage 2), e.g. when the chosen samples have already been generated")
     parser.add_argument("--skip_preproc", action="store_true", help="Skip the prepoc stage if context is already in metadata.")
@@ -183,7 +185,7 @@ if __name__ == "__main__":
         pipeline.append(preproc)
     pipeline += [
         InferenceRunner(
-            query_builder=partial(simple_query_builder, temperature=args.temperature),
+            query_builder=partial(simple_query_builder, temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens),
             config=config_rejected,
             records_per_chunk=500,
             checkpoints_local_dir=f"{args.output_dir}/{args.rejected_size}_sampling/checkpoints",
@@ -302,7 +304,7 @@ if __name__ == "__main__":
         tasks=1,
         time="02:00:00",
         partition="cpu_p1",
-        qos="qos_cpu-dev",
+        qos="qos_cpu-t3",
         skip_completed=not (args.force or args.redo_filtering_only),
         depends=executor_chosen if executor_chosen is not None else executor_rejected
     )
