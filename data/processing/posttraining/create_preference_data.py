@@ -68,22 +68,40 @@ class DPOFilter(BaseFilter):
         return True
 
 
-def generation_config(temperature=0.7, enable_thinking=False, max_tokens=2048):
-    return {
-        "max_tokens": max_tokens,
-        # turn off reasoning traces for Qwen3
-        "chat_template_kwargs": {"enable_thinking": enable_thinking},
-        # Qwen3 recommended non-thinking sampling settings
-        # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
-        # https://huggingface.co/Qwen/Qwen3-32B#best-practices
-        "temperature": temperature,
-        "top_p": 0.8,
-        "top_k": 20,
-        "min_p": 0.0,
-    }
+def generation_config(temperature=None, enable_thinking=False, max_tokens=2048):
+    if enable_thinking:
+        if not temperature:
+            temperature = 0.7
+        return {
+            "max_tokens": max_tokens,
+            # turn off reasoning traces for Qwen3
+            "chat_template_kwargs": {"enable_thinking": enable_thinking},
+            # Qwen3 recommended non-thinking sampling settings
+            # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
+            # https://huggingface.co/Qwen/Qwen3-32B#best-practices
+            "temperature": temperature,
+            "top_p": 0.8,
+            "top_k": 20,
+            "min_p": 0.0,
+        }    
+    else:
+        if not temperature:
+            temperature = 0.6
+        return {
+            "max_tokens": max_tokens,
+            # turn off reasoning traces for Qwen3
+            "chat_template_kwargs": {"enable_thinking": enable_thinking},
+            # Qwen3 recommended non-thinking sampling settings
+            # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
+            # https://huggingface.co/Qwen/Qwen3-32B#best-practices
+            "temperature": temperature,
+            "top_p": 0.95,
+            "top_k": 20,
+            "min_p": 0.0,
+        }
 
 
-def simple_query_builder(runner, doc, temperature=0.7, enable_thinking=False, max_tokens=2048):
+def simple_query_builder(runner, doc, temperature=None, enable_thinking=False, max_tokens=2048):
     return {
         "messages": doc.metadata["context"],
         **generation_config(temperature=temperature, enable_thinking=enable_thinking, max_tokens=max_tokens),
@@ -133,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--glob_pattern", type=str, default=None, help="Glob pattern to match input files")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--rate", type=float, default=0.05, help="Sampling rate")
-    parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
+    parser.add_argument("--temperature", type=float, default=None, help="Temperature for sampling (default 0.7 as recommended for Qwen3)")
     parser.add_argument("--enable_thinking", action="store_true", help="Enable thinking.")
     parser.add_argument("--max_tokens", type=int, default=2048, help="Max tokens to generate")
     parser.add_argument("--redo_filtering_only", action="store_true", help="Redo the filtering phase only")
