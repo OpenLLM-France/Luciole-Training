@@ -13,7 +13,7 @@ from datatrove.pipeline.filters import SamplerFilter
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
-from datatrove.pipeline.filters import LanguageFilter
+from datatrove.pipeline.filters import LanguageFilter, LambdaFilter
 
 #_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -323,9 +323,12 @@ if __name__ == "__main__":
             )
         ),
         LanguageFilter(
+            label_only=True,
             keep_top_pairs_threshold=1,
-            languages=FT176_LANGUAGES,
-            language_threshold=0.6,
+        ),
+        LambdaFilter(
+            lambda doc: doc.metadata["language"]
+            in FT176_LANGUAGES,
             exclusion_writer=JsonlWriter(
                 f"{args.output_dir}/filtered_data/excluded_pairs/language_filter",
             ),
