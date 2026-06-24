@@ -359,7 +359,6 @@ if __name__ == "__main__":
             "nodes": 1,
             "hint": "nomultithread",
         },
-        skip_completed=not args.force,
     )
 
     #########

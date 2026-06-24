@@ -13,6 +13,7 @@ from datatrove.pipeline.filters import SamplerFilter
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
+from datatrove.pipeline.filters import LanguageFilter
 
 #_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -41,6 +42,7 @@ class DPOFilter(BaseFilter):
         doc.metadata["rejected_size"] = self.rejected_size
         doc.metadata["token_diff"] = inference_results_chosen["usage"]["completion_tokens"] - inference_results_rejected["usage"]["completion_tokens"]
         doc.metadata["token_ratio"] = inference_results_chosen["usage"]["completion_tokens"] / inference_results_rejected["usage"]["completion_tokens"] 
+        doc.text = "\n".join([message["content"] for message in doc.metadata["chosen"]])
 
         if inference_results_rejected["finish_reason"] != "stop" or inference_results_chosen["finish_reason"] != "stop":
             return False, "finish_reason_not_stop"
@@ -289,7 +291,23 @@ if __name__ == "__main__":
     #########
     # Filtering pairs
     #########
-
+    FT176_LANGUAGES = [
+        "en",
+        "fr",
+        "it",
+        "de",
+        "es",
+        "ar",
+        "pt",
+        "nl",
+        "eu",
+        "ca",
+        "oc",
+        "br",
+        "co",
+        "wa",
+    ]
+    
     pipeline = [
         JsonlReader(
             f"{args.output_dir}/{args.rejected_size}_sampling/data" if args.skip_chosen else f"{args.output_dir}/{args.chosen_size}_sampling/data",
@@ -304,7 +322,14 @@ if __name__ == "__main__":
                 output_filename="${filter_reason}/${rank}.jsonl",
             )
         ),
-        #postprocess_unicode,
+        LanguageFilter(
+            keep_top_pairs_threshold=1,
+            languages=FT176_LANGUAGES,
+            language_threshold=0.6,
+            exclusion_writer=JsonlWriter(
+                f"{args.output_dir}/filtered_data/excluded_pairs/language_filter",
+            ),
+        ),
         JsonlWriter(
             f"{args.output_dir}/filtered_data/valid_pairs",
             expand_metadata=True,
