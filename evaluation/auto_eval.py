@@ -519,8 +519,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lighteval_kwargs",
         type=str,
-        default="",
-        help="Additional arguments to pass to lighteval (e.g. --lighteval_kwargs=--save-details).",
+        default="--save-details",
+        help="Additional arguments to pass to lighteval (default: --lighteval_kwargs=--save-details).",
     )
     parser.add_argument(
         "--additional_model_args",
