@@ -1,2 +1,2 @@
 extended|ifbench_test|0
-extended|ifbench_multiturn|1
+extended|ifbench_multiturn|0
