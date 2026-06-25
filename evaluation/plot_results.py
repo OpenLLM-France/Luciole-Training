@@ -2,7 +2,12 @@ import os
 import re
 import math
 import argparse
-from utils import process_results, read_experiment_results, format_task_for_title
+from utils import (
+    process_results,
+    read_experiment_results,
+    format_task_for_title,
+    task_group_mapping,
+)
 from agg_score import (
     calculate_agg_score,
     get_info,
@@ -59,161 +64,6 @@ _PALETTE = [
     "#7F7F7F",  # medium grey
     "#BCBD22",  # yellow-green
     "#17BECF",  # teal
-]
-
-task_group_mapping = {
-    # "mcq": [
-    #     ("leaderboard|hellaswag|0", "acc"),
-    #     ("helm|hellaswag|0", "em_with_normalize_gold&normalize_pred"),
-    #     ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-    #     ("lighteval|mlmm_arc_fra_mcf:challenge|0", "acc"),
-    #     ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-    #     ("lighteval|mlmm_hellaswag_fra_mcf|0", "acc"),
-    #     ("custom|mmlu_pro_cf|0", "acc_norm_token"),
-    #     ("custom|mmlu_pro_mcf|0", "acc"),
-    # ],
-    "en": [
-        ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
-        ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
-        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
-        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
-        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
-        ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
-        ("helm|siqa|0", "em"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|piqa|0", "acc_with_logprob_normalization"),
-        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
-        # ("helm|boolq:_average|0", "em_with_type_exact_match"),
-    ],
-    "smollm": [
-        ("custom|piqa_cf|0", "acc_norm"),
-        ("lighteval|piqa|0", "acc_with_logprob_normalization"),
-        ("custom|hellaswag_cf|0", "acc_norm"),
-        ("leaderboard|hellaswag|0", "acc"),
-        ("custom|openbookqa_cf|0", "acc_norm"),
-        ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
-        ("custom|commonsenseqa_cf|0", "acc_norm"),
-        ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
-        ("custom|boolq_cf|0", "acc_norm"),
-        ("helm|boolq:_average|0", "em_with_type_exact_match"),
-        ("custom|arc_cf:challenge|0", "acc_norm"),
-        ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
-        ("custom|arc_cf:easy|0", "acc_norm"),
-        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
-        ("custom|winogrande_cf|0", "acc_norm"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("custom|gsm8k|5", "extractive_match"),
-        ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
-    ],
-    "cultural": [
-        ("lighteval|global_mmlu_cs_eng_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_ca_eng_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_cs_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_ca_fra_cf:_average|0", "acc_norm"),
-    ],
-    "idiomatic_expressions": [
-        ("custom:idiomatic_expressions_fib_context:_average:0", "acc"),
-        ("custom:idiomatic_expressions_fib_context:different:0", "acc"),
-        ("custom:idiomatic_expressions_fib_context:similar:0", "acc"),
-        ("custom:idiomatic_expressions_fib_context:word_by_word:0", "acc"),
-    ],
-    "mmlu": [
-        ("custom|mmlu_pro_cf|0", "acc_norm"),
-        ("custom|mmlu_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
-    ],
-    "en_new": [
-        ("lighteval|belebele_eng_Latn_cf|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
-    ],
-    "fr": [
-        ("lighteval|fquadv2_fra|0", "exact_match_fra_prefix"),  # f1_fra ?
-        ("lighteval|mintaka_fra|0", "exact_match_fra_prefix"),  # f1_fra ?
-        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
-        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("lighteval|xcodah_fra_cf|0", "acc_norm"),
-        ("lighteval|xcsqa_fra_cf|0", "acc_norm_token"),
-        ("lighteval|xnli2.0_fra_cf|0", "acc_norm_token"),
-    ],
-    "multilingual": [
-        ("lighteval|global_mmlu_all_deu_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_spa_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_ita_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_ara_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_por_cf:_average|0", "acc_norm"),
-        ("lighteval|global_mmlu_all_nld_cf:_average|0", "acc_norm"),
-        # ("lighteval|belebele_deu_Latn_cf|0", "acc_norm"),
-        # ("lighteval|belebele_spa_Latn_cf|0", "acc_norm"),
-        # ("lighteval|belebele_ita_Latn_cf|0", "acc_norm"),
-        # ("lighteval|belebele_arb_Arab_cf|0", "acc_norm"),
-        # ("lighteval|belebele_por_Latn_cf|0", "acc_norm"),
-        # ("lighteval|belebele_nld_Latn_cf|0", "acc_norm"),
-        ("lighteval|mlmm_hellaswag_deu_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_spa_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_ita_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_ara_cf|0", "acc_norm_token"),
-    ],
-    "translation": [
-        # ("lighteval|flores200:fra_Latn-eng_Latn|5", "bleu"),
-        ("lighteval|flores200:fra_Latn-eng_Latn|5", "bleu_4"),
-        ("lighteval|flores200:fra_Latn-eng_Latn|5", "comet"),
-        ("lighteval|flores200:fra_Latn-eng_Latn|5", "metricx"),
-        # ("lighteval|flores200:eng_Latn-fra_Latn|5", "bleu"),
-        ("lighteval|flores200:eng_Latn-fra_Latn|5", "bleu_4"),
-        ("lighteval|flores200:eng_Latn-fra_Latn|5", "comet"),
-        ("lighteval|flores200:eng_Latn-fra_Latn|5", "metricx"),
-    ],
-    "ruler": [
-        ("custom|ruler_4096:_average|0", "ruler_match"),
-        ("custom|ruler_8192:_average|0", "ruler_match"),
-        ("custom|ruler_16384:_average|0", "ruler_match"),
-        ("custom|ruler_32768:_average|0", "ruler_match"),
-        ("custom|ruler_65536:_average|0", "ruler_match"),
-        ("custom|ruler_131072:_average|0", "ruler_match"),
-    ],
-    "finetune": [
-        ("leaderboard|hellaswag|0", "acc"),
-        ("leaderboard|winogrande|0", "acc"),
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
-        # ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
-        # ("community|gpqa-fr|0", "acc"),
-        # ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
-        ("lighteval|gsm_plus|0", "extractive_match"),
-        # ("lighteval|aime25|0", "pass@k_with_k&n"),
-        ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
-        ("extended|ifeval|0", "prompt_level_loose_acc"),
-        ("community|ifeval-fr|0", "prompt_level_loose_acc"),
-        ("extended|ifbench_test|0", "prompt_level_loose_acc"),
-        ("extended|ifbench_multiturn|0", "prompt_level_loose_acc"),
-        ("extended|mixeval_easy:_average|0", "judge_score_flow"),
-        ("extended|mixeval_hard:_average|0", "judge_score_flow"),
-        ("lighteval|gsm8k|0", "extractive_match"),
-        ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
-        ("custom|longbench_hotpotqa|0", "qa_f1_score"),
-        ("custom|longbench_musique|0", "qa_f1_score"),
-        ("custom|longbench_2wikimqa|0", "qa_f1_score"),
-    ],
-    "rag": [
-        ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
-        ("custom|longbench_hotpotqa|0", "qa_f1_score"),
-        ("custom|longbench_musique|0", "qa_f1_score"),
-        ("custom|longbench_2wikimqa|0", "qa_f1_score"),
-    ],
-}
-
-task_group_mapping["common"] = [
-    task
-    for task in (
-        task_group_mapping["en"]
-        + task_group_mapping["fr"]
-        + task_group_mapping["multilingual"]
-    )
-    if task in task_group_mapping["finetune"]
 ]
 
 
