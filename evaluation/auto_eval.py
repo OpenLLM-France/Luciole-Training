@@ -183,6 +183,10 @@ def launch_evaluation(
 ):
     import evaluate_experiment
 
+    # An eval_type of the form "base/filter" (e.g. "finetune/safety") restricts the
+    # launched jobs to the tasks whose file name matches the "filter" regex.
+    eval_type, _, task_filter = eval_type.partition("/")
+
     job_ids = []
 
     COMMANDS = []
@@ -250,7 +254,16 @@ def launch_evaluation(
                     max_samples=1000,
                     gpus=gpus,
                 )
-                for task in ["mixeval", "ifbench", "ifeval", "ifeval_fr", "gsm_plus"]
+                for task in [
+                    "mixeval",
+                    "ifbench",
+                    "ifeval",
+                    "ifeval_fr",
+                    "gsm_plus",
+                    "safety",
+                    # "safety_multilang",
+                    "rag2",
+                ]
             ]
             + [
                 dict(
@@ -336,6 +349,22 @@ def launch_evaluation(
     if not COMMANDS:
         raise NotImplementedError(f"Unknown eval_type: {eval_type}")
 
+    # Keep only the tasks matching the optional "base/filter" selector.
+    if task_filter:
+        task_regex = re.compile(task_filter)
+        selected = [
+            cmd
+            for cmd in COMMANDS
+            if task_regex.search(Path(cmd["task_to_evaluate"]).stem)
+        ]
+        if not selected:
+            available = sorted(Path(cmd["task_to_evaluate"]).stem for cmd in COMMANDS)
+            raise ValueError(
+                f"Task filter '{task_filter}' matched no task of eval_type "
+                f"'{eval_type}'. Available tasks: {', '.join(available)}."
+            )
+        COMMANDS = selected
+
     for command in COMMANDS:
         job_id = evaluate_experiment.launch_evaluation(
             experiment_path=experiment_path,
@@ -364,6 +393,8 @@ def launch_plot(
     experiment_path, email="", dependency_job_id=None, eval_type="pretrain"
 ):
     print(f"Launching plot for {experiment_path}")
+    # Plot groups are selected from the base eval_type, ignoring any "/filter" suffix.
+    eval_type = eval_type.partition("/")[0]
     job_dir = Path(experiment_path) / "evaluation"
     job_dir.mkdir(parents=True, exist_ok=True)
 
@@ -479,19 +510,13 @@ if __name__ == "__main__":
         "--eval_type",
         type=str,
         default="pretrain",
-        choices=[
-            "pretrain",
-            "finetune",
-            "ruler",
-            "ruler_4096",
-            "ruler_8192",
-            "ruler_16384",
-            "ruler_32768",
-            "ruler_65536",
-            "ruler_131072",
-            "context_extension",
-        ],
-        help="Type of evaluation to perform.",
+        help=(
+            "Type of evaluation to perform: one of 'pretrain', 'finetune', 'ruler', "
+            "'ruler_<length>' (e.g. 'ruler_4096'), 'context_extension'. "
+            "Append '/<filter>' to launch only the tasks whose file name matches the "
+            "<filter> regex, e.g. 'finetune/safety' (safety.txt + safety_fr.txt) or "
+            "'finetune/safety_fr' (safety_fr.txt only)."
+        ),
     )
     parser.add_argument(
         "--command",

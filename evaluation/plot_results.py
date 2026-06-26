@@ -83,14 +83,20 @@ def resolve_group(g):
         )
     tasks = task_group_mapping[base]
     if not sep:
-        return tasks
-    if not pattern:
-        raise ValueError(f"Empty regex in group spec '{g}'.")
-    regex = re.compile(pattern)
-    filtered = [t for t in tasks if regex.search(t[0])]
-    if not filtered:
-        raise ValueError(f"Regex '{pattern}' matched no task in group '{base}'.")
-    return filtered
+        selected = tasks
+    else:
+        if not pattern:
+            raise ValueError(f"Empty regex in group spec '{g}'.")
+        regex = re.compile(pattern)
+        selected = [t for t in tasks if regex.search(t[0])]
+        if not selected:
+            raise ValueError(f"Regex '{pattern}' matched no task in group '{base}'.")
+    # A metric may be a function (derived metric); downstream code matches it against
+    # df["metric"] by its name, so normalize callables to their __name__ here.
+    return [
+        (task, metric.__name__ if callable(metric) else metric)
+        for task, metric in selected
+    ]
 
 
 def format_expe_name_for_color(expe_name):
@@ -478,8 +484,42 @@ def plot_task(
     ax.set_title(format_task_for_title(task))
 
 
+# Filler words ignored when deriving a metric title (e.g. extractive_match -> "MATCH").
+_METRIC_TITLE_IGNORE = {"answer", "extractive"}
+# Metric name suffixes that denote the kind of score, longest first.
+_METRIC_TITLE_KINDS = [
+    ("_f1_score", "F1"),
+    ("_f1", "F1"),
+    ("_acc", "ACC"),
+    ("_em", "EM"),
+    ("_recall", "RECALL"),
+    ("_precision", "PRECISION"),
+]
+
+
 def format_metric_for_title(metric):
-    return metric.replace("exact_match_", "em_").split("_")[0].upper()
+    # Metrics named "<prefix>_<kind>" (kind in f1/f1_score/acc/em): show the kind,
+    # prefixed by a single meaningful word if one remains (e.g. refusal_f1 -> "Refusal F1",
+    # qa_f1_score -> "QA F1"), otherwise just the kind (e.g. answer_em -> "EM").
+    for suffix, kind in _METRIC_TITLE_KINDS:
+        if metric.endswith(suffix):
+            tokens = [
+                t
+                for t in metric[: -len(suffix)].split("_")
+                if t and t not in _METRIC_TITLE_IGNORE
+            ]
+            if len(tokens) == 1:
+                word = tokens[0]
+                word = word.upper() if len(word) <= 2 else word.title()
+                return f"{word} {kind}"
+            return kind
+    # Default heuristic: first token (ignoring filler words), uppercased.
+    tokens = [
+        t
+        for t in metric.replace("exact_match_", "em_").split("_")
+        if t and t not in _METRIC_TITLE_IGNORE
+    ]
+    return tokens[0].upper() if tokens else metric.upper()
 
 
 def format_expename_for_title(expe_name):
@@ -1261,15 +1301,18 @@ def process_experiments(args):
     all_results = []
 
     if args.legend:
-        assert len(args.legend) == len(
+        assert len(args.legend) <= len(
             args.experiment_path
         ), "Length of legend must match number of experiment paths."
+        args.legend = [legend.replace("_", " ") for legend in args.legend]
+        if len(args.legend) < len(args.experiment_path):
+            args.legend += [None] * (len(args.experiment_path) - len(args.legend))
 
     benchmarks_per_tasktype_ref = None
     missing_systems = []
     for iexpe, path in enumerate(args.experiment_path):
         # Step 1: read experiment results
-        expe_name = args.legend[iexpe].replace("_", " ") if args.legend else None
+        expe_name = args.legend[iexpe] if args.legend else None
         df = read_experiment_results(
             path,
             evaluation_dir=args.evaluation_dir,

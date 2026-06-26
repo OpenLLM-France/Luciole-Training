@@ -1,0 +1,4 @@
+community|aya_red_teaming_fra|0
+community|aya_red_teaming_spa|0
+community|aya_red_teaming_ara|0
+community|aya_red_teaming_eng|0

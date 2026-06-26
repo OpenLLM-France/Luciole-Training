@@ -1,0 +1,4 @@
+community|advbench|0
+community|hexphi|0
+community|harmbench_standard|0
+community|harmbench_contextual|0

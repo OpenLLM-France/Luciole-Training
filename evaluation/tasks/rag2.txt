@@ -1,0 +1,6 @@
+community|luciole_rag:hotpotqa|0
+community|luciole_rag:hotpotqa_fr|0
+community|luciole_rag:tatqa|0
+community|luciole_rag:newsquadfr|0
+# community|luciole_rag:squad2_fr_pragnakalp|0
+# community|luciole_rag:piaf|0

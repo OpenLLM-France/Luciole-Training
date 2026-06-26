@@ -6,6 +6,26 @@ import numpy as np
 import glob
 
 
+def _nan_to_zero(value):
+    """Return 0.0 for a missing or NaN value, otherwise the value unchanged."""
+    if value is None or np.isnan(value):
+        return 0.0
+    return value
+
+
+# Derived metrics. A metric can be given in task_group_mapping either as a string
+# (read directly from the results JSON) or as a function. A function takes one task's
+# {metric_name: value} dict and returns the derived value. Its __name__ is the metric
+# identifier used everywhere downstream. It is only computed for the tasks it is paired
+# with in task_group_mapping, so it may assume those tasks expose the metrics it reads.
+def refusal_f1(metrics):
+    """refusal_recall * refusal_precision, treating NaN components as 0."""
+    assert "refusal_recall" in metrics and "refusal_precision" in metrics
+    return _nan_to_zero(metrics["refusal_recall"]) * _nan_to_zero(
+        metrics["refusal_precision"]
+    )
+
+
 # Mapping from a group name to the list of (task, metric) pairs it contains.
 # Task names follow lighteval's "suite|task|fewshot" convention. This lives here
 # (rather than in plot_results) so it can also serve as the registry of known
@@ -132,6 +152,7 @@ task_group_mapping = {
         # ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
         # ("community|gpqa-fr|0", "acc"),
         # ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
+        ("lighteval|gsm8k|0", "extractive_match"),
         ("lighteval|gsm_plus|0", "extractive_match"),
         # ("lighteval|aime25|0", "pass@k_with_k&n"),
         ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
@@ -141,13 +162,34 @@ task_group_mapping = {
         ("extended|ifbench_multiturn|0", "prompt_level_loose_acc"),
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
-        ("lighteval|gsm8k|0", "extractive_match"),
-        ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
-        ("custom|longbench_hotpotqa|0", "qa_f1_score"),
-        ("custom|longbench_musique|0", "qa_f1_score"),
-        ("custom|longbench_2wikimqa|0", "qa_f1_score"),
+        # ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
+        # ("custom|longbench_hotpotqa|0", "qa_f1_score"),
+        # ("custom|longbench_musique|0", "qa_f1_score"),
+        # ("custom|longbench_2wikimqa|0", "qa_f1_score"),
+        # ("community|harmbench_standard:_average|0", "safety_rate_llama_guard"),
+        # ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
     ],
     "rag": [
+        ("community|luciole_rag:hotpotqa|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:tatqa|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:hotpotqa_fr|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:newsquadfr|0", "answer_em_fuzzy"),
+        # ("community|luciole_rag:squad2_fr_pragnakalp|0", "answer_em"),
+        # ("community|luciole_rag:piaf|0", "answer_em"),
+        ("community|luciole_rag:hotpotqa|0", refusal_f1),
+        ("community|luciole_rag:tatqa|0", refusal_f1),
+        ("community|luciole_rag:hotpotqa_fr|0", refusal_f1),
+        ("community|luciole_rag:newsquadfr|0", refusal_f1),
+        # ("community|luciole_rag:squad2_fr_pragnakalp|0", refusal_f1),
+        # ("community|luciole_rag:piaf|0", refusal_f1),
+        # ("community|luciole_rag:hotpotqa|0", "refusal_recall"),
+        # ("community|luciole_rag:tatqa|0", "refusal_recall"),
+        # ("community|luciole_rag:hotpotqa_fr|0", "refusal_recall"),
+        # ("community|luciole_rag:newsquadfr|0", "refusal_recall"),
+        # ("community|luciole_rag:hotpotqa|0", "refusal_precision"),
+        # ("community|luciole_rag:tatqa|0", "refusal_precision"),
+        # ("community|luciole_rag:hotpotqa_fr|0", "refusal_precision"),
+        # ("community|luciole_rag:newsquadfr|0", "refusal_precision"),
         ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
         ("custom|longbench_hotpotqa|0", "qa_f1_score"),
         ("custom|longbench_musique|0", "qa_f1_score"),
@@ -158,6 +200,10 @@ task_group_mapping = {
         ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
         ("community|advbench|0", "safety_rate_llama_guard"),
         ("community|hexphi:_average|0", "safety_rate_llama_guard"),
+        # ("community|aya_red_teaming_eng|0", "safety_rate_llama_guard"),
+        # ("community|aya_red_teaming_fra|0", "safety_rate_llama_guard"),
+        # ("community|aya_red_teaming_spa|0", "safety_rate_llama_guard"),
+        # ("community|aya_red_teaming_ara|0", "safety_rate_llama_guard"),
     ],
 }
 
@@ -170,6 +216,21 @@ task_group_mapping["common"] = [
     )
     if task in task_group_mapping["finetune"]
 ]
+
+
+# Callable metrics referenced in task_group_mapping, grouped by the (full) task name
+# they are paired with. They are computed from a task's other metrics when reading the
+# results JSON (see read_json_file).
+def _collect_derived_metrics_by_task(mapping):
+    by_task = {}
+    for group in mapping.values():
+        for task, metric in group:
+            if callable(metric):
+                by_task.setdefault(task, {})[metric.__name__] = metric
+    return by_task
+
+
+_derived_metrics_by_task = _collect_derived_metrics_by_task(task_group_mapping)
 
 
 def get_step(text):
@@ -411,10 +472,25 @@ def restore_task_suite(task):
     return task
 
 
+def add_derived_metrics(results):
+    """Augment each task's {metric: value} dict in-place with the derived metrics it is
+    paired with in task_group_mapping, so they can be plotted like any other metric."""
+    for task, task_metrics in results.items():
+        for name, fn in _derived_metrics_by_task.get(
+            restore_task_suite(task), {}
+        ).items():
+            task_metrics[name] = fn(task_metrics)
+
+
 def read_json_file(file_path):
     file_path = Path(file_path)
-    with open(file_path, "r") as f:
-        data = json.load(f)
+    try:
+        with open(file_path, "r") as f:
+            data = json.load(f)
+    except Exception as err:
+        raise RuntimeError(f"Could not read JSON file {file_path}") from err
+
+    add_derived_metrics(data["results"])
 
     df = (
         pd.DataFrame(data["results"])
