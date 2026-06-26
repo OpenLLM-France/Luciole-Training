@@ -720,7 +720,7 @@ def plot_list_of_tasks(
     checkpoint_index=None,
     hide_details=False,
     dpi=150,
-    max_subplot=19,
+    max_subplot=20,
     add_aggregate=False,
     separate_legend=False,
     rows_cols=None,
@@ -1189,7 +1189,7 @@ def check_all_systems_have_results(
             raise RuntimeError(message)
 
 
-def plot_experiments(df, args, max_subplot=19):
+def plot_experiments(df, args, max_subplot=20):
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
@@ -1515,4 +1515,4 @@ if __name__ == "__main__":
         df.to_csv(os.path.join(args.output_path, "results.csv"), index=False)
 
     else:
-        plot_experiments(df, args, max_subplot=19)
+        plot_experiments(df, args, max_subplot=20)
