@@ -85,3 +85,31 @@ def format_tool_calls(tool_calls: list, content: str = "") -> str:
 
     return content + "".join(parts)
 
+
+def nemo_rl_format_messages(messages: list) -> list:
+    """Flatten a list of messages to the NeMo-RL format.
+
+    Each message becomes a plain ``{"role", "content"}`` dict: reasoning is
+    inlined inside ``<think>`` tags and tool calls are rendered into the content
+    via ``format_tool_calls``.
+    """
+    new_messages = []
+    for message in messages:
+        content = message.get("content") or ""
+
+        reasoning_content = message.get("reasoning_content")
+        if reasoning_content:
+            content = (
+                "<think>\n"
+                + reasoning_content.strip("\n")
+                + "\n</think>\n\n"
+                + content.lstrip("\n")
+            )
+
+        tool_calls = message.get("tool_calls")
+        if tool_calls:
+            content = format_tool_calls(tool_calls, content)
+
+        new_messages.append({"role": message["role"], "content": content})
+    return new_messages
+

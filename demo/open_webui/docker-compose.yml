@@ -10,68 +10,117 @@
 #   - NVIDIA DGX Spark (or other GB10) with driver + nvidia-container-toolkit
 #   - Docker Compose v2 (`docker compose`, not the old `docker-compose`)
 #
-# Open WebUI reaches vLLM over the compose network at http://vllm:8000/v1,
-# so no host.docker.internal is needed here.
+# Three models (A, B, C) are served side by side, each in its own vLLM
+# container on its own port. A single `vllm serve` process hosts exactly one
+# model, so serving three means three instances. On DGX Spark they share the one
+# unified-memory GPU, so GPU_MEM_UTIL_A + GPU_MEM_UTIL_B + GPU_MEM_UTIL_C
+# must stay well under 1.0 (leave headroom — e.g. 0.4 + 0.2 + 0.2) or vLLM will
+# OOM on startup.
+#
+# Open WebUI reaches all over the compose network (http://vllm-a:8000/v1,
+# http://vllm-b:8000/v1 and http://vllm-c:8000/v1); all models then show up
+# in its model picker.
+
+# Shared vLLM service config. Per-model services below override command/ports.
+x-vllm-common: &vllm-common
+  # NVIDIA's official NGC vLLM container — the ARM64/GB10 build for DGX Spark.
+  # The stock `vllm/vllm-openai` image is x86-only and will NOT run here.
+  image: nvcr.io/nvidia/vllm:${VLLM_TAG:-26.02-py3}
+  volumes:
+    # Cache HF downloads on the host so restarts don't re-download.
+    - ${HF_CACHE:-~/.cache/huggingface}:/root/.cache/huggingface
+    # Mount a host directory of local checkpoints; reference them as
+    # MODEL_*=/models/<your-checkpoint> in .env.
+    - ${MODELS_DIR:-./models}:/models
+  environment:
+    - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+  ipc: host            # vLLM needs ample shared memory for tensor parallelism
+  restart: unless-stopped
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: ${GPU_COUNT:-1}   # both instances share these GPU(s)
+            capabilities: [gpu]
 
 services:
-  vllm:
-    # NVIDIA's official NGC vLLM container — the ARM64/GB10 build for DGX Spark.
-    # The stock `vllm/vllm-openai` image is x86-only and will NOT run here.
-    image: nvcr.io/nvidia/vllm:${VLLM_TAG:-26.02-py3}
+  vllm-a:
+    <<: *vllm-common
+    container_name: vllm-a
     # NGC container entrypoint passes the command through, so we invoke
     # `vllm serve` ourselves (unlike vllm/vllm-openai, whose entrypoint IS the
-    # server). --gpu-memory-utilization is kept modest: DGX Spark has unified
-    # CPU/GPU memory and vLLM otherwise over-allocates and OOMs.
+    # server).
     command:
       - vllm
       - serve
-      - ${MODEL:?set MODEL in .env}
-      - --served-model-name=${SERVED_MODEL_NAME:-luciole}
+      - ${MODEL_A:?set MODEL_A in .env}
+      - --served-model-name=${SERVED_MODEL_NAME_A:-luciole-8b}
       # Luciole ships custom modeling code in its HF repo; vLLM refuses to load
       # it unless explicitly allowed to execute that code.
       - --trust-remote-code
       - --enable-auto-tool-choice
-      - --tool-call-parser=${TOOL_PARSER:-hermes}
-      - --gpu-memory-utilization=${GPU_MEM_UTIL:-0.7}
+      - --tool-call-parser=${TOOL_PARSER_A:-hermes}
+      - --gpu-memory-utilization=${GPU_MEM_UTIL_A:-0.4}
       - --host=0.0.0.0
       - --port=8000
-    # Bound to localhost only: Open WebUI reaches vLLM over the internal
-    # compose network (http://vllm:8000/v1), so there's no reason to expose
-    # this unauthenticated inference endpoint to the network. This mapping
-    # just lets you `curl` it from the host for debugging. Remove the block
-    # entirely if you don't need that.
+    # Bound to localhost only: Open WebUI reaches vLLM over the internal compose
+    # network, so there's no reason to expose this unauthenticated inference
+    # endpoint. This mapping just lets you `curl` it from the host for debugging.
     ports:
-      - "127.0.0.1:${VLLM_PORT:-8000}:8000"
-    volumes:
-      # Cache HF downloads on the host so restarts don't re-download.
-      - ${HF_CACHE:-~/.cache/huggingface}:/root/.cache/huggingface
-      # Mount a host directory of local checkpoints; reference them as
-      # MODEL=/models/<your-checkpoint> in .env.
-      - ${MODELS_DIR:-./models}:/models
-    environment:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
-    ipc: host          # vLLM needs ample shared memory for tensor parallelism
-    restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: ${GPU_COUNT:-1}   # or `all`
-              capabilities: [gpu]
+      - "127.0.0.1:${VLLM_PORT_A:-8000}:8000"
+
+  vllm-b:
+    <<: *vllm-common
+    container_name: vllm-b
+    command:
+      - vllm
+      - serve
+      - ${MODEL_B:?set MODEL_B in .env}
+      - --served-model-name=${SERVED_MODEL_NAME_B:-luciole-1b}
+      - --trust-remote-code
+      - --enable-auto-tool-choice
+      - --tool-call-parser=${TOOL_PARSER_B:-hermes}
+      - --gpu-memory-utilization=${GPU_MEM_UTIL_B:-0.2}
+      - --host=0.0.0.0
+      - --port=8000
+    ports:
+      - "127.0.0.1:${VLLM_PORT_B:-8001}:8000"
+
+  vllm-c:
+    <<: *vllm-common
+    container_name: vllm-c
+    command:
+      - vllm
+      - serve
+      - ${MODEL_C:?set MODEL_C in .env}
+      - --served-model-name=${SERVED_MODEL_NAME_C:-luciole-1b-2}
+      - --trust-remote-code
+      - --enable-auto-tool-choice
+      - --tool-call-parser=${TOOL_PARSER_C:-hermes}
+      - --gpu-memory-utilization=${GPU_MEM_UTIL_C:-0.2}
+      - --host=0.0.0.0
+      - --port=8000
+    ports:
+      - "127.0.0.1:${VLLM_PORT_C:-8002}:8000"
 
   open-webui:
+    container_name: open-webui
     image: ghcr.io/open-webui/open-webui:main
     depends_on:
-      - vllm
+      - vllm-a
+      - vllm-b
+      - vllm-c
     ports:
       - "${WEBUI_PORT:-3000}:8080"
     volumes:
       - open-webui:/app/backend/data   # persist chats, tools, settings
     environment:
-      # Preconfigure the connection to vLLM so it shows up out of the box.
-      - OPENAI_API_BASE_URL=http://vllm:8000/v1
-      - OPENAI_API_KEY=EMPTY
+      # Preconfigure all connections so every model shows up out of the box.
+      # Open WebUI accepts multiple OpenAI endpoints as ';'-separated lists;
+      # the API keys list is positional and must line up with the URLs.
+      - OPENAI_API_BASE_URLS=http://vllm-a:8000/v1;http://vllm-b:8000/v1;http://vllm-c:8000/v1
+      - OPENAI_API_KEYS=EMPTY;EMPTY;EMPTY
     restart: unless-stopped
 
 volumes:
