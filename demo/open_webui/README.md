@@ -104,7 +104,7 @@ picker.
 ## 4. Add the demo tools
 
 **Workspace → Tools → “+”.** Paste the contents of
-[`luciole_demo_tools.py`](./luciole_demo_tools.py), then **Save**.
+[`tools/luciole_demo_tools.py`](./tools/luciole_demo_tools.py), then **Save**.
 
 Open WebUI builds each tool's JSON schema from the method's type hints and
 docstring, so keep those accurate when you add your own tools.
@@ -144,7 +144,7 @@ model's final answer.
   (`data/processing/tool_calling/`, `finetune/nemo-rl/configs/tool_calling/`)
   is for. To sanity-check the UI plumbing first, point Open WebUI at a known
   tool-calling model (e.g. `qwen2.5:7b` via Ollama).
-- **Adding real tools:** replace the demo methods in `luciole_demo_tools.py`
+- **Adding real tools:** replace the demo methods in `tools/luciole_demo_tools.py`
   with your own. Each public method on the `Tools` class = one tool; return a
   string (JSON is convenient). Add `Valves`/`UserValves` (pydantic) if a tool
   needs configurable secrets/endpoints.
