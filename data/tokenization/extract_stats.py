@@ -37,6 +37,11 @@ if __name__ == "__main__":
         type=str,
         help="The dataset name you want the statistics (end with _text_document.idx)",
     )
+    parser.add_argument(
+        "--save_arrays", 
+        action="store_true", 
+        help="Save the token count arrays.",
+    )
     args = parser.parse_args()
     data_path = args.data_path
 
@@ -52,3 +57,11 @@ if __name__ == "__main__":
         json.dump(stats, f, indent=4)
 
     print(f"Stats saved at {stats_path}.")
+
+    if args.save_arrays:
+        npy_path = os.path.join(data_path, "token_arrays", f"{name}.npy")
+        print(f"Saving numpy array of token counts for {name}...")
+        os.makedirs(os.path.join(data_path, "token_arrays"), exist_ok=True)
+        np.save(npy_path, token_lengths)
+
+        print(f"Arrays saved at {npy_path}.")
