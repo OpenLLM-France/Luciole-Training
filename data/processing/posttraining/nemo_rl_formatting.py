@@ -2,7 +2,7 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import SamplerFilter
-from utils import instruct_adapter, format_tool_calls
+from utils import instruct_adapter, nemo_rl_format_messages
 
 def nemo_rl_format(
     data,
@@ -10,28 +10,7 @@ def nemo_rl_format(
     world_size: int = 1,
 ):
     for doc in data:
-        messages = doc.metadata["messages"]
-        new_messages = []
-        for message in messages:
-            content = message.get("content") or ""
-
-            reasoning_content = message.get("reasoning_content")
-            if reasoning_content:
-                content = (
-                    "<think>\n"
-                    + reasoning_content.strip("\n")
-                    + "\n</think>\n\n"
-                    + content.lstrip("\n")
-                )
-
-            tool_calls = message.get("tool_calls")
-            if tool_calls:
-                content = format_tool_calls(tool_calls, content)
-
-            new_message = {"role": message["role"], "content": content}
-            new_messages.append(new_message)
-
-        doc.metadata = {"messages": new_messages}
+        doc.metadata = {"messages": nemo_rl_format_messages(doc.metadata["messages"])}
         yield doc
 
 

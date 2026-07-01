@@ -18,6 +18,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Force re-generation of stats even if they already exist.",
     )
+    parser.add_argument(
+        "--save_arrays", 
+        action="store_true", 
+        help="Save the np arrays of token counts.",
+    )
     args = parser.parse_args()
     token_dir = args.token_dir
 
@@ -38,18 +43,34 @@ if __name__ == "__main__":
             print("--------------------------------------")
             print(f"🚀 Stats for: {name}")
             print("--------------------------------------")
-            result = subprocess.run(
-                [
-                    "sbatch",
-                    f"--job-name=stats_{name}",
-                    "template.slurm",
-                    "extract_stats.py",
-                    token_dir,
-                    name,
-                ],
-                capture_output=True,
-                text=True,
-            )
+
+            if args.save_arrays:
+                result = subprocess.run(
+                    [
+                        "sbatch",
+                        f"--job-name=stats_{name}",
+                        "template.slurm", 
+                        "extract_stats.py", 
+                        token_dir, 
+                        name, 
+                        "--save_arrays",
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+            else:
+                result = subprocess.run(
+                    [
+                        "sbatch",
+                        f"--job-name=stats_{name}",
+                        "template.slurm",
+                        "extract_stats.py",
+                        token_dir,
+                        name,
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
             # Parse job ID from output: "Submitted batch job 123456"
             if result.returncode == 0:
                 job_id = result.stdout.strip().split()[-1]

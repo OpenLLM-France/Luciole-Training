@@ -22,6 +22,7 @@ instruct_adapter = posttraining_utils.instruct_adapter
 FilterChinese = posttraining_utils.FilterChinese
 apply_chat_template = posttraining_utils.apply_chat_template
 format_tool_calls = posttraining_utils.format_tool_calls
+nemo_rl_format_messages = posttraining_utils.nemo_rl_format_messages
 
 
 def check_last_message(data, rank: int = 0, world_size: int = 1, tokenizer=None):
