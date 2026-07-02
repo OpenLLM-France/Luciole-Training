@@ -1,0 +1,66 @@
+output_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_luciole_instruct_olmomix_2"
+model_path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/sft/luciole_1b/instruct_models/sft_luciole_1B_instruct_olmomix_2/huggingface_checkpoints/sft_luciole_1B_instruct_olmomix_2-step_4148/"
+tokenizer_path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink"
+datasets:
+  - name: "nemotron_chat"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_v3_chat/data/chat/"
+    weight: 1.0
+  - name: "linagora_persona_math" 
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/persona_math/"
+    weight: 1.0
+  - name: "nemotron_if"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_v3_chat/data/instruction_following/"
+    weight: 1.0
+  - name: "dolci_precise_if"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolci_instructsft/data/PreciseIF/" 
+    weight: 1.0
+  - name: "nemotron_math"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/math/"
+    weight: 1.0
+  - name: "nemotron_code"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/code/"
+    weight: 1.0
+  - name: "nemotron_science"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/stem/"
+    weight: 1.0
+  - name: "xlam_tools"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam/nemorl_format/data/"
+    weight: 1.0
+  - name: "when2call_tools"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/when2call/data/missing_argument/nemorl_format/data/"
+    weight:  1.0
+  - name: "hermes_tools"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hermes_function_calling/func_calling/nemorl_format/data/"
+    weight: 1.0
+  - name: "glaive_tools"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hermes_function_calling/glaive_func_calling/nemorl_format/data/"
+    weight: 1.0
+  - name: "pleais_rag"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleais_rag/openrag/data/en/"
+    weight: 0.125
+  - name: "dolci_python_code"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/dolci_code/"
+    weight: 1.0
+  - name: "dolci_nli"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/dolci_nli/"
+    weight: 1.0
+  - name: "dolci_sciriff_science"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/dolci_science/"
+    weight: 1.0
+  - name: "instruct_hardcoded"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/hardcoded/"
+    weight: 1.0
+  - name: "instruct_fr_math"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/multilingual/"
+    weight: 1.0
+  - name: "smol_if"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/smol_if/"
+    weight: 1.0
+  - name: "instruct_rag"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/rag/"
+    weight: 1.0
+  - name: "instruct_translation"
+    path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/instruct_data/translation/"
+    weight: 1.0
+
+
