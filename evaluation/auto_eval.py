@@ -56,9 +56,49 @@ module load cudnn/9.10.2.21-12-cuda
 module load nccl/2.27.3-1-cuda                          
 module load uv/0.8.3         
 
-cd $SCRATCH/nemo-rl #TODO make it more robust by not hardcoding nemo-rl path
+cd $SCRATCH/nemo-rl3 #TODO make it more robust by not hardcoding nemo-rl path
 source .venv/bin/activate 
 
+python {source_path}/finetune/nemo-rl/convert_experiment.py {experiment_path} {prefix_name}
+"""
+SBATCH_CONV_NEMORL_LATEST_TEMPLATE ="""#!/bin/bash
+#SBATCH --job-name=convert_nemorl
+#SBATCH --output={log_dir}/conversion/slurm_logs/log_%x-%j.out
+#SBATCH --gres=gpu:1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=1:00:00
+#SBATCH --cpus-per-task=24
+#SBATCH --hint=nomultithread
+#SBATCH --qos=qos_gpu_{gpu}-dev
+#SBATCH --account={account_gpu}
+#SBATCH --constraint={gpu}
+#SBATCH --mail-type=FAIL
+
+export OpenLLM_OUTPUT=${{OpenLLM_OUTPUT:-$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output}}
+export HF_HOME=${{HF_HOME:-$qgz_ALL_CCFRSCRATCH/.cache/huggingface}}
+export HF_HUB_OFFLINE=1
+export NVTE_DEBUG=1
+export NVTE_DEBUG_LEVEL=2
+
+
+## load environment
+module purge
+module load arch/h100
+module load uv/0.8.3
+cd $SCRATCH/nemo-rl-latest
+source .venv/bin/activate
+
+# The venv's Python (miniforge 3.13) links _ssl against OpenSSL >= 3.3.0, but the
+# system /lib64/libcrypto.so.3 only provides up to 3.2.0. Point at miniforge's own
+# newer libcrypto so `import ssl` works (otherwise Ray's dashboard fails to start
+# and GCS/raylet startup times out).
+export LD_LIBRARY_PATH=/lustre/fshomisc/sup/hpe/pub/miniforge/26.1.1-3/lib${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}
+
+export CUDA_HOME=/lustre/fshomisc/sys/common/nvidia/cuda/12.8
+export PATH="$CUDA_HOME/bin:$PATH"
+export FLASH_ATTN_CUDA_ARCHS=90
+export TORCH_CUDA_ARCH_LIST=9.0
 python {source_path}/finetune/nemo-rl/convert_experiment.py {experiment_path} {prefix_name}
 """
 
@@ -120,7 +160,7 @@ eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS $TO
 
 
 def launch_conversion(
-    experiment_path, arch, multiple_of=1, dry_run=False, is_nemo_rl=False
+    experiment_path, arch, multiple_of=1, dry_run=False, is_nemo_rl=False, latest=False
 ):
     print(
         f"Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
@@ -141,9 +181,19 @@ def launch_conversion(
             gpu=gpu,
             source_path=Path(__file__).parent.parent.resolve(),
         )
-    else:
+    elif is_nemo_rl and not latest:
         print("Using Nemotron-RL specific conversion template")
         job_script = SBATCH_CONV_NEMORL_TEMPLATE.format(
+            log_dir=job_dir / "slurm_logs",
+            experiment_path=experiment_path,
+            prefix_name=Path(experiment_path).name,
+            account_gpu=account_gpu,
+            gpu=gpu,
+            source_path=Path(__file__).parent.parent.resolve(),
+        )
+    elif is_nemo_rl and latest:
+        print("Using Nemotron-RL specific conversion template")
+        job_script = SBATCH_CONV_NEMORL_LATEST_TEMPLATE.format(
             log_dir=job_dir / "slurm_logs",
             experiment_path=experiment_path,
             prefix_name=Path(experiment_path).name,
@@ -559,6 +609,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--is_nemo_rl", action="store_true", help="Convert Nemo-RL ckpts."
     )
+    parser.add_argument(
+        "--latest", action="store_true", help="Convert Nemo-RL ckpts."
+    )
     args = parser.parse_args()
 
     if not args.is_nemo_rl:
@@ -579,6 +632,7 @@ if __name__ == "__main__":
             args.multiple_of,
             dry_run=args.dry_run,
             is_nemo_rl=args.is_nemo_rl,
+            latest=args.latest
         )
         if args.dry_run:
             print("#" * 80)
