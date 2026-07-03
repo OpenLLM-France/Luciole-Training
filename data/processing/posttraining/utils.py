@@ -85,6 +85,25 @@ def format_tool_calls(tool_calls: list, content: str = "") -> str:
 
     return content + "".join(parts)
 
+def check_last_message(data, rank: int = 0, world_size: int = 1, tokenizer=None):
+    raise_last_message_warning = True
+    for doc in data:
+        last_idx = max(
+            i
+            for i, m in enumerate(doc.metadata["messages"])
+            if m["role"] == "assistant"
+        )
+        if (
+            last_idx < len(doc.metadata["messages"]) - 1
+        ) and raise_last_message_warning:
+            print(
+                f"Warning: Document {doc.id} has messages after the last assistant message. Truncating."
+            )
+            print(f"Last message was: {doc.metadata['messages'][-1]}")
+            raise_last_message_warning = False  # Only warn once
+        doc.metadata["messages"] = doc.metadata["messages"][: last_idx + 1]
+        yield doc
+
 
 def nemo_rl_format_messages(messages: list) -> list:
     """Flatten a list of messages to the NeMo-RL format.
@@ -92,12 +111,26 @@ def nemo_rl_format_messages(messages: list) -> list:
     Each message becomes a plain ``{"role", "content"}`` dict: reasoning is
     inlined inside ``<think>`` tags and tool calls are rendered into the content
     via ``format_tool_calls``.
+
+    The reasoning trace is read from ``reasoning_content`` (used by e.g. the
+    nemotron datasets) or ``reasoning`` (the key vLLM's chat API returns, so
+    react_hotpot's tool-calling rollouts land here). Supporting both keeps the
+    <think> block regardless of which producer generated the message.
     """
+    def check_last_message(messages):
+        last_idx = max(
+            i
+            for i, m in enumerate(messages)
+            if m["role"] == "assistant"
+        )
+        messages = messages[: last_idx + 1]
+        return messages
+
     new_messages = []
     for message in messages:
         content = message.get("content") or ""
 
-        reasoning_content = message.get("reasoning_content")
+        reasoning_content = message.get("reasoning_content") or message.get("reasoning")
         if reasoning_content:
             content = (
                 "<think>\n"
@@ -111,5 +144,23 @@ def nemo_rl_format_messages(messages: list) -> list:
             content = format_tool_calls(tool_calls, content)
 
         new_messages.append({"role": message["role"], "content": content})
-    return new_messages
+    return check_last_message(new_messages)
+
+class NemoRLFormat(BaseFilter):
+    name = "🐟 Nemo RL Format"
+
+    def __init__(
+        self, message_fields="messages", exclusion_writer: DiskWriter = None
+    ):
+        super().__init__(exclusion_writer)
+        if isinstance(message_fields, str):
+            message_fields = [message_fields]
+        self.message_fields = message_fields
+
+    def filter(self, doc: Document) -> bool:
+        for message_key in self.message_fields:
+            if message_key not in doc.metadata:
+                return False, f"missing_{message_key}"
+            doc.metadata[message_key] = nemo_rl_format_messages(doc.metadata[message_key])
+        return True
 

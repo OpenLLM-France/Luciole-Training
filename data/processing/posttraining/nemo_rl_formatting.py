@@ -2,16 +2,7 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import SamplerFilter
-from utils import instruct_adapter, nemo_rl_format_messages
-
-def nemo_rl_format(
-    data,
-    rank: int = 0,
-    world_size: int = 1,
-):
-    for doc in data:
-        doc.metadata = {"messages": nemo_rl_format_messages(doc.metadata["messages"])}
-        yield doc
+from utils import instruct_adapter, NemoRLFormat
 
 
 if __name__ == "__main__":
@@ -42,7 +33,7 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         SamplerFilter(rate=args.rate, seed=42),
-        nemo_rl_format,
+        NemoRLFormat(),
         JsonlWriter(
             f"{args.output_path}/data",
             expand_metadata=True,

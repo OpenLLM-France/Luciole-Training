@@ -89,10 +89,10 @@ assert os.path.isfile(
 ), f"set_env.sh not found at {SET_ENV_SCRIPT_PATH}"
 
 
-def create_executor(pipeline, local=False, debug=False, **kwargs):
+def create_executor(pipeline, local=False, debug=False, limit_debug=100, **kwargs):
     # Debug mode
     if debug:
-        pipeline[0].limit = 100
+        pipeline[0].limit = limit_debug
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
     # Executor arguments
@@ -181,6 +181,13 @@ def create_parser():
         type=float,
         help="Sampling rate when reading the data",
     )
+    parser.add_argument(
+        "--limit_debug",
+        default=100,
+        type=int,
+        help="In --debug mode, cap the number of documents read per task to this "
+             "(default 100). Ignored outside --debug.",
+    )
     return parser
 
 
@@ -219,6 +226,7 @@ def _custom_adapter_for_hf(
     conversation_key=None,
     remove_keys=[],
     remove_prefix=False,
+    expand_metadata=False
 ):
     metadata = document.metadata.copy()
     # ID
@@ -253,7 +261,7 @@ def _custom_adapter_for_hf(
         "language": language,
         "text": document.text,
         "messages": conversation,
-        "metadata": json.dumps(metadata),
+        "metadata": json.dumps(metadata) if not expand_metadata else metadata,
     }
     return data
 
