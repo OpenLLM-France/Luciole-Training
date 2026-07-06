@@ -1,6 +1,8 @@
 import argparse
 import os
 import math
+import shlex
+import shutil
 import subprocess
 from pathlib import Path
 from utils import get_step
@@ -228,6 +230,39 @@ def get_checkpoints_and_revisions(
     return checkpoints, revisions, hf_dir
 
 
+def deprecate_dir(src, dst, dry_run=False):
+    """Move the ``src`` directory to ``dst`` so a fresh run starts clean.
+
+    Used to archive existing ``results``/``details`` when re-evaluating with
+    ``--force``. The ``dst`` parent is created if needed, and a numeric suffix is
+    appended when ``dst`` already exists (e.g. from a previous re-run of the same
+    checkpoint). Does nothing if ``src`` is not a directory.
+
+    In ``dry_run`` mode the move is not performed: the equivalent shell command
+    (``mkdir -p ... && mv ...``) is printed instead, so it can be captured in a
+    generated script and executed later. The destination is computed from the
+    current filesystem state, matching what a real run would do at that moment.
+    """
+    src = Path(src)
+    if not src.is_dir():
+        return None
+    dst = Path(dst)
+    final_dst = dst
+    i = 1
+    while final_dst.exists():
+        final_dst = dst.with_name(f"{dst.name}_{i}")
+        i += 1
+    if dry_run:
+        print(
+            f"mkdir -p {shlex.quote(str(final_dst.parent))} && "
+            f"mv {shlex.quote(str(src))} {shlex.quote(str(final_dst))}"
+        )
+    else:
+        final_dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(final_dst))
+    return final_dst
+
+
 def launch_evaluation(
     experiment_path,
     task_to_evaluate,
@@ -311,14 +346,44 @@ def launch_evaluation(
 
         steps_done.append(step)
 
-        if (
+        results_exist = (
             (output_dir / "results" / ckpt).is_dir()
             if not revision
             else ((output_dir / revision / "results").is_dir())
-        ) and not force:
+        )
+        if results_exist and not force:
             if not dry_run:
                 print(f"Skipping existing results for checkpoint: {ckpt}")
             continue
+
+        if results_exist and force:
+            # Re-evaluating with --force: move the existing results/details aside
+            # (into *_deprecated) so the fresh run does not mix with the old ones.
+            # In dry_run mode the moves are printed as shell commands instead of
+            # being performed (kept shell-valid so the output stays executable).
+            print(f"# Deprecate existing results for checkpoint: {ckpt}")
+            if not revision:
+                deprecate_dir(
+                    output_dir / "results" / ckpt,
+                    output_dir / "results_deprecated" / ckpt,
+                    dry_run=dry_run,
+                )
+                deprecate_dir(
+                    output_dir / "details" / ckpt,
+                    output_dir / "details_deprecated" / ckpt,
+                    dry_run=dry_run,
+                )
+            else:
+                deprecate_dir(
+                    output_dir / revision / "results",
+                    output_dir / revision / "results_deprecated",
+                    dry_run=dry_run,
+                )
+                deprecate_dir(
+                    output_dir / revision / "details",
+                    output_dir / revision / "details_deprecated",
+                    dry_run=dry_run,
+                )
 
         model_arg = f"model_name={ckpt},dtype=bfloat16"
 
@@ -490,7 +555,11 @@ def get_parser():
     parser.add_argument(
         "--force",
         action="store_true",
-        help="If set, force re-evaluation even if results exist.",
+        help=(
+            "If set, force re-evaluation even if results exist. Existing results "
+            "are moved aside (results/<ckpt> -> results_deprecated/<ckpt>, and "
+            "details likewise) before the fresh run."
+        ),
     )
     parser.add_argument(
         "--debug", action="store_true", help="If set, run in debug mode."

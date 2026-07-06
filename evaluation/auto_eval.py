@@ -61,7 +61,7 @@ source .venv/bin/activate
 
 python {source_path}/finetune/nemo-rl/convert_experiment.py {experiment_path} {prefix_name}
 """
-SBATCH_CONV_NEMORL_LATEST_TEMPLATE ="""#!/bin/bash
+SBATCH_CONV_NEMORL_LATEST_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name=convert_nemorl
 #SBATCH --output={log_dir}/conversion/slurm_logs/log_%x-%j.out
 #SBATCH --gres=gpu:1
@@ -584,7 +584,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--force",
         action="store_true",
-        help="If set, force re-evaluation even if results exist.",
+        help=(
+            "If set, force re-evaluation even if results exist. Existing results "
+            "are moved aside (results/<ckpt> -> results_deprecated/<ckpt>, and "
+            "details likewise) before the fresh run."
+        ),
     )
     parser.add_argument(
         "--last_checkpoint_only",
@@ -609,9 +613,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--is_nemo_rl", action="store_true", help="Convert Nemo-RL ckpts."
     )
-    parser.add_argument(
-        "--latest", action="store_true", help="Convert Nemo-RL ckpts."
-    )
+    parser.add_argument("--latest", action="store_true", help="Convert Nemo-RL ckpts.")
     args = parser.parse_args()
 
     if not args.is_nemo_rl:
@@ -632,7 +634,7 @@ if __name__ == "__main__":
             args.multiple_of,
             dry_run=args.dry_run,
             is_nemo_rl=args.is_nemo_rl,
-            latest=args.latest
+            latest=args.latest,
         )
         if args.dry_run:
             print("#" * 80)
