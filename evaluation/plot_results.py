@@ -492,6 +492,8 @@ _METRIC_TITLE_KINDS = [
     ("_f1", "F1"),
     ("_acc", "ACC"),
     ("_em", "EM"),
+    ("_precision_score", "PRECISION"),
+    ("_recall_score", "RECALL"),
     ("_recall", "RECALL"),
     ("_precision", "PRECISION"),
 ]

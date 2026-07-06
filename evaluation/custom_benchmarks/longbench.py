@@ -43,7 +43,10 @@ from collections import Counter
 import numpy as np
 
 from lighteval.metrics.metrics_sample import SampleLevelComputation
-from lighteval.metrics.utils.metric_utils import SampleLevelMetric
+from lighteval.metrics.utils.metric_utils import (
+    SampleLevelMetric,
+    SampleLevelMetricGrouping,
+)
 from lighteval.tasks.lighteval_task import LightevalTaskConfig
 from lighteval.tasks.requests import Doc, SamplingMethod
 
@@ -178,30 +181,44 @@ def rouge_zh_score(prediction, ground_truth, **kwargs):
     return rouge_score(prediction, ground_truth)
 
 
-def f1_score(prediction, ground_truth, **kwargs):
+def f1_prf_score(prediction, ground_truth, **kwargs):
+    """Token-overlap precision, recall and F1 (all in [0, 1])."""
     common = Counter(prediction) & Counter(ground_truth)
     num_same = sum(common.values())
     if num_same == 0:
-        return 0
+        return 0.0, 0.0, 0.0
     precision = 1.0 * num_same / len(prediction)
     recall = 1.0 * num_same / len(ground_truth)
-    return (2 * precision * recall) / (precision + recall)
+    f1 = (2 * precision * recall) / (precision + recall)
+    return precision, recall, f1
+
+
+def f1_score(prediction, ground_truth, **kwargs):
+    return f1_prf_score(prediction, ground_truth)[2]
+
+
+def qa_f1_prf_score(prediction, ground_truth, **kwargs):
+    pred_tokens = normalize_answer(prediction).split()
+    gold_tokens = normalize_answer(ground_truth).split()
+    return f1_prf_score(pred_tokens, gold_tokens)
 
 
 def qa_f1_score(prediction, ground_truth, **kwargs):
-    pred_tokens = normalize_answer(prediction).split()
-    gold_tokens = normalize_answer(ground_truth).split()
-    return f1_score(pred_tokens, gold_tokens)
+    return qa_f1_prf_score(prediction, ground_truth)[2]
 
 
-def qa_f1_zh_score(prediction, ground_truth, **kwargs):
+def qa_f1_prf_zh_score(prediction, ground_truth, **kwargs):
     pred_tokens = list(jieba.cut(prediction, cut_all=False))
     gold_tokens = list(jieba.cut(ground_truth, cut_all=False))
     pred_tokens = [normalize_zh_answer(t) for t in pred_tokens]
     gold_tokens = [normalize_zh_answer(t) for t in gold_tokens]
     pred_tokens = [t for t in pred_tokens if len(t) > 0]
     gold_tokens = [t for t in gold_tokens if len(t) > 0]
-    return f1_score(pred_tokens, gold_tokens)
+    return f1_prf_score(pred_tokens, gold_tokens)
+
+
+def qa_f1_zh_score(prediction, ground_truth, **kwargs):
+    return qa_f1_prf_zh_score(prediction, ground_truth)[2]
 
 
 # ======================================================================
@@ -238,6 +255,37 @@ class _MaxOverGolds(SampleLevelComputation):
         return float(output)
 
 
+class _BestF1PRFOverGolds(SampleLevelComputation):
+    """Return {f1, precision, recall} of the gold that maximises F1.
+
+    Precision/recall are reported for the same gold that wins on F1 (rather
+    than max'd independently), so the three numbers stay internally
+    consistent as a single (prediction, gold) score.
+    """
+
+    def __init__(self, prf_fn, f1_key, precision_key, recall_key):
+        self.prf_fn = prf_fn
+        self.f1_key = f1_key
+        self.precision_key = precision_key
+        self.recall_key = recall_key
+
+    def compute(self, doc, model_response, **kwargs):
+        zero = {self.f1_key: 0.0, self.precision_key: 0.0, self.recall_key: 0.0}
+        if not model_response.final_text:
+            return zero
+        prediction = model_response.final_text[0].strip()
+        best_p, best_r, best_f1 = 0.0, 0.0, 0.0
+        for ground_truth in doc.get_golds():
+            p, r, f1 = self.prf_fn(prediction, ground_truth)
+            if f1 > best_f1:
+                best_p, best_r, best_f1 = p, r, f1
+        return {
+            self.f1_key: float(best_f1),
+            self.precision_key: float(best_p),
+            self.recall_key: float(best_r),
+        }
+
+
 def _make_metric(name, fn, strip=True, needs_all_classes=False):
     return SampleLevelMetric(
         metric_name=name,
@@ -250,8 +298,23 @@ def _make_metric(name, fn, strip=True, needs_all_classes=False):
     )
 
 
-qa_f1_metric = _make_metric("qa_f1_score", qa_f1_score)
-qa_f1_zh_metric = _make_metric("qa_f1_zh_score", qa_f1_zh_score)
+def _make_qa_f1_prf_metric(prf_fn, f1_key, precision_key, recall_key):
+    keys = [f1_key, precision_key, recall_key]
+    return SampleLevelMetricGrouping(
+        metric_name=keys,
+        higher_is_better=dict.fromkeys(keys, True),
+        category=SamplingMethod.GENERATIVE,
+        sample_level_fn=_BestF1PRFOverGolds(prf_fn, f1_key, precision_key, recall_key),
+        corpus_level_fn=dict.fromkeys(keys, np.mean),
+    )
+
+
+qa_f1_metric = _make_qa_f1_prf_metric(
+    qa_f1_prf_score, "qa_f1_score", "qa_precision_score", "qa_recall_score"
+)
+qa_f1_zh_metric = _make_qa_f1_prf_metric(
+    qa_f1_prf_zh_score, "qa_f1_zh_score", "qa_precision_zh_score", "qa_recall_zh_score"
+)
 rouge_metric = _make_metric("rouge_score", rouge_score)
 rouge_zh_metric = _make_metric("rouge_zh_score", rouge_zh_score)
 classification_metric = _make_metric(
