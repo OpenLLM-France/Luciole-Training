@@ -29,7 +29,7 @@ if __name__ == "__main__":
         ),
         get_language,
         HuggingFaceDatasetWriter(
-            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            dataset="OpenLLM-France/Luciole-Training-Dataset"
             + ("-debug" if args.debug else ""),
             private=True,
             local_working_dir=f"{DATA_PATH}/europarl_hf/data_hf",

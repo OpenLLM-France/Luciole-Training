@@ -92,7 +92,7 @@ if __name__ == "__main__":
             ),
             fix_data,
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/eurovoc_filtered_v2/data_hf",

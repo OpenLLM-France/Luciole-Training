@@ -73,7 +73,7 @@ if __name__ == "__main__":
                 f"{output_path}/data_merge/",
             ),
             # HuggingFaceDatasetWriter(
-            #     dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            #     dataset="OpenLLM-France/Luciole-Training-Dataset"
             #     + ("-debug" if args.debug else ""),
             #     private=True,
             #     local_working_dir=f"{output_path}/data_hf",
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             #     expand_metadata=True,
             # ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{output_path}/data_hf",

@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from web_utils import get_web_pipeline
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -35,7 +35,6 @@ if __name__ == "__main__":
             output_filename="quality_${quality_score_rounded}_rank${rank}.jsonl.gz",
         ),
     ]
-    add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,

@@ -188,7 +188,7 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data",
             ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/paradocs_geom{args.geometric_param:.2f}/{args.languages}_revert{args.revert}/data_hf",

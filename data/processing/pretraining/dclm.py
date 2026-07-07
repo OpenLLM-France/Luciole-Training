@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from web_utils import get_robot_filter, get_dedup_filter
 from datatrove.pipeline.formatters import PIIFormatter
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
@@ -25,7 +25,6 @@ if __name__ == "__main__":
             PIIFormatter(ip_replacement="<IP_ADDRESS>"),
             JsonlWriter(f"{DATA_PATH}/dclm_dolmino/data"),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_executor = create_executor(
             pipeline,
@@ -44,7 +43,7 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/dclm_dolmino/data",
             ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/dclm_dolmino/data_hf",

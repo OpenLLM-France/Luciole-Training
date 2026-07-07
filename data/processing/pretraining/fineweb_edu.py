@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from web_utils import get_web_pipeline
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
@@ -25,7 +25,6 @@ if __name__ == "__main__":
             ),
             JsonlWriter(f"{DATA_PATH}/fineweb_edu_filtered/data"),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_processing_executor = create_executor(
             pipeline,
@@ -46,7 +45,7 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/fineweb_edu_filtered/data",
             ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/fineweb_edu_filtered/data_hf",

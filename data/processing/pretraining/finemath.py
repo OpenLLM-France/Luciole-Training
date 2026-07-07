@@ -2,7 +2,6 @@ from utils import (
     create_parser,
     parse_args,
     create_executor,
-    add_sampler_filter,
     print_builder_config,
 )
 from datatrove.pipeline.readers import ParquetReader
@@ -47,7 +46,6 @@ if __name__ == "__main__":
                 output_filename="score_${int_score}_rank${rank}.jsonl.gz",
             ),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         filter_executor = create_executor(
             pipeline,
@@ -66,7 +64,7 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/finemath_filtered/{name}/data",
             ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/finemath_filtered/{name}/data_hf",

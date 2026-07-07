@@ -2,7 +2,6 @@ from utils import (
     create_parser,
     parse_args,
     create_executor,
-    add_sampler_filter,
     FT176_LANGUAGES,
 )
 from datatrove.data import DocumentsPipeline
@@ -143,7 +142,6 @@ if __name__ == "__main__":
                         output_filename="${language}_${rank}.jsonl.gz",
                     ),
                 ]
-                add_sampler_filter(pipeline, args.sample_rate)
 
                 if collection in ["us-pd-books", "english-pd", "german-pd"]:
                     tasks = 50
@@ -168,7 +166,7 @@ if __name__ == "__main__":
                         f"{DATA_PATH}/common_corpus_filtered/data/{open_type}/{collection}"
                     ),
                     HuggingFaceDatasetWriter(
-                        dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                        dataset="OpenLLM-France/Luciole-Training-Dataset"
                         + ("-debug" if args.debug else ""),
                         private=True,
                         local_working_dir=f"{DATA_PATH}/common_corpus_filtered/data_hf/{open_type}/{collection}",

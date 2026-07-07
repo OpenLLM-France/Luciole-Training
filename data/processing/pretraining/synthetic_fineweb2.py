@@ -1,6 +1,6 @@
 import os
 
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from web_utils import get_web_pipeline, ROBOTSTXT_PATH
@@ -88,7 +88,6 @@ if __name__ == "__main__":
                 output_filename="${prompt_level}_edu_${edu_score}_rank${rank}.jsonl.gz",
             ),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_processing_executor = create_executor(
             pipeline,
@@ -108,7 +107,7 @@ if __name__ == "__main__":
                     glob_pattern=prompt_level + "_*.jsonl.gz",
                 ),
                 HuggingFaceDatasetWriter(
-                    dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                    dataset="OpenLLM-France/Luciole-Training-Dataset"
                     + ("-debug" if args.debug else ""),
                     private=True,
                     local_working_dir=f"{DATA_PATH}/synthetic_fineweb2_fr_extract_knowledge_filtered/data_hf/{prompt_level}",

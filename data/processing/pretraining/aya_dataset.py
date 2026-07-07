@@ -1,6 +1,6 @@
 import os
 
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from utils import _custom_adapter_for_hf, HF_SCHEMA
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
@@ -47,7 +47,6 @@ if __name__ == "__main__":
                 output_filename="${language_code}/${rank}.jsonl.gz",
             ),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_processing_executor = create_executor(
             pipeline,
@@ -77,7 +76,7 @@ if __name__ == "__main__":
             ),
             fix_data,
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{output_path}/data_hf",

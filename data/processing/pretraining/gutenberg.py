@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 import os
 import re
 
@@ -104,7 +104,6 @@ if __name__ == "__main__":
                 output_filename="data_${rank}.jsonl.gz",
             ),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_processing_executor = create_executor(
             pipeline,
@@ -124,7 +123,7 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/gutenberg_linagora/data",
             ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/gutenberg/data_hf",

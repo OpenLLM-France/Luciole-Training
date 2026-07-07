@@ -15,7 +15,7 @@ if __name__ == "__main__":
             f"{DATA_PATH}/insee",
         ),
         HuggingFaceDatasetWriter(
-            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            dataset="OpenLLM-France/Luciole-Training-Dataset"
             + ("-debug" if args.debug else ""),
             private=True,
             local_working_dir=f"{DATA_PATH}/insee_hf/data_hf",

@@ -92,6 +92,10 @@ assert os.path.isfile(
 def create_executor(pipeline, local=False, debug=False, limit_debug=100, **kwargs):
     # Debug mode
     if debug:
+        kwargs["time"] = "02:00:00"
+        if "qos" in kwargs:
+            qos = kwargs.pop("qos", "qos_cpu-dev")
+            kwargs["qos"] = qos.split("-")[0] + "-dev"
         pipeline[0].limit = limit_debug
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False
@@ -162,11 +166,6 @@ def create_parser():
         type=str,
         help="Where to store the process data",
     )
-    parser.add_argument(
-        "--ablation",
-        action="store_true",
-        help="Process a dataset for ablation DEPRECATED",
-    )
     parser.add_argument("--local", action="store_true", help="Use a local executor")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
     parser.add_argument(
@@ -174,12 +173,6 @@ def create_parser():
     )
     parser.add_argument(
         "--force", action="store_true", help="Force and ignore completed tasks"
-    )
-    parser.add_argument(
-        "--sample_rate",
-        default=1.0,
-        type=float,
-        help="Sampling rate when reading the data",
     )
     parser.add_argument(
         "--limit_debug",
@@ -193,21 +186,6 @@ def create_parser():
 
 def parse_args(parser):
     args = parser.parse_args()
-    assert 0.0 <= args.sample_rate <= 1.0, "sample_rate must be between 0.0 and 1.0"
-
-    if getattr(args, "ablation", False):
-        args.sample_rate = 0.05
-        warnings.warn(
-            "--ablation is deprecated; use --sample_rate instead.", DeprecationWarning
-        )
-        del args.ablation  # Remove deprecated argument
-
-    if args.sample_rate < 1.0:
-        base_dir = os.path.dirname(args.data_path)
-        args.data_path = os.path.join(
-            base_dir, f"subsampled_data_rate_{args.sample_rate:.2f}"
-        )
-        print(f"data_path overwritten: {args.data_path}")
 
     if args.debug:
         args.data_path += "_debug"

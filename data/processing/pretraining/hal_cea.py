@@ -13,7 +13,7 @@ if __name__ == "__main__":
     pipeline = [
         JsonlReader(f"{DATA_PATH}/hal_cea_full_filtered"),
         HuggingFaceDatasetWriter(
-            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            dataset="OpenLLM-France/Luciole-Training-Dataset"
             + ("-debug" if args.debug else ""),
             private=True,
             local_working_dir=f"{DATA_PATH}/hal_cea_full_filtered_hf/data_hf",

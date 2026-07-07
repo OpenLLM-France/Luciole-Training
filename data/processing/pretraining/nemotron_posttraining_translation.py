@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
@@ -248,7 +248,6 @@ if __name__ == "__main__":
                 postprocess_fn=partial(postprocess_fn),
             ),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         account = os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100")
         gpu = account.split("@")[-1]
@@ -316,7 +315,7 @@ if __name__ == "__main__":
                 f"{output_path}/data_cleaned",
             ),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{output_path}/data_hf",

@@ -2,7 +2,6 @@ from utils import (
     create_parser,
     parse_args,
     create_executor,
-    add_sampler_filter,
 )
 
 from datatrove.pipeline.readers import HuggingFaceDatasetReader, JsonlReader
@@ -27,7 +26,6 @@ if __name__ == "__main__":
             ),
             JsonlWriter(f"{DATA_PATH}/olmo_mix/{name}/data"),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_processing_executor = create_executor(
             pipeline,
@@ -43,7 +41,7 @@ if __name__ == "__main__":
         pipeline = [
             JsonlReader(f"{DATA_PATH}/olmo_mix/{name}/data"),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/olmo_mix/{name}/data_hf",

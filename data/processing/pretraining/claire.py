@@ -23,7 +23,7 @@ if __name__ == "__main__":
             f"{MAIN_PATH}/../datasets/raw/Claire/open/{language}",
         ),
         HuggingFaceDatasetWriter(
-            dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+            dataset="OpenLLM-France/Luciole-Training-Dataset"
             + ("-debug" if args.debug else ""),
             private=True,
             local_working_dir=f"{DATA_PATH}/claire_hf/{language}/data_hf",

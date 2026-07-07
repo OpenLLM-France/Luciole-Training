@@ -1,6 +1,6 @@
 import os
 import re
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
@@ -123,7 +123,6 @@ if __name__ == "__main__":
             expand_metadata=True,
         ),
     ]
-    add_sampler_filter(pipeline, args.sample_rate)
 
     main_processing_executor = create_executor(
         pipeline,

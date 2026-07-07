@@ -1,4 +1,4 @@
-from utils import create_parser, parse_args, create_executor, add_sampler_filter
+from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.data import DocumentsPipeline
@@ -78,7 +78,6 @@ if __name__ == "__main__":
                 output_filename="${cluster_size_group}_edu_${edu_score}_rank${rank}.jsonl.gz",
             ),
         ]
-        add_sampler_filter(pipeline, args.sample_rate)
 
         main_executor = create_executor(
             pipeline,
@@ -113,7 +112,7 @@ if __name__ == "__main__":
             ),
             partial(fix_data, language=language),
             HuggingFaceDatasetWriter(
-                dataset="OpenLLM-BPI/Luciole-Training-Dataset"
+                dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{DATA_PATH}/fineweb2_hq_filtered/{language}/data_hf",
