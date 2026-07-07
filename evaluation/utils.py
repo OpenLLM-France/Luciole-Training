@@ -143,6 +143,13 @@ task_group_mapping = {
         ("custom|ruler_65536:_average|0", "ruler_match"),
         ("custom|ruler_131072:_average|0", "ruler_match"),
     ],
+    "mcq": [
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
+        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+    ],
     "finetune": [
         ("leaderboard|hellaswag|0", "acc"),
         ("leaderboard|winogrande|0", "acc"),
@@ -194,6 +201,10 @@ task_group_mapping = {
         ("custom|longbench_hotpotqa|0", "qa_f1_score"),
         ("custom|longbench_musique|0", "qa_f1_score"),
         ("custom|longbench_2wikimqa|0", "qa_f1_score"),
+        ("custom|hotpotqa_hotpotqa|0", "qa_recall_score"),
+        ("custom|longbench_hotpotqa|0", "qa_recall_score"),
+        ("custom|longbench_musique|0", "qa_recall_score"),
+        ("custom|longbench_2wikimqa|0", "qa_recall_score"),
     ],
     "longbench": [
         ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
