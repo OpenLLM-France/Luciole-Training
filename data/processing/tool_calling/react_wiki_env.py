@@ -177,7 +177,16 @@ _STATS = _WikiStats()
 
 
 def clean_str(p):
-    return p.encode().decode("unicode-escape").encode("latin1").decode("utf-8")
+    # Undo the double-escaping in Wikipedia's raw HTML (e.g. "\\u00e9" -> "é").
+    # This byte round-trip is fragile: some pages contain backslash sequences
+    # that are not valid unicode/latin1 escapes and raise UnicodeDecodeError.
+    # A crash here would abort the whole page load (turned into an error
+    # observation by call_tool), so fall back to the original text on failure --
+    # leaving it un-unescaped is far better than losing the page.
+    try:
+        return p.encode().decode("unicode-escape").encode("latin1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return p
 
 
 # A Wikipedia disambiguation page leads with "<title> may refer to:" (or
@@ -185,6 +194,12 @@ def clean_str(p):
 # model to choose from, rather than guessing a page on its behalf.
 _DISAMBIG_RE = re.compile(r"refers? to:")
 _MAX_OPTIONS = 15
+
+# In automatic-disambiguation mode (auto_disambiguation=True) a disambiguation
+# page is resolved by opening its top option instead of asking the model to pick.
+# The chosen option can itself be a disambiguation page, so cap the chain to
+# avoid an unbounded loop; past the cap we fall back to listing the options.
+MAX_AUTO_DISAMBIG_HOPS = 2
 
 # Context window for a single `lookup` hit: this many sentences on EACH side of
 # the matched sentence are included (so LOOKUP_CONTEXT=1 -> previous + match +
@@ -232,6 +247,21 @@ def f1_score(prediction, ground_truth):
     return 2 * precision * recall / (precision + recall)
 
 
+def fever_score(prediction, ground_truth):
+    """Exact-match scoring for FEVER verdicts: 1.0 if they match, else 0.0.
+
+    A FEVER verdict is one of a fixed label set, so grading is strict exact match
+    after normalization -- not token-F1. Every label (including 'not enough
+    info') is graded the same way.
+    """
+    return 1.0 if normalize_answer(prediction) == normalize_answer(ground_truth) else 0.0
+
+
+# dataset_name -> answer scorer for submit_answer. Datasets absent here use the
+# default token-F1 (f1_score). Resolved per run by react's env factory.
+SCORERS = {"fever": fever_score}
+
+
 class GradedEnv:
     """Answer submission + grading shared by every tool-set environment.
 
@@ -249,13 +279,18 @@ class GradedEnv:
 
     ACCEPT_THRESHOLD = 0.0  # F1 the answer must strictly exceed to be accepted (episode ends)
 
-    def __init__(self, ground_truth=None, accept_threshold=None):
+    def __init__(self, ground_truth=None, accept_threshold=None, scorer=None):
         self.obs = None  # current observation
         self.answer = None  # current answer from the agent
         self.detailed_answer = None  # full-sentence answer from the agent
         self.supporting_facts = None  # evidence sentences backing the answer
         self.ground_truth = ground_truth  # reference answer for grading
-        self.score = None  # exact-match score of the last submitted answer
+        # How submit_answer grades short_answer against ground_truth. Defaults to
+        # token-F1 (QA); a dataset may inject its own (e.g. FEVER exact match).
+        # A scorer may return None to mean "do not score" (episode recorded but
+        # left ungraded), handled alongside the no-ground-truth case.
+        self.scorer = scorer if scorer is not None else f1_score
+        self.score = None  # score of the last submitted answer (None = unscored)
         self.scores = []  # score of every submit_answer call, in order
         self.episode_done = False  # set by submit_answer; ends the agent loop
         # F1 the answer must strictly exceed to be accepted (negative = accept
@@ -300,32 +335,35 @@ class GradedEnv:
         self.answer = short_answer
         self.detailed_answer = detailed_answer
         self.supporting_facts = supporting_facts
+        # score is None when there is nothing to grade against, or when the
+        # scorer declines to score this pair (e.g. FEVER 'not enough info').
         if self.ground_truth is None:
             self.score = None
+        else:
+            self.score = self.scorer(short_answer, self.ground_truth)
+        if self.score is None:
             self.episode_done = True
             self.obs = "Final answer recorded."
+        elif self.accept_threshold < 0 or self.score > self.accept_threshold:
+            # A negative threshold accepts any answer (episode ends after the
+            # first submit); otherwise the score must strictly exceed it.
+            self.episode_done = True
+            self.obs = f"Final answer recorded. Score: {self.score:.2f}."
+        elif self.score > 0:
+            self.episode_done = False
+            self.obs = (
+                f"Final answer recorded. "
+                "This answer is close but not quite right; reformulate it "
+                "(e.g. more concise) and "
+                "submit again."
+            )
         else:
-            self.score = f1_score(short_answer, self.ground_truth)
-            if self.accept_threshold < 0 or self.score > self.accept_threshold:
-                # A negative threshold accepts any answer (episode ends after the
-                # first submit); otherwise the score must strictly exceed it.
-                self.episode_done = True
-                self.obs = f"Final answer recorded. Score: {self.score:.2f}."
-            elif self.score > 0:
-                self.episode_done = False
-                self.obs = (
-                    f"Final answer recorded. Score: {self.score:.2f}. "
-                    "This answer is close but not quite right; reformulate it "
-                    "(e.g. more concise or in the exact expected form) and "
-                    "submit again."
-                )
-            else:
-                self.episode_done = False
-                self.obs = (
-                    f"Final answer recorded. Score: {self.score:.2f}. "
-                    "This answer seems to be wrong; re-examine the evidence with "
-                    "the tools and submit a different answer."
-                )
+            self.episode_done = False
+            self.obs = (
+                f"Final answer recorded. "
+                "This answer seems to be wrong; re-examine the evidence with "
+                "the tools and submit a different answer."
+            )
         self.scores.append(self.score)
         return self.obs
 
@@ -348,16 +386,21 @@ class WikiEnv(GradedEnv):
     """
 
     def __init__(self, ground_truth=None, backend="online", zim_path=None,
-                 accept_threshold=None):
+                 accept_threshold=None, auto_disambiguation=False, scorer=None):
         if backend not in ("online", "offline"):
             raise ValueError(f"backend must be 'online' or 'offline', got {backend!r}")
-        super().__init__(ground_truth=ground_truth, accept_threshold=accept_threshold)
+        super().__init__(ground_truth=ground_truth, accept_threshold=accept_threshold,
+                         scorer=scorer)
         self.page = None  # current Wikipedia page
         self.lookup_keyword = None  # current lookup keyword
         self.lookup_list = None  # paragraphs containing current lookup keyword
         self.lookup_cnt = None  # current lookup index
         self.backend = backend
         self.zim_path = zim_path
+        # When True, a disambiguation page is auto-resolved to its top option
+        # instead of returning the option list for the model to choose from.
+        self.auto_disambiguation = auto_disambiguation
+        self._auto_disambig_hops = 0  # guards the auto-resolution chain per search
         self.search_time = 0
         self.num_searches = 0
 
@@ -366,6 +409,7 @@ class WikiEnv(GradedEnv):
         self.lookup_keyword = None
         self.lookup_list = None
         self.lookup_cnt = None
+        self._auto_disambig_hops = 0
         self.reset_answer()
 
     @staticmethod
@@ -474,11 +518,74 @@ class WikiEnv(GradedEnv):
             if not has_prose:
                 options = self._list_items(soup)
         if options:
+            # Automatic mode: open the top real option instead of asking the
+            # model to choose. The picked page is loaded by re-running search on
+            # its title; the hop guard stops a disambiguation-of-disambiguation
+            # chain, after which we fall through to listing the options.
+            if self.auto_disambiguation and self._auto_disambig_hops < MAX_AUTO_DISAMBIG_HOPS:
+                targets = self._disambiguation_targets(soup)
+                if targets:
+                    target, others = targets[0], targets[1:]
+                    self._auto_disambig_hops += 1
+                    self.search_step(target)
+                    note = (f"'{entity}' could refer to several pages; automatically "
+                            f"opened '{target}'.")
+                    if others:
+                        # Name the alternatives so the model can re-search one of
+                        # them if the top option is not the page it needs.
+                        note += (f" Other options: {', '.join(others)}. Search one of "
+                                 f"these exact titles if you need a different page.")
+                    self.obs = f"{note}\n{self.obs}"
+                    return self.obs
             self.obs = (
                 f"{entity} may refer to several pages. Search the exact title "
                 f"of the one you want: {options}"
             )
             return self.obs
+        return self._render_article(soup, entity)
+
+    def _disambiguation_targets(self, soup, limit=_MAX_OPTIONS):
+        """Ordered page titles a disambiguation list points to (top option first).
+
+        Takes the primary (first real article) link from each list item, skipping
+        footnote/citation fragments and external links, and preferring the link's
+        `title` attribute -- set to the exact page title by both the ZIM and live
+        Wikipedia -- over its anchor text. Duplicates are dropped and the list is
+        capped at `limit`. The first element is what auto-disambiguation opens;
+        the rest are the alternatives shown to the model.
+        """
+        content = soup.find(class_="mw-body-content") or soup.find(class_="mw-parser-output") or soup
+        titles, seen = [], set()
+        for li in content.find_all("li"):
+            for a in li.find_all("a", href=True):
+                href = a.get("href", "")
+                if not href or href.startswith("#") or "cite_note" in href or "cite_ref" in href:
+                    continue  # in-page/citation anchor, not an article
+                if href.startswith(("http://", "https://", "//")) and "wikipedia.org/wiki/" not in href:
+                    continue  # external link
+                title = " ".join((a.get("title") or a.get_text()).split())
+                if title and title.lower() not in seen:
+                    seen.add(title.lower())
+                    titles.append(title)
+                break  # one target per option row (its primary link)
+            if len(titles) >= limit:
+                break
+        return titles
+
+    def _first_disambiguation_target(self, soup):
+        """Title of the top option in a disambiguation list, or None."""
+        targets = self._disambiguation_targets(soup)
+        return targets[0] if targets else None
+
+    def _render_article(self, soup, entity):
+        """Turn a non-disambiguation page's soup into an observation.
+
+        Split out from `_render_page` (which handles title resolution and
+        disambiguation, common to every wiki tool set) so subclasses that browse
+        the same pages differently -- e.g. WikiStructuredEnv, which parses the
+        page into sections -- can override just the article rendering while
+        reusing the disambiguation handling.
+        """
         paragraphs = [p.get_text().strip() for p in soup.find_all("p") + soup.find_all("ul")]
         self._set_page_from_paragraphs(paragraphs)
         if not self.page.strip():
@@ -502,6 +609,22 @@ class WikiEnv(GradedEnv):
             self.num_searches += 1
         return self.obs
 
+    def _not_found_obs(self, entity):
+        """Message for a failed search, shaped by whether we have suggestions.
+
+        `self.result_titles` must already be set. When the search engine returns
+        no near-titles at all, we say so plainly instead of printing an empty
+        `Similar: []`, which reads like a bug and gives the model nothing to act
+        on.
+        """
+        similar = self.result_titles[:5]
+        if not similar:
+            return (
+                f"Could not find '{entity}', and no similar page titles were "
+                "found. Check the spelling or try a different or more general title."
+            )
+        return f"Could not find {entity}. Similar: {similar}."
+
     def _search_online(self, entity):
         entity_ = entity.replace(" ", "+")
         search_url = f"https://en.wikipedia.org/w/index.php?search={entity_}"
@@ -510,7 +633,7 @@ class WikiEnv(GradedEnv):
         result_divs = soup.find_all("div", {"class": "mw-search-result-heading"})
         if result_divs:  # no exact page -> show similar titles
             self.result_titles = [clean_str(div.get_text().strip()) for div in result_divs]
-            self.obs = f"Could not find {entity}. Similar: {self.result_titles[:5]}."
+            self.obs = self._not_found_obs(entity)
             return self.obs
         return self._render_page(soup, entity)
 
@@ -529,7 +652,7 @@ class WikiEnv(GradedEnv):
                 except KeyError:
                     titles.append(path)
             self.result_titles = titles
-            self.obs = f"Could not find {entity}. Similar: {self.result_titles[:5]}."
+            self.obs = self._not_found_obs(entity)
             return self.obs
         while entry.is_redirect:  # follow redirects to the real article
             entry = entry.get_redirect_entry()
@@ -565,6 +688,7 @@ class WikiEnv(GradedEnv):
         """search[entity]: first 5 sentences of the page, or top-5 similar entities."""
         _STATS.begin()
         t0 = time.perf_counter()
+        self._auto_disambig_hops = 0  # fresh auto-disambiguation budget per search
         try:
             return self.search_step(entity)
         finally:

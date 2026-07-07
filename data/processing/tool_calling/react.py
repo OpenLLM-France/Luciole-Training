@@ -13,7 +13,9 @@ import os
 for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
     os.environ.setdefault(_v, "1")
 
+import json
 import pathlib
+import random
 import re
 from utils import create_parser, parse_args, create_executor
 from datatrove.data import Document
@@ -30,9 +32,10 @@ from utils import (
     add_system_prompt,
     NemoRLFormat,
 )
-from react_wiki_env import WikiEnv
-from react_tools import WIKI_API_TOOLS, TOOL_SETS
+from react_wiki_env import WikiEnv, SCORERS
+from react_tools import TOOL_SETS, build_tool_sets
 from react_retriever_env import new_retriever_env
+from react_wiki_structured_env import new_structured_env
 
 #_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -86,6 +89,23 @@ FRENCH_PROMPT = (
     "the answer passed to `submit_answer`, in French."
 )
 
+# Paraphrases of the FEVER fact-checking question. One is drawn per document so
+# the model does not overfit to a single phrasing; each must contain "{claim}".
+FEVER_QUESTION_TEMPLATES = [
+    'Is the claim "{claim}" supported by the evidence in Wikipedia?',
+    'According to Wikipedia, is the following claim true? "{claim}"',
+    'Using Wikipedia as evidence, verify the claim: "{claim}".',
+    'Fact-check this claim against Wikipedia: "{claim}".',
+    'Does the evidence in Wikipedia support or refute the claim "{claim}"?',
+    'Determine whether Wikipedia supports the claim "{claim}".',
+]
+
+# On a Wikipedia disambiguation page, automatically open its top option (and name
+# the alternatives) instead of returning the option list for the model to choose
+# from. Applies to the wiki_api and wiki_structured tool sets; it drives both the
+# env behaviour and the flag-aware `search` tool description (build_tool_sets).
+AUTO_DISAMBIGUATION = True
+
 def call_tool(env, name, arguments, tool_names=None):
     """Dispatch a single tool call to its WikiEnv implementation.
 
@@ -99,8 +119,12 @@ def call_tool(env, name, arguments, tool_names=None):
 
     `tool_names` is the set of tool names allowed for the active tool set (see
     TOOL_SETS); an unrecognised call is turned into an error observation. When
-    None, the name check is skipped (any method on the env may be called).
+    None, it falls back to the env's own `allowed_tool_names` (set per document
+    by new_env_for_doc, since each doc draws its own tool_type); if the env has
+    none either, the name check is skipped (any method on the env may be called).
     """
+    if tool_names is None:
+        tool_names = getattr(env, "allowed_tool_names", None)
     if tool_names is not None and name not in tool_names:
         return f"Error: unknown tool '{name}'. Available tools: {', '.join(tool_names)}."
     if not isinstance(arguments, dict):
@@ -117,20 +141,53 @@ def call_tool(env, name, arguments, tool_names=None):
         return f"Error calling '{name}': {type(e).__name__}: {e}"
 
 
-def new_env(doc, backend="online", zim_path=None, accept_threshold=None):
+def new_env(doc, backend="online", zim_path=None, accept_threshold=None,
+            auto_disambiguation=False, scorer=None):
     """Create a fresh, isolated Wikipedia browser for one conversation.
 
     The document's ground-truth answer is passed in so that `submit_answer`
     can grade the agent's final answer with exact match. `backend`/`zim_path`
     select live Wikipedia vs. a local ZIM snapshot (see WikiEnv);
     `accept_threshold` is the F1 an answer must strictly exceed to be accepted
-    (negative = accept any answer on the first submit).
+    (negative = accept any answer on the first submit); `auto_disambiguation`
+    auto-opens the top option of a disambiguation page instead of asking;
+    `scorer` overrides the default token-F1 grading (e.g. FEVER exact match).
     """
     env = WikiEnv(ground_truth=doc.metadata["answer"], backend=backend, zim_path=zim_path,
-                  accept_threshold=accept_threshold)
+                  accept_threshold=accept_threshold, auto_disambiguation=auto_disambiguation,
+                  scorer=scorer)
     # Alias the env's score history into the doc so each submit_answer score
     # lands in the output metadata (same list object -> appends persist).
     doc.metadata["submit_answer_scores"] = env.scores
+    return env
+
+
+def new_env_for_doc(doc, backend="online", zim_path=None, index_dir=None,
+                    accept_threshold=None, auto_disambiguation=False, scorer=None):
+    """Build the env matching this document's drawn tool_type.
+
+    tool_type is chosen per document in preproc (not a global run setting), so
+    the env factory has to dispatch on `doc.metadata["tool_type"]`: 'wiki_api'
+    browses the ZIM/HTTP Wikipedia, 'retriever' searches the dense index. The
+    allowed tool names for the chosen set are stashed on the env so call_tool
+    can validate calls without a globally-fixed tool set. `scorer` (a run-level
+    grading function, e.g. FEVER exact match) overrides the default token-F1.
+    """
+    tool_type = doc.metadata["tool_type"]
+    if tool_type == "wiki_api":
+        env = new_env(doc, backend=backend, zim_path=zim_path,
+                      accept_threshold=accept_threshold,
+                      auto_disambiguation=auto_disambiguation, scorer=scorer)
+    elif tool_type == "wiki_structured":
+        env = new_structured_env(doc, backend=backend, zim_path=zim_path,
+                                 accept_threshold=accept_threshold,
+                                 auto_disambiguation=auto_disambiguation, scorer=scorer)
+    elif tool_type == "retriever":
+        env = new_retriever_env(doc, index_dir=index_dir,
+                                accept_threshold=accept_threshold, scorer=scorer)
+    else:
+        raise ValueError(f"Unknown tool_type: {tool_type!r}")
+    env.allowed_tool_names = [t["function"]["name"] for t in TOOL_SETS[tool_type]]
     return env
 
 
@@ -181,19 +238,11 @@ def agent_query_builder(runner, doc, temperature=None, enable_thinking=False, ma
     }
 
 
-def preproc(
-    data,
-    rank: int = 0,
-    world_size: int = 1,
-    enable_thinking: bool = False,
-    lang: str = "en",
-    tools=WIKI_API_TOOLS,
-):
+def _build_system_prompt(tools, enable_thinking, lang):
     # Enumerate the active tool names into the prompt so the "every turn must
     # call a tool" rule lists the tools actually available (search/lookup vs.
     # wikipedia_retriever/next_results), not a hard-coded set.
-    tool_names = [t["function"]["name"] for t in tools]
-    tools_clause = ", ".join(f"`{n}`" for n in tool_names)
+    tools_clause = ", ".join(f"`{t['function']['name']}`" for t in tools)
     # In thinking mode the model reasons in its <think> block, so use the
     # variant without the explicit "reason before you act" instructions.
     system_prompt = SYSTEM_PROMPT.format(tools=tools_clause)
@@ -203,11 +252,43 @@ def preproc(
     # pinned by the data, so force French output explicitly.
     if lang == "fr":
         system_prompt += FRENCH_PROMPT
+    return system_prompt
+
+
+def preproc(
+    data,
+    rank: int = 0,
+    world_size: int = 1,
+    enable_thinking: bool = False,
+    lang: str = "en",
+    tool_types: list = None,
+    auto_disambiguation: bool = False,
+    dataset_name: str = None,
+):
+    # tool_type is drawn independently per document (not a global run setting):
+    # a single run interleaves the active tool sets so the model sees them mixed.
+    # The system prompt and tool schemas depend on the tool set, so precompute one
+    # prompt per tool_type and select per doc. Seed the RNG from rank so each
+    # task is reproducible and the draws differ across shards. `tool_types`
+    # restricts which sets a run draws from (default: all of TOOL_SETS), so a run
+    # can isolate or compare browsing styles (e.g. wiki_api vs wiki_structured).
+    # The `search` descriptions depend on auto_disambiguation, so resolve the tool
+    # schemas for the run's mode (build_tool_sets); it must match the env factory's
+    # auto_disambiguation, which drives the actual behaviour.
+    tool_sets = build_tool_sets(auto_disambiguation, dataset_name)
+    tool_types = list(tool_types) if tool_types else list(tool_sets.keys())
+    system_prompts = {
+        tt: _build_system_prompt(tool_sets[tt], enable_thinking, lang)
+        for tt in tool_types
+    }
+    rng = random.Random(rank)
     for doc in data:
+        tool_type = rng.choice(tool_types)
+        tools = tool_sets[tool_type]
         question = doc.metadata.pop("question")
         answer = doc.metadata.pop("answer", None)
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": system_prompts[tool_type]},
             {"role": "user", "content": question},
         ]
         doc = Document(
@@ -218,6 +299,10 @@ def preproc(
                 "answer": answer,
                 "messages": messages,
                 "tools": tools,
+                "tool_type": tool_type,
+                "dataset_name": dataset_name,
+                "language": lang,
+                "enable_thinking": enable_thinking,
             },
         )
         yield doc
@@ -229,6 +314,26 @@ def postprocess_fn(self, doc, model_size, gen_config):
     # Scores of every submit_answer call this run (last element = final score).
     doc.metadata[f"submit_answer_scores"] = doc.metadata.pop("submit_answer_scores", [])
     return doc
+
+def stabilize_for_parquet(data, rank: int = 0, world_size: int = 1):
+    """Coerce the two columns whose type is unstable across shards to a fixed type.
+
+    load_dataset() unifies the parquet schema of every shard, so a column must
+    have the same arrow type in all of them. Two do not, and break the load:
+      - `id`: int64 for FEVER (integer source ids), string for the QA datasets
+        -> force str everywhere.
+      - `inference_results[].message.{content,reasoning}`: string in one thinking
+        mode and all-None (-> arrow null type) in the other, so unifying a
+        thinking and a non_thinking shard raises "cast string to null" -> serialize
+        the whole structure to a JSON string (the same treatment `tools` gets).
+    """
+    for doc in data:
+        doc.id = str(doc.id)
+        ir = doc.metadata.get("inference_results")
+        if ir is not None and not isinstance(ir, str):
+            doc.metadata["inference_results"] = json.dumps(ir, default=str)
+        yield doc
+
 
 def filter_function(doc):
     answer_scores = doc.metadata.get("submit_answer_scores", [])
@@ -243,6 +348,69 @@ def filter_function(doc):
         return False, "too_few_turns"
     return True
 
+def create_reader(dataset_name, language):
+    if dataset_name == "hotpotqa":
+        if language == "en":
+            reader = [
+                HuggingFaceDatasetReader(
+                    "hotpotqa/hotpot_qa",
+                    {"split": "train", "name": "fullwiki"},
+                    streaming=False,
+                    adapter=instruct_adapter,
+                )
+            ]
+        elif language == "fr":
+            def get_question(data, rank: int = 0, world_size: int = 1):
+                for doc in data:
+                    doc.metadata["question"] = doc.metadata.pop("query")
+                    yield doc
+
+            reader = [
+                HuggingFaceDatasetReader(
+                    "Mvanypersele/luciole_RAG",
+                    {"name": "hotpotqa_fr", "split": "train"},
+                    streaming=False,
+                    adapter=instruct_adapter,
+                ),
+                get_question,
+            ]
+        else:
+            raise ValueError(f"Unsupported language: {language}")
+    elif dataset_name == "multihopqa":
+        reader = [
+            HuggingFaceDatasetReader(
+                "xanhho/2WikiMultihopQA",
+                {"split": "train", "revision": "e37a4050605363be62f1d02e6eb888fe5f56530e"},
+                streaming=False,
+                adapter=instruct_adapter,
+            ),
+        ]
+    elif dataset_name == "fever":
+        def get_question(data, rank: int = 0, world_size: int = 1):
+            # Draw a random phrasing per doc (rank-seeded for reproducibility).
+            rng = random.Random(rank)
+            for doc in data:
+                template = rng.choice(FEVER_QUESTION_TEMPLATES)
+                doc.metadata["question"] = template.format(claim=doc.metadata.get("claim"))
+                label = doc.metadata.pop("label")
+                if label == "NOT ENOUGH INFO":
+                    continue  # Skip unanswerable docs: the model cannot be graded on them.
+                doc.metadata["answer"] = label.lower()
+                yield doc
+        reader = [
+            HuggingFaceDatasetReader(
+                "fever/fever",
+                {"split": "train", "revision": "5f577157472532aa1d9924d2df63aac44f70cf2b"},
+                streaming=False,
+                adapter=instruct_adapter,
+            ),
+            get_question,
+        ]
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset_name}")
+
+    return reader
+    
 MODEL_SIZES = {
     "0.6b": "Qwen/Qwen3-0.6B", # For testing only, not recommended for generation
     "32b": "Qwen/Qwen3-32B",
@@ -258,53 +426,83 @@ if __name__ == "__main__":
     parser.add_argument("--tp", type=int, default=1)
     parser.add_argument("--backend", type=str, default="offline", choices=["online", "offline"],
                         help="Wikipedia source: 'offline' (local ZIM mirror, default) or 'online' (live HTTP)")
+    parser.add_argument("--main_name", type=str, default="react", help="Main output directory name for this run (default: 'react')")
+    parser.add_argument("--dataset_name", type=str, default="hotpotqa", choices=["hotpotqa", "multihopqa", "fever"])
     parser.add_argument("--lang", type=str, default="en", choices=WIKI_ZIM_PATHS.keys(),
                         help="Wikipedia language for the offline backend; selects the ZIM mirror "
                              "from WIKI_ZIM_PATHS")
-    parser.add_argument("--accept_threshold", type=float, default=0.0,
+    parser.add_argument("--accept_threshold", type=float, default=-1,
                         help="F1 the answer must strictly exceed for submit_answer to accept it and "
                              "end the episode (0 = any token overlap; below it the model is asked to "
                              "reformulate; negative = accept any answer on first submit)")
-    parser.add_argument("--max_turns", type=int, default=8,
+    parser.add_argument("--max_turns", type=int, default=6,
                         help="Maximum assistant turns per question before the agent loop is cut off")
-    parser.add_argument("--tool_type", type=str, default="wiki_api", choices=list(TOOL_SETS.keys()),
-                        help="Tool set exposed to the agent: 'wiki_api' (search/lookup over the "
-                             "Wikipedia ZIM/HTTP) or 'retriever' (dense `wikipedia_retriever` over a "
-                             "pre-built embedding index; see build_wiki_index.py). The retriever's "
-                             "query encoder is read from the index's meta.json, and the passage count "
-                             "is the `wikipedia_retriever` tool's own `k` argument -- neither is "
-                             "configured here.")
+    parser.add_argument("--tool_types", nargs="+", default=None, choices=list(TOOL_SETS.keys()),
+                        help="Tool sets a run draws from, one per document (default: all). Restrict "
+                             "to isolate or compare browsing styles, e.g. '--tool_types wiki_api "
+                             "wiki_structured' or '--tool_types wiki_structured'")
     parser.add_argument("--format_only", action="store_true", help="Run only formatting.")
-    parser.add_argument("--push_to_hf", action="store_true", help="Push the formatted data to Hugging Face.")
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    # Output tree: dataset / tool_type / thinking mode / language.
-    dataset_name = "hotpotqa"
+    # Output tree: dataset / thinking mode / language. tool_type is no longer a
+    # path axis here because a single run mixes both (drawn per doc in preproc);
+    # it is recorded per document in metadata and used to partition only the
+    # final HF parquet layout (see ${tool_type} in the HF writer below).
+    dataset_name = args.dataset_name
     thinking_dir = "thinking" if args.enable_thinking else "non_thinking"
-    OUT_NAME = f"react/{dataset_name}/{args.tool_type}/{thinking_dir}/{args.lang}"
+    OUT_NAME = f"{args.main_name}/{dataset_name}/{thinking_dir}/{args.lang}"
 
-    # Pick the tool set and its matching env factory. Both share submit_answer
-    # and the F1 grading (GradedEnv); they differ only in how the agent reaches
-    # Wikipedia (title browse vs. dense retrieval).
-    tools = TOOL_SETS[args.tool_type]
-    tool_names = [t["function"]["name"] for t in tools]
+    # --push_only: push the already-formatted data to the hub and exit. Nothing
+    # else is needed -- no reader, inference config, tokenizer, or format
+    # pipeline -- so build just the push executor here and stop.
+    if args.push_only:
+        push_pipeline = [
+            JsonlReader(
+                f"{DATA_PATH}/{OUT_NAME}/formatted/data",
+            ),
+            stabilize_for_parquet,
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-France/ReAct" + ("-debug" if args.debug else ""),
+                private=True,
+                local_working_dir=f"{DATA_PATH}/{OUT_NAME}/data_hf",
+                output_filename=f"data/{dataset_name}/" + "${tool_type}/" + f"{thinking_dir}/{args.lang}/" + "${rank}.parquet",
+                cleanup=True,
+                expand_metadata=True,
+                schema=None,
+            ),
+        ]
+        create_executor(
+            push_pipeline,
+            local=args.local,
+            debug=args.debug,
+            logging_dir=f"{DATA_PATH}/{OUT_NAME}/logs_hf",
+            job_name="react_hf",
+            tasks=1,
+            skip_completed=not args.force,
+        ).run()
+        raise SystemExit(0)
 
+    # The active tool sets are drawn per doc in preproc, so the env factory
+    # dispatches per document; they share submit_answer and the F1 grading and
+    # differ only in how the agent reaches Wikipedia (title browse / section
+    # browse / dense retrieval). Fail fast here if a backend asset needed by an
+    # active tool set is missing for this language, rather than deep inside an
+    # episode. wiki_api and wiki_structured both browse the ZIM; retriever needs
+    # the dense index -- so only assert what the selected --tool_types require.
+    active_tool_types = args.tool_types or list(TOOL_SETS.keys())
     zim_path = WIKI_ZIM_PATHS[args.lang]
-    if args.tool_type == "wiki_api":
-        # Fail fast on a missing ZIM mirror rather than deep inside libzim per
-        # episode (only the offline backend reads it).
-        if args.backend == "offline":
-            assert os.path.exists(zim_path), f"ZIM mirror not found for lang '{args.lang}': {zim_path}"
-        env_factory = partial(new_env, backend=args.backend, zim_path=zim_path,
-                              accept_threshold=args.accept_threshold)
-    else:  # retriever
-        index_dir = WIKI_INDEX_PATHS[args.lang]
-        # Fail fast on a missing index rather than per episode when the first
-        # wikipedia_retriever fires.
+    index_dir = WIKI_INDEX_PATHS[args.lang]
+    needs_zim = bool({"wiki_api", "wiki_structured"} & set(active_tool_types))
+    needs_index = "retriever" in active_tool_types
+    if needs_zim and args.backend == "offline":
+        assert os.path.exists(zim_path), f"ZIM mirror not found for lang '{args.lang}': {zim_path}"
+    if needs_index:
         assert os.path.isdir(index_dir), f"Retriever index not found for lang '{args.lang}': {index_dir}"
-        env_factory = partial(new_retriever_env, index_dir=index_dir,
-                              accept_threshold=args.accept_threshold)
+    env_factory = partial(new_env_for_doc, backend=args.backend, zim_path=zim_path,
+                          index_dir=index_dir, accept_threshold=args.accept_threshold,
+                          auto_disambiguation=AUTO_DISAMBIGUATION,
+                          scorer=SCORERS.get(dataset_name))
 
     # Structured tool calling: vLLM parses tool calls into message.tool_calls.
     model_kwargs = {
@@ -331,48 +529,26 @@ if __name__ == "__main__":
     #########
     # Generate chosen samples
     #########
+    reader = create_reader(dataset_name, args.lang)
 
-    if args.lang == "en":
-        reader = [
-            HuggingFaceDatasetReader(
-                "hotpotqa/hotpot_qa",
-                {"split": "train", "name": "fullwiki"},
-                streaming=False,
-                adapter=instruct_adapter,
-            )
-        ]
-    elif args.lang == "fr":
-        def get_question(data, rank: int = 0, world_size: int = 1):
-            for doc in data:
-                doc.metadata["question"] = doc.metadata.pop("query")
-                yield doc
-
-        reader = [
-            HuggingFaceDatasetReader(
-                "Mvanypersele/luciole_RAG",
-                {"name": "hotpotqa_fr", "split": "train"},
-                streaming=False,
-                adapter=instruct_adapter,
-            ),
-            get_question,
-        ]
-    else:
-        raise ValueError(f"Unsupported language: {args.lang}")
-    
     pipeline = reader + [
-        partial(preproc, enable_thinking=args.enable_thinking, lang=args.lang, tools=tools),
+        partial(preproc, enable_thinking=args.enable_thinking, lang=args.lang,
+                tool_types=args.tool_types, auto_disambiguation=AUTO_DISAMBIGUATION,
+                dataset_name=dataset_name),
         ToolCallingInferenceRunner(
             query_builder=partial(agent_query_builder, temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens),
             config=config,
             env_factory=env_factory,
-            tool_executor=partial(call_tool, tool_names=tool_names),
+            # tool_names is left to the default None so call_tool validates
+            # against each env's own allowed_tool_names (tool_type is per doc).
+            tool_executor=call_tool,
             finish_tool="submit_answer",
             max_turns=args.max_turns,
             records_per_chunk=500,
             checkpoints_local_dir=f"{DATA_PATH}/{OUT_NAME}/checkpoints",
             output_writer=JsonlWriter(
                 f"{DATA_PATH}/{OUT_NAME}/data",
-                output_filename="${rank}_chunk_${chunk_index}.jsonl",
+                output_filename="${tool_type}/${rank}_chunk_${chunk_index}.jsonl",
             ),
             postprocess_fn=partial(postprocess_fn, model_size=args.size, gen_config=generation_config(temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens)),
             skip_bad_requests=True
@@ -387,8 +563,8 @@ if __name__ == "__main__":
         logging_dir=f"{DATA_PATH}/{OUT_NAME}/logs",
         job_name="react_gen",
         tasks=1,
-        time="01:00:00",
-        qos="qos_gpu_h100-dev",
+        time="20:00:00",
+        qos="qos_gpu_h100-t3",
         partition="gpu_p6",
         cpus_per_task=32,
         #env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
@@ -429,6 +605,7 @@ if __name__ == "__main__":
         ), 
         JsonlWriter(
             f"{DATA_PATH}/{OUT_NAME}/formatted/data",
+            output_filename="${tool_type}/${rank}.jsonl",
             expand_metadata=True,
         ),
     ]
@@ -447,35 +624,4 @@ if __name__ == "__main__":
         depends=executor if not args.format_only else None,
     )
 
-    # Push to HF
-    if args.push_to_hf:
-        pipeline = [
-            JsonlReader(
-                f"{DATA_PATH}/{OUT_NAME}/formatted/data",
-            ),
-            HuggingFaceDatasetWriter(
-                dataset="OpenLLM-France/ReAct"
-                + ("-debug" if args.debug else ""),
-                private=True,
-                local_working_dir=f"{DATA_PATH}/{OUT_NAME}/data_hf",
-                output_filename=f"data/{dataset_name}/{args.tool_type}/{thinking_dir}/{args.lang}" + "/${rank}.parquet",
-                cleanup=True,
-                expand_metadata=True,
-                schema=None,
-            ),
-        ]
-
-        hf_executor = create_executor(
-            pipeline,
-            local=args.local,
-            debug=args.debug,
-            logging_dir=f"{DATA_PATH}/{OUT_NAME}/logs_hf",
-            job_name="react_hf",
-            tasks=1,
-            skip_completed=not args.force,
-            depends=format_executor,
-        )
-
-        hf_executor.run()
-    else:
-        format_executor.run()
+    format_executor.run()

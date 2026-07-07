@@ -244,8 +244,9 @@ class RetrieverEnv(GradedEnv):
     """
 
     def __init__(self, ground_truth=None, index_dir=None, max_passage_chars=600,
-                 accept_threshold=None):
-        super().__init__(ground_truth=ground_truth, accept_threshold=accept_threshold)
+                 accept_threshold=None, scorer=None):
+        super().__init__(ground_truth=ground_truth, accept_threshold=accept_threshold,
+                         scorer=scorer)
         if not index_dir:
             raise ValueError("RetrieverEnv requires an index_dir")
         self.index_dir = index_dir
@@ -336,17 +337,18 @@ class RetrieverEnv(GradedEnv):
         return "\n".join(lines)
 
 
-def new_retriever_env(doc, index_dir=None, accept_threshold=None):
+def new_retriever_env(doc, index_dir=None, accept_threshold=None, scorer=None):
     """Create a fresh RetrieverEnv for one conversation and alias its scores.
 
     Mirrors react_hotpot.new_env (the wiki_api factory). The ground-truth answer
     is taken from the document so `submit_answer` can grade the agent; the env's
     score list is aliased into the doc metadata so each submit_answer score lands
-    in the output (same list object).
+    in the output (same list object). `scorer` overrides the default token-F1
+    grading (e.g. FEVER exact match).
     """
     env = RetrieverEnv(
         ground_truth=doc.metadata["answer"], index_dir=index_dir,
-        accept_threshold=accept_threshold,
+        accept_threshold=accept_threshold, scorer=scorer,
     )
     doc.metadata["submit_answer_scores"] = env.scores
     return env
