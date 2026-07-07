@@ -8,16 +8,24 @@ via BM25 ranking, and rows are output in HotpotQA-compatible JSONL.
 """
 
 import argparse
-import hashlib
+import asyncio
 import json
 import random
-import re
 from pathlib import Path
 
 from datasets import Dataset, concatenate_datasets, load_dataset
-from rank_bm25 import BM25Okapi
 
 from benchmark_format import augment_row_to_benchmark
+from distractor_generation import (
+    DenseRetriever,
+    MixedDistractorSelector,
+    build_bm25_index,
+    content_hash as _ctx_hash,
+    parse_mix_spec,
+    select_bm25_distractors,
+    verify_hard_candidates,
+)
+from utils import load_env_key
 
 # ---------------------------------------------------------------------------
 # Dataset configuration registry
@@ -137,18 +145,6 @@ DATASET_CONFIGS: dict[tuple[str, str], dict] = {
 
 BASE_DIR = Path(__file__).parent
 HF_DATASETS_HOME = Path.home() / ".cache" / "huggingface" / "datasets"
-
-
-def _ctx_hash(text: str) -> str:
-    return hashlib.md5(text.encode("utf-8")).hexdigest()[:12]
-
-
-_WS_RE = re.compile(r"\s+")
-LEAK_MIN_LENGTH = 4
-
-
-def _normalize_for_leak_check(text: str) -> str:
-    return _WS_RE.sub(" ", str(text).lower().strip())
 
 
 def _make_chunk_title(base_title: str, context_text: str) -> str:
@@ -293,17 +289,11 @@ def build_passage_pool(dataset: Dataset, *, has_title: bool = True) -> list[dict
     return pool
 
 
-def build_bm25_index(pool: list[dict]) -> BM25Okapi:
-    """Tokenize passages and build BM25 index."""
-    tokenized = [p["text"].lower().split() for p in pool]
-    return BM25Okapi(tokenized)
-
-
 def select_distractors(
     question: str,
     true_hash: str,
     pool: list[dict],
-    bm25: BM25Okapi,
+    bm25,
     num_distractors: int = 9,
     start_rank: int = 1,
     *,
@@ -316,34 +306,16 @@ def select_distractors(
     strings (normalized substring match) are skipped to avoid answer leakage.
     Strings shorter than ``LEAK_MIN_LENGTH`` characters are ignored.
     """
-    scores = bm25.get_scores(question.lower().split())
-    ranked = sorted(range(len(pool)), key=lambda i: scores[i], reverse=True)
-
-    norm_answers: list[str] = []
-    if answer_strings:
-        for raw in answer_strings:
-            norm = _normalize_for_leak_check(raw)
-            if len(norm) >= LEAK_MIN_LENGTH:
-                norm_answers.append(norm)
-
-    distractors: list[dict] = []
-    seen_valid = 0
-    for idx in ranked:
-        if pool[idx]["hash"] == true_hash:
-            continue
-        if norm_answers:
-            norm_text = _normalize_for_leak_check(pool[idx]["text"])
-            if any(ans in norm_text for ans in norm_answers):
-                if stats is not None:
-                    stats["leak_filtered"] = stats.get("leak_filtered", 0) + 1
-                continue
-        seen_valid += 1
-        if seen_valid < start_rank:
-            continue
-        distractors.append(pool[idx])
-        if len(distractors) >= num_distractors:
-            break
-    return distractors
+    return select_bm25_distractors(
+        question=question,
+        pool=pool,
+        bm25=bm25,
+        num_distractors=num_distractors,
+        exclude_hashes={true_hash},
+        start_rank=start_rank,
+        answer_strings=answer_strings,
+        stats=stats,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -356,22 +328,31 @@ def _build_chunks(
     *,
     gold_index: int = 0,
     is_unanswerable: bool = False,
+    difficulties: dict[str, str] | None = None,
 ) -> list[dict]:
     """Build a structured chunks list for the benchmark export.
 
     In the multilingual converter the gold passage is always at position
     ``gold_index`` (0 by default) and everything else is a BM25 distractor.
-    For unanswerable questions no chunk is marked gold.
+    For unanswerable questions no chunk is marked gold. When mixed-difficulty
+    selection is active, ``difficulties`` maps distractor title -> bucket and
+    the source label becomes e.g. ``hard_distractor``.
     """
     chunks: list[dict] = []
     for i, (title, sents) in enumerate(zip(titles, sentences)):
         text = " ".join(sents) if isinstance(sents, list) else str(sents)
         is_original = i == gold_index
+        if is_original:
+            source = "original"
+        elif difficulties and title in difficulties:
+            source = f"{difficulties[title]}_distractor"
+        else:
+            source = "bm25_distractor"
         chunks.append({
             "id": title,
             "text": text,
             "is_gold": is_original and not is_unanswerable,
-            "source": "original" if is_original else "bm25_distractor",
+            "source": source,
         })
     return chunks
 
@@ -380,51 +361,102 @@ def _build_chunks(
 # Row conversion
 # ---------------------------------------------------------------------------
 
+def _row_selection_inputs(
+    row: dict,
+    *,
+    has_unanswerable: bool,
+    has_title: bool,
+) -> tuple[str, str, str, list[str] | None, bool]:
+    """Shared per-row inputs for distractor selection: (gold_title, gold_text,
+    gold_hash, leak_strings, is_unanswerable)."""
+    answers_text = row["answers"]["text"]
+    is_unanswerable = has_unanswerable and not answers_text
+    gold_title = _make_title(row, has_title=has_title)
+    gold_text = row["context"]
+    gold_hash = _ctx_hash(gold_text)
+    leak_strings: list[str] | None = None
+    if not is_unanswerable and answers_text:
+        leak_strings = [a for a in answers_text if a]
+    return gold_title, gold_text, gold_hash, leak_strings, is_unanswerable
+
+
+def prepare_row_selection(
+    row: dict,
+    key,
+    selector: MixedDistractorSelector,
+    *,
+    has_unanswerable: bool,
+    has_title: bool,
+) -> None:
+    """Phase 1 of mixed selection: rank and stage candidates for one row."""
+    _, gold_text, gold_hash, leak_strings, _ = _row_selection_inputs(
+        row, has_unanswerable=has_unanswerable, has_title=has_title
+    )
+    selector.prepare(
+        key,
+        question=row["question"],
+        evidence=gold_text,
+        exclude_hashes={gold_hash},
+        answer_strings=leak_strings,
+    )
+
+
 def convert_row(
     row: dict,
     dataset_name: str,
     language: str,
     pool: list[dict],
-    bm25: BM25Okapi,
+    bm25,
     num_distractors: int,
     *,
     distractor_start_rank: int = 1,
     has_unanswerable: bool = False,
     has_title: bool = True,
     distractor_stats: dict | None = None,
+    preselected_distractors: list[dict] | None = None,
 ) -> dict:
-    """Convert one extractive QA row to HotpotQA-compatible format."""
+    """Convert one extractive QA row to HotpotQA-compatible format.
+
+    When ``preselected_distractors`` is given (mixed-difficulty path), BM25
+    selection is skipped and the provided tagged candidates are used as-is.
+    """
     answers_text = row["answers"]["text"]
-    is_unanswerable = has_unanswerable and not answers_text
+    gold_title, gold_text, gold_hash, leak_strings, is_unanswerable = _row_selection_inputs(
+        row, has_unanswerable=has_unanswerable, has_title=has_title
+    )
     answer_text = "" if is_unanswerable else (answers_text[0] if answers_text else "")
 
-    gold_title = _make_title(row, has_title=has_title)
-    gold_text = row["context"]
-    gold_hash = _ctx_hash(gold_text)
-
-    leak_strings: list[str] | None = None
-    if not is_unanswerable and answers_text:
-        leak_strings = [a for a in answers_text if a]
-
-    distractors = select_distractors(
-        row["question"],
-        gold_hash,
-        pool,
-        bm25,
-        num_distractors,
-        start_rank=distractor_start_rank,
-        answer_strings=leak_strings,
-        stats=distractor_stats,
-    )
-    if distractor_stats is not None:
-        distractor_stats["added"] = distractor_stats.get("added", 0) + len(distractors)
-        if len(distractors) < num_distractors:
-            distractor_stats["short_rows"] = distractor_stats.get("short_rows", 0) + 1
+    if preselected_distractors is not None:
+        distractors = preselected_distractors
+    else:
+        distractors = select_distractors(
+            row["question"],
+            gold_hash,
+            pool,
+            bm25,
+            num_distractors,
+            start_rank=distractor_start_rank,
+            answer_strings=leak_strings,
+            stats=distractor_stats,
+        )
+        if distractor_stats is not None:
+            distractor_stats["added"] = distractor_stats.get("added", 0) + len(distractors)
+            if len(distractors) < num_distractors:
+                distractor_stats["short_rows"] = distractor_stats.get("short_rows", 0) + 1
 
     titles = [gold_title] + [d["title"] for d in distractors]
     sentences = [[gold_text]] + [[d["text"]] for d in distractors]
 
-    chunks = _build_chunks(titles, sentences, gold_index=0, is_unanswerable=is_unanswerable)
+    difficulties = {
+        d["title"]: d["difficulty"] for d in distractors if d.get("difficulty")
+    } or None
+    chunks = _build_chunks(
+        titles,
+        sentences,
+        gold_index=0,
+        is_unanswerable=is_unanswerable,
+        difficulties=difficulties,
+    )
 
     original_id = row.get("id", _ctx_hash(row["question"]))
     result = {
@@ -436,6 +468,12 @@ def convert_row(
         "context": {"title": titles, "sentences": sentences},
         "chunks": chunks,
     }
+    if difficulties:
+        # Arrow-friendly fixed-key structs (a title-keyed dict would make the
+        # datasets schema explode when this JSONL is loaded by augmentation).
+        result["_distractor_meta"] = [
+            {"title": t, "difficulty": d} for t, d in difficulties.items()
+        ]
 
     if is_unanswerable:
         result["supporting_facts"] = {"title": [], "sent_id": []}
@@ -474,6 +512,30 @@ def main():
     parser.add_argument(
         "--distractor-start-rank", type=int, default=10,
         help="1-based BM25 rank to start selecting distractors from (default: 10)",
+    )
+    parser.add_argument(
+        "--distractor-mix", type=str, default=None,
+        help="Mixed-difficulty selection, e.g. 'hard=2,medium=5,random=2'. "
+             "Overrides --num-distractors/--distractor-start-rank.",
+    )
+    parser.add_argument(
+        "--verify-hard", action="store_true",
+        help="LLM-verify hard candidates (one call per row) instead of relying "
+             "on rank skipping; rejected candidates are backfilled from medium.",
+    )
+    parser.add_argument(
+        "--evidence-query", action="store_true",
+        help="Also rank candidates by similarity to the gold passage (RRF "
+             "fusion), yielding evidence-similar distractors.",
+    )
+    parser.add_argument(
+        "--dense-model", type=str, default=None,
+        help="Optional sentence-transformers model for hybrid dense+BM25 "
+             "ranking (e.g. intfloat/multilingual-e5-base).",
+    )
+    parser.add_argument(
+        "--verify-concurrency", type=int, default=10,
+        help="Concurrent LLM verification calls (default: 10)",
     )
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument("--limit", type=int, default=None, help="Limit rows")
@@ -558,6 +620,48 @@ def main():
         ds = ds.select(range(min(args.limit, len(ds))))
 
     has_unanswerable = cfg.get("has_unanswerable", False)
+    has_title = cfg.get("has_title", True)
+
+    # Mixed-difficulty path: stage selections for every row, run the LLM
+    # verification pass once over all rows, then convert with the finalized
+    # tagged distractors.
+    selector: MixedDistractorSelector | None = None
+    if args.distractor_mix:
+        mix = parse_mix_spec(args.distractor_mix)
+        effective_distractors = sum(mix.values())
+        dense = None
+        if args.dense_model:
+            print(f"Loading dense retriever {args.dense_model} and encoding pool...")
+            dense = DenseRetriever(args.dense_model)
+            dense.index_pool(pool)
+        selector = MixedDistractorSelector(
+            pool=pool,
+            bm25=bm25,
+            mix=mix,
+            dense=dense,
+            use_evidence_query=args.evidence_query,
+            verify_hard=args.verify_hard,
+            seed=args.seed,
+        )
+        print(
+            f"Mixed distractor selection: {mix} "
+            f"(verify_hard={args.verify_hard}, evidence_query={args.evidence_query}, "
+            f"dense={args.dense_model or 'off'})"
+        )
+        for i, row in enumerate(ds):
+            prepare_row_selection(
+                row, i, selector,
+                has_unanswerable=has_unanswerable, has_title=has_title,
+            )
+            if (i + 1) % 1000 == 0:
+                print(f"  {i + 1}/{len(ds)} rows staged")
+        if args.verify_hard:
+            asyncio.run(verify_hard_candidates(
+                selector,
+                api_key=load_env_key("LLM_API_KEY") or "",
+                concurrency=args.verify_concurrency,
+            ))
+
     print(
         f"Converting {len(ds)} rows with {effective_distractors} distractors each "
         f"to {args.output_format} format..."
@@ -569,14 +673,15 @@ def main():
     unanswerable_count = 0
     distractor_stats: dict[str, int] = {"added": 0, "leak_filtered": 0, "short_rows": 0}
     with open(output_path, "w", encoding="utf-8") as f:
-        for row in ds:
+        for i, row in enumerate(ds):
             converted = convert_row(
                 row, args.dataset, args.language,
                 pool, bm25, effective_distractors,
                 distractor_start_rank=args.distractor_start_rank,
                 has_unanswerable=has_unanswerable,
-                has_title=cfg.get("has_title", True),
+                has_title=has_title,
                 distractor_stats=distractor_stats,
+                preselected_distractors=selector.finalize(i) if selector else None,
             )
             is_unanswerable = bool(converted.get("_is_unanswerable"))
             if args.output_format == "benchmark":
@@ -594,7 +699,11 @@ def main():
     print(f"Done: {count} rows written to {output_path}")
     if unanswerable_count:
         print(f"  ({unanswerable_count} unanswerable rows)")
-    if effective_distractors > 0:
+    if selector is not None:
+        print("Mixed distractor stats:")
+        for name in sorted(selector.stats):
+            print(f"  {name}: {selector.stats[name]}")
+    elif effective_distractors > 0:
         added = distractor_stats["added"]
         leaked = distractor_stats["leak_filtered"]
         short = distractor_stats["short_rows"]

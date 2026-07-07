@@ -4,14 +4,22 @@ Convert TATQA data into augmentation format compatible with the existing pipelin
 """
 
 import argparse
-import hashlib
+import asyncio
 import json
 import re
 from pathlib import Path
 
-from rank_bm25 import BM25Okapi
-
 from benchmark_format import augment_row_to_benchmark
+from distractor_generation import (
+    DenseRetriever,
+    MixedDistractorSelector,
+    build_bm25_index,
+    content_hash as _ctx_hash,
+    parse_mix_spec,
+    select_bm25_distractors,
+    verify_hard_candidates,
+)
+from utils import load_env_key
 
 
 def _stringify_cell(value: object) -> str:
@@ -202,18 +210,32 @@ def _merge_small_paragraphs(
     return merged_paragraphs, order_to_title
 
 
-def _ctx_hash(text: str) -> str:
-    return hashlib.md5(text.encode("utf-8")).hexdigest()[:12]
+def tatqa_document_chunks(doc: dict) -> tuple[str, list[dict], dict[int, str]]:
+    """Return the stable chunking of one original TAT-QA report.
 
+    The same function is used for conversion, distractor provenance and later
+    contextual retrieval.  Keeping this as a single source of truth is
+    important: a retrieved chunk must be contextualized against the exact
+    source document/chunk from which it was indexed, not against the mixed
+    question context assembled after retrieval.
+    """
+    table = doc.get("table", {})
+    doc_id = str(table.get("uid", "table"))
+    chunks = [{
+        "id": "Table",
+        "text": table_to_markdown(table.get("table", [])),
+        "type": "table",
+    }]
 
-_WS_RE = re.compile(r"\s+")
-
-
-def _normalize_for_leak_check(text: str) -> str:
-    return _WS_RE.sub(" ", str(text).lower().strip())
-
-
-LEAK_MIN_LENGTH = 4
+    paragraphs = sorted(doc.get("paragraphs", []), key=lambda p: p.get("order", 0))
+    merged_paragraphs, order_to_title = _merge_small_paragraphs(paragraphs)
+    for paragraph in merged_paragraphs:
+        chunks.append({
+            "id": f"Paragraph {paragraph.get('order', '?')}",
+            "text": str(paragraph.get("text", "")),
+            "type": "paragraph",
+        })
+    return doc_id, chunks, order_to_title
 
 
 def build_distractor_pool(docs: list[dict]) -> list[dict]:
@@ -228,35 +250,23 @@ def build_distractor_pool(docs: list[dict]) -> list[dict]:
     pool: list[dict] = []
     seen_hashes: set[str] = set()
     for doc in docs:
-        doc_id = doc.get("table", {}).get("uid", "table")
-
-        # Table
-        table_rows = doc.get("table", {}).get("table", [])
-        table_md = table_to_markdown(table_rows)
-        if table_md and len(table_md) >= MIN_PARAGRAPH_CHARS:
-            h = _ctx_hash(table_md)
-            if h not in seen_hashes:
-                seen_hashes.add(h)
-                pool.append({"doc_id": doc_id, "text": table_md, "hash": h, "type": "table"})
-
-        # Paragraphs
-        paragraphs = sorted(doc.get("paragraphs", []), key=lambda p: p.get("order", 0))
-        merged_paragraphs, _ = _merge_small_paragraphs(paragraphs)
-        for p in merged_paragraphs:
-            text = str(p.get("text", "")).strip()
+        doc_id, chunks, _ = tatqa_document_chunks(doc)
+        for chunk in chunks:
+            text = chunk["text"].strip()
             if len(text) < MIN_PARAGRAPH_CHARS:
                 continue
             h = _ctx_hash(text)
             if h in seen_hashes:
                 continue
             seen_hashes.add(h)
-            pool.append({"doc_id": doc_id, "text": text, "hash": h, "type": "paragraph"})
+            pool.append({
+                "doc_id": doc_id,
+                "chunk_id": chunk["id"],
+                "text": text,
+                "hash": h,
+                "type": chunk["type"],
+            })
     return pool
-
-
-def build_bm25_index(pool: list[dict]) -> BM25Okapi:
-    tokenized = [p["text"].lower().split() for p in pool]
-    return BM25Okapi(tokenized)
 
 
 def select_cross_doc_distractors(
@@ -264,8 +274,9 @@ def select_cross_doc_distractors(
     question: str,
     current_doc_id: str,
     pool: list[dict],
-    bm25: BM25Okapi,
+    bm25,
     num_distractors: int,
+    start_rank: int = 1,
     answer_strings: list[str] | None = None,
     stats: dict | None = None,
 ) -> list[dict]:
@@ -276,59 +287,77 @@ def select_cross_doc_distractors(
     Strings shorter than ``LEAK_MIN_LENGTH`` characters are ignored to prevent
     over-filtering on numeric or single-token answers.
     """
-    if num_distractors <= 0 or not pool:
-        return []
-    scores = bm25.get_scores(question.lower().split())
-    ranked = sorted(range(len(pool)), key=lambda i: scores[i], reverse=True)
+    return select_bm25_distractors(
+        question=question,
+        pool=pool,
+        bm25=bm25,
+        num_distractors=num_distractors,
+        exclude_doc_ids={current_doc_id},
+        start_rank=start_rank,
+        answer_strings=answer_strings,
+        stats=stats,
+    )
 
-    norm_answers: list[str] = []
-    if answer_strings:
-        for raw in answer_strings:
-            norm = _normalize_for_leak_check(raw)
-            if len(norm) >= LEAK_MIN_LENGTH:
-                norm_answers.append(norm)
 
-    distractors: list[dict] = []
-    for idx in ranked:
-        chunk = pool[idx]
-        if chunk["doc_id"] == current_doc_id:
-            continue
-        if norm_answers:
-            norm_text = _normalize_for_leak_check(chunk["text"])
-            if any(ans in norm_text for ans in norm_answers):
-                if stats is not None:
-                    stats["leak_filtered"] = stats.get("leak_filtered", 0) + 1
-                continue
-        distractors.append(chunk)
-        if len(distractors) >= num_distractors:
-            break
-    return distractors
+def attach_distractors(
+    row: dict,
+    distractors: list[dict],
+    distractor_stats: dict | None = None,
+) -> None:
+    """Append cross-doc distractors to a converted row (context + chunks).
+
+    Distractor titles use a type-prefix + content-hash so they (a) stay unique
+    across docs, (b) don't collide with gold titles in title_mapping, and
+    (c) "Paragraph/Table dist_*" get renumbered by format_context_chunks.
+    """
+    for d in distractors:
+        prefix = "Table" if d.get("type") == "table" else "Paragraph"
+        title = f"{prefix} dist_{d['hash']}"
+        row["context"]["title"].append(title)
+        row["context"]["sentences"].append([d["text"]])
+        difficulty = d.get("difficulty")
+        row["chunks"].append({
+            "id": title,
+            "text": d["text"],
+            "is_gold": False,
+            "source": f"{difficulty}_distractor" if difficulty else "bm25_distractor",
+            "document_id": d.get("doc_id", ""),
+            "document_chunk_id": d.get("chunk_id", ""),
+        })
+        if difficulty:
+            # Arrow-friendly fixed-key structs (see convert_multilingual_qa).
+            row.setdefault("_distractor_meta", []).append(
+                {"title": title, "difficulty": difficulty}
+            )
+    if distractor_stats is not None:
+        distractor_stats["added"] = distractor_stats.get("added", 0) + len(distractors)
+        table_count = sum(1 for d in distractors if d.get("type") == "table")
+        distractor_stats["tables_added"] = (
+            distractor_stats.get("tables_added", 0) + table_count
+        )
 
 
 def convert_doc(
     doc: dict,
     *,
+    question_limit: int | None = None,
     pool: list[dict] | None = None,
-    bm25: BM25Okapi | None = None,
+    bm25=None,
     num_distractors: int = 0,
+    distractor_start_rank: int = 1,
     distractor_stats: dict | None = None,
+    selector: MixedDistractorSelector | None = None,
 ) -> list[dict]:
     out = []
-    table_rows = doc.get("table", {}).get("table", [])
-    table_uid = doc.get("table", {}).get("uid", "table")
-    table_md = table_to_markdown(table_rows)
+    table_uid, source_chunks, order_to_title = tatqa_document_chunks(doc)
+    base_titles = [chunk["id"] for chunk in source_chunks]
+    base_sentences = [[chunk["text"]] for chunk in source_chunks]
 
-    paragraphs = sorted(doc.get("paragraphs", []), key=lambda p: p.get("order", 0))
-    paragraphs, order_to_title = _merge_small_paragraphs(paragraphs)
+    questions = doc.get("questions", [])
+    if question_limit is not None:
+        questions = questions[:question_limit]
 
-    base_titles = ["Table"]
-    base_sentences = [[table_md]]
-    for p in paragraphs:
-        title = f"Paragraph {p.get('order', '?')}"
-        base_titles.append(title)
-        base_sentences.append([str(p.get("text", ""))])
-
-    for q in doc.get("questions", []):
+    for q in questions:
         q_uid = q.get("uid", "unknown")
         row_id = f"{table_uid}_{q_uid}"
         answer_from = q.get("answer_from", "")
@@ -361,57 +390,23 @@ def convert_doc(
             elif answer_raw:
                 leak_strings = [str(answer_raw)]
 
-        # Add cross-doc BM25 distractors per question. The pool includes both
-        # paragraphs and tables from other docs. Distractor titles use a
-        # type-prefix + content-hash so they (a) stay unique across docs,
-        # (b) don't collide with gold titles in title_mapping, and
-        # (c) "Paragraph dist_*" gets renumbered by format_context_chunks.
-        distractor_titles: list[str] = []
-        distractor_sentences: list[list[str]] = []
-        if pool and bm25 and num_distractors > 0:
-            distractors = select_cross_doc_distractors(
-                question=q.get("question", ""),
-                current_doc_id=table_uid,
-                pool=pool,
-                bm25=bm25,
-                num_distractors=num_distractors,
-                answer_strings=leak_strings or None,
-                stats=distractor_stats,
-            )
-            if distractor_stats is not None:
-                distractor_stats["added"] = (
-                    distractor_stats.get("added", 0) + len(distractors)
-                )
-                table_count = sum(1 for d in distractors if d["type"] == "table")
-                distractor_stats["tables_added"] = (
-                    distractor_stats.get("tables_added", 0) + table_count
-                )
-                if len(distractors) < num_distractors:
-                    distractor_stats["short_rows"] = (
-                        distractor_stats.get("short_rows", 0) + 1
-                    )
-            for d in distractors:
-                prefix = "Table" if d["type"] == "table" else "Paragraph"
-                distractor_titles.append(f"{prefix} dist_{d['hash']}")
-                distractor_sentences.append([d["text"]])
-
-        context_titles = base_titles + distractor_titles
-        context_sentences = base_sentences + distractor_sentences
-        distractor_title_set = set(distractor_titles)
-
         # Structured chunk export for the benchmark. Each chunk carries an
         # explicit is_gold flag (against rel_paragraphs / answer_from) and a
-        # source label distinguishing same-doc background from added BM25
-        # cross-doc distractors. Order matches context["title"].
+        # source label distinguishing same-doc background from added
+        # cross-doc distractors. Order matches context["title"]. Distractors
+        # are appended by attach_distractors, immediately on the legacy path,
+        # or after the LLM verification pass on the mixed-difficulty path.
         sf_set = set(sf_titles)
         chunks: list[dict] = []
-        for title, sents in zip(context_titles, context_sentences):
+        for title, sents in zip(base_titles, base_sentences):
             text = " ".join(sents) if isinstance(sents, list) else str(sents)
             chunks.append({
                 "id": title,
                 "text": text,
                 "is_gold": title in sf_set,
-                "source": "bm25_distractor" if title in distractor_title_set else "original",
+                "source": "original",
+                "document_id": table_uid,
+                "document_chunk_id": title,
             })
 
         row = {
@@ -424,13 +419,46 @@ def convert_doc(
             "derivation": q.get("derivation", ""),
             "scale": q.get("scale", ""),
             "req_comparison": bool(q.get("req_comparison", False)),
-            "context": {"title": context_titles, "sentences": context_sentences},
+            "document_id": table_uid,
+            "context": {"title": list(base_titles), "sentences": list(base_sentences)},
             "supporting_facts": {"title": sf_titles, "sent_id": [0] * len(sf_titles)},
             "chunks": chunks,
             # Compatibility with existing reporting scripts
             "type": q.get("answer_type", "unknown"),
             "level": "tatqa",
         }
+
+        if selector is not None:
+            evidence_parts = [
+                " ".join(sents)
+                for title, sents in zip(base_titles, base_sentences)
+                if title in sf_set
+            ]
+            selector.prepare(
+                row_id,
+                question=q.get("question", ""),
+                evidence=" ".join(evidence_parts),
+                exclude_doc_ids={table_uid},
+                answer_strings=leak_strings or None,
+            )
+            row["_pending_distractors"] = row_id
+        elif pool and bm25 and num_distractors > 0:
+            distractors = select_cross_doc_distractors(
+                question=q.get("question", ""),
+                current_doc_id=table_uid,
+                pool=pool,
+                bm25=bm25,
+                num_distractors=num_distractors,
+                start_rank=distractor_start_rank,
+                answer_strings=leak_strings or None,
+                stats=distractor_stats,
+            )
+            if distractor_stats is not None and len(distractors) < num_distractors:
+                distractor_stats["short_rows"] = (
+                    distractor_stats.get("short_rows", 0) + 1
+                )
+            attach_distractors(row, distractors, distractor_stats)
+
         if answer_spans is not None:
             row["answer_spans"] = answer_spans
         out.append(row)
@@ -442,14 +470,26 @@ def convert(
     output_file: str,
     *,
     num_distractors: int = 0,
+    distractor_start_rank: int = 1,
     output_format: str = "augment",
     include_id: bool = True,
+    distractor_mix: str | None = None,
+    verify_hard: bool = False,
+    evidence_query: bool = False,
+    dense_model: str | None = None,
+    verify_concurrency: int = 10,
+    verify_checkpoint: str | None = None,
+    seed: int | None = None,
+    limit: int | None = None,
 ) -> tuple[int, int, int]:
+    if limit is not None and limit < 1:
+        raise ValueError("--limit must be >= 1")
+
     docs, warnings = load_tatqa_docs(Path(input_file))
 
     pool: list[dict] = []
-    bm25: BM25Okapi | None = None
-    if num_distractors > 0:
+    bm25 = None
+    if num_distractors > 0 or distractor_mix:
         pool = build_distractor_pool(docs)
         if pool:
             n_tables = sum(1 for p in pool if p["type"] == "table")
@@ -459,18 +499,67 @@ def convert(
         else:
             print("[warn] distractor pool is empty, no distractors will be added")
 
+    selector: MixedDistractorSelector | None = None
+    if distractor_mix and bm25 is not None:
+        mix = parse_mix_spec(distractor_mix)
+        num_distractors = sum(mix.values())
+        dense = None
+        if dense_model:
+            print(f"Loading dense retriever {dense_model} and encoding pool...")
+            dense = DenseRetriever(dense_model)
+            dense.index_pool(pool)
+        selector = MixedDistractorSelector(
+            pool=pool,
+            bm25=bm25,
+            mix=mix,
+            dense=dense,
+            use_evidence_query=evidence_query,
+            verify_hard=verify_hard,
+            seed=seed,
+        )
+        print(
+            f"Mixed distractor selection: {mix} "
+            f"(verify_hard={verify_hard}, evidence_query={evidence_query}, "
+            f"dense={dense_model or 'off'})"
+        )
+
     distractor_stats: dict[str, int] = {"added": 0, "leak_filtered": 0, "short_rows": 0}
     rows_out = []
+    remaining = limit
     for doc in docs:
-        rows_out.extend(
-            convert_doc(
-                doc,
-                pool=pool,
-                bm25=bm25,
-                num_distractors=num_distractors,
-                distractor_stats=distractor_stats,
-            )
+        if remaining == 0:
+            break
+        converted = convert_doc(
+            doc,
+            question_limit=remaining,
+            pool=pool,
+            bm25=bm25,
+            num_distractors=num_distractors,
+            distractor_start_rank=distractor_start_rank,
+            distractor_stats=distractor_stats,
+            selector=selector,
         )
+        rows_out.extend(converted)
+        if remaining is not None:
+            remaining -= len(converted)
+
+    if selector is not None:
+        if verify_hard:
+            # Default checkpoint sits next to the output so a same-run_name retry
+            # resumes the verify pass instead of restarting it from scratch.
+            ckpt = verify_checkpoint
+            if ckpt is None:
+                ckpt = str(Path(output_file).with_suffix("")) + "_verify_checkpoint.jsonl"
+            asyncio.run(verify_hard_candidates(
+                selector,
+                api_key=load_env_key("LLM_API_KEY") or "",
+                concurrency=verify_concurrency,
+                checkpoint_path=ckpt,
+            ))
+        for row in rows_out:
+            pending_key = row.pop("_pending_distractors", None)
+            if pending_key is not None:
+                attach_distractors(row, selector.finalize(pending_key), distractor_stats)
 
     with open(output_file, "w", encoding="utf-8") as f:
         for row in rows_out:
@@ -482,15 +571,21 @@ def convert(
         print(f"[warn] {w}")
     print(f"Docs parsed: {len(docs)}")
     print(f"Questions converted: {len(rows_out)}")
-    if num_distractors > 0:
+    if selector is not None:
+        print("Mixed distractor stats:")
+        for name in sorted(selector.stats):
+            print(f"  {name}: {selector.stats[name]}")
+    elif num_distractors > 0:
         added = distractor_stats["added"]
         leaked = distractor_stats["leak_filtered"]
         short = distractor_stats["short_rows"]
         considered = added + leaked
         leak_pct = (100.0 * leaked / considered) if considered else 0.0
         tables_added = distractor_stats.get("tables_added", 0)
-        tables_pct = (100.0 * tables_added / added) if added else 0.0
-        print(f"Cross-doc BM25 distractors per question: up to {num_distractors}")
+        print(
+            f"Cross-doc BM25 distractors per question: up to {num_distractors} "
+            f"(start rank {distractor_start_rank})"
+        )
         print(f"  added:          {added} ({tables_added} tables, {added - tables_added} paragraphs)")
         print(f"  leak-filtered:  {leaked} ({leak_pct:.1f}% of considered)")
         print(f"  short rows:     {short} (got fewer than {num_distractors} distractors)")
@@ -508,6 +603,12 @@ def main() -> None:
         help="Number of cross-doc BM25 distractor paragraphs per question (default: 0 = none)",
     )
     parser.add_argument(
+        "--distractor-start-rank",
+        type=int,
+        default=1,
+        help="1-based BM25 rank to start selecting cross-doc distractors from (default: 1)",
+    )
+    parser.add_argument(
         "--output-format",
         choices=["augment", "benchmark"],
         default="augment",
@@ -518,13 +619,57 @@ def main() -> None:
         action="store_true",
         help="Do not include the id column in benchmark output",
     )
+    parser.add_argument(
+        "--distractor-mix", type=str, default=None,
+        help="Mixed-difficulty selection, e.g. 'hard=2,medium=5,random=2'. "
+             "Overrides --num-distractors/--distractor-start-rank.",
+    )
+    parser.add_argument(
+        "--verify-hard", action="store_true",
+        help="LLM-verify hard candidates (one call per question); rejected "
+             "candidates are backfilled from medium.",
+    )
+    parser.add_argument(
+        "--evidence-query", action="store_true",
+        help="Also rank candidates by similarity to the gold table/paragraphs "
+             "(RRF fusion).",
+    )
+    parser.add_argument(
+        "--dense-model", type=str, default=None,
+        help="Optional sentence-transformers model for hybrid dense+BM25 ranking",
+    )
+    parser.add_argument(
+        "--verify-concurrency", type=int, default=10,
+        help="Concurrent LLM verification calls (default: 10)",
+    )
+    parser.add_argument(
+        "--verify-checkpoint", type=str, default=None,
+        help="JSONL file caching --verify-hard verdicts so a killed run resumes "
+             "instead of restarting the whole verify pass "
+             "(default: <output>_verify_checkpoint.jsonl).",
+    )
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for the random bucket")
+    parser.add_argument("--limit", type=int, default=None, help="Limit converted questions before LLM verification")
     args = parser.parse_args()
+    if args.distractor_start_rank < 1:
+        raise ValueError("--distractor-start-rank must be >= 1")
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be >= 1")
     convert(
         args.input,
         args.output,
         num_distractors=args.num_distractors,
+        distractor_start_rank=args.distractor_start_rank,
         output_format=args.output_format,
         include_id=not args.no_id,
+        distractor_mix=args.distractor_mix,
+        verify_hard=args.verify_hard,
+        evidence_query=args.evidence_query,
+        dense_model=args.dense_model,
+        verify_concurrency=args.verify_concurrency,
+        verify_checkpoint=args.verify_checkpoint,
+        seed=args.seed,
+        limit=args.limit,
     )
 
 
