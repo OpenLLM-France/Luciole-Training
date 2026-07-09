@@ -349,7 +349,11 @@ def launch_evaluation(
         results_exist = (
             (output_dir / "results" / ckpt).is_dir()
             if not revision
-            else ((output_dir / revision / "results").is_dir())
+            else (
+                ((output_dir / revision / "results").is_dir())
+                or (output_dir / "results" / ckpt).is_dir()
+                or (output_dir / "results" / os.path.split(ckpt)[-1]).is_dir()
+            )
         )
         if results_exist and not force:
             if not dry_run:
