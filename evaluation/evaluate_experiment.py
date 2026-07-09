@@ -347,7 +347,11 @@ def launch_evaluation(
         steps_done.append(step)
 
         results_exist = (
-            (output_dir / "results" / ckpt).is_dir()
+            (
+                (output_dir / "results" / ckpt).is_dir()
+                or (output_dir / "main" / "results" / ckpt).is_dir()
+                or (output_dir / "main" / "results" / os.path.split(ckpt)[-1]).is_dir()
+            )
             if not revision
             else (
                 ((output_dir / revision / "results").is_dir())
