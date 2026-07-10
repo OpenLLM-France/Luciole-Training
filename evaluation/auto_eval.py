@@ -311,6 +311,7 @@ def launch_evaluation(
                     "ifeval_fr",
                     "gsm_plus",
                     "safety",
+                    "math_fr",
                     # "safety_multilang",
                     "rag2",
                 ]

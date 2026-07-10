@@ -176,6 +176,12 @@ task_group_mapping = {
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
     ],
+    "math": [
+        ("lighteval|gsm8k|0", "extractive_match"),
+        ("lighteval|gsm_plus|0", "extractive_match"),
+        ("community|mathalea_generative_frprompt:_average|0", "mathalea_pass@1"),
+        ("community|exo7_generative|0", "f1"),
+    ],
     "rag": [
         ("community|luciole_rag:hotpotqa|0", "answer_em_fuzzy"),
         ("community|luciole_rag:tatqa|0", "answer_em_fuzzy"),

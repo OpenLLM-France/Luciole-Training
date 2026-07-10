@@ -1,0 +1,2 @@
+community|mathalea_generative_frprompt|0
+community|exo7_generative|0
