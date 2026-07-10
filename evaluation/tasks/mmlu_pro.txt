@@ -1,1 +1,1 @@
-custom|mmlu_pro_cf|0
+lighteval|mmlu_pro|5

@@ -31,20 +31,11 @@ def refusal_f1(metrics):
 # (rather than in plot_results) so it can also serve as the registry of known
 # benchmarks used to restore suite prefixes dropped by newer lighteval versions.
 task_group_mapping = {
-    # "mcq": [
-    #     ("leaderboard|hellaswag|0", "acc"),
-    #     ("helm|hellaswag|0", "em_with_normalize_gold&normalize_pred"),
-    #     ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-    #     ("lighteval|mlmm_arc_fra_mcf:challenge|0", "acc"),
-    #     ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-    #     ("lighteval|mlmm_hellaswag_fra_mcf|0", "acc"),
-    #     ("custom|mmlu_pro_cf|0", "acc_norm_token"),
-    #     ("custom|mmlu_pro_mcf|0", "acc"),
-    # ],
     "en": [
         ("lighteval|openbookqa|0", "acc_with_logprob_normalization"),
         ("lighteval|triviaqa|0", "em_with_strip_strings&normalize_pred"),
-        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+        # ("custom|mmlu_pro_cf|0", "acc_norm_token"),
+        # ("lighteval|mmlu_pro|5", "extractive_match"),
         ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
         ("leaderboard|arc:challenge|0", "acc_with_logprob_normalization"),
         ("helm|commonsenseqa|0", "em_with_normalize_gold&normalize_pred"),
@@ -88,7 +79,7 @@ task_group_mapping = {
         ("custom:idiomatic_expressions_fib_context:word_by_word:0", "acc"),
     ],
     "mmlu": [
-        ("custom|mmlu_pro_cf|0", "acc_norm"),
+        ("lighteval|mmlu_pro|5", "extractive_match"),
         ("custom|mmlu_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
     ],
@@ -170,9 +161,9 @@ task_group_mapping = {
         ("leaderboard|winogrande|0", "acc"),
         ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
         ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("custom|mmlu_pro_cf|0", "acc_norm_token"),
-        # ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
-        # ("community|gpqa-fr|0", "acc"),
+        ("lighteval|mmlu_pro|5", "extractive_match"),
+        ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
+        ("community|gpqa-fr:diamond|0", "gpqa_fr_pass@1"),
         # ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
         ("lighteval|gsm8k|0", "extractive_match"),
         ("lighteval|gsm_plus|0", "extractive_match"),
@@ -184,12 +175,6 @@ task_group_mapping = {
         ("extended|ifbench_multiturn|0", "prompt_level_loose_acc"),
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
-        # ("custom|hotpotqa_hotpotqa|0", "qa_f1_score"),
-        # ("custom|longbench_hotpotqa|0", "qa_f1_score"),
-        # ("custom|longbench_musique|0", "qa_f1_score"),
-        # ("custom|longbench_2wikimqa|0", "qa_f1_score"),
-        # ("community|harmbench_standard:_average|0", "safety_rate_llama_guard"),
-        # ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
     ],
     "rag": [
         ("community|luciole_rag:hotpotqa|0", "answer_em_fuzzy"),
