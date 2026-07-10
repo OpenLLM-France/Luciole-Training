@@ -1263,7 +1263,13 @@ def plot_experiments(df, args, max_subplot=20):
             df, list_of_tasks_to_plot, g, ignore_no_results=args.ignore_no_results
         )
 
-        add_aggregate = g not in ("all", "agg") and not args.hide_average
+        # Skip the aggregate/average subplot when there is a single benchmark:
+        # the average would be identical to that benchmark's own plot.
+        add_aggregate = (
+            g not in ("all", "agg")
+            and not args.hide_average
+            and len(list_of_tasks_to_plot) > 1
+        )
         info_str = f"{'_xlog' if args.xlog else ''}{'_fit' if args.fit else ''}{'_flops' if args.unit == 'FLOPs' else ''}"
         info_str += "_average" if (args.hide_details and add_aggregate) else "_details"
         g_for_filename = g.replace("/", "_")
