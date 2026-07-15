@@ -3,18 +3,40 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
-from functools import partial
 from transformers import AutoTokenizer
 from utils import (
-    FilterChinese,
     apply_chat_template,
     instruct_adapter,
     check_last_message,
     add_system_prompt,
     nemo_rl_format_messages,
 )
+from datatrove.pipeline.filters import LambdaFilter
 
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+
+
+def truncate_to_tool_call(data, rank: int = 0, world_size: int = 1):
+    """Truncate each conversation so its last message is an assistant turn that
+    calls tools.
+
+    All assistant turns with ``tool_calls`` are candidates; one is chosen at
+    random and the conversation is cut right after it (so it becomes the turn to
+    corrupt). Docs with no assistant tool-calling turn are dropped."""
+    import random
+
+    for doc in data:
+        messages = doc.metadata["messages"]
+        candidates = [
+            i
+            for i, msg in enumerate(messages)
+            if msg.get("role") == "assistant" and msg.get("tool_calls")
+        ]
+        if not candidates:
+            continue
+        cut = random.choice(candidates)
+        doc.metadata["messages"] = messages[: cut + 1]
+        yield doc
 
 
 def create_rejected(
@@ -154,12 +176,9 @@ def create_rejected(
         return order
 
     for doc in data:
+        # truncate_to_tool_call guarantees the last message is an assistant turn
+        # that calls tools, so it is always the answer to corrupt.
         chosen_answer = doc.metadata["messages"][-1]
-        # We can only corrupt an assistant turn that actually calls tools.
-        if chosen_answer.get("role") != "assistant" or not chosen_answer.get(
-            "tool_calls"
-        ):
-            continue
 
         tools_raw = doc.metadata.get("tools") or []
         if isinstance(tools_raw, str):
@@ -340,9 +359,11 @@ def build_corrupted_rejected(self, doc):
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-1.7B")
+    parser.add_argument("--input_path", type=str, required=True)
+    parser.add_argument("--output_path", type=str, required=True)
+    parser.add_argument("--glob_pattern", type=str, default=None)
     parser.add_argument("--tp", type=int, default=1)
     args = parse_args(parser)
-    DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
         "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
@@ -350,11 +371,13 @@ if __name__ == "__main__":
 
     pipeline = [
         JsonlReader(
-            f"{DATA_PATH}/xlam_oaiformat/data",
+            args.input_path,
+            glob_pattern=args.glob_pattern,
         ),
+        truncate_to_tool_call,
         create_rejected,
         JsonlWriter(
-            f"{DATA_PATH}/xlam_dpo_oaiformat/data",
+            f"{args.output_path}/data",
             output_filename="${corruption}/${rank}.jsonl",
             expand_metadata=True,
         ),
@@ -364,8 +387,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/xlam_dpo_oaiformat/logs",
-        job_name="xlam_dpo_oaiformat",
+        logging_dir=f"{args.output_path}/logs",
+        job_name="tool_dpo",
         tasks=1,
         time="00:30:00",
         partition="cpu_p1",
@@ -389,7 +412,7 @@ if __name__ == "__main__":
 
     corrupt_argument_pipeline = [
         JsonlReader(
-            f"{DATA_PATH}/xlam_dpo_oaiformat/data/corrupt_argument",
+            f"{args.output_path}/data/corrupt_argument",
             adapter=instruct_adapter,
         ),
         select_tool_call_to_corrupt,
@@ -397,9 +420,9 @@ if __name__ == "__main__":
             query_builder=corrupt_argument_query_builder,
             config=corrupt_argument_config,
             records_per_chunk=500,
-            checkpoints_local_dir=f"{DATA_PATH}/xlam_dpo_oaiformat/corrupt_argument_llm/checkpoints",
+            checkpoints_local_dir=f"{args.output_path}/corrupt_argument_llm/checkpoints",
             output_writer=JsonlWriter(
-                f"{DATA_PATH}/xlam_dpo_oaiformat/corrupt_argument_llm/data",
+                f"{args.output_path}/corrupt_argument_llm/data",
                 output_filename="${state}/${rank}_chunk_${chunk_index}.jsonl",
                 expand_metadata=True,
             ),
@@ -412,8 +435,8 @@ if __name__ == "__main__":
         corrupt_argument_pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/xlam_dpo_oaiformat/corrupt_argument_llm/logs",
-        job_name="xlam_corrupt_argument_llm",
+        logging_dir=f"{args.output_path}/corrupt_argument_llm/logs",
+        job_name="tool_corrupt_argument_llm",
         tasks=1,
         time="01:00:00",
         qos="qos_gpu_h100-t3",
