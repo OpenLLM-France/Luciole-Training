@@ -147,7 +147,8 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
              llm_judge_factual: bool = False,
              llm_judge_openrouter: bool = False,
              llm_judge_factual_openrouter: bool = False,
-             llm_judge_french_quality: bool = False) -> dict:
+             llm_judge_french_quality: bool = False,
+             no_answer_match: bool = False) -> dict:
     """Evaluate all entries in the augmented dataset."""
     stats = defaultdict(int)
     stats_by_type = defaultdict(lambda: {"correct": 0, "total": 0})
@@ -182,6 +183,13 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
             extracted = None
             is_correct = True
             match_type = "unanswerable"
+        elif no_answer_match:
+            # Unified-prompt traces carry no "Final Answer" line to extract:
+            # correctness is gated by the factual judge (+ citation F1), not by
+            # exact string match, so we skip answer extraction here.
+            extracted = None
+            is_correct = None
+            match_type = "not_evaluated"
         else:
             extracted = extract_answer_from_reasoning(reasoning)
             is_correct, match_type = check_answer(expected, extracted)
@@ -252,24 +260,27 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
                 enriched[just_key] = just_val
         enriched_rows.append(enriched)
 
-        stats["total"] += 1
-        if is_correct:
-            stats["correct"] += 1
-            stats[f"match_{match_type}"] += 1
-        else:
-            stats["incorrect"] += 1
-            if extracted is None:
-                stats["no_answer_extracted"] += 1
+        # match_type "not_evaluated" => exact-match accuracy is intentionally not
+        # computed (unified-prompt format); skip it in every accuracy tally.
+        if match_type != "not_evaluated":
+            stats["total"] += 1
+            if is_correct:
+                stats["correct"] += 1
+                stats[f"match_{match_type}"] += 1
+            else:
+                stats["incorrect"] += 1
+                if extracted is None and not is_unanswerable:
+                    stats["no_answer_extracted"] += 1
 
-        q_type = row.get("type", "unknown")
-        stats_by_type[q_type]["total"] += 1
-        if is_correct:
-            stats_by_type[q_type]["correct"] += 1
+            q_type = row.get("type", "unknown")
+            stats_by_type[q_type]["total"] += 1
+            if is_correct:
+                stats_by_type[q_type]["correct"] += 1
 
-        level = row.get("level", "unknown")
-        stats_by_level[level]["total"] += 1
-        if is_correct:
-            stats_by_level[level]["correct"] += 1
+            level = row.get("level", "unknown")
+            stats_by_level[level]["total"] += 1
+            if is_correct:
+                stats_by_level[level]["correct"] += 1
 
     return {
         "enriched_rows": enriched_rows,
@@ -407,6 +418,9 @@ def main():
                              "eval_chunk_f1=1.0, eval_factual_judge_score=5 (plus unanswerable). "
                              "Requires --llm-judge-factual or --llm-judge-factual-openrouter. "
                              "Output: <output>_filtered.jsonl")
+    parser.add_argument("--no-answer-match", action="store_true",
+                        help="Traces have no 'Final Answer' line (unified-prompt format): skip exact-match "
+                             "answer extraction and gate correctness on the factual judge (+ citation F1) only.")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
@@ -419,7 +433,8 @@ def main():
                          llm_judge_factual=args.llm_judge_factual,
                          llm_judge_openrouter=args.llm_judge_openrouter,
                          llm_judge_factual_openrouter=args.llm_judge_factual_openrouter,
-                         llm_judge_french_quality=args.llm_judge_french_quality)
+                         llm_judge_french_quality=args.llm_judge_french_quality,
+                         no_answer_match=args.no_answer_match)
     print_report(eval_data)
 
     with open(args.output, "w", encoding="utf-8") as f:
@@ -433,7 +448,8 @@ def main():
                   "(eval_factual_judge_score will be missing, no rows will pass the filter).")
         base = Path(args.output)
         filtered_path = str(base.parent / f"{base.stem}_filtered.jsonl")
-        filtered_rows = [r for r in eval_data["enriched_rows"] if filter_row(r)]
+        filtered_rows = [r for r in eval_data["enriched_rows"]
+                         if filter_row(r, require_answer_match=not args.no_answer_match)]
         with open(filtered_path, "w", encoding="utf-8") as f:
             for row in filtered_rows:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")

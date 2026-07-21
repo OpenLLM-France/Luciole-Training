@@ -8,7 +8,6 @@ from datasets import load_dataset, Dataset
 from pathlib import Path
 from datetime import datetime
 from utils import (
-    LLM_API_URL,
     LLM_MAX_CONCURRENT,
     LLM_MODEL,
     Metrics,
@@ -20,21 +19,23 @@ from utils import (
     log,
     save_checkpoint_ids,
 )
+# Shared generation==inference prompt builder (single source of truth).
+from formatting_sft import (
+    DEFAULT_CITATION_STYLE,
+    EOC_PROB,
+    _generic_refusal_instruction,
+    build_chat_system_prompt,
+)
 
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
 DATASET_CACHE_DIR = Path(__file__).parent / "hotpotqa_cache"
 MAX_CONCURRENT = LLM_MAX_CONCURRENT
 
 
-SYSTEM_PROMPT = """Answer the user question using only the provided context. Follow these rules:
-- Provide step-by-step reasoning on how to answer the question.
-- If you quote the context, wrap the quote in ##begin_quote## and ##end_quote## and add a citation marker ##Cite "title" ##.
-- End your response with the final answer in this exact format: **Final Answer:** [your answer here]"""
-
-SYSTEM_PROMPT_FR = """Répondez à la question de l'utilisateur en utilisant les informations fournies dans le contexte donné. Voici les points auxquels vous devez prêter attention :
-- Fournissez un raisonnement étape par étape sur la manière de répondre à la question.
-- Dans le raisonnement, si vous devez copier-coller certaines phrases du contexte, incluez-les entre ##begin_quote## et ##end_quote## et ajoutez une balise ##Cite "titre" ##.
-- Terminez votre réponse par la réponse finale dans ce format exact : **Réponse finale :** [votre réponse ici]"""
+# Reasoning traces are generated with the shared OpenRAG prompt built by
+# formatting_sft.build_chat_system_prompt, so the generation prompt matches the
+# inference prompt (per-row citation placement, EN/FR persona). The canonical
+# markup style is used at generation; markup variety is a formatting-only aug.
 
 UNANSWERABLE_REASONING_FR = "Les documents récupérés ne me permettent pas de répondre à votre question, pourriez vous la reformuler ou le cas échéant ajouter des documents dans votre partition"
 UNANSWERABLE_REFUSAL_EN = (
@@ -176,18 +177,24 @@ async def process_row(
         contextual_summaries=summaries,
     )
 
-    if is_unanswerable:
-        default_refusal = {
-            "en": UNANSWERABLE_REFUSAL_EN,
-            "fr": UNANSWERABLE_REASONING_FR,
-        }.get(language, UNANSWERABLE_REFUSAL_EN)
-        reasoning = row.get("_unanswerable_reasoning", default_refusal)
-    else:
-        system_prompt = {"en": SYSTEM_PROMPT, "fr": SYSTEM_PROMPT_FR}.get(language, SYSTEM_PROMPT)
-        reasoning = await call_llm(
-            session, row["question"], context_str, semaphore,
-            api_key=LLM_API_KEY, system_prompt=system_prompt,
-        )
+    # Citation placement decided per row (deterministic by id) so the generation
+    # prompt matches the inference prompt; formatting reuses this stored value.
+    end_of_completion = random.Random(f"{row['id']}:eoc").random() < EOC_PROB
+    # Answerable AND unanswerable rows are generated with the SAME OpenRAG prompt
+    # (generic refusal instruction). On an insufficient context the model is
+    # expected to refuse; the verification step keeps only the rows where it did.
+    system_prompt = build_chat_system_prompt(
+        context=context_str,
+        language=language,
+        style=DEFAULT_CITATION_STYLE,
+        end_of_completion=end_of_completion,
+        refusal_instruction=_generic_refusal_instruction(language),
+    )
+    reasoning = await call_llm(
+        session, row["question"], context_str, semaphore,
+        api_key=LLM_API_KEY, system_prompt=system_prompt,
+        context_in_system=True,
+    )
 
     if reasoning is None:
         return None
@@ -206,6 +213,7 @@ async def process_row(
         "type": row["type"],
         "level": row["level"],
         "is_unanswerable": is_unanswerable,
+        "citation_end_of_completion": end_of_completion,
         "supporting_facts_titles": sf_titles,
         **chunk_stats,
     }
@@ -248,9 +256,10 @@ async def main(
         log("Nothing to process.")
         return
 
-    needs_llm = any(not r.get("_is_unanswerable", False) for r in rows_to_process)
+    # Unanswerable rows now also call the LLM (to generate query-grounded refusals).
+    needs_llm = bool(rows_to_process)
     if needs_llm and not LLM_API_KEY:
-        raise ValueError("LLM_API_KEY is required to process answerable rows (set in .env file or environment)")
+        raise ValueError("LLM_API_KEY is required to process rows (set in .env file or environment)")
 
     if contextualize_ratio > 0:
         log(f"Contextualize ratio: {contextualize_ratio:.0%}")

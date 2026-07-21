@@ -246,6 +246,20 @@ async def post_chat_completion(
     return None
 
 
+# ---------------------------------------------------------------------------
+# Generation == inference prompt
+# ---------------------------------------------------------------------------
+#
+# The reasoning traces are generated with the *same* OpenRAG system prompt the
+# fine-tuned model sees at inference time, built by
+# formatting_sft.build_chat_system_prompt (single source of truth). The augment
+# scripts draw the citation placement (inline vs trailing References section) per
+# row, build the matching prompt with the canonical markup style, and pass it
+# here with ``context_in_system=True``. This removes the generation/inference
+# prompt mismatch our colleagues flagged; quality is then enforced by the
+# verification/filter step (factual judge + citation F1).
+
+
 async def call_llm(
     session: aiohttp.ClientSession,
     question: str,
@@ -259,15 +273,27 @@ async def call_llm(
     timeout_seconds: int = 120,
     max_tokens: int = 1024,
     debug_http: bool = False,
+    context_in_system: bool = False,
 ) -> str | None:
     if not api_key:
         raise ValueError("api_key is required for LLM calls (set LLM_API_KEY in .env or environment)")
-    payload = {
-        "model": model,
-        "messages": [
+    if context_in_system:
+        # Match inference message layout: `system_prompt` already contains the
+        # retrieved documents (built by the caller, e.g. via
+        # formatting_sft.build_chat_system_prompt); only the bare user query goes
+        # in the user turn, exactly what the fine-tuned model sees at inference.
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question},
+        ]
+    else:
+        messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Question: {question}\n\nContext:\n{context}"},
-        ],
+        ]
+    payload = {
+        "model": model,
+        "messages": messages,
         "temperature": 0.1,
         "max_tokens": max_tokens,
     }
@@ -287,6 +313,19 @@ async def call_llm(
 
 
 # ---------------------------------------------------------------------------
+
+
+_FINAL_ANSWER_LINE_RE = re.compile(
+    r"\n*\s*\*{0,2}\s*(?:final answer|réponse finale)\s*\*{0,2}\s*:.*\Z",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _strip_final_answer_line(text: str) -> str:
+    """Remove a trailing 'Final Answer:' / 'Réponse finale :' block if the model added one."""
+    return _FINAL_ANSWER_LINE_RE.sub("", text).strip()
+
+
 # Contextual Retrieval — OpenRAG chunk contextualisation
 # ---------------------------------------------------------------------------
 
@@ -479,17 +518,44 @@ def extract_cited_titles(reasoning: str) -> list[str]:
     return unique
 
 
+_CHUNK_HASH_SUFFIX_RE = re.compile(r"\s*\[[0-9a-f]{12}\]\s*$")
+_CHUNK_WS_RE = re.compile(r"\s+")
+
+
+def _normalize_chunk_title(title: str) -> str:
+    """Strip trailing ``[hash]`` suffix, lowercase, collapse whitespace."""
+    t = _CHUNK_HASH_SUFFIX_RE.sub("", title).strip().lower()
+    return _CHUNK_WS_RE.sub(" ", t)
+
+
 def evaluate_chunk_citations(
     cited: list[str], expected: list[str]
 ) -> tuple[float | None, float | None]:
-    """Compute precision and recall of cited chunks vs ground-truth supporting facts."""
-    cited_norm = {t.strip().lower() for t in cited}
-    expected_norm = {t.strip().lower() for t in expected}
+    """Compute precision and recall of cited chunks vs ground-truth supporting facts.
+
+    A citation matches an expected title when one is a prefix of the other
+    (after stripping the trailing ``[hash]`` suffix and normalizing). This
+    accommodates models that complete the truncated filename with text from
+    the chunk body instead of quoting it verbatim.
+    """
+    cited_norm = {_normalize_chunk_title(t) for t in cited if t.strip()}
+    expected_norm = {_normalize_chunk_title(t) for t in expected if t.strip()}
+    cited_norm.discard("")
+    expected_norm.discard("")
     if not cited_norm and not expected_norm:
         return None, None
-    correct = cited_norm & expected_norm
-    precision = len(correct) / len(cited_norm) if cited_norm else None
-    recall = len(correct) / len(expected_norm) if expected_norm else None
+
+    def _match(a: str, b: str) -> bool:
+        if a == b:
+            return True
+        shorter, longer = (a, b) if len(a) < len(b) else (b, a)
+        return longer.startswith(shorter) and len(shorter.split()) >= 2
+
+    matched_cited = sum(1 for c in cited_norm if any(_match(c, e) for e in expected_norm))
+    matched_expected = sum(1 for e in expected_norm if any(_match(c, e) for c in cited_norm))
+
+    precision = matched_cited / len(cited_norm) if cited_norm else None
+    recall = matched_expected / len(expected_norm) if expected_norm else None
     return precision, recall
 
 
@@ -820,11 +886,15 @@ def run_french_quality_judge(
     return asyncio.run(run_french_quality_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc))
 
 
-def filter_row(row: dict, *, french_quality_threshold: int = 5) -> bool:
+def filter_row(row: dict, *, french_quality_threshold: int = 5, require_answer_match: bool = True) -> bool:
     """Keep unanswerable rows and rows that pass all evaluated quality thresholds.
 
-    Always required (when answerable):
+    Always required (when answerable), unless ``require_answer_match`` is False:
       - eval_answer_correct must be True
+
+    ``require_answer_match=False`` is used when the traces carry no "Final Answer"
+    line to extract (the unified-prompt format): correctness is then gated purely
+    by the factual judge (+ citation F1) below, not by exact string match.
 
     Applied only if the metric was evaluated (field present in row):
       - eval_chunk_f1 must be 1.0   (requires --eval-chunks)
@@ -833,7 +903,7 @@ def filter_row(row: dict, *, french_quality_threshold: int = 5) -> bool:
     """
     if row.get("is_unanswerable", False):
         return True
-    if not row.get("eval_answer_correct"):
+    if require_answer_match and not row.get("eval_answer_correct"):
         return False
     if "eval_chunk_f1" in row and row["eval_chunk_f1"] != 1.0:
         return False

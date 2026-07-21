@@ -14,7 +14,6 @@ from datetime import datetime
 
 import aiohttp
 from utils import (
-    LLM_API_URL,
     LLM_MAX_CONCURRENT,
     LLM_MODEL,
     Metrics,
@@ -26,14 +25,22 @@ from utils import (
     log,
     save_checkpoint_ids,
 )
+# Shared generation==inference prompt builder (single source of truth).
+from formatting_sft import (
+    DEFAULT_CITATION_STYLE,
+    EOC_PROB,
+    _generic_refusal_instruction,
+    build_chat_system_prompt,
+)
 
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
 
-SYSTEM_PROMPT = """Answer the user question using only the provided context (table and paragraphs).
-- Provide step-by-step reasoning.
-- For each factual statement copied from the context, wrap the quote in ##begin_quote## ... ##end_quote## and cite the source as ##Cite "Table" ## or ##Cite "Paragraph N" ##.
-- For arithmetic/count questions, show the computation steps explicitly.
-- End in this exact format: **Final Answer:** [your answer here]"""
+# Reasoning traces are generated with the shared OpenRAG prompt built by
+# formatting_sft.build_chat_system_prompt, so the generation prompt matches the
+# inference prompt (per-row citation placement, canonical markup). TATQA-specific
+# guidance (tables, explicit arithmetic) is dropped in favour of that shared
+# prompt; the verification/filter step keeps only the traces that still answered
+# correctly.
 
 UNANSWERABLE_REFUSAL = (
     "The retrieved documents do not allow me to answer your question. Could you rephrase it or add relevant documents?"
@@ -122,24 +129,35 @@ async def process_row(
         protected_background_titles={"Table"},
     )
 
-    if is_unanswerable:
-        reasoning = row.get("_unanswerable_reasoning", UNANSWERABLE_REFUSAL)
-    else:
-        reasoning = await call_llm(
-            session,
-            row["question"],
-            context_str,
-            semaphore,
-            api_key=LLM_API_KEY,
-            system_prompt=SYSTEM_PROMPT,
-            max_retries=max_retries,
-            timeout_seconds=request_timeout,
-            max_tokens=max_tokens,
-            debug_http=debug_http,
-        )
-        if reasoning is None:
-            log(f"Row failed: id={row.get('id')}")
-            return None
+    # Citation placement decided per row (deterministic by id) so the generation
+    # prompt matches the inference prompt; formatting reuses this stored value.
+    end_of_completion = random.Random(f"{row['id']}:eoc").random() < EOC_PROB
+    # Answerable AND unanswerable rows are generated with the SAME OpenRAG prompt
+    # (generic refusal instruction). On an insufficient context the model is
+    # expected to refuse; the verification step keeps only the rows where it did.
+    system_prompt = build_chat_system_prompt(
+        context=context_str,
+        language="en",
+        style=DEFAULT_CITATION_STYLE,
+        end_of_completion=end_of_completion,
+        refusal_instruction=_generic_refusal_instruction("en"),
+    )
+    reasoning = await call_llm(
+        session,
+        row["question"],
+        context_str,
+        semaphore,
+        api_key=LLM_API_KEY,
+        system_prompt=system_prompt,
+        context_in_system=True,
+        max_retries=max_retries,
+        timeout_seconds=request_timeout,
+        max_tokens=max_tokens,
+        debug_http=debug_http,
+    )
+    if reasoning is None:
+        log(f"Row failed: id={row.get('id')}")
+        return None
 
     sf_titles = list(dict.fromkeys(row.get("supporting_facts", {}).get("title", [])))
     return {
@@ -153,6 +171,7 @@ async def process_row(
         "scale": row.get("scale", ""),
         "reasoning_trace": reasoning,
         "is_unanswerable": is_unanswerable,
+        "citation_end_of_completion": end_of_completion,
         "supporting_facts_titles": sf_titles,
         "type": row.get("type", row.get("answer_type", "unknown")),
         "level": row.get("level", "tatqa"),
@@ -193,9 +212,10 @@ async def run(
         log("Nothing to process.")
         return
 
-    needs_llm = any(not r.get("_is_unanswerable", False) for r in rows)
+    # Unanswerable rows now also call the LLM (to generate query-grounded refusals).
+    needs_llm = bool(rows)
     if needs_llm and not LLM_API_KEY:
-        raise ValueError("LLM_API_KEY is required to process answerable rows (set in .env file or environment)")
+        raise ValueError("LLM_API_KEY is required to process rows (set in .env file or environment)")
 
     log(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     semaphore = asyncio.Semaphore(concurrency)

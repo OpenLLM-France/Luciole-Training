@@ -4,11 +4,17 @@ Convert augmented dataset to prompt/completion or message format for fine-tuning
 Context reformatting and citation marker normalization are applied so that the
 output matches exactly what OpenRAG sends to the LLM at inference time.
 
-Citation style variation: for each example, a citation style is randomly chosen
-(different begin/end quote markers and cite format). The system prompt is updated
-accordingly so the model learns to adapt to whatever format is described.
-For 30 % of examples, citation markers are moved to a **References** section at
-the end of the completion instead of being placed inline after each quote.
+Citation style variation: for each example a citation markup style is randomly
+chosen (different begin/end quote markers and cite format) and the system prompt is
+updated to match, so the model learns whatever markup is described. Citation
+placement (inline after each quote vs a trailing **References** section) is NOT
+drawn here: it is decided once at generation time and stored per row
+(``citation_end_of_completion``) so the generation prompt matches the inference
+prompt; formatting reuses it (see _resolve_end_of_completion). When rebuilding a
+References section, a stray header the generator left is stripped first.
+
+No "Final Answer" line: the OpenRAG prompt does not request one, so any trailing
+Final Answer block found in a trace is stripped from the completion.
 
 Unanswerable variation: for unanswerable rows, a refusal phrase is randomly
 chosen from a pool of semantically equivalent formulations per language. For a
@@ -22,6 +28,8 @@ import random
 import re
 from pathlib import Path
 from dataclasses import dataclass
+
+from utils import _strip_final_answer_line
 
 
 # Context helpers (aligned with OpenRAG inference format)
@@ -105,7 +113,12 @@ def normalize_cite_markers(content: str) -> str:
 
 # Citation style variation
 
-# Probability of moving citation markers to end of completion (instead of inline)
+# Probability of grouping citation markers in a trailing References section
+# (instead of inline after each quote). This placement is decided ONCE, at
+# generation time, and stored per row (``citation_end_of_completion``) so the
+# generation prompt matches the inference prompt for that row; formatting reuses
+# the stored value (see _resolve_end_of_completion) and only falls back to a fresh
+# draw for legacy rows that predate the stored field.
 EOC_PROB = 0.30
 
 # Probability of using the English system prompt for non-English data
@@ -180,6 +193,41 @@ CITATION_STYLES = [
 ]
 
 
+# Trailing "References"/"Sources" header the generator emits above its cite list.
+# Matched so it can be stripped before we rebuild the section in the chosen style
+# (otherwise the completion would end up with two References headers).
+_REFERENCES_HEADER_RE = re.compile(
+    r'(?:\n+|^)[ \t]*#{0,6}[ \t]*\*{0,2}'
+    r'(?:references|références|sources|source)'
+    # trailing markup: closing ATX hashes, bold asterisks, colon, in any mix
+    r'[ \t]*[*#:]*[ \t]*(?=\n|$)',
+    re.IGNORECASE,
+)
+
+
+# A line is "list-like" (part of a leftover reference list) if it is blank or a
+# bullet/numbered item, possibly emptied once its inline cite marker was removed.
+_LIST_LINE_RE = re.compile(r'^[ \t]*(?:[-*•]|\d+[.)])?[ \t]*$')
+
+
+def _strip_trailing_references_header(text: str) -> str:
+    """Drop the generator's trailing References/Sources section from *text*.
+
+    Removes the header and any following reference list, including bullets that
+    became empty once their inline cite markers were stripped. Only strips when
+    everything after the header is list-like (bullets/blank), so prose is never
+    swallowed. Callers rebuild the section from the collected titles afterwards.
+    """
+    stripped = text.rstrip()
+    m = _REFERENCES_HEADER_RE.search(stripped)
+    if not m:
+        return stripped
+    tail = stripped[m.end():]
+    if all(_LIST_LINE_RE.match(line) for line in tail.splitlines()):
+        stripped = stripped[:m.start()].rstrip()
+    return stripped
+
+
 def apply_citation_style(
     completion: str,
     style: CitationStyle,
@@ -202,6 +250,8 @@ def apply_citation_style(
 
         # Remove all inline cite markers (plus any space immediately before them)
         result = re.sub(r'\s*' + _CITE_RE.pattern, '', result)
+        # Drop the generator's own References header so we don't duplicate it.
+        result = _strip_trailing_references_header(result)
         result = result.rstrip()
 
         if unique_titles:
@@ -401,11 +451,55 @@ def format_prompt(
     )
 
 
-def _pick_style_and_mode(rng) -> tuple:
-    """Randomly pick a citation style and inline vs end-of-completion mode."""
-    style = rng.choice(CITATION_STYLES)
-    end_of_completion = rng.random() < EOC_PROB
-    return style, end_of_completion
+def _pick_style(rng) -> CitationStyle:
+    """Randomly pick a citation markup style (augmentation applied at formatting)."""
+    return rng.choice(CITATION_STYLES)
+
+
+def _resolve_end_of_completion(row: dict, rng) -> bool:
+    """Citation placement (inline vs trailing References section).
+
+    Reuse the value chosen at generation time (``citation_end_of_completion``) so
+    the generation prompt matches the inference prompt; fall back to a fresh draw
+    for legacy rows that don't carry the field.
+    """
+    stored = row.get("citation_end_of_completion")
+    if stored is not None:
+        return bool(stored)
+    return rng.random() < EOC_PROB
+
+
+# The canonical (default) markup style is the one used at generation time; the
+# markup variety (xml/bracket/...) is a formatting-only augmentation.
+DEFAULT_CITATION_STYLE = CITATION_STYLES[0]
+
+
+def build_chat_system_prompt(
+    context: str,
+    language: str,
+    style: CitationStyle,
+    end_of_completion: bool,
+    refusal_instruction: str,
+) -> str:
+    """Build the OpenRAG chat system prompt shared by generation and inference.
+
+    Single source of truth for the prompt the model is conditioned on: the augment
+    scripts call this (with DEFAULT_CITATION_STYLE) to generate each trace, and
+    formatting calls it to build the training example's system message.
+    """
+    template = {"en": CHAT_SYSTEM_PROMPT, "fr": CHAT_SYSTEM_PROMPT_FR}.get(language, CHAT_SYSTEM_PROMPT)
+    instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
+    return template.format(
+        context=reformat_context_chunks(context),
+        citation_instruction=instruction_dict.get(language, instruction_dict["en"]),
+        refusal_instruction=refusal_instruction,
+    )
+
+
+def _assistant_answer(row: dict, style: CitationStyle, end_of_completion: bool, language: str) -> str:
+    """Answer target: the generated trace, restyled, without a Final Answer line."""
+    trace = _strip_final_answer_line(normalize_cite_markers(row["reasoning_trace"]))
+    return apply_citation_style(trace, style, end_of_completion, language)
 
 
 def _pick_system_lang(rng, data_language: str, mixed_system_prompt: bool) -> str:
@@ -425,7 +519,8 @@ def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: 
     if rng is None:
         rng = random
 
-    style, end_of_completion = _pick_style_and_mode(rng)
+    style = _pick_style(rng)
+    end_of_completion = _resolve_end_of_completion(row, rng)
     system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
     is_unanswerable = row.get("is_unanswerable", False)
 
@@ -454,8 +549,7 @@ def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: 
     if is_unanswerable:
         completion = refusal
     else:
-        completion = normalize_cite_markers(row["reasoning_trace"])
-        completion = apply_citation_style(completion, style, end_of_completion, language)
+        completion = _assistant_answer(row, style, end_of_completion, language)
 
     result = {
         "prompt": prompt,
@@ -550,11 +644,6 @@ def convert_to_chat_format(
     stats = ConversionStats()
     rng = random.Random(seed)
 
-    system_prompts = {
-        "en": CHAT_SYSTEM_PROMPT,
-        "fr": CHAT_SYSTEM_PROMPT_FR,
-    }
-
     metadata_fields = [
         # Original metadata
         "id", "original_dataset", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
@@ -576,12 +665,10 @@ def convert_to_chat_format(
             row = json.loads(line)
 
             try:
-                style, end_of_completion = _pick_style_and_mode(rng)
+                style = _pick_style(rng)
+                end_of_completion = _resolve_end_of_completion(row, rng)
                 system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
                 is_unanswerable = row.get("is_unanswerable", False)
-
-                instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
-                citation_instruction = instruction_dict.get(system_lang, instruction_dict["en"])
 
                 # Refusal phrase stays in data language; the wrapping rule text follows system_lang.
                 refusal = _pick_refusal(rng, language)
@@ -593,21 +680,18 @@ def convert_to_chat_format(
                 else:
                     refusal_instruction = _generic_refusal_instruction(system_lang)
 
-                system_prompt_template = system_prompts.get(system_lang, CHAT_SYSTEM_PROMPT)
-                reformatted_context = reformat_context_chunks(row["context"])
-                system_content = system_prompt_template.format(
-                    context=reformatted_context,
-                    citation_instruction=citation_instruction,
+                system_content = build_chat_system_prompt(
+                    context=row["context"],
+                    language=system_lang,
+                    style=style,
+                    end_of_completion=end_of_completion,
                     refusal_instruction=refusal_instruction,
                 )
 
                 if is_unanswerable:
                     assistant_content = refusal
                 else:
-                    assistant_content = normalize_cite_markers(row["reasoning_trace"])
-                    assistant_content = apply_citation_style(
-                        assistant_content, style, end_of_completion, language
-                    )
+                    assistant_content = _assistant_answer(row, style, end_of_completion, language)
 
                 chat_row = {
                     "messages": [

@@ -198,6 +198,7 @@ def evaluate(
     file_path: str,
     eval_chunks: bool = False,
     llm_judge_factual: bool = False,
+    no_answer_match: bool = False,
 ) -> dict:
     rows = []
     with open(file_path, "r", encoding="utf-8") as f:
@@ -225,8 +226,15 @@ def evaluate(
         expected = str(row.get("answer", ""))
         reasoning = row.get("reasoning_trace", "")
         is_unanswerable = row.get("is_unanswerable", False)
-        extracted = None if is_unanswerable else extract_answer_from_reasoning(reasoning)
-        is_correct, match_type = evaluate_answer(row, extracted)
+        if no_answer_match and not is_unanswerable:
+            # Unified-prompt traces carry no "Final Answer" line: gate correctness
+            # on the factual judge (+ citation F1), not exact string match.
+            extracted = None
+            is_correct = None
+            match_type = "not_evaluated"
+        else:
+            extracted = None if is_unanswerable else extract_answer_from_reasoning(reasoning)
+            is_correct, match_type = evaluate_answer(row, extracted)
 
         cited_titles = []
         expected_titles = []
@@ -295,22 +303,25 @@ def evaluate(
             )
         )
 
-        stats["total"] += 1
-        if is_correct:
-            stats["correct"] += 1
-            stats[f"match_{match_type}"] += 1
-        else:
-            stats["incorrect"] += 1
-            if extracted is None:
-                stats["no_answer_extracted"] += 1
+        # match_type "not_evaluated" => exact-match accuracy is intentionally not
+        # computed (unified-prompt format); skip it in every accuracy tally.
+        if match_type != "not_evaluated":
+            stats["total"] += 1
+            if is_correct:
+                stats["correct"] += 1
+                stats[f"match_{match_type}"] += 1
+            else:
+                stats["incorrect"] += 1
+                if extracted is None and not is_unanswerable:
+                    stats["no_answer_extracted"] += 1
 
-        at = row.get("answer_type", "unknown")
-        af = row.get("answer_from", "unknown")
-        stats_by_answer_type[at]["total"] += 1
-        stats_by_answer_from[af]["total"] += 1
-        if is_correct:
-            stats_by_answer_type[at]["correct"] += 1
-            stats_by_answer_from[af]["correct"] += 1
+            at = row.get("answer_type", "unknown")
+            af = row.get("answer_from", "unknown")
+            stats_by_answer_type[at]["total"] += 1
+            stats_by_answer_from[af]["total"] += 1
+            if is_correct:
+                stats_by_answer_type[at]["correct"] += 1
+                stats_by_answer_from[af]["correct"] += 1
 
     return {
         "results": results,
@@ -395,6 +406,9 @@ def main() -> None:
                         help="Write a filtered subset keeping only rows with eval_answer_correct=True "
                              "(and eval_chunk_f1=1.0, eval_factual_judge_score=5 when evaluated). "
                              "Output: <output>_filtered.jsonl")
+    parser.add_argument("--no-answer-match", action="store_true",
+                        help="Traces have no 'Final Answer' line (unified-prompt format): skip exact-match "
+                             "answer extraction and gate correctness on the factual judge (+ citation F1) only.")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
@@ -405,6 +419,7 @@ def main() -> None:
         file_path=args.input,
         eval_chunks=args.eval_chunks,
         llm_judge_factual=args.llm_judge_factual,
+        no_answer_match=args.no_answer_match,
     )
     print_report(eval_data)
 
@@ -423,7 +438,8 @@ def main() -> None:
             print("Warning: --filter without --llm-judge-factual will not apply the factual judge threshold.")
         base = Path(output_path)
         filtered_path = str(base.parent / f"{base.stem}_filtered.jsonl")
-        filtered_rows = [r for r in eval_data["enriched_rows"] if filter_row(r)]
+        filtered_rows = [r for r in eval_data["enriched_rows"]
+                         if filter_row(r, require_answer_match=not args.no_answer_match)]
         with open(filtered_path, "w", encoding="utf-8") as f:
             for row in filtered_rows:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
