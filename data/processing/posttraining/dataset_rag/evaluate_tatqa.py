@@ -12,9 +12,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from utils import (
+    detect_refusal,
     extract_cited_titles,
     evaluate_chunk_citations,
     run_factual_judge,
+    run_refusal_judge,
     normalize_answer,
     extract_answer_from_reasoning,
     load_env_key,
@@ -198,6 +200,7 @@ def evaluate(
     file_path: str,
     eval_chunks: bool = False,
     llm_judge_factual: bool = False,
+    llm_judge_refusal: bool = False,
     no_answer_match: bool = False,
 ) -> dict:
     rows = []
@@ -211,6 +214,7 @@ def evaluate(
     stats_by_answer_from = defaultdict(lambda: {"correct": 0, "total": 0})
     chunk_stats = defaultdict(float)
     factual_judge_stats = defaultdict(float)
+    refusal_judge_stats = defaultdict(int)
     enriched_rows = []
 
     # Factual LLM-as-a-judge evaluation
@@ -222,18 +226,46 @@ def evaluate(
         for idx, jr in zip(answerable_indices, raw_factual):
             factual_judge_results[idx] = jr
 
+    # Refusal LLM-as-a-judge: refuse vs answer on unanswerable rows only
+    refusal_judge_results: list[dict | None] = [None] * len(rows)
+    if llm_judge_refusal:
+        unans_indices = [i for i, r in enumerate(rows) if r.get("is_unanswerable", False)]
+        unans_rows = [rows[i] for i in unans_indices]
+        raw_refusal = run_refusal_judge(unans_rows, api_key=LLM_API_KEY)
+        for idx, jr in zip(unans_indices, raw_refusal):
+            refusal_judge_results[idx] = jr
+
     for row_idx, row in enumerate(rows):
         expected = str(row.get("answer", ""))
         reasoning = row.get("reasoning_trace", "")
         is_unanswerable = row.get("is_unanswerable", False)
-        if no_answer_match and not is_unanswerable:
+        model_refused = None
+        refusal_judge_justification = None
+        if is_unanswerable:
+            extracted = None
+            # Keep only refusals: did the model actually refuse the insufficient context?
+            jr = refusal_judge_results[row_idx]
+            if jr is not None:
+                model_refused = jr["refused"]
+                refusal_judge_justification = jr.get("justification")
+                refusal_judge_stats["judged"] += 1
+                refusal_judge_stats["refused" if model_refused else "hallucinated"] += 1
+            elif llm_judge_refusal:
+                # Judge call failed for this row: fall back to regex detection.
+                refusal_judge_stats["failed"] += 1
+                model_refused = detect_refusal(reasoning)
+            else:
+                model_refused = detect_refusal(reasoning)
+            is_correct = model_refused
+            match_type = "refused" if model_refused else "hallucinated"
+        elif no_answer_match:
             # Unified-prompt traces carry no "Final Answer" line: gate correctness
             # on the factual judge (+ citation F1), not exact string match.
             extracted = None
             is_correct = None
             match_type = "not_evaluated"
         else:
-            extracted = None if is_unanswerable else extract_answer_from_reasoning(reasoning)
+            extracted = extract_answer_from_reasoning(reasoning)
             is_correct, match_type = evaluate_answer(row, extracted)
 
         cited_titles = []
@@ -278,6 +310,10 @@ def evaluate(
         enriched["eval_answer_correct"] = is_correct
         enriched["eval_answer_match_type"] = match_type
         enriched["eval_extracted_answer"] = extracted
+        if is_unanswerable:
+            enriched["eval_model_refused"] = model_refused
+            if refusal_judge_justification is not None:
+                enriched["eval_refusal_judge_justification"] = refusal_judge_justification
         if eval_chunks and not is_unanswerable:
             enriched["eval_cited_titles"] = cited_titles
             enriched["eval_chunk_precision"] = chunk_precision
@@ -331,6 +367,7 @@ def evaluate(
         "stats_by_answer_from": dict(stats_by_answer_from),
         "chunk_stats": dict(chunk_stats),
         "factual_judge_stats": dict(factual_judge_stats),
+        "refusal_judge_stats": dict(refusal_judge_stats),
     }
 
 
@@ -391,6 +428,20 @@ def print_report(eval_data: dict) -> None:
             bar = "#" * int(pct / 2)
             print(f"  {s}/5: {count:4} ({pct:5.1f}%)  {bar}")
 
+    refusal_judge_stats = eval_data.get("refusal_judge_stats", {})
+    if refusal_judge_stats and refusal_judge_stats.get("judged", 0) > 0:
+        rj_judged = int(refusal_judge_stats["judged"])
+        rj_refused = int(refusal_judge_stats.get("refused", 0))
+        rj_halluc = int(refusal_judge_stats.get("hallucinated", 0))
+        rj_failed = int(refusal_judge_stats.get("failed", 0))
+        rj_pct = (rj_refused / rj_judged * 100) if rj_judged else 0.0
+        print("\nLLM-AS-A-JUDGE REFUSAL (refuse vs answer on unanswerable)")
+        print(f"  Judged:       {rj_judged}")
+        if rj_failed:
+            print(f"  Failed:       {rj_failed}")
+        print(f"  Refused:      {rj_refused} ({rj_pct:.1f}%)")
+        print(f"  Hallucinated: {rj_halluc}")
+
     print("=" * 60)
 
 
@@ -400,6 +451,9 @@ def main() -> None:
     parser.add_argument("--eval-chunks", action="store_true")
     parser.add_argument("--llm-judge-factual", action="store_true",
                         help="Run factual LLM-as-a-judge: rates correctness given ground-truth answer and supporting facts")
+    parser.add_argument("--llm-judge-refusal", action="store_true",
+                        help="Run refusal LLM-as-a-judge on unanswerable rows: decides refuse vs answer "
+                             "(drives eval_model_refused; keep only rows where the model refused)")
     parser.add_argument("--output", "-o", type=str, default=None,
                         help="Write enriched JSONL (default: <input>_evaluated.jsonl)")
     parser.add_argument("--filter", action="store_true",
@@ -419,6 +473,7 @@ def main() -> None:
         file_path=args.input,
         eval_chunks=args.eval_chunks,
         llm_judge_factual=args.llm_judge_factual,
+        llm_judge_refusal=args.llm_judge_refusal,
         no_answer_match=args.no_answer_match,
     )
     print_report(eval_data)

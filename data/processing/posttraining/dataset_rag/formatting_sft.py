@@ -16,11 +16,15 @@ References section, a stray header the generator left is stripped first.
 No "Final Answer" line: the OpenRAG prompt does not request one, so any trailing
 Final Answer block found in a trace is stripped from the completion.
 
-Unanswerable variation: for unanswerable rows, a refusal phrase is randomly
-chosen from a pool of semantically equivalent formulations per language. For a
-subset of refusal examples, the system prompt specifies that exact phrase as
-the response to use when the context is insufficient, so the model learns to
-follow a declared refusal wording.
+Unanswerable variation: unanswerable rows are generated under the same OpenRAG
+prompt as answerable ones (generic refusal rule), and only those where the model
+actually refused survive the verification/filter step. The completion is then the
+model's own refusal, used directly (styled like any answer), query-adapted by
+construction, which avoids the systematic over-refusal a constant string would
+encourage. A legacy trace that is not itself a refusal gets the canonical phrase
+appended; an empty trace falls back to the bare phrase. For a small subset
+(STRICT_REFUSAL_PROB), the system prompt instead specifies an exact phrase to use
+when the context is insufficient and the target is that bare phrase.
 """
 
 import json
@@ -29,7 +33,7 @@ import re
 from pathlib import Path
 from dataclasses import dataclass
 
-from utils import _strip_final_answer_line
+from utils import _strip_final_answer_line, detect_refusal
 
 
 # Context helpers (aligned with OpenRAG inference format)
@@ -126,9 +130,11 @@ EOC_PROB = 0.30
 # the data language; only the system instructions switch to English).
 MIXED_SYSTEM_EN_PROB = 0.5
 
-# Probability, among unanswerable examples, of explicitly declaring the exact
-# refusal phrase to use in the system prompt.
-SPECIFIC_REFUSAL_INSTRUCTION_PROB = 0.30
+# Fraction of unanswerable examples that are "strict": the system prompt declares an
+# exact refusal phrase ("respond exactly with X") and the target is that bare phrase
+# (verbatim controllability). The rest get the generic consigne + a grounded refusal.
+# Kept small so grounded refusals dominate (avoids trivial refusal targets / over-refusal).
+STRICT_REFUSAL_PROB = 0.05
 
 
 @dataclass
@@ -296,7 +302,12 @@ def _pick_refusal(rng, language: str) -> str:
 
 
 def _refusal_instruction(refusal: str, language: str) -> str:
-    """Build the system-prompt rule line specifying the refusal phrase to use."""
+    """Build the system-prompt rule declaring the exact refusal phrase to reply with.
+
+    This is a *verbatim-output* consigne: it teaches the model to emit exactly this
+    phrase when the context is insufficient (deployer-controllable refusal wording).
+    It is therefore only ever paired with a bare-phrase target, never a grounded one.
+    """
     if language == "fr":
         return (
             f"Si le contexte est **insuffisant** pour répondre à la question, "
@@ -306,6 +317,26 @@ def _refusal_instruction(refusal: str, language: str) -> str:
         f"If the context is **insufficient** to answer the question, "
         f"respond exactly with: \"{refusal}\""
     )
+
+
+def _build_refusal_completion(
+    row: dict, refusal: str, language: str, style: CitationStyle, end_of_completion: bool,
+) -> str:
+    """Completion for a generic (non-strict) unanswerable row.
+
+    The trace was generated under the real OpenRAG prompt, so it is already the
+    model's own refusal; it is used directly, styled like any answer. Only a
+    legacy trace that is not itself a refusal gets the canonical phrase appended;
+    an empty trace falls back to the bare phrase. No "Final Answer" marker is used.
+    """
+    trace = (row.get("reasoning_trace") or "").strip()
+    trace = _strip_final_answer_line(normalize_cite_markers(trace))
+    trace = apply_citation_style(trace, style, end_of_completion, language)
+    if not trace:
+        return refusal
+    if detect_refusal(trace):
+        return trace
+    return f"{trace}\n\n{refusal}"
 
 
 def _generic_refusal_instruction(language: str) -> str:
@@ -530,9 +561,17 @@ def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: 
     # Refusal phrase stays in data language (assistant must reply in that language);
     # the wrapping rule text follows system_lang.
     refusal = _pick_refusal(rng, language)
-    specific_refusal_instruction = (
-        is_unanswerable and rng.random() < SPECIFIC_REFUSAL_INSTRUCTION_PROB
-    )
+    # A small strict slice: declare the exact phrase + bare-phrase target (verbatim).
+    # Everything else is grounded with the generic consigne.
+    specific_refusal_instruction = is_unanswerable and (rng.random() < STRICT_REFUSAL_PROB)
+
+    if is_unanswerable and specific_refusal_instruction:
+        completion = refusal
+    elif is_unanswerable:
+        completion = _build_refusal_completion(row, refusal, language, style, end_of_completion)
+    else:
+        completion = _assistant_answer(row, style, end_of_completion, language)
+
     if specific_refusal_instruction:
         refusal_instruction = _refusal_instruction(refusal, system_lang)
     else:
@@ -546,11 +585,6 @@ def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: 
         refusal_instruction=refusal_instruction,
     )
 
-    if is_unanswerable:
-        completion = refusal
-    else:
-        completion = _assistant_answer(row, style, end_of_completion, language)
-
     result = {
         "prompt": prompt,
         "completion": completion,
@@ -559,7 +593,7 @@ def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: 
     # Preserve metadata for reference
     metadata_fields = [
         # Original metadata
-        "id", "original_dataset", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
+        "id", "original_dataset", "is_unanswerable", "grounded_refusal", "type", "level", "answer_type", "answer_from", "scale",
         # Chunk composition metadata
         "chunks_relevant", "chunks_background_initial", "chunks_background_removed",
         "chunks_background_final", "chunks_total",
@@ -646,7 +680,7 @@ def convert_to_chat_format(
 
     metadata_fields = [
         # Original metadata
-        "id", "original_dataset", "is_unanswerable", "type", "level", "answer_type", "answer_from", "scale",
+        "id", "original_dataset", "is_unanswerable", "grounded_refusal", "type", "level", "answer_type", "answer_from", "scale",
         # Chunk composition metadata
         "chunks_relevant", "chunks_background_initial", "chunks_background_removed",
         "chunks_background_final", "chunks_total",
@@ -672,9 +706,20 @@ def convert_to_chat_format(
 
                 # Refusal phrase stays in data language; the wrapping rule text follows system_lang.
                 refusal = _pick_refusal(rng, language)
-                specific_refusal_instruction = (
-                    is_unanswerable and rng.random() < SPECIFIC_REFUSAL_INSTRUCTION_PROB
-                )
+                # Small strict slice = exact phrase + bare target; the rest grounded + generic.
+                specific_refusal_instruction = is_unanswerable and (rng.random() < STRICT_REFUSAL_PROB)
+
+                if is_unanswerable and specific_refusal_instruction:
+                    assistant_content = refusal
+                elif is_unanswerable:
+                    assistant_content = _build_refusal_completion(
+                        row, refusal, language, style, end_of_completion
+                    )
+                else:
+                    assistant_content = _assistant_answer(
+                        row, style, end_of_completion, language
+                    )
+
                 if specific_refusal_instruction:
                     refusal_instruction = _refusal_instruction(refusal, system_lang)
                 else:
@@ -687,11 +732,6 @@ def convert_to_chat_format(
                     end_of_completion=end_of_completion,
                     refusal_instruction=refusal_instruction,
                 )
-
-                if is_unanswerable:
-                    assistant_content = refusal
-                else:
-                    assistant_content = _assistant_answer(row, style, end_of_completion, language)
 
                 chat_row = {
                     "messages": [
@@ -796,7 +836,7 @@ def main():
     print(f"Language: {args.language}")
     print(f"Citation styles: {len(CITATION_STYLES)} variants, EOC ratio: {EOC_PROB:.0%}")
     print(f"Refusal variants: {len(UNANSWERABLE_REFUSALS.get(args.language, UNANSWERABLE_REFUSALS['en']))} per language")
-    print(f"Specific refusal instruction ratio: {SPECIFIC_REFUSAL_INSTRUCTION_PROB:.0%} of unanswerable rows")
+    print(f"Strict (verbatim) refusal ratio: {STRICT_REFUSAL_PROB:.0%} of unanswerable rows (rest grounded)")
     if args.seed is not None:
         print(f"Seed: {args.seed}")
 

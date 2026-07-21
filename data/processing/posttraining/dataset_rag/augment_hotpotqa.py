@@ -13,6 +13,7 @@ from utils import (
     Metrics,
     call_llm,
     contextualize_chunks,
+    detect_refusal,
     format_context_chunks,
     load_checkpoint_ids,
     load_env_key,
@@ -78,20 +79,100 @@ def load_or_cache_dataset(dataset_path: str | None = None):
     return ds
 
 
-def create_unanswerable_row(row: dict, language: str = "en") -> dict | None:
+def build_backfill_pool(rows: list[dict]) -> list[dict]:
+    """Collect the non-gold paragraphs of every row, keyed by title.
+
+    Dropping the supporting documents without replacing them shortens the
+    context, so its length alone predicts the refusal. Since an unanswerable row
+    is otherwise a clone of an answerable one, that shortcut separates the pair
+    perfectly and spares the model from ever reading the documents. HotpotQA's
+    own distractor paragraphs are the natural filler: real Wikipedia passages,
+    about unrelated entities, with titles unique across the dataset.
+    """
+    pool: dict[str, list] = {}
+    for row in rows:
+        gold = set(row.get("supporting_facts", {}).get("title", []))
+        for title, sents in zip(row["context"]["title"], row["context"]["sentences"]):
+            if title not in gold and title not in pool:
+                pool[title] = sents
+    return [{"title": t, "sentences": s} for t, s in pool.items()]
+
+
+def _select_backfill(
+    row: dict, pool: list[dict], *, present_titles: set[str], count: int
+) -> list[dict]:
+    """Draw ``count`` replacement paragraphs about other entities."""
+    if count <= 0 or not pool:
+        return []
+    excluded = set(present_titles)
+    picked: list[dict] = []
+    # Rejection sampling: the pool holds every distractor of the whole dataset,
+    # so scanning it per row would dominate a step that is otherwise LLM-bound.
+    for _ in range(count * 50):
+        if len(picked) == count:
+            break
+        candidate = random.choice(pool)
+        if candidate["title"] in excluded:
+            continue
+        excluded.add(candidate["title"])
+        picked.append(candidate)
+    return picked
+
+
+def create_unanswerable_row(
+    row: dict,
+    language: str = "en",
+    mode: str = "drop_gold",
+    backfill_pool: list[dict] | None = None,
+) -> dict | None:
+    """Turn an answerable row into an unanswerable one.
+
+    ``drop_gold`` removes every supporting document (easy refusal: the topic
+    entity may vanish from the context entirely). ``partial_hop`` removes a
+    single supporting document of a multi-hop question, leaving genuine but
+    insufficient evidence in context, the classic over-answering trap, and a
+    much harder refusal signal. Returns None when the mode is not applicable.
+
+    ``backfill_pool`` replaces the dropped documents one-for-one with
+    paragraphs about unrelated entities, so the twin rows keep the same document
+    count and roughly the same context length. The replacements are also flagged
+    as protected background: supporting documents are never dropped by
+    ``format_context_chunks``, so without protection the unanswerable row would
+    expose a larger removable pool and end up shorter anyway.
+    """
     titles = row["context"]["title"]
     sentences = row["context"]["sentences"]
     relevant_titles = set(row["supporting_facts"]["title"])
 
+    if mode == "partial_hop":
+        present_gold = [t for t in dict.fromkeys(titles) if t in relevant_titles]
+        if len(present_gold) < 2:
+            return None
+        drop_titles = {random.choice(present_gold)}
+    elif mode == "drop_gold":
+        drop_titles = relevant_titles
+    else:
+        raise ValueError(f"Unknown unanswerable mode: {mode!r}")
+
     new_titles = []
     new_sentences = []
     for title, sents in zip(titles, sentences):
-        if title not in relevant_titles:
+        if title not in drop_titles:
             new_titles.append(title)
             new_sentences.append(sents)
 
-    if not new_titles:
+    if not new_titles or len(new_titles) == len(titles):
         return None
+
+    replacements = _select_backfill(
+        row,
+        backfill_pool or [],
+        present_titles=set(titles),
+        count=len(titles) - len(new_titles),
+    )
+    for candidate in replacements:
+        new_titles.append(candidate["title"])
+        new_sentences.append(candidate["sentences"])
 
     reasoning = {"en": UNANSWERABLE_REFUSAL_EN, "fr": UNANSWERABLE_REASONING_FR}.get(language, UNANSWERABLE_REFUSAL_EN)
 
@@ -104,6 +185,15 @@ def create_unanswerable_row(row: dict, language: str = "en") -> dict | None:
         "context": {"title": new_titles, "sentences": new_sentences},
         "supporting_facts": {"title": [], "sent_id": []},
         "_is_unanswerable": True,
+        "_unanswerable_mode": mode,
+        # Stand in for the protection the supporting documents enjoyed, so both
+        # twins expose the same number of removable background chunks. The gold
+        # document a partial_hop row keeps is protected for the same reason, and
+        # because dropping it at random would silently downgrade a hard refusal
+        # with partial evidence into a plain drop_gold one.
+        "_backfilled_titles": [c["title"] for c in replacements],
+        "_protected_background_titles": [c["title"] for c in replacements]
+        + [t for t in new_titles if t in relevant_titles],
         "_unanswerable_reasoning": reasoning,
     }
 
@@ -113,6 +203,8 @@ def prepare_dataset_with_unanswerable(
     unanswerable_ratio: float = 0.1,
     language: str = "en",
     limit: int | None = None,
+    partial_hop_ratio: float = 0.0,
+    backfill: bool = True,
 ) -> list:
     rows = []
     existing_unanswerable = []
@@ -131,9 +223,17 @@ def prepare_dataset_with_unanswerable(
     num_to_create = min(num_to_create, len(rows))
 
     new_unanswerable = []
+    partial_count = 0
     if num_to_create > 0:
+        pool = build_backfill_pool(rows) if backfill else []
         for idx in random.sample(range(len(rows)), num_to_create):
-            u = create_unanswerable_row(rows[idx], language)
+            u = None
+            if random.random() < partial_hop_ratio:
+                u = create_unanswerable_row(rows[idx], language, mode="partial_hop", backfill_pool=pool)
+                if u:
+                    partial_count += 1
+            if u is None:
+                u = create_unanswerable_row(rows[idx], language, mode="drop_gold", backfill_pool=pool)
             if u:
                 new_unanswerable.append(u)
 
@@ -142,6 +242,11 @@ def prepare_dataset_with_unanswerable(
 
     total_unanswerable = len(existing_unanswerable) + len(new_unanswerable)
     log(f"Dataset: {len(rows)} answerable + {total_unanswerable} unanswerable = {len(all_rows)} total")
+    if partial_count:
+        log(f"  ({partial_count} partial-hop unanswerable rows)")
+    if new_unanswerable:
+        backfilled = sum(len(u["_backfilled_titles"]) for u in new_unanswerable)
+        log(f"  ({backfilled} documents backfilled into {len(new_unanswerable)} unanswerable rows)")
     return all_rows
 
 
@@ -174,6 +279,7 @@ async def process_row(
         shuffle=shuffle,
         max_remove_background_ratio=max_remove_background_ratio,
         min_chunks=3,
+        protected_background_titles=set(row.get("_protected_background_titles", [])),
         contextual_summaries=summaries,
     )
 
@@ -195,6 +301,8 @@ async def process_row(
         api_key=LLM_API_KEY, system_prompt=system_prompt,
         context_in_system=True,
     )
+    # Whether the model actually refused (informational; the filter enforces it).
+    grounded_refusal = bool(is_unanswerable and reasoning and detect_refusal(reasoning))
 
     if reasoning is None:
         return None
@@ -213,6 +321,7 @@ async def process_row(
         "type": row["type"],
         "level": row["level"],
         "is_unanswerable": is_unanswerable,
+        "grounded_refusal": grounded_refusal,
         "citation_end_of_completion": end_of_completion,
         "supporting_facts_titles": sf_titles,
         **chunk_stats,
@@ -230,6 +339,8 @@ async def main(
     max_remove_background_ratio: float = 0.7,
     seed: int | None = None,
     contextualize_ratio: float = 0.0,
+    unanswerable_partial_hop_ratio: float = 0.0,
+    unanswerable_backfill: bool = True,
 ):
     if seed is not None:
         random.seed(seed)
@@ -245,7 +356,9 @@ async def main(
     checkpoint_file = f"{output_prefix}_checkpoint.json"
 
     rows_to_process = prepare_dataset_with_unanswerable(
-        ds, unanswerable_ratio=unanswerable_ratio, language=language, limit=limit
+        ds, unanswerable_ratio=unanswerable_ratio, language=language, limit=limit,
+        partial_hop_ratio=unanswerable_partial_hop_ratio,
+        backfill=unanswerable_backfill,
     )
 
     processed_ids = load_checkpoint_ids(checkpoint_file)
@@ -324,6 +437,15 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default=None, help="Path to custom dataset cache directory")
     parser.add_argument("--language", type=str, choices=["en", "fr"], default="en", help="Language for prompts (default: en)")
     parser.add_argument("--unanswerable-ratio", type=float, default=0.1, help="Ratio of unanswerable examples (default: 0.1)")
+    parser.add_argument("--unanswerable-partial-hop-ratio", type=float, default=0.0,
+                        help="Fraction of created unanswerable rows that drop only ONE supporting "
+                             "document of a multi-hop question (hard refusal with partial evidence). "
+                             "Falls back to drop_gold when not applicable (default: 0.0)")
+    parser.add_argument("--no-unanswerable-backfill", action="store_true",
+                        help="Do not replace the dropped supporting documents with paragraphs about "
+                             "other entities. Leaves unanswerable rows shorter than their answerable "
+                             "twin, which makes the context length predict the refusal "
+                             "(default: backfill)")
     parser.add_argument("--no-shuffle", action="store_true", help="Disable chunk shuffling")
     parser.add_argument("--max-remove-background-ratio", type=float, default=0.7, help="Max fraction of background chunks to remove")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
@@ -343,4 +465,6 @@ if __name__ == "__main__":
         max_remove_background_ratio=args.max_remove_background_ratio,
         seed=args.seed,
         contextualize_ratio=args.contextualize_ratio,
+        unanswerable_partial_hop_ratio=args.unanswerable_partial_hop_ratio,
+        unanswerable_backfill=not args.no_unanswerable_backfill,
     ))

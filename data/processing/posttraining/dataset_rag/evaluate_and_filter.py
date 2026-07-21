@@ -22,6 +22,7 @@ from utils import (
     LLM_MODEL,
     load_env_key,
     normalize_answer,
+    detect_refusal,
     extract_cited_titles,
     evaluate_chunk_citations,
     extract_answer_from_reasoning,
@@ -32,6 +33,7 @@ from utils import (
     run_llm_judge,
     run_factual_judge,
     run_french_quality_judge,
+    run_refusal_judge,
 )
 
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
@@ -148,6 +150,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
              llm_judge_openrouter: bool = False,
              llm_judge_factual_openrouter: bool = False,
              llm_judge_french_quality: bool = False,
+             llm_judge_refusal: bool = False,
              no_answer_match: bool = False) -> dict:
     """Evaluate all entries in the augmented dataset."""
     stats = defaultdict(int)
@@ -171,6 +174,15 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
     french_quality_judge_results = _collect_judge_results(rows, llm_judge_french_quality, run_french_quality_judge, api_key=LLM_API_KEY)
     french_quality_judge_stats: defaultdict = defaultdict(float)
 
+    # Refusal judge runs on UNANSWERABLE rows only (opposite of the other judges).
+    refusal_judge_results: list[dict | None] = [None] * len(rows)
+    if llm_judge_refusal:
+        unans_indices = [i for i, r in enumerate(rows) if r.get("is_unanswerable", False)]
+        raw_refusal = run_refusal_judge([rows[i] for i in unans_indices], api_key=LLM_API_KEY)
+        for idx, jr in zip(unans_indices, raw_refusal):
+            refusal_judge_results[idx] = jr
+    refusal_judge_stats: defaultdict = defaultdict(float)
+
     chunk_stats = defaultdict(float)
     enriched_rows = []
 
@@ -179,10 +191,25 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         expected = row.get("answer", "")
         reasoning = row.get("reasoning_trace", "")
 
+        model_refused = None
+        refusal_judge_justification = None
         if is_unanswerable:
             extracted = None
-            is_correct = True
-            match_type = "unanswerable"
+            # Keep only refusals: did the model actually refuse the insufficient context?
+            # Prefer the LLM refusal judge when available; fall back to regex detection.
+            jr = refusal_judge_results[row_idx]
+            if jr is not None:
+                model_refused = jr["refused"]
+                refusal_judge_justification = jr["justification"]
+                refusal_judge_stats["total"] += 1
+                refusal_judge_stats["refused" if model_refused else "hallucinated"] += 1
+            elif llm_judge_refusal:
+                refusal_judge_stats["failed"] += 1
+                model_refused = detect_refusal(reasoning)
+            else:
+                model_refused = detect_refusal(reasoning)
+            is_correct = model_refused
+            match_type = "refused" if model_refused else "hallucinated"
         elif no_answer_match:
             # Unified-prompt traces carry no "Final Answer" line to extract:
             # correctness is gated by the factual judge (+ citation F1), not by
@@ -243,6 +270,10 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         enriched["eval_answer_correct"] = is_correct
         enriched["eval_answer_match_type"] = match_type
         enriched["eval_extracted_answer"] = extracted
+        if is_unanswerable:
+            enriched["eval_model_refused"] = model_refused
+            if refusal_judge_justification is not None:
+                enriched["eval_refusal_judge_justification"] = refusal_judge_justification
         if eval_chunks and not is_unanswerable:
             enriched["eval_cited_titles"] = cited_titles
             enriched["eval_chunk_precision"] = chunk_precision
@@ -293,6 +324,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         "or_judge_stats": dict(or_judge_stats),
         "or_factual_judge_stats": dict(or_factual_judge_stats),
         "french_quality_judge_stats": dict(french_quality_judge_stats),
+        "refusal_judge_stats": dict(refusal_judge_stats),
     }
 
 
@@ -326,6 +358,7 @@ def print_report(eval_data: dict):
     or_judge_stats = eval_data.get("or_judge_stats", {})
     or_factual_judge_stats = eval_data.get("or_factual_judge_stats", {})
     french_quality_judge_stats = eval_data.get("french_quality_judge_stats", {})
+    refusal_judge_stats = eval_data.get("refusal_judge_stats", {})
 
     total = stats.get("total", 0)
     correct = stats.get("correct", 0)
@@ -391,6 +424,19 @@ def print_report(eval_data: dict):
     _print_judge_section(f"OPENROUTER LLM-AS-A-JUDGE FACTUAL (answer + supporting facts, {OPENROUTER_JUDGE_MODEL})", or_factual_judge_stats)
     _print_judge_section("LLM-AS-A-JUDGE FRENCH QUALITY (language quality)", french_quality_judge_stats)
 
+    if refusal_judge_stats:
+        rj_total = int(refusal_judge_stats.get("total", 0))
+        rj_refused = int(refusal_judge_stats.get("refused", 0))
+        rj_hallu = int(refusal_judge_stats.get("hallucinated", 0))
+        rj_failed = int(refusal_judge_stats.get("failed", 0))
+        rate = (rj_refused / rj_total * 100) if rj_total else 0
+        print("\nLLM-AS-A-JUDGE REFUSAL (unanswerable rows: refuse vs answer)")
+        print(f"   Judged:       {rj_total}")
+        if rj_failed:
+            print(f"   Failed:       {rj_failed}")
+        print(f"   Refused:      {rj_refused} ({rate:.1f}%)")
+        print(f"   Hallucinated: {rj_hallu}")
+
     print("\n" + "="*60)
 
 
@@ -410,6 +456,9 @@ def main():
                         help=f"Run factual LLM-as-a-judge via OpenRouter ({OPENROUTER_JUDGE_MODEL}): rates correctness given ground-truth")
     parser.add_argument("--llm-judge-french-quality", action="store_true",
                         help="Run French quality LLM-as-a-judge: rates language quality of French reasoning traces on 1-5 scale")
+    parser.add_argument("--llm-judge-refusal", action="store_true",
+                        help="Run the binary refusal LLM-as-a-judge on unanswerable rows (refuse vs answer). "
+                             "Its verdict sets eval_model_refused (used by --filter); falls back to regex detection.")
     parser.add_argument("--output", "-o", type=str, required=True,
                         help="Write enriched JSONL with eval columns added to each row")
     parser.add_argument("--export", type=str, help="Export aggregate stats to JSON file")
@@ -434,6 +483,7 @@ def main():
                          llm_judge_openrouter=args.llm_judge_openrouter,
                          llm_judge_factual_openrouter=args.llm_judge_factual_openrouter,
                          llm_judge_french_quality=args.llm_judge_french_quality,
+                         llm_judge_refusal=args.llm_judge_refusal,
                          no_answer_match=args.no_answer_match)
     print_report(eval_data)
 
@@ -473,6 +523,8 @@ def main():
             export_data["or_factual_judge_stats"] = eval_data["or_factual_judge_stats"]
         if args.llm_judge_french_quality:
             export_data["french_quality_judge_stats"] = eval_data["french_quality_judge_stats"]
+        if args.llm_judge_refusal:
+            export_data["refusal_judge_stats"] = eval_data["refusal_judge_stats"]
         with open(args.export, "w") as f:
             json.dump(export_data, f, indent=2)
         print(f"Aggregate stats exported to: {args.export}")

@@ -313,7 +313,55 @@ async def call_llm(
 
 
 # ---------------------------------------------------------------------------
+# Query-grounded refusal generation
+# ---------------------------------------------------------------------------
+#
+# For unanswerable rows we want the refusal target to be *adapted to the query*
+# rather than a single canned sentence. A constant refusal makes the training
+# target trivial: the model learns to map "looks unanswerable" -> a memorized
+# string without attending to the actual question/documents, which encourages
+# systematic over-refusal after fine-tuning. Here the LLM writes a short,
+# grounded explanation (what the documents actually cover + the specific gap vs
+# the question): the *body* of the trace. The canonical refusal phrase is
+# appended later (at formatting time) as the closing sentence, so refusal rows
+# stay structurally symmetric with answerable rows (reasoning -> conclusion).
 
+REFUSAL_BODY_SYSTEM_PROMPT = {
+    "en": (
+        "The documents provided below do NOT contain the information needed to "
+        "answer the user's question. Write a short, grounded explanation (2 to 4 "
+        "sentences) that:\n"
+        "1. States concisely what the provided documents are actually about.\n"
+        "2. Explains specifically what the question asks that the documents do not cover.\n"
+        "\nStrict rules:\n"
+        "- Do NOT invent, guess, or state any fact as if it answered the question.\n"
+        "- Do NOT write a 'Final Answer' / 'Réponse finale' line — output the explanation only.\n"
+        "- Refer to the documents naturally (e.g. by their topic), keep it under 80 words.\n"
+        "- {lang_directive}"
+    ),
+    "fr": (
+        "Les documents fournis ci-dessous NE contiennent PAS les informations "
+        "nécessaires pour répondre à la question de l'utilisateur. Rédige une courte "
+        "explication ancrée dans les documents (2 à 4 phrases) qui :\n"
+        "1. Indique de façon concise de quoi parlent réellement les documents fournis.\n"
+        "2. Explique précisément ce que demande la question et que les documents ne couvrent pas.\n"
+        "\nRègles strictes :\n"
+        "- N'invente jamais, ne devine pas et n'énonce aucun fait comme s'il répondait à la question.\n"
+        "- N'écris PAS de ligne « Réponse finale » / « Final Answer » — produis uniquement l'explication.\n"
+        "- Référence les documents naturellement (par leur sujet), reste sous 80 mots.\n"
+        "- {lang_directive}"
+    ),
+}
+
+# Explicit output-language directive: the model ignores "same language as the
+# question", so we name the target language outright (data language per config).
+REFUSAL_LANG_DIRECTIVE = {
+    "en": "Write your entire explanation in English.",
+    "fr": "Rédige toute ton explication en français.",
+    "de": "Schreibe deine gesamte Erklärung auf Deutsch.",
+    "es": "Escribe toda tu explicación en español.",
+    "ru": "Напиши всё объяснение на русском языке.",
+}
 
 _FINAL_ANSWER_LINE_RE = re.compile(
     r"\n*\s*\*{0,2}\s*(?:final answer|réponse finale)\s*\*{0,2}\s*:.*\Z",
@@ -326,6 +374,48 @@ def _strip_final_answer_line(text: str) -> str:
     return _FINAL_ANSWER_LINE_RE.sub("", text).strip()
 
 
+async def generate_refusal_body(
+    session: aiohttp.ClientSession,
+    question: str,
+    context: str,
+    semaphore: asyncio.Semaphore,
+    *,
+    api_key: str,
+    language: str = "en",
+    model: str = LLM_MODEL,
+    max_retries: int = 3,
+    timeout_seconds: int = 120,
+    max_tokens: int = 256,
+    debug_http: bool = False,
+) -> str | None:
+    """Generate a query-grounded refusal reasoning body.
+
+    Returns the explanation body (no Final Answer line) on success, or None if the
+    call failed or the output was empty. Callers should fall back to a canned
+    refusal phrase when None is returned.
+    """
+    template = REFUSAL_BODY_SYSTEM_PROMPT.get(language, REFUSAL_BODY_SYSTEM_PROMPT["en"])
+    lang_directive = REFUSAL_LANG_DIRECTIVE.get(language, REFUSAL_LANG_DIRECTIVE["en"])
+    system_prompt = template.format(lang_directive=lang_directive)
+    body = await call_llm(
+        session, question, context, semaphore,
+        api_key=api_key,
+        system_prompt=system_prompt,
+        model=model,
+        max_retries=max_retries,
+        timeout_seconds=timeout_seconds,
+        max_tokens=max_tokens,
+        debug_http=debug_http,
+    )
+    if body is None:
+        return None
+    body = _strip_final_answer_line(body.strip())
+    if not body:
+        return None
+    return body
+
+
+# ---------------------------------------------------------------------------
 # Contextual Retrieval — OpenRAG chunk contextualisation
 # ---------------------------------------------------------------------------
 
@@ -559,6 +649,38 @@ def evaluate_chunk_citations(
     return precision, recall
 
 
+# Refusal detection patterns (multilingual)
+REFUSAL_PATTERNS = [
+    # English
+    r"(?:do not|don't|cannot|can't|unable to) (?:allow me to |)(?:answer|provide|respond)",
+    r"(?:not enough|insufficient) information",
+    r"does not (?:contain|allow|provide)",
+    # French
+    r"ne (?:me )?permettent? pas",
+    r"pas en mesure de répondre",
+    r"ne (?:peux|puis) pas (?:fournir|répondre)",
+    # German
+    r"(?:nicht in der Lage|ermöglich(?:t|en) es mir nicht|kann .* nicht beantworten)",
+    r"nicht genügend Informationen",
+    # Spanish
+    r"no (?:me )?permit(?:e|en) responder",
+    r"no puedo (?:responder|proporcionar)",
+    # Russian
+    r"не позволяют .* ответить",
+    r"не могу ответить",
+]
+
+_REFUSAL_RE = [re.compile(p, re.IGNORECASE) for p in REFUSAL_PATTERNS]
+
+
+def detect_refusal(response: str) -> bool:
+    """Detect if a model response is a refusal to answer."""
+    for pattern in _REFUSAL_RE:
+        if pattern.search(response):
+            return True
+    return False
+
+
 JUDGE_SYSTEM_PROMPT = """\
 You are an impartial evaluator. You will be given:
 1. A **question**.
@@ -669,6 +791,21 @@ Your task is to rate the **factual correctness and faithfulness** of the reasoni
 
 You MUST reply with ONLY a JSON object in this exact format (no other text):
 {"score": <int>, "justification": "<one sentence>"}
+"""
+
+JUDGE_REFUSAL_SYSTEM_PROMPT = """\
+You decide whether an AI assistant REFUSED to answer or ATTEMPTED an answer.
+
+The assistant was given a question and a set of retrieved documents that do NOT contain the information needed to answer it. The correct behaviour is to refuse: to state that the retrieved documents do not allow it to answer (typically inviting the user to rephrase the query or add relevant documents).
+
+Classify the assistant's response:
+- "refused": true  — the response declines to answer on the grounds that the documents are insufficient / do not contain the needed information. It does NOT provide a substantive factual answer to the question. (It may still describe what the documents DO cover, as long as it does not answer the actual question.)
+- "refused": false — the response provides or attempts a substantive answer to the question, asserts a fact as the answer, or otherwise behaves as if the documents were sufficient.
+
+Judge only the behaviour (refuse vs answer), not the wording, politeness or formatting.
+
+You MUST reply with ONLY a JSON object in this exact format (no other text):
+{"refused": <true|false>, "justification": "<one short sentence>"}
 """
 
 
@@ -886,6 +1023,99 @@ def run_french_quality_judge(
     return asyncio.run(run_french_quality_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc))
 
 
+def _build_refusal_judge_user_prompt(question: str, context: str, reasoning: str) -> str:
+    return (
+        f"**Question:**\n{question}\n\n"
+        f"**Retrieved documents:**\n{context}\n\n"
+        f"**Assistant response:**\n{reasoning}"
+    )
+
+
+async def _call_refusal_judge(
+    session: aiohttp.ClientSession,
+    user_content: str,
+    semaphore: asyncio.Semaphore,
+    *,
+    api_key: str,
+    api_url: str = LLM_API_URL,
+    model: str = LLM_MODEL,
+    max_retries: int = 3,
+) -> dict | None:
+    """Binary refusal judge: returns {"refused": bool, "justification": str} or None."""
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": JUDGE_REFUSAL_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+        "temperature": 0.0,
+        "max_tokens": 256,
+    }
+    async with semaphore:
+        result = await post_chat_completion(
+            session, api_url=api_url, api_key=api_key, payload=payload,
+            max_retries=max_retries, timeout_seconds=120,
+        )
+        if result is None:
+            return None
+        try:
+            content = result["choices"][0]["message"]["content"].strip()
+            parsed = _extract_json(content)
+            refused = parsed["refused"]
+            if isinstance(refused, str):
+                refused = refused.strip().lower() in ("true", "yes", "1")
+            return {"refused": bool(refused), "justification": parsed.get("justification", "")}
+        except Exception as exc:
+            print(f"  Refusal judge response parsing failed: {exc}")
+    return None
+
+
+async def run_refusal_judge_ordered(
+    rows: list[dict],
+    *,
+    api_key: str,
+    api_url: str = LLM_API_URL,
+    model: str = LLM_MODEL,
+    desc: str = "LLM refusal judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
+) -> list[dict | None]:
+    semaphore = asyncio.Semaphore(concurrency)
+    async with aiohttp.ClientSession() as session:
+        from tqdm.asyncio import tqdm as atqdm
+        tasks = [
+            _call_refusal_judge(
+                session,
+                _build_refusal_judge_user_prompt(
+                    row.get("question", ""),
+                    row.get("context", ""),
+                    row.get("reasoning_trace", ""),
+                ),
+                semaphore,
+                api_key=api_key,
+                api_url=api_url,
+                model=model,
+            )
+            for row in rows
+        ]
+        return await atqdm.gather(*tasks, desc=desc)
+
+
+def run_refusal_judge(
+    rows: list[dict],
+    *,
+    api_key: str,
+    api_url: str = LLM_API_URL,
+    model: str = LLM_MODEL,
+    desc: str = "LLM refusal judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
+) -> list[dict | None]:
+    """Synchronous wrapper: run the binary refusal judge on a list of (unanswerable) rows."""
+    if not api_key:
+        raise ValueError("api_key is required for LLM judge (set LLM_API_KEY in .env or environment)")
+    print(f"\nRunning refusal LLM-as-a-judge ({model}) on {len(rows)} rows...")
+    return asyncio.run(run_refusal_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc, concurrency=concurrency))
+
+
 def filter_row(row: dict, *, french_quality_threshold: int = 5, require_answer_match: bool = True) -> bool:
     """Keep unanswerable rows and rows that pass all evaluated quality thresholds.
 
@@ -900,9 +1130,13 @@ def filter_row(row: dict, *, french_quality_threshold: int = 5, require_answer_m
       - eval_chunk_f1 must be 1.0   (requires --eval-chunks)
       - eval_factual_judge_score must be 5  (requires --llm-judge-factual or --llm-judge-factual-openrouter)
       - eval_french_quality_judge_score must be >= french_quality_threshold, default 5 (requires --llm-judge-french-quality)
+
+    Unanswerable rows are kept only if the model actually refused
+    (``eval_model_refused`` is True); rows where it hallucinated an answer on the
+    insufficient context are dropped. Legacy rows without the field are kept.
     """
     if row.get("is_unanswerable", False):
-        return True
+        return row.get("eval_model_refused", True) is not False
     if require_answer_match and not row.get("eval_answer_correct"):
         return False
     if "eval_chunk_f1" in row and row["eval_chunk_f1"] != 1.0:
