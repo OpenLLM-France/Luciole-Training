@@ -5,6 +5,7 @@ Augment converted TATQA rows with reasoning traces.
 
 import argparse
 import asyncio
+import hashlib
 import json
 import random
 import warnings
@@ -13,12 +14,15 @@ from pathlib import Path
 from datetime import datetime
 
 import aiohttp
+from convert_tatqa_to_augment_format import load_tatqa_docs, tatqa_document_chunks
 from distractor_generation import LEAK_MIN_LENGTH, content_hash, normalize_for_leak_check
 from utils import (
+    CONTEXTUALIZER_SYSTEM_PROMPT,
     LLM_MAX_CONCURRENT,
     LLM_MODEL,
     Metrics,
     call_llm,
+    contextualize_chunks,
     detect_refusal,
     format_context_chunks,
     jsonl_read,
@@ -244,6 +248,20 @@ def create_unanswerable_row(
         "_protected_background_titles": [c["id"] for c in replacements]
         + [t for t in keep_titles if t in relevant],
         "context": {"title": keep_titles, "sentences": keep_sentences},
+        # Keep provenance aligned with the reduced retrieval context.  This is
+        # used only to find the original source document for contextualization.
+        "chunks": [c for c in row.get("chunks", []) if c.get("id") in kept]
+        + [
+            {
+                "id": c["id"],
+                "text": c["text"],
+                "is_gold": False,
+                "source": "backfill_distractor",
+                "document_id": c["document_id"],
+                "document_chunk_id": c["document_chunk_id"],
+            }
+            for c in replacements
+        ],
     }
 
 
@@ -294,6 +312,228 @@ def prepare_rows_with_unanswerable(
     return all_rows
 
 
+# ---- Contextual retrieval over the original TAT-QA reports -----------------
+SourceDocuments = dict[str, list[dict]]
+SourceChunkLookup = dict[str, tuple[str, str]]
+CONTEXTUALIZER_CACHE_VERSION = 1
+
+_ctx_cache: dict[str, dict[str, str]] = {}
+_ctx_inflight: dict[str, asyncio.Task] = {}
+_ctx_cache_lock: asyncio.Lock | None = None  # created lazily inside the event loop
+_ctx_cache_path: Path | None = None
+_ctx_persisted: set[str] = set()
+
+
+def load_contextualization_sources(
+    source_path: str,
+) -> tuple[SourceDocuments, SourceChunkLookup]:
+    """Load original reports and index every chunk by its stable content hash."""
+    docs, parse_warnings = load_tatqa_docs(Path(source_path))
+    for warning in parse_warnings:
+        log(f"[warn] {warning}")
+
+    documents: SourceDocuments = {}
+    chunk_lookup: SourceChunkLookup = {}
+    for doc in docs:
+        doc_id, chunks, _ = tatqa_document_chunks(doc)
+        documents[doc_id] = chunks
+        for chunk in chunks:
+            # setdefault mirrors the converter's global content deduplication:
+            # identical chunks retain the provenance of their first occurrence.
+            chunk_lookup.setdefault(
+                content_hash(chunk["text"]), (doc_id, chunk["id"])
+            )
+    return documents, chunk_lookup
+
+
+def _ctx_cache_key(document_id: str, chunks: list[dict], language: str = "en") -> str:
+    """Content/config-addressed key: stale prompts or models cannot reuse results."""
+    payload = json.dumps(
+        {
+            "document_id": document_id,
+            "chunks": chunks,
+            "algorithm_version": CONTEXTUALIZER_CACHE_VERSION,
+            "language": language,
+            "model": LLM_MODEL,
+            "prompt": CONTEXTUALIZER_SYSTEM_PROMPT,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _load_contextualization_cache(path: Path) -> None:
+    """Restore source-document summaries written by an earlier Airflow attempt."""
+    if not path.is_file():
+        return
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            try:
+                record = json.loads(line)
+                key = record["key"]
+                summaries = record["summaries"]
+                if not isinstance(key, str) or not isinstance(summaries, dict):
+                    raise TypeError("invalid cache record")
+            except (json.JSONDecodeError, KeyError, TypeError):
+                log(f"[warn] ignoring malformed contextualization cache line {line_number}")
+                continue
+            _ctx_cache[key] = {
+                str(title): str(summary) for title, summary in summaries.items()
+            }
+            _ctx_persisted.add(key)
+
+
+def _persist_contextualization_cache(key: str, document_id: str, summaries: dict[str, str]) -> None:
+    """Append one complete source report result to the restart-safe JSONL cache."""
+    if _ctx_cache_path is None or key in _ctx_persisted:
+        return
+    # Do not make a transient total failure permanent. Per-chunk failures have
+    # already exhausted their retries and may remain empty, as in OpenRAG.
+    if not any(summary.strip() for summary in summaries.values()):
+        return
+    record = {"key": key, "document_id": document_id, "summaries": summaries}
+    with _ctx_cache_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        handle.flush()
+    _ctx_persisted.add(key)
+
+
+async def _get_or_compute_summaries(
+    session: aiohttp.ClientSession,
+    document_id: str,
+    chunks: list[dict],
+    semaphore: asyncio.Semaphore,
+    *,
+    api_key: str,
+    language: str = "en",
+    max_retries: int = 3,
+    request_timeout: int = 120,
+    debug_http: bool = False,
+) -> dict[str, str]:
+    """Contextualize one source report once, including concurrent callers."""
+    global _ctx_cache_lock
+    if _ctx_cache_lock is None:
+        _ctx_cache_lock = asyncio.Lock()
+
+    key = _ctx_cache_key(document_id, chunks, language)
+    async with _ctx_cache_lock:
+        if key in _ctx_cache:
+            return _ctx_cache[key]
+        task = _ctx_inflight.get(key)
+        if task is None:
+            llm_chunks = [
+                {"title": chunk["id"], "text": chunk["text"]}
+                for chunk in chunks
+            ]
+            task = asyncio.create_task(contextualize_chunks(
+                session,
+                llm_chunks,
+                semaphore,
+                api_key=api_key,
+                language=language,
+                filename=f"TAT-QA financial report {document_id}",
+                max_retries=min(max_retries, 2),
+                timeout_seconds=request_timeout,
+                debug_http=debug_http,
+                # Match the production chunker: one independent request per
+                # chunk with first_chunks + two preceding chunks + current.
+                batched=False,
+            ))
+            _ctx_inflight[key] = task
+
+    try:
+        summaries = await task
+    except Exception as exc:
+        # A document-level failure degrades to raw chunks; individual request
+        # failures are already represented by an empty summary in utils.py.
+        log(f"[warn] contextualization failed for document {document_id}: {exc}")
+        summaries = {}
+
+    async with _ctx_cache_lock:
+        if summaries:
+            _ctx_cache[key] = summaries
+            _persist_contextualization_cache(key, document_id, summaries)
+        if _ctx_inflight.get(key) is task:
+            del _ctx_inflight[key]
+    return summaries
+
+
+def _retrieved_chunk_provenance(
+    row: dict,
+    title: str,
+    text: str,
+    source_lookup: SourceChunkLookup,
+) -> tuple[str, str] | None:
+    """Resolve a displayed retrieval chunk back to its original report chunk."""
+    for chunk in row.get("chunks", []):
+        if chunk.get("id") != title:
+            continue
+        document_id = str(chunk.get("document_id", "")).strip()
+        document_chunk_id = str(chunk.get("document_chunk_id", "")).strip()
+        if document_id and document_chunk_id:
+            return document_id, document_chunk_id
+        break
+
+    # Compatibility for converted JSONL files created before provenance fields
+    # were added. Exact content hashes are stable across conversion runs.
+    return source_lookup.get(content_hash(text))
+
+
+async def _contextualize_retrieved_chunks(
+    session: aiohttp.ClientSession,
+    row: dict,
+    source_documents: SourceDocuments,
+    source_lookup: SourceChunkLookup,
+    semaphore: asyncio.Semaphore,
+    *,
+    api_key: str,
+    max_retries: int,
+    request_timeout: int,
+    debug_http: bool,
+) -> dict[str, str]:
+    """Contextualize retrieved chunks against each chunk's real source report."""
+    retrieved: list[tuple[str, str, str]] = []
+    needed_documents: dict[str, list[dict]] = {}
+    for title, sents in zip(row["context"]["title"], row["context"]["sentences"]):
+        text = " ".join(sents).strip() if isinstance(sents, list) else str(sents).strip()
+        provenance = _retrieved_chunk_provenance(row, title, text, source_lookup)
+        if provenance is None:
+            continue
+        document_id, source_chunk_id = provenance
+        source_chunks = source_documents.get(document_id)
+        if source_chunks is None:
+            continue
+        retrieved.append((title, document_id, source_chunk_id))
+        needed_documents[document_id] = source_chunks
+
+    if not needed_documents:
+        return {}
+
+    document_ids = list(needed_documents)
+    results = await asyncio.gather(*[
+        _get_or_compute_summaries(
+            session,
+            document_id,
+            needed_documents[document_id],
+            semaphore,
+            api_key=api_key,
+            max_retries=max_retries,
+            request_timeout=request_timeout,
+            debug_http=debug_http,
+        )
+        for document_id in document_ids
+    ])
+    by_document = dict(zip(document_ids, results))
+    summaries = {
+        displayed_title: by_document.get(document_id, {}).get(source_chunk_id, "")
+        for displayed_title, document_id, source_chunk_id in retrieved
+    }
+    # Complete document failure must fall back to raw chunks rather than emit a
+    # context marker with no useful text for every chunk.
+    return summaries if any(summary.strip() for summary in summaries.values()) else {}
+
+
 async def process_row(
     session: aiohttp.ClientSession,
     row: dict,
@@ -304,8 +544,33 @@ async def process_row(
     request_timeout: int,
     max_tokens: int,
     debug_http: bool,
+    source_documents: SourceDocuments | None = None,
+    source_lookup: SourceChunkLookup | None = None,
+    contextualize: bool = False,
 ) -> dict | None:
     is_unanswerable = row.get("_is_unanswerable", False)
+
+    # Optionally compute contextual summaries. Unanswerable rows are
+    # contextualised too: skipping them would make the presence of a [CONTEXT]
+    # block a perfect predictor of "answerable". Every retrieved chunk is mapped
+    # back to its own complete source report; distractors are never presented as
+    # if they were sections of the question's gold report.
+    summaries: dict[str, str] | None = None
+    if contextualize:
+        if source_documents is None or source_lookup is None:
+            raise ValueError("Original TAT-QA source documents are required for contextualization")
+        summaries = await _contextualize_retrieved_chunks(
+            session,
+            row,
+            source_documents,
+            source_lookup,
+            semaphore,
+            api_key=LLM_API_KEY,
+            max_retries=max_retries,
+            request_timeout=request_timeout,
+            debug_http=debug_http,
+        )
+
     context_str, chunk_stats = format_context_chunks(
         context=row["context"],
         relevant_titles=set(row.get("supporting_facts", {"title": [], "sent_id": []}).get("title", [])),
@@ -313,6 +578,7 @@ async def process_row(
         max_remove_background_ratio=max_remove_background_ratio,
         min_chunks=2,
         protected_background_titles={"Table", *row.get("_protected_background_titles", [])},
+        contextual_summaries=summaries,
     )
 
     # Citation placement decided per row (deterministic by id) so the generation
@@ -347,7 +613,11 @@ async def process_row(
     # Whether the model actually refused (informational; the filter enforces it).
     grounded_refusal = bool(is_unanswerable and detect_refusal(reasoning))
 
-    sf_titles = list(dict.fromkeys(row.get("supporting_facts", {}).get("title", [])))
+    title_mapping = chunk_stats.pop("title_mapping", {})
+    sf_titles = list(dict.fromkeys(
+        title_mapping.get(t, t)
+        for t in row.get("supporting_facts", {}).get("title", [])
+    ))
     return {
         "id": row["id"],
         "question": row["question"],
@@ -381,16 +651,45 @@ async def run(
     request_timeout: int,
     max_tokens: int,
     debug_http: bool,
+    contextualize_ratio: float = 0.0,
     unanswerable_partial_ratio: float = 0.0,
     unanswerable_backfill: bool = True,
+    source_documents_path: str | None = None,
 ) -> None:
     if seed is not None:
         random.seed(seed)
         log(f"Random seed: {seed}")
+    if not 0.0 <= contextualize_ratio <= 1.0:
+        raise ValueError("--contextualize-ratio must be between 0.0 and 1.0")
 
     output_prefix = output_prefix.removesuffix(".jsonl")
     output_file = f"{output_prefix}.jsonl"
     checkpoint_file = f"{output_prefix}_checkpoint.json"
+
+    # A run may be invoked more than once in the same interpreter (notably in
+    # tests); asyncio locks/tasks must never leak across event loops.
+    global _ctx_cache_lock, _ctx_cache_path
+    _ctx_cache.clear()
+    _ctx_inflight.clear()
+    _ctx_persisted.clear()
+    _ctx_cache_lock = None
+    _ctx_cache_path = None
+
+    source_documents: SourceDocuments | None = None
+    source_lookup: SourceChunkLookup | None = None
+    if contextualize_ratio > 0:
+        if not source_documents_path:
+            raise ValueError(
+                "--source-documents is required when --contextualize-ratio is greater than 0"
+            )
+        source_documents, source_lookup = load_contextualization_sources(
+            source_documents_path
+        )
+        _ctx_cache_path = Path(f"{output_prefix}_contextualization_cache.jsonl")
+        _load_contextualization_cache(_ctx_cache_path)
+        log(f"Contextualization source: {len(source_documents)} original TAT-QA reports")
+        if _ctx_cache:
+            log(f"Contextualization cache: {len(_ctx_cache)} source reports restored")
 
     rows = jsonl_read(dataset_path, limit=limit)
     rows = prepare_rows_with_unanswerable(
@@ -418,6 +717,12 @@ async def run(
     if needs_llm and not LLM_API_KEY:
         raise ValueError("LLM_API_KEY is required to process rows (set in .env file or environment)")
 
+    if contextualize_ratio > 0:
+        log(f"Contextualize ratio: {contextualize_ratio:.0%}")
+
+    # Pre-assign which rows get contextualised (deterministic with seed)
+    ctx_flags = [random.random() < contextualize_ratio for _ in rows]
+
     log(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     semaphore = asyncio.Semaphore(concurrency)
     metrics = Metrics(total_rows=len(rows))
@@ -429,6 +734,7 @@ async def run(
             total_batches = (len(rows) + batch_size - 1) // batch_size
             for bidx, start in enumerate(range(0, len(rows), batch_size), start=1):
                 batch = rows[start:start + batch_size]
+                batch_flags = ctx_flags[start:start + batch_size]
                 tasks = [
                     process_row(
                         session, row, semaphore,
@@ -438,8 +744,11 @@ async def run(
                         request_timeout=request_timeout,
                         max_tokens=max_tokens,
                         debug_http=debug_http,
+                        source_documents=source_documents,
+                        source_lookup=source_lookup,
+                        contextualize=flag,
                     )
-                    for row in batch
+                    for row, flag in zip(batch, batch_flags)
                 ]
                 results = await asyncio.gather(*tasks)
                 for row, result in zip(batch, results):
@@ -487,6 +796,11 @@ def run_async(coro: Coroutine[object, object, object]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Augment TATQA converted JSONL with reasoning traces")
     parser.add_argument("--dataset", required=True, help="Converted TATQA JSONL path")
+    parser.add_argument(
+        "--source-documents",
+        default=None,
+        help="Original TAT-QA JSON used to contextualize chunks against their full source reports",
+    )
     parser.add_argument("--output", default="tatqa_augmented", help="Output prefix (default: tatqa_augmented)")
     parser.add_argument("--limit", type=int, default=None, help="Limit rows before augmentation")
     parser.add_argument("--concurrency", type=int, default=LLM_MAX_CONCURRENT, help="Async concurrency")
@@ -511,6 +825,12 @@ def main() -> None:
         default=0.7,
         help="Max fraction of background chunks to remove",
     )
+    parser.add_argument(
+        "--contextualize-ratio",
+        type=float,
+        default=0.0,
+        help="Fraction of rows to format with OpenRAG contextual summaries (0.0–1.0)",
+    )
     args = parser.parse_args()
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be >= 1")
@@ -531,6 +851,8 @@ def main() -> None:
             request_timeout=args.request_timeout,
             max_tokens=args.max_tokens,
             debug_http=args.debug_http,
+            contextualize_ratio=args.contextualize_ratio,
+            source_documents_path=args.source_documents,
         )
     )
 

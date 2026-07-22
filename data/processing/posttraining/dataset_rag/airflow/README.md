@@ -63,6 +63,12 @@ Common parameters:
 Dataset parameters: `dataset_cache` (HotpotQA), `input_json`, `num_distractors`, `distractor_start_rank`
 (TAT-QA / multilingual).
 
+`contextualize_ratio` (TAT-QA only, default 0.3): each retrieved chunk of a drawn row is mapped back to its source
+financial report and gets an OpenRAG `[CONTEXT]` summary built from the first two chunks of the report, its two
+predecessors and the chunk itself. Summaries are cached per report in `<prefix>_contextualization_cache.jsonl`.
+Answerable and unanswerable rows follow the same draw, so `[CONTEXT]` carries no signal about the label. HotpotQA and
+the multilingual sources do not expose full source documents, so contextualisation is disabled for them.
+
 Distractors and hard refusals (enabled by default):
 
 - `distractor_mix` (default `hard=2,medium=5,random=2`): mixed-difficulty selection; empty = plain BM25 from

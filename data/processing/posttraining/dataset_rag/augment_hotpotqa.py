@@ -261,9 +261,12 @@ async def process_row(
 ) -> dict | None:
     is_unanswerable = row.get("_is_unanswerable", False)
 
-    # Optionally compute contextual summaries (skip for unanswerable)
+    # Optionally compute contextual summaries. Unanswerable rows are
+    # contextualised too: skipping them would make the presence of a [CONTEXT]
+    # block a perfect predictor of "answerable" and teach the model to never
+    # refuse when the context is contextualised.
     summaries: dict[str, str] | None = None
-    if contextualize and not is_unanswerable:
+    if contextualize:
         chunks = []
         for title, sents in zip(row["context"]["title"], row["context"]["sentences"]):
             text = " ".join(sents).strip() if isinstance(sents, list) else str(sents).strip()
@@ -348,6 +351,13 @@ async def main(
 
     if not 0.0 <= contextualize_ratio <= 1.0:
         raise ValueError("--contextualize-ratio must be between 0.0 and 1.0")
+    if contextualize_ratio > 0:
+        raise ValueError(
+            "HotpotQA contextualization is disabled: its row context is a "
+            "multi-document retrieval result, not the complete ordered source "
+            "document required by contextual retrieval. Use 0.0 or run the "
+            "source-backed TAT-QA pipeline."
+        )
 
     ds = load_or_cache_dataset(dataset_path)
 
@@ -450,7 +460,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-remove-background-ratio", type=float, default=0.7, help="Max fraction of background chunks to remove")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--contextualize-ratio", type=float, default=0.0,
-                        help="Fraction of rows to format with OpenRAG contextual summaries (0.0–1.0)")
+                        help="Reserved; must remain 0 because complete HotpotQA source documents are unavailable")
 
     args = parser.parse_args()
 

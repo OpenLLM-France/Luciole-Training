@@ -450,6 +450,36 @@ from the clinical trial.
 - This section continues the listing of recommended measures to enhance sovereignty."""
 
 
+CONTEXTUALIZER_BATCH_SYSTEM_PROMPT = """\
+You are an AI assistant and your task is to write a short, contextual \
+summary (1-2 sentences) for EVERY chunk of a document, in a single pass.
+
+You are given the filename and the full ordered list of chunks. Each chunk is \
+introduced by a `[CHUNK n]` marker. Contextualize each chunk relative to the \
+document as a whole and to the chunks that precede it.
+
+## Core Principles
+- Analyze continuity carefully: Determine if a chunk continues, concludes, \
+or starts a new section relative to the preceding chunks
+- Write each contextual summary in the same language as its own chunk
+- For tables or image descriptions, focus on contextual significance \
+rather than repeating descriptive details
+
+## Output Format
+- Reply with a single JSON object and nothing else—no markdown fences, \
+no preamble, no trailing commentary
+- One key per chunk: the chunk number as a string, in order
+- Each value is 1-2 concise sentences of plain text, standalone and \
+independently comprehensible
+- Every chunk must appear exactly once, even if its content is short or \
+unrelated to the rest
+
+## Output Example
+{"1": "This part of the research paper presents the methodology following the \
+literature review on climate modeling.", "2": "This section includes performance \
+charts and KPI metrics that quantify the operational improvements."}"""
+
+
 _LANG_NAMES = {"en": "English", "fr": "French", "de": "German", "es": "Spanish", "ru": "Russian"}
 
 
@@ -460,8 +490,8 @@ def _build_contextualizer_user_prompt(
     current_chunk: dict,
     language: str,
 ) -> str:
-    first_text = "\n--\n".join(c["text"] for c in first_chunks)
-    prev_text = "\n--\n".join(c["text"] for c in prev_chunks) if prev_chunks else ""
+    first_text = "\n---\n".join(c["text"] for c in first_chunks)
+    prev_text = "\n---\n".join(c["text"] for c in prev_chunks) if prev_chunks else ""
     lang_name = _LANG_NAMES.get(language, language)
     return (
         f"Here is the context to consider for generating the context:\n"
@@ -473,6 +503,84 @@ def _build_contextualizer_user_prompt(
     )
 
 
+def _build_contextualizer_batch_user_prompt(
+    filename: str,
+    chunks: list[dict],
+    language: str,
+) -> str:
+    lang_name = _LANG_NAMES.get(language, language)
+    body = "\n\n".join(
+        f"[CHUNK {i}]\n{c['text']}" for i, c in enumerate(chunks, start=1)
+    )
+    return (
+        f"Here is the context to consider for generating the contexts:\n"
+        f"- Filename: {filename}\n"
+        f"- Number of chunks: {len(chunks)}\n\n"
+        f"Here are the chunks to contextualize strictly in this {lang_name} language:\n\n"
+        f"{body}\n\n"
+        f'Reply with a JSON object holding exactly {len(chunks)} keys, "1" through '
+        f'"{len(chunks)}".'
+    )
+
+
+async def _contextualize_chunks_batched(
+    session: aiohttp.ClientSession,
+    chunks: list[dict],
+    semaphore: asyncio.Semaphore,
+    *,
+    api_key: str,
+    language: str,
+    filename: str,
+    max_retries: int,
+    timeout_seconds: int,
+    debug_http: bool,
+) -> dict[int, str]:
+    """Summarize every chunk in one call. Returns {1-based index: summary}.
+
+    Missing or malformed entries are simply absent from the mapping; the caller
+    falls back to a per-chunk call for those.
+    """
+    user_prompt = _build_contextualizer_batch_user_prompt(filename, chunks, language)
+    payload = {
+        "model": LLM_MODEL,
+        "messages": [
+            {"role": "system", "content": CONTEXTUALIZER_BATCH_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.1,
+        # ~120 tokens per summary, plus room for the JSON scaffolding.
+        "max_tokens": min(4096, 120 * len(chunks) + 256),
+        "response_format": {"type": "json_object"},
+    }
+    async with semaphore:
+        data = await post_chat_completion(
+            session,
+            api_url=LLM_API_URL,
+            api_key=api_key,
+            payload=payload,
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+            debug_http=debug_http,
+        )
+    if data is None:
+        return {}
+    try:
+        content = data["choices"][0]["message"]["content"]
+        parsed = _extract_json(content)
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+        return {}
+
+    summaries: dict[int, str] = {}
+    for key, value in parsed.items():
+        try:
+            idx = int(str(key).strip())
+        except ValueError:
+            continue
+        if 1 <= idx <= len(chunks) and isinstance(value, str) and value.strip():
+            summaries[idx] = value.strip()
+    return summaries
+
+
 async def contextualize_chunks(
     session: aiohttp.ClientSession,
     chunks: list[dict],
@@ -481,19 +589,39 @@ async def contextualize_chunks(
     api_key: str,
     language: str = "en",
     filename: str = "Document",
-    max_retries: int = 3,
+    max_retries: int = 2,
     timeout_seconds: int = 120,
     debug_http: bool = False,
+    batched: bool = False,
 ) -> dict[str, str]:
     """Generate contextual summaries for ordered chunks following OpenRAG logic.
 
     *chunks* must be in document order: [{"title": str, "text": str}, ...].
     Returns a mapping title → contextual summary (1-2 sentences).
+
+    By default, each chunk gets its own request containing the first two chunks,
+    the two immediately preceding chunks and the current chunk, matching the
+    production OpenRAG chunker. ``batched=True`` remains available as an
+    explicit cheaper approximation; omitted batch entries fall back to the
+    production per-chunk request.
     """
     if len(chunks) < 2:
         return {}
 
     first_chunks = chunks[:2]
+    batch_summaries: dict[int, str] = {}
+    if batched:
+        batch_summaries = await _contextualize_chunks_batched(
+            session, chunks, semaphore,
+            api_key=api_key,
+            language=language,
+            filename=filename,
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+            debug_http=debug_http,
+        )
+        if len(batch_summaries) == len(chunks):
+            return {c["title"]: batch_summaries[i] for i, c in enumerate(chunks, start=1)}
 
     async def _one(i: int) -> tuple[str, str]:
         chunk = chunks[i]
@@ -514,22 +642,35 @@ async def contextualize_chunks(
             "temperature": 0.1,
             "max_tokens": 150,
         }
-        async with semaphore:
-            data = await post_chat_completion(
-                session,
-                api_url=LLM_API_URL,
-                api_key=api_key,
-                payload=payload,
-                max_retries=max_retries,
-                timeout_seconds=timeout_seconds,
-                debug_http=debug_http,
-            )
-        if data is not None:
-            return chunk["title"], data["choices"][0]["message"]["content"].strip()
+        try:
+            async with semaphore:
+                data = await post_chat_completion(
+                    session,
+                    api_url=LLM_API_URL,
+                    api_key=api_key,
+                    payload=payload,
+                    max_retries=max_retries,
+                    timeout_seconds=timeout_seconds,
+                    debug_http=debug_http,
+                )
+            if data is not None:
+                summary = data["choices"][0]["message"]["content"]
+                if isinstance(summary, str):
+                    return chunk["title"], summary.strip()
+        except Exception as exc:
+            if debug_http:
+                print(f"  Contextualizer failed for {chunk['title']}: {exc}")
         return chunk["title"], ""
 
-    results = await asyncio.gather(*[_one(i) for i in range(len(chunks))])
-    return dict(results)
+    # 0-based positions still needing an individual call (all of them when the
+    # batched pass is disabled or came back empty).
+    missing = [i for i in range(len(chunks)) if (i + 1) not in batch_summaries]
+    results = await asyncio.gather(*[_one(i) for i in missing])
+
+    summaries = {c["title"]: batch_summaries[i] for i, c in enumerate(chunks, start=1)
+                 if i in batch_summaries}
+    summaries.update(dict(results))
+    return summaries
 
 
 def format_chunk_base(title: str, text: str) -> str:

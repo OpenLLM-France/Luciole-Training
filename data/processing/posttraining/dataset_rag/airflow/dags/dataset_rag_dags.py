@@ -20,6 +20,13 @@ actually refused (``eval_model_refused``). Traces carry no "Final Answer" line, 
 the evaluate/filter tasks run with ``--no-answer-match``: correctness is gated by
 the factual judge (+ citation F1) rather than exact answer-string match.
 
+For TAT-QA only, a ``contextualize_ratio`` fraction of the rows gets OpenRAG
+``[CONTEXT]`` chunk summaries. Each retrieved chunk is mapped back to its full
+original financial report before contextualization. HotpotQA and the
+multilingual QA sources do not expose those original documents in this pipeline,
+so contextual retrieval is deliberately disabled for them rather than treating
+a mixed retrieval result as one document.
+
 Outputs land in <dataset_rag>/airflow_runs/<dag_id>/<run_name>/. Re-triggering
 with the same run_name resumes the augmentation from its checkpoint file
 (no LLM calls are re-paid); use a fresh run_name for a from-scratch build.
@@ -94,6 +101,8 @@ DEFAULT_PARAMS = {
     # Passed to formatting_sft.py --format: "chat" or "prompt_completion".
     "sft_format": "chat",
 }
+
+CONTEXTUALIZE_OPT = "--contextualize-ratio {{ params.contextualize_ratio }}"
 
 # Mixed-difficulty distractor selection (converters). Empty distractor_mix
 # falls back to the legacy BM25 start-rank behaviour.
@@ -236,6 +245,10 @@ def build_tatqa_dag() -> DAG:
             "input_json": str(BASE_DIR / "tatqa_dataset_train.json"),
             "num_distractors": 9,
             "distractor_start_rank": 1,
+            # Answerable and unanswerable rows are drawn alike, so [CONTEXT]
+            # carries no signal about the label. Contexts are cached per source
+            # report within the augmentation task.
+            "contextualize_ratio": 0.3,
             # Fraction of created unanswerable rows keeping partial gold
             # evidence (table-text questions).
             "partial_ratio": 0.5,
@@ -264,9 +277,10 @@ def build_tatqa_dag() -> DAG:
         "augment",
         f"{PYTHON} augment_tatqa.py"
         f" --dataset {prefix}_converted.jsonl"
+        ' --source-documents "{{ params.input_json }}"'
         f" --output {prefix}_augmented"
         " --unanswerable-partial-ratio {{ params.partial_ratio }}"
-        f" {SEED_OPT} {LIMIT_OPT}",
+        f" {CONTEXTUALIZE_OPT} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}_augmented.jsonl",),
     )
