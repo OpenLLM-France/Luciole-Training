@@ -81,6 +81,9 @@ def _resolve_python() -> str:
 PYTHON = _resolve_python()
 LLM_POOL = os.environ.get("DATASET_RAG_LLM_POOL", "llm_api")
 
+# Tag shared by every DAG of this pipeline, to filter them on a shared Airflow instance.
+BASE_TAGS = ["dataset_rag"]
+
 # Jinja fragments shared by every command (rendered by Airflow at run time).
 WORKDIR = 'WORKDIR="' + str(BASE_DIR) + '/airflow_runs/{{ dag.dag_id }}/{{ params.run_name }}"'
 LIMIT_OPT = "{% if params.limit %}--limit {{ params.limit }}{% endif %}"
@@ -182,7 +185,7 @@ def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
             # (hard refusal with partial evidence).
             "partial_hop_ratio": 0.5,
         },
-        tags=["dataset_rag", "hotpotqa", language],
+        tags=[*BASE_TAGS, "hotpotqa", language],
     )
 
     prefix = f'"$WORKDIR"/hotpotqa_{language}_augmented'
@@ -253,7 +256,7 @@ def build_tatqa_dag() -> DAG:
             # evidence (table-text questions).
             "partial_ratio": 0.5,
         },
-        tags=["dataset_rag", "tatqa", "en"],
+        tags=[*BASE_TAGS, "tatqa", "en"],
     )
 
     prefix = '"$WORKDIR"/tatqa'
@@ -326,7 +329,7 @@ def build_multilingual_dag(dag_id: str, dataset: str, language: str) -> DAG:
             "num_distractors": 9,
             "distractor_start_rank": 10,
         },
-        tags=["dataset_rag", "multilingual", language],
+        tags=[*BASE_TAGS, "multilingual", language],
     )
 
     slug = dataset.replace("-", "_")
