@@ -405,8 +405,13 @@ async def run(
 
     log(f"Rows to process: {len(rows)}")
     if not rows:
-        log("Nothing to process.")
-        return
+        if Path(output_file).is_file() and Path(output_file).stat().st_size > 0:
+            log("Nothing to process; existing non-empty output is complete.")
+            return
+        raise RuntimeError(
+            "No rows remain to process, but the output JSONL is missing or empty. "
+            "The checkpoint and output are inconsistent."
+        )
 
     # Unanswerable rows now also call the LLM (to generate query-grounded refusals).
     needs_llm = bool(rows)
@@ -458,6 +463,11 @@ async def run(
                 )
 
     log(f"Done in {metrics.elapsed:.1f}s — {metrics.processed} processed, {metrics.failed} failed, {metrics.unanswerable_count} unanswerable")
+    if metrics.failed:
+        raise RuntimeError(
+            f"{metrics.failed} row(s) failed generation; successful rows were checkpointed "
+            "and the task should be retried."
+        )
 
 
 def run_async(coro: Coroutine[object, object, object]) -> None:
@@ -502,6 +512,8 @@ def main() -> None:
         help="Max fraction of background chunks to remove",
     )
     args = parser.parse_args()
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be >= 1")
 
     run_async(
         run(

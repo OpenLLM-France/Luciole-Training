@@ -463,11 +463,14 @@ def main() -> None:
     parser.add_argument("--no-answer-match", action="store_true",
                         help="Traces have no 'Final Answer' line (unified-prompt format): skip exact-match "
                              "answer extraction and gate correctness on the factual judge (+ citation F1) only.")
+    parser.add_argument("--export", type=str, default=None,
+                        help="Export aggregate stats to a JSON file")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
-        print(f"Error: file not found: {args.input}")
-        return
+        parser.error(f"input file not found: {args.input}")
+    if Path(args.input).stat().st_size == 0:
+        parser.error(f"input file is empty: {args.input}")
 
     eval_data = evaluate(
         file_path=args.input,
@@ -499,6 +502,22 @@ def main() -> None:
             for row in filtered_rows:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
         print(f"Filtered dataset written: {filtered_path} ({len(filtered_rows)}/{len(eval_data['enriched_rows'])} rows kept)")
+
+    if args.export:
+        export_data = {
+            "stats": eval_data["stats"],
+            "stats_by_answer_type": eval_data["stats_by_answer_type"],
+            "stats_by_answer_from": eval_data["stats_by_answer_from"],
+        }
+        if args.eval_chunks:
+            export_data["chunk_stats"] = eval_data["chunk_stats"]
+        if args.llm_judge_factual:
+            export_data["factual_judge_stats"] = eval_data["factual_judge_stats"]
+        if args.llm_judge_refusal:
+            export_data["refusal_judge_stats"] = eval_data["refusal_judge_stats"]
+        with open(args.export, "w", encoding="utf-8") as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
+        print(f"Aggregate stats exported to: {args.export}")
 
 
 if __name__ == "__main__":
