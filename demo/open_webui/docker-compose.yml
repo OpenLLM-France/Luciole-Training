@@ -10,16 +10,23 @@
 #   - NVIDIA DGX Spark (or other GB10) with driver + nvidia-container-toolkit
 #   - Docker Compose v2 (`docker compose`, not the old `docker-compose`)
 #
-# Three models (A, B, C) are served side by side, each in its own vLLM
-# container on its own port. A single `vllm serve` process hosts exactly one
-# model, so serving three means three instances. On DGX Spark they share the one
-# unified-memory GPU, so GPU_MEM_UTIL_A + GPU_MEM_UTIL_B + GPU_MEM_UTIL_C
-# must stay well under 1.0 (leave headroom — e.g. 0.4 + 0.2 + 0.2) or vLLM will
-# OOM on startup.
+# Up to four models (A, B, C, D) can be served side by side, each in its own
+# vLLM container on its own port. A single `vllm serve` process hosts exactly
+# one model, so serving N means N instances. On DGX Spark they share the one
+# unified-memory GPU, so the GPU_MEM_UTIL_* of the ACTIVE models must sum to
+# well under 1.0 (leave headroom) or vLLM will OOM on startup.
+#
+# Activate / deactivate models WITHOUT editing this file: each vllm-* service
+# has a Compose "profile" named after its letter (a/b/c/d). Set which ones run
+# via COMPOSE_PROFILES in .env, e.g.
+#   COMPOSE_PROFILES=a,b,c      # A, B, C on; D off
+#   COMPOSE_PROFILES=a,d        # only A and D
+# then `docker compose up -d --remove-orphans`. open-webui has no profile, so
+# it always runs. A model that's off simply won't appear in the picker.
 #
 # Open WebUI reaches all over the compose network (http://vllm-a:8000/v1,
-# http://vllm-b:8000/v1 and http://vllm-c:8000/v1); all models then show up
-# in its model picker.
+# http://vllm-b:8000/v1, http://vllm-c:8000/v1, http://vllm-d:8000/v1); the
+# active models then show up in its model picker.
 
 # Shared vLLM service config. Per-model services below override command/ports.
 x-vllm-common: &vllm-common
@@ -48,6 +55,7 @@ services:
   vllm-a:
     <<: *vllm-common
     container_name: vllm-a
+    profiles: ["a"]   # runs only when COMPOSE_PROFILES includes "a"
     # NGC container entrypoint passes the command through, so we invoke
     # `vllm serve` ourselves (unlike vllm/vllm-openai, whose entrypoint IS the
     # server).
@@ -73,6 +81,7 @@ services:
   vllm-b:
     <<: *vllm-common
     container_name: vllm-b
+    profiles: ["b"]
     command:
       - vllm
       - serve
@@ -90,6 +99,7 @@ services:
   vllm-c:
     <<: *vllm-common
     container_name: vllm-c
+    profiles: ["c"]
     command:
       - vllm
       - serve
@@ -104,23 +114,50 @@ services:
     ports:
       - "127.0.0.1:${VLLM_PORT_C:-8002}:8000"
 
+  vllm-d:
+    <<: *vllm-common
+    container_name: vllm-d
+    profiles: ["d"]
+    command:
+      - vllm
+      - serve
+      - ${MODEL_D:?set MODEL_D in .env}
+      - --served-model-name=${SERVED_MODEL_NAME_D:-luciole-1b-3}
+      - --trust-remote-code
+      - --enable-auto-tool-choice
+      - --tool-call-parser=${TOOL_PARSER_D:-hermes}
+      - --gpu-memory-utilization=${GPU_MEM_UTIL_D:-0.2}
+      - --host=0.0.0.0
+      - --port=8000
+    ports:
+      - "127.0.0.1:${VLLM_PORT_D:-8003}:8000"
+
   open-webui:
     container_name: open-webui
     image: ghcr.io/open-webui/open-webui:main
-    depends_on:
-      - vllm-a
-      - vllm-b
-      - vllm-c
+    # No depends_on: the vllm-* services are profile-gated, and a depends_on
+    # would force a profiled dependency to start even when its profile is off,
+    # defeating the on/off toggle. Open WebUI connects to each endpoint over the
+    # compose network at request time and tolerates ones that are down.
     ports:
       - "${WEBUI_PORT:-3000}:8080"
     volumes:
       - open-webui:/app/backend/data   # persist chats, tools, settings
+      # Wikipedia dense-retrieval index (build_wiki_index.py output) exposed to
+      # wiki_retriever_tool.py at /index. Read-only; a bind mount of a HOST dir,
+      # not a named volume. Point WIKI_INDEX_DIR at the host path in .env. If the
+      # dir is absent the retriever tool errors on first call; the rest of the
+      # demo (chat, other tools) is unaffected.
+      - ${WIKI_INDEX_DIR:-./wiki_index}:/index:ro
     environment:
-      # Preconfigure all connections so every model shows up out of the box.
-      # Open WebUI accepts multiple OpenAI endpoints as ';'-separated lists;
-      # the API keys list is positional and must line up with the URLs.
-      - OPENAI_API_BASE_URLS=http://vllm-a:8000/v1;http://vllm-b:8000/v1;http://vllm-c:8000/v1
-      - OPENAI_API_KEYS=EMPTY;EMPTY;EMPTY
+      # Seeds all four connections on FIRST run (empty DB) so every model shows
+      # up out of the box. Open WebUI accepts multiple OpenAI endpoints as a
+      # ';'-separated list; the API keys list is positional and lines up 1:1.
+      # A URL whose model is currently off just shows as unreachable — harmless.
+      # NOTE: once seeded, these live in the open-webui volume and env changes no
+      # longer apply — edit connections in Admin > Settings > Connections instead.
+      - OPENAI_API_BASE_URLS=http://vllm-a:8000/v1;http://vllm-b:8000/v1;http://vllm-c:8000/v1;http://vllm-d:8000/v1
+      - OPENAI_API_KEYS=EMPTY;EMPTY;EMPTY;EMPTY
     restart: unless-stopped
 
 volumes:

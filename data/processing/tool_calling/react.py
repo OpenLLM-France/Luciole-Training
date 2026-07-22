@@ -2,20 +2,16 @@
 
 import os
 
-# The retriever tool set embeds each query with a CPU SentenceTransformer, and up
-# to max_concurrent_tasks (~500) of those run at once in datatrove's threadpool.
-# Left multi-threaded, each encode asks OpenBLAS/OMP for many threads; the total
-# blows past OpenBLAS's per-thread buffer pool and it aborts with
+# ~500 concurrent retriever encodes otherwise exhaust OpenBLAS's buffer pool:
 # "BLAS : Program is Terminated. Because you tried to allocate too many memory
-# regions." One BLAS thread per encode keeps the buffer count bounded (query
-# encoding is a single short string, so per-call speed is irrelevant). Must be set
-# before numpy/torch are imported (transitively via utils/datatrove below).
+# regions." Must be set before numpy/torch are imported below.
 for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
     os.environ.setdefault(_v, "1")
 
 import json
 import pathlib
 import random
+import pyarrow as pa
 import re
 from utils import create_parser, parse_args, create_executor
 from datatrove.data import Document
@@ -24,6 +20,7 @@ from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from datatrove.pipeline.inference.run_inference import InferenceConfig
 from datatrove.pipeline.inference.tool_calling import ToolCallingInferenceRunner
 from datatrove.pipeline.filters import LambdaFilter
+from datatrove.pipeline.filters import SamplerFilter
 from functools import partial
 from transformers import AutoTokenizer
 from utils import (
@@ -37,8 +34,16 @@ from react_tools import TOOL_SETS, build_tool_sets
 from react_retriever_env import new_retriever_env
 from react_wiki_structured_env import new_structured_env
 
-#_DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+
+MODELS = {
+    "qwen3-0.6b": "Qwen/Qwen3-0.6B", # For testing only, not recommended for generation
+    "qwen3-32b": "Qwen/Qwen3-32B",
+    "qwen3-30b-a3b": "Qwen/Qwen3-30B-A3B", # MoE, ~3B active; hybrid thinking toggle like 32B
+    "qwen3-30b-a3b-instruct-2507": "Qwen/Qwen3-30B-A3B-Instruct-2507", # non-thinking only
+    "qwen3-30b-a3b-thinking-2507": "Qwen/Qwen3-30B-A3B-Thinking-2507", # thinking only
+    "gpt-oss-20b": "openai/gpt-oss-20b",
+}
 
 # Offline Wikipedia ZIM mirrors (Kiwix), keyed by language.
 _WIKI_ZIM_DIR = os.path.expandvars("$OpenLLM_OUTPUT/data/react_assets/wikipedia")
@@ -47,40 +52,34 @@ WIKI_ZIM_PATHS = {
     "fr": os.path.join(_WIKI_ZIM_DIR, "wikipedia_fr_all_nopic_2026-05.zim"),
 }
 
-# Dense-retrieval index directories (built by build_wiki_index.py), keyed by
-# language. Each holds passages.jsonl / embeddings.f16.npy / meta.json and an
-# optional index.faiss. Used by the 'retriever' tool set.
+# Dense-retrieval indices built by build_wiki_index.py; used by the retriever set.
 _WIKI_INDEX_DIR = os.path.expandvars("$OpenLLM_OUTPUT/data/react_assets")
 WIKI_INDEX_PATHS = {
-    "en": os.path.join(_WIKI_INDEX_DIR, "beir_index"),      # HotpotQA corpus (English)
-    "fr": os.path.join(_WIKI_INDEX_DIR, "zim_index", "fr"),  # French ZIM lead paragraphs
+    "hotpotqa_en": os.path.join(_WIKI_INDEX_DIR, "beir_index"),            # HotpotQA/BEIR corpus (English)
+    "finewiki_en": os.path.join(_WIKI_INDEX_DIR, "finewiki_index", "en"),  # FineWiki full-article chunks (English)
 }
 
-# Base policy, used as-is when thinking is enabled: the model already reasons
-# in its <think> block, so no explicit "reason before you act" instruction is
-# needed here (see REASONING_PROMPT for the non-thinking addition).
+# Base policy, used as-is when thinking is enabled.
 SYSTEM_PROMPT = (
     "You answer the user's question by interacting with Wikipedia through the "
     "provided tools. You MUST NOT rely on your own prior knowledge: treat it as "
     "unreliable. Every fact in your answer must come from evidence you "
     "retrieved with the tools in this conversation. If you have not seen it in "
     "a tool result, you do not know it -- search for it first.\n"
-    "You MUST always end your message with a tool call. Your reasoning note is "
-    "never the final output: it only precedes the tool call. Every turn must "
-    "include at least one tool call ({tools}) -- "
-    "never reply with text alone.\n"
     "If a tool call returns an error (for example a message starting with "
     "'Error'), do not give up: read the error, correct your arguments or pick a "
     "different action, and retry.")
 
-# Appended when thinking is disabled, so the model reasons explicitly in its
-# message content before each tool call (in thinking mode the <think> block
-# already covers this).
+
+# Appended when thinking is disabled: the <think> block otherwise covers this.
+# Owns the reasoning-note rules, since it is the only prompt that defines the note.
 REASONING_PROMPT = (
     "\nReason before you act. Before every tool call, write a brief note in "
     "your message that:\n"
     "- says what you learned from the previous result (if any), and\n"
     "- states what you will do next and why.\n"
+    "Your reasoning note is never the final output: it only precedes the tool "
+    "call.\n"
     "On your first turn, also break the question into the facts you need to "
     "find.")
 
@@ -89,42 +88,35 @@ FRENCH_PROMPT = (
     "the answer passed to `submit_answer`, in French."
 )
 
-# Paraphrases of the FEVER fact-checking question. One is drawn per document so
-# the model does not overfit to a single phrasing; each must contain "{claim}".
+# Appended (retriever set only) under --inline_citations. Prompt-only: it leaves
+# submit_answer alone, so it applies whether or not the dataset has a finish tool.
+# ID is a <source> id from the results, e.g. A3.
+INLINE_CITATION_PROMPT = (
+    "\nCite your sources inline in your answer. Place a self-closing tag <ref name=\"ID\"/> "
+    "immediately after each statement a retrieved source supports, where ID is "
+    "the id of the <source> it came from. Cite every claim that comes from a "
+    "source; when several sources support one statement, add a <ref .../> for each."
+)
+
+# Drawn one per document so the model does not overfit a single phrasing.
 FEVER_QUESTION_TEMPLATES = [
     'Is the claim "{claim}" supported by the evidence in Wikipedia?',
-    'According to Wikipedia, is the following claim true? "{claim}"',
-    'Using Wikipedia as evidence, verify the claim: "{claim}".',
-    'Fact-check this claim against Wikipedia: "{claim}".',
-    'Does the evidence in Wikipedia support or refute the claim "{claim}"?',
-    'Determine whether Wikipedia supports the claim "{claim}".',
+    'According to Wikipedia, is the following claim true? {claim}',
+    'Using Wikipedia as evidence, verify the claim: {claim}',
+    'Fact-check this claim against Wikipedia:\n{claim}',
+    'Does the evidence in Wikipedia support or refute the claim: {claim}?',
+    'Determine whether Wikipedia supports the claim:\n{claim}',
 ]
 
-# On a Wikipedia disambiguation page, automatically open its top option (and name
-# the alternatives) instead of returning the option list for the model to choose
-# from. Applies to the wiki_api and wiki_structured tool sets; it drives both the
-# env behaviour and the flag-aware `search` tool description (build_tool_sets).
+# Auto-open a disambiguation page's top option instead of listing the options.
+# Must be passed to both preproc and the env factory: it drives the `search` tool
+# description as well as the behaviour.
 AUTO_DISAMBIGUATION = True
 
-def call_tool(env, name, arguments, tool_names=None):
-    """Dispatch a single tool call to its WikiEnv implementation.
-
-    `env` is a per-conversation WikiEnv instance (search loads the page that a
-    subsequent lookup reads, so state must not be shared across conversations).
-
-    Always returns an observation string. Any failure -- unknown tool, bad
-    arguments, or an error raised by the tool itself (e.g. a network error while
-    searching Wikipedia) -- is caught and returned as an error message, so the
-    model can react to it and the whole episode is not aborted.
-
-    `tool_names` is the set of tool names allowed for the active tool set (see
-    TOOL_SETS); an unrecognised call is turned into an error observation. When
-    None, it falls back to the env's own `allowed_tool_names` (set per document
-    by new_env_for_doc, since each doc draws its own tool_type); if the env has
-    none either, the name check is skipped (any method on the env may be called).
-    """
-    if tool_names is None:
-        tool_names = getattr(env, "allowed_tool_names", None)
+def call_tool(env, name, arguments):
+    """Dispatch one tool call to its env, returning any failure as an observation
+    string so the model can react to it instead of the episode aborting."""
+    tool_names = getattr(env, "allowed_tool_names", None)
     if tool_names is not None and name not in tool_names:
         return f"Error: unknown tool '{name}'. Available tools: {', '.join(tool_names)}."
     if not isinstance(arguments, dict):
@@ -143,36 +135,19 @@ def call_tool(env, name, arguments, tool_names=None):
 
 def new_env(doc, backend="online", zim_path=None, accept_threshold=None,
             auto_disambiguation=False, scorer=None):
-    """Create a fresh, isolated Wikipedia browser for one conversation.
-
-    The document's ground-truth answer is passed in so that `submit_answer`
-    can grade the agent's final answer with exact match. `backend`/`zim_path`
-    select live Wikipedia vs. a local ZIM snapshot (see WikiEnv);
-    `accept_threshold` is the F1 an answer must strictly exceed to be accepted
-    (negative = accept any answer on the first submit); `auto_disambiguation`
-    auto-opens the top option of a disambiguation page instead of asking;
-    `scorer` overrides the default token-F1 grading (e.g. FEVER exact match).
-    """
+    """Create a fresh Wikipedia browser for one conversation. Search loads the page
+    a later lookup reads, so env state must not be shared across conversations."""
     env = WikiEnv(ground_truth=doc.metadata["answer"], backend=backend, zim_path=zim_path,
                   accept_threshold=accept_threshold, auto_disambiguation=auto_disambiguation,
                   scorer=scorer)
-    # Alias the env's score history into the doc so each submit_answer score
-    # lands in the output metadata (same list object -> appends persist).
+    # Same list object, so later submit_answer scores land in the output metadata.
     doc.metadata["submit_answer_scores"] = env.scores
     return env
 
 
 def new_env_for_doc(doc, backend="online", zim_path=None, index_dir=None,
                     accept_threshold=None, auto_disambiguation=False, scorer=None):
-    """Build the env matching this document's drawn tool_type.
-
-    tool_type is chosen per document in preproc (not a global run setting), so
-    the env factory has to dispatch on `doc.metadata["tool_type"]`: 'wiki_api'
-    browses the ZIM/HTTP Wikipedia, 'retriever' searches the dense index. The
-    allowed tool names for the chosen set are stashed on the env so call_tool
-    can validate calls without a globally-fixed tool set. `scorer` (a run-level
-    grading function, e.g. FEVER exact match) overrides the default token-F1.
-    """
+    """Build the env matching this document's drawn tool_type."""
     tool_type = doc.metadata["tool_type"]
     if tool_type == "wiki_api":
         env = new_env(doc, backend=backend, zim_path=zim_path,
@@ -187,22 +162,34 @@ def new_env_for_doc(doc, backend="online", zim_path=None, index_dir=None,
                                 accept_threshold=accept_threshold, scorer=scorer)
     else:
         raise ValueError(f"Unknown tool_type: {tool_type!r}")
-    env.allowed_tool_names = [t["function"]["name"] for t in TOOL_SETS[tool_type]]
+    # From the tools actually offered, not TOOL_SETS: build_tool_sets may drop
+    # submit_answer for the dataset.
+    env.allowed_tool_names = [t["function"]["name"] for t in doc.metadata["tools"]]
     return env
 
 
-def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
+def generation_config(model, temperature=None, enable_thinking=False, max_tokens=None):
+    if "gpt-oss" in MODELS[model]:
+        # gpt-oss always reasons: depth is reasoning_effort, not enable_thinking.
+        if not temperature:
+            temperature = 1.0
+        if not max_tokens:
+            max_tokens = 8192
+        return {
+            "max_tokens": max_tokens,
+            "chat_template_kwargs": {"reasoning_effort": "low"},
+            "temperature": temperature,
+            "top_p": 1.0,
+        }
     # https://huggingface.co/Qwen/Qwen3-1.7B#best-practices
     # https://huggingface.co/Qwen/Qwen3-32B#best-practices
     if enable_thinking:
         if not temperature:
             temperature = 0.6
         if not max_tokens:
-            # Per-turn output budget. Must stay well below model_max_context
-            # (32768): it is the cap on a SINGLE turn's generation, and the
-            # conversation grows each turn, so requesting the whole window
-            # (Qwen3's 32768 single-response recommendation) leaves no room for
-            # the prompt and every request 400s.
+            # Caps a SINGLE turn, so it must stay well below model_max_context
+            # (32768) -- the conversation grows each turn, and a full-window
+            # value leaves no room for the prompt: every request 400s.
             max_tokens = 8192
         return {
             "max_tokens": max_tokens,
@@ -211,12 +198,12 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
             "top_p": 0.95,
             "top_k": 20,
             "min_p": 0.0,
-        }    
+        }
     else:
         if not temperature:
             temperature = 0.7
         if not max_tokens:
-            max_tokens = 2048 
+            max_tokens = 2048
         return {
             "max_tokens": max_tokens,
             "chat_template_kwargs": {"enable_thinking": False},
@@ -227,29 +214,22 @@ def generation_config(temperature=None, enable_thinking=False, max_tokens=None):
         }
 
 
-def agent_query_builder(runner, doc, temperature=None, enable_thinking=False, max_tokens=None):
-    # Initial turn for the agent loop: raw messages + structured tools are sent
-    # to /v1/chat/completions; the server applies the chat template and parses
-    # tool calls. The runner reuses tools + sampling on every subsequent turn.
+def agent_query_builder(runner, doc, gen_config):
+    # Initial turn only: the runner reuses tools + sampling on every later turn.
     return {
         "messages": doc.metadata["messages"],
         "tools": doc.metadata["tools"],
-        **generation_config(temperature=temperature, enable_thinking=enable_thinking, max_tokens=max_tokens),
+        **gen_config,
     }
 
 
-def _build_system_prompt(tools, enable_thinking, lang):
-    # Enumerate the active tool names into the prompt so the "every turn must
-    # call a tool" rule lists the tools actually available (search/lookup vs.
-    # wikipedia_retriever/next_results), not a hard-coded set.
-    tools_clause = ", ".join(f"`{t['function']['name']}`" for t in tools)
-    # In thinking mode the model reasons in its <think> block, so use the
-    # variant without the explicit "reason before you act" instructions.
-    system_prompt = SYSTEM_PROMPT.format(tools=tools_clause)
+def _build_system_prompt(enable_thinking, lang, cite_inline=False):
+    system_prompt = SYSTEM_PROMPT
     if not enable_thinking:
         system_prompt += REASONING_PROMPT
-    # The French HotpotQA queries are translated but the answer language is not
-    # pinned by the data, so force French output explicitly.
+    if cite_inline:
+        system_prompt += INLINE_CITATION_PROMPT
+    # The translated queries do not pin the answer language, so force it.
     if lang == "fr":
         system_prompt += FRENCH_PROMPT
     return system_prompt
@@ -264,21 +244,16 @@ def preproc(
     tool_types: list = None,
     auto_disambiguation: bool = False,
     dataset_name: str = None,
+    inline_citations: bool = False,
 ):
-    # tool_type is drawn independently per document (not a global run setting):
-    # a single run interleaves the active tool sets so the model sees them mixed.
-    # The system prompt and tool schemas depend on the tool set, so precompute one
-    # prompt per tool_type and select per doc. Seed the RNG from rank so each
-    # task is reproducible and the draws differ across shards. `tool_types`
-    # restricts which sets a run draws from (default: all of TOOL_SETS), so a run
-    # can isolate or compare browsing styles (e.g. wiki_api vs wiki_structured).
-    # The `search` descriptions depend on auto_disambiguation, so resolve the tool
-    # schemas for the run's mode (build_tool_sets); it must match the env factory's
-    # auto_disambiguation, which drives the actual behaviour.
+    # tool_type is drawn per document, not per run, so a run mixes the tool sets.
+    # Seeded from rank: reproducible per task, different across shards.
     tool_sets = build_tool_sets(auto_disambiguation, dataset_name)
     tool_types = list(tool_types) if tool_types else list(tool_sets.keys())
+    # Inline citations are a retriever-set concept (only it emits <source> ids).
     system_prompts = {
-        tt: _build_system_prompt(tool_sets[tt], enable_thinking, lang)
+        tt: _build_system_prompt(enable_thinking, lang,
+                                 cite_inline=(inline_citations and tt == "retriever"))
         for tt in tool_types
     }
     rng = random.Random(rank)
@@ -308,24 +283,49 @@ def preproc(
         yield doc
 
 
-def postprocess_fn(self, doc, model_size, gen_config):
-    doc.metadata[f"inference_results"] = doc.metadata.pop("inference_results")
-    doc.metadata[f"generation_config"] = {"model_name_or_path": MODEL_SIZES[model_size], **gen_config}
-    # Scores of every submit_answer call this run (last element = final score).
-    doc.metadata[f"submit_answer_scores"] = doc.metadata.pop("submit_answer_scores", [])
+def postprocess_fn(self, doc, model, gen_config):
+    doc.metadata["generation_config"] = {"model_name_or_path": MODELS[model], **gen_config}
+    # Absent when the agent never submitted, but the parquet schema needs the key.
+    doc.metadata.setdefault("submit_answer_scores", [])
     return doc
 
-def stabilize_for_parquet(data, rank: int = 0, world_size: int = 1):
-    """Coerce the two columns whose type is unstable across shards to a fixed type.
+# Pinned because schema=None locks the file to its FIRST document and rejects any
+# later batch with different columns ("Table schema does not match"), which older
+# `formatted/data` shards do have. Coercing to this makes absent keys null.
+REACT_PARQUET_SCHEMA = pa.schema([
+    ("text", pa.string()),
+    ("id", pa.string()),
+    ("question", pa.string()),
+    ("answer", pa.string()),
+    ("messages", pa.list_(pa.struct([("role", pa.string()), ("content", pa.string())]))),
+    ("tools", pa.string()),
+    ("tool_type", pa.string()),
+    ("dataset_name", pa.string()),
+    ("language", pa.string()),
+    ("enable_thinking", pa.bool_()),
+    ("num_turns", pa.int64()),
+    ("inference_results", pa.string()),
+    ("generation_config", pa.struct([
+        ("model_name_or_path", pa.string()),
+        ("max_tokens", pa.int64()),
+        # Mutually exclusive per model family; the unused one is null.
+        ("chat_template_kwargs", pa.struct([("enable_thinking", pa.bool_()), ("reasoning_effort", pa.string())])),
+        ("temperature", pa.float64()),
+        ("top_p", pa.float64()),
+        ("top_k", pa.int64()),
+        ("min_p", pa.float64()),
+    ])),
+    ("submit_answer_scores", pa.list_(pa.float64())),
+    ("file_path", pa.string()),
+])
 
-    load_dataset() unifies the parquet schema of every shard, so a column must
-    have the same arrow type in all of them. Two do not, and break the load:
-      - `id`: int64 for FEVER (integer source ids), string for the QA datasets
-        -> force str everywhere.
-      - `inference_results[].message.{content,reasoning}`: string in one thinking
-        mode and all-None (-> arrow null type) in the other, so unifying a
-        thinking and a non_thinking shard raises "cast string to null" -> serialize
-        the whole structure to a JSON string (the same treatment `tools` gets).
+
+def stabilize_for_parquet(data, rank: int = 0, world_size: int = 1):
+    """Fix the two columns whose arrow type drifts across shards, which breaks
+    load_dataset()'s schema unification:
+      - `id`: int64 for FEVER, string elsewhere -> str everywhere.
+      - `inference_results`: message.{content,reasoning} is all-None (null type) in
+        one thinking mode, string in the other ("cast string to null") -> JSON.
     """
     for doc in data:
         doc.id = str(doc.id)
@@ -338,7 +338,7 @@ def stabilize_for_parquet(data, rank: int = 0, world_size: int = 1):
 def filter_function(doc):
     answer_scores = doc.metadata.get("submit_answer_scores", [])
     if doc.metadata["answer"] is not None:
-        if not answer_scores:  # Check if the last score is 0.0 or if the list is empty
+        if not answer_scores:
             return False, "no_answer"
         if answer_scores[-1] == 0.0:
             return False, "answer_incorrect"
@@ -348,7 +348,14 @@ def filter_function(doc):
         return False, "too_few_turns"
     return True
 
-def create_reader(dataset_name, language):
+def create_reader(dataset_name, language, input_path=None, glob_pattern="**/*.jsonl.gz"):
+    if input_path is not None:
+        reader = [
+            JsonlReader(
+                input_path, glob_pattern=glob_pattern, adapter=instruct_adapter
+            ),
+        ]
+        return reader
     if dataset_name == "hotpotqa":
         if language == "en":
             reader = [
@@ -406,31 +413,51 @@ def create_reader(dataset_name, language):
             ),
             get_question,
         ]
+    elif dataset_name == "pleais_rag":
+        def get_question(data, rank: int = 0, world_size: int = 1):
+            for doc in data:
+                doc.metadata["question"] = doc.metadata["messages"][1]["content"]
+                doc.metadata["answer"] = None
+                yield doc
+        reader = [
+            HuggingFaceDatasetReader(
+                "OpenLLM-France/PleAIs_RAG",
+                {"split": "train"},
+                streaming=False,
+                adapter=instruct_adapter,
+            ),
+            get_question,
+        ]
     else:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
     return reader
-    
-MODEL_SIZES = {
-    "0.6b": "Qwen/Qwen3-0.6B", # For testing only, not recommended for generation
-    "32b": "Qwen/Qwen3-32B",
-}
+
 
 if __name__ == "__main__":
     parser = create_parser()
-    parser.add_argument("--glob_pattern", type=str, default=None, help="Glob pattern to match input files")
+    parser.add_argument("--glob_pattern", type=str, default="**/*.jsonl.gz",
+                        help="Glob pattern to match input files under --input_path")
+    parser.add_argument("--sample_rate", type=float, default=None, help="Sample rate for sampling input data (between 0.0 and 1.0)")
     parser.add_argument("--temperature", type=float, default=None, help="Temperature for sampling")
     parser.add_argument("--enable_thinking", action="store_true", help="Enable thinking.")
-    parser.add_argument("--max_tokens", type=int, default=None, help="Max tokens to generate (defaults: 32768 thinking, 2048 non-thinking)")
-    parser.add_argument("--size", type=str, default="32b", choices=MODEL_SIZES.keys(), help="Size of the chosen model")
-    parser.add_argument("--tp", type=int, default=1)
+    parser.add_argument("--max_tokens", type=int, default=None,
+                        help="Max tokens to generate per turn (defaults: 8192 thinking and gpt-oss, "
+                             "2048 non-thinking)")
+    parser.add_argument("--model", type=str, default="qwen3-32b", choices=MODELS.keys(), help="Model to use for generation")
+    parser.add_argument("--tp", type=int, default=1, help="Tensor-parallel size (GPUs per node)")
     parser.add_argument("--backend", type=str, default="offline", choices=["online", "offline"],
                         help="Wikipedia source: 'offline' (local ZIM mirror, default) or 'online' (live HTTP)")
     parser.add_argument("--main_name", type=str, default="react", help="Main output directory name for this run (default: 'react')")
-    parser.add_argument("--dataset_name", type=str, default="hotpotqa", choices=["hotpotqa", "multihopqa", "fever"])
+    parser.add_argument("--dataset_name", type=str, default="hotpotqa")
+    parser.add_argument("--input_path", type=str, default=None, help="Path to input data (continuing on the failed shards of a previous run)")
     parser.add_argument("--lang", type=str, default="en", choices=WIKI_ZIM_PATHS.keys(),
                         help="Wikipedia language for the offline backend; selects the ZIM mirror "
                              "from WIKI_ZIM_PATHS")
+    parser.add_argument("--retriever_corpus", type=str, default="finewiki",
+                        choices=["hotpotqa", "finewiki"],
+                        help="Which dense-retrieval corpus the 'retriever' tool set queries; combined "
+                             "with --lang to key WIKI_INDEX_PATHS (e.g. 'finewiki' + 'en' -> finewiki_en)")
     parser.add_argument("--accept_threshold", type=float, default=-1,
                         help="F1 the answer must strictly exceed for submit_answer to accept it and "
                              "end the episode (0 = any token overlap; below it the model is asked to "
@@ -441,21 +468,33 @@ if __name__ == "__main__":
                         help="Tool sets a run draws from, one per document (default: all). Restrict "
                              "to isolate or compare browsing styles, e.g. '--tool_types wiki_api "
                              "wiki_structured' or '--tool_types wiki_structured'")
+    parser.add_argument("--inline_citations", action="store_true",
+                        help="Retriever set: instruct the model to cite its sources inline with "
+                             "<ref name=\"ID\"/> markup (ID = a <source> id). Prompt-only; the tool "
+                             "schemas are unchanged. No effect on the other tool sets.")
     parser.add_argument("--format_only", action="store_true", help="Run only formatting.")
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    # Output tree: dataset / thinking mode / language. tool_type is no longer a
-    # path axis here because a single run mixes both (drawn per doc in preproc);
-    # it is recorded per document in metadata and used to partition only the
-    # final HF parquet layout (see ${tool_type} in the HF writer below).
+    # The 2507 splits dropped the hybrid thinking toggle: Instruct is
+    # non-thinking only, Thinking always reasons. Enforce that --enable_thinking
+    # matches the chosen model so we don't silently run the wrong mode.
+    model_path = MODELS[args.model]
+    if model_path.endswith("Instruct-2507"):
+        assert not args.enable_thinking, f"{model_path} is non-thinking only; drop --enable_thinking"
+    elif model_path.endswith("Thinking-2507"):
+        assert args.enable_thinking, f"{model_path} is thinking only; pass --enable_thinking"
+
     dataset_name = args.dataset_name
+    # Only a fresh run needs a known HF source; a continuation reads --input_path
+    # and just carries the name through, so anything goes there.
+    KNOWN_DATASETS = ("hotpotqa", "multihopqa", "fever", "pleais_rag")
+    if args.input_path is None and dataset_name not in KNOWN_DATASETS:
+        parser.error(f"--dataset_name must be one of {KNOWN_DATASETS} (got {dataset_name!r})")
     thinking_dir = "thinking" if args.enable_thinking else "non_thinking"
     OUT_NAME = f"{args.main_name}/{dataset_name}/{thinking_dir}/{args.lang}"
 
-    # --push_only: push the already-formatted data to the hub and exit. Nothing
-    # else is needed -- no reader, inference config, tokenizer, or format
-    # pipeline -- so build just the push executor here and stop.
+    # Push the already-formatted data and exit.
     if args.push_only:
         push_pipeline = [
             JsonlReader(
@@ -469,7 +508,7 @@ if __name__ == "__main__":
                 output_filename=f"data/{dataset_name}/" + "${tool_type}/" + f"{thinking_dir}/{args.lang}/" + "${rank}.parquet",
                 cleanup=True,
                 expand_metadata=True,
-                schema=None,
+                schema=REACT_PARQUET_SCHEMA,
             ),
         ]
         create_executor(
@@ -483,41 +522,41 @@ if __name__ == "__main__":
         ).run()
         raise SystemExit(0)
 
-    # The active tool sets are drawn per doc in preproc, so the env factory
-    # dispatches per document; they share submit_answer and the F1 grading and
-    # differ only in how the agent reaches Wikipedia (title browse / section
-    # browse / dense retrieval). Fail fast here if a backend asset needed by an
-    # active tool set is missing for this language, rather than deep inside an
-    # episode. wiki_api and wiki_structured both browse the ZIM; retriever needs
-    # the dense index -- so only assert what the selected --tool_types require.
+    # Fail fast if an asset is missing, rather than deep inside an episode. Only
+    # assert what the selected --tool_types require.
     active_tool_types = args.tool_types or list(TOOL_SETS.keys())
     zim_path = WIKI_ZIM_PATHS[args.lang]
-    index_dir = WIKI_INDEX_PATHS[args.lang]
+    index_key = f"{args.retriever_corpus}_{args.lang}"
+    index_dir = WIKI_INDEX_PATHS.get(index_key)
     needs_zim = bool({"wiki_api", "wiki_structured"} & set(active_tool_types))
     needs_index = "retriever" in active_tool_types
     if needs_zim and args.backend == "offline":
         assert os.path.exists(zim_path), f"ZIM mirror not found for lang '{args.lang}': {zim_path}"
     if needs_index:
-        assert os.path.isdir(index_dir), f"Retriever index not found for lang '{args.lang}': {index_dir}"
+        assert index_dir, f"No retriever index configured for '{index_key}'; known: {list(WIKI_INDEX_PATHS)}"
+        assert os.path.isdir(index_dir), f"Retriever index '{index_key}' not found on disk: {index_dir}"
     env_factory = partial(new_env_for_doc, backend=args.backend, zim_path=zim_path,
                           index_dir=index_dir, accept_threshold=args.accept_threshold,
                           auto_disambiguation=AUTO_DISAMBIGUATION,
                           scorer=SCORERS.get(dataset_name))
 
     # Structured tool calling: vLLM parses tool calls into message.tool_calls.
-    model_kwargs = {
-        "enable-auto-tool-choice": True,
-        "tool-call-parser": "hermes",  # Qwen3 uses the hermes-style parser
-    }
-    if args.enable_thinking:
-        # Split the <think> block into message.reasoning_content so the Qwen3
-        # chat template preserves it across the tool-calling rollout instead of
-        # leaving it inline in content.
-        model_kwargs["reasoning-parser"] = "qwen3"
+    # Parser choice is model-family specific.
+    model_kwargs = {"enable-auto-tool-choice": True}
+    if "gpt-oss" in MODELS[args.model]:
+        # Harmony format. Always reasons, so the reasoning parser is unconditional.
+        model_kwargs["tool-call-parser"] = "openai"
+        model_kwargs["reasoning-parser"] = "openai_gptoss"
+    else:
+        model_kwargs["tool-call-parser"] = "hermes"
+        if args.enable_thinking:
+            # Splits <think> into message.reasoning_content, which the Qwen3
+            # template needs to preserve it across the rollout.
+            model_kwargs["reasoning-parser"] = "qwen3"
 
     config: InferenceConfig = InferenceConfig(
         server_type="vllm",
-        model_name_or_path=MODEL_SIZES[args.size],
+        model_name_or_path=MODELS[args.model],
         tp=args.tp,
         model_max_context=32768,
         max_concurrent_requests=500,
@@ -527,20 +566,21 @@ if __name__ == "__main__":
     )
 
     #########
-    # Generate chosen samples
+    # Generation
     #########
-    reader = create_reader(dataset_name, args.lang)
+    reader = create_reader(dataset_name, args.lang, input_path=args.input_path,
+                           glob_pattern=args.glob_pattern)
+    gen_config = generation_config(model=args.model, temperature=args.temperature,
+                                   enable_thinking=args.enable_thinking, max_tokens=args.max_tokens)
 
     pipeline = reader + [
         partial(preproc, enable_thinking=args.enable_thinking, lang=args.lang,
                 tool_types=args.tool_types, auto_disambiguation=AUTO_DISAMBIGUATION,
-                dataset_name=dataset_name),
+                dataset_name=dataset_name, inline_citations=args.inline_citations),
         ToolCallingInferenceRunner(
-            query_builder=partial(agent_query_builder, temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens),
+            query_builder=partial(agent_query_builder, gen_config=gen_config),
             config=config,
             env_factory=env_factory,
-            # tool_names is left to the default None so call_tool validates
-            # against each env's own allowed_tool_names (tool_type is per doc).
             tool_executor=call_tool,
             finish_tool="submit_answer",
             max_turns=args.max_turns,
@@ -550,10 +590,15 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/{OUT_NAME}/data",
                 output_filename="${tool_type}/${rank}_chunk_${chunk_index}.jsonl",
             ),
-            postprocess_fn=partial(postprocess_fn, model_size=args.size, gen_config=generation_config(temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens)),
+            postprocess_fn=partial(postprocess_fn, model=args.model, gen_config=gen_config),
             skip_bad_requests=True
         ),
     ]
+
+    if args.sample_rate is not None:
+        pipeline.insert(1, SamplerFilter(rate=args.sample_rate, seed=42, exclusion_writer=JsonlWriter(
+            f"{DATA_PATH}/{OUT_NAME}/sampler_filtered",
+        )))
 
     executor = create_executor(
         pipeline,
@@ -567,7 +612,6 @@ if __name__ == "__main__":
         qos="qos_gpu_h100-t3",
         partition="gpu_p6",
         cpus_per_task=32,
-        #env_command="source ~/OpenLLM-BPI-Training/data/set_env_inference.sh",
         env_command=f"source {_DATA_DIR}/set_env_inference.sh",
         sbatch_args={
             "account": "wuh@h100",
@@ -615,7 +659,7 @@ if __name__ == "__main__":
         local=args.local,
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/{OUT_NAME}/formatted/logs",
-        job_name=f"react_format",
+        job_name="react_format",
         partition="cpu_p1",
         tasks=1,
         time="01:00:00",

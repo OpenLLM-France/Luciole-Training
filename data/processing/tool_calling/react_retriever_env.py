@@ -27,8 +27,12 @@ from react_wiki_env import GradedEnv
 # The query encoder is not configurable here: it must match the model the index
 # was built with, so it is read from the index's meta.json. Index directories
 # (keyed by language) are defined in react_hotpot.WIKI_INDEX_PATHS.
-DEFAULT_TOP_K = 5  # passages returned by wikipedia_retriever() when the model omits k
-MAX_TOP_K = 10     # hard cap so a model cannot flood the episode context with k
+DEFAULT_TOP_K = 10  # passages returned by wikipedia_retriever() when the model omits k
+MAX_TOP_K = 20      # hard cap so a model cannot flood the episode context with k
+# Max characters shown per source in an observation; -1 (or <=0) = no cap -- show
+# the whole chunk, whose size is already bounded at index-build time (e.g.
+# FineWiki's --max_length tokens per section).
+MAX_PASSAGE_CHARS = -1
 
 # How often (in queries) to emit an embedding-profiling line; 0 disables it.
 EMBED_LOG_EVERY = int(os.environ.get("REACT_EMBED_LOG_EVERY", "50"))
@@ -233,6 +237,43 @@ def _open_embedder(model_name):
     return model
 
 
+def _request_label(n):
+    """Spreadsheet-style letter for the n-th request (1->A, 26->Z, 27->AA)."""
+    s = ""
+    while n > 0:
+        n, r = divmod(n - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
+def _clean_passage(text):
+    """Tidy a passage while preserving its line structure (for multi-line passages).
+
+    Collapses intra-line whitespace and strips each line, drops leading/trailing
+    blank lines, and squeezes runs of blank lines to a single one -- so paragraph
+    breaks survive but stray indentation and blank runs do not bloat the context.
+    """
+    out = []
+    for line in text.splitlines():
+        line = " ".join(line.split())
+        if not line and (not out or not out[-1]):
+            continue  # skip leading blank / collapse blank runs
+        out.append(line)
+    while out and not out[-1]:
+        out.pop()
+    return "\n".join(out)
+
+
+def _attr(value):
+    """Make a string safe to sit inside a double-quoted XML attribute.
+
+    Only the quote can break the tag structure a reader relies on, so neutralise
+    it (titles rarely contain one); everything else is left readable rather than
+    entity-escaped, since the observation is shown to the model, not parsed.
+    """
+    return " ".join(value.split()).replace('"', "'")
+
+
 class RetrieverEnv(GradedEnv):
     """Dense-retrieval env backing the `wikipedia_retriever` tool.
 
@@ -243,19 +284,24 @@ class RetrieverEnv(GradedEnv):
     GradedEnv (identical to the wiki_api tool set).
     """
 
-    def __init__(self, ground_truth=None, index_dir=None, max_passage_chars=600,
+    def __init__(self, ground_truth=None, index_dir=None,
                  accept_threshold=None, scorer=None):
         super().__init__(ground_truth=ground_truth, accept_threshold=accept_threshold,
                          scorer=scorer)
         if not index_dir:
             raise ValueError("RetrieverEnv requires an index_dir")
         self.index_dir = index_dir
-        self.max_passage_chars = max_passage_chars
         # Pagination state for next_results: the most recent query's embedding
         # and how many of its ranked results have already been shown. Per-episode
         # (each conversation gets a fresh env), so no cross-conversation leakage.
         self._last_qvec = None
         self._last_offset = 0
+        # Per-request label so passage ids are globally unique within an episode:
+        # the Nth wikipedia_retriever call is request A, B, C, ... and its passages
+        # are [A1], [A2], ...; next_results keeps the same letter and continues the
+        # numbering ([A6], [A7]). Reset each episode with the fresh env.
+        self._request_no = 0
+        self._request_label = ""
 
     def wikipedia_retriever(self, query, k=DEFAULT_TOP_K):
         """wikipedia_retriever[query, k]: the top-k Wikipedia passages by semantic similarity.
@@ -297,6 +343,9 @@ class RetrieverEnv(GradedEnv):
         if not hits:
             self.obs = "No passages found for that query."
             return self.obs
+        # New request -> next letter; next_results will keep this letter.
+        self._request_no += 1
+        self._request_label = _request_label(self._request_no)
         self._last_offset = len(hits)
         self.obs = self._render(index, hits, start_rank=1)
         return self.obs
@@ -325,16 +374,30 @@ class RetrieverEnv(GradedEnv):
         return self.obs
 
     def _render(self, index, hits, start_rank):
-        """Format ranked (score, row) hits as an observation, numbered from start_rank."""
-        lines = []
+        """Format ranked (score, row) hits as an observation.
+
+        Each passage is wrapped in a <source id="..." title="..."> tag. The id is
+        the request letter plus its rank within that request's ranked list (e.g.
+        A1, A2 for the first query; B1 for the next query; and, after a
+        next_results, A6), so ids stay unique across every query in the episode and
+        submit_answer can cite them. The explicit open/close tag delimits passages
+        unambiguously even when a passage spans multiple lines -- a bare
+        line-leading id could otherwise be confused with the passage's own text.
+        """
+        label = self._request_label
+        blocks = []
         for offset, (score, i) in enumerate(hits):
-            text = " ".join(index.texts[i].split())
-            if len(text) > self.max_passage_chars:
-                text = text[: self.max_passage_chars].rstrip() + "..."
+            text = _clean_passage(index.texts[i])
+            if MAX_PASSAGE_CHARS > 0 and len(text) > MAX_PASSAGE_CHARS:
+                text = text[:MAX_PASSAGE_CHARS].rstrip() + "..."
+            pid = f"{label}{start_rank + offset}"
             title = index.titles[i]
-            rank = start_rank + offset
-            lines.append(f"[{rank}] {title}: {text}" if title else f"[{rank}] {text}")
-        return "\n".join(lines)
+            open_tag = (
+                f'<source id="{pid}" title="{_attr(title)}">' if title
+                else f'<source id="{pid}">'
+            )
+            blocks.append(f"{open_tag}\n{text}\n</source>")
+        return "\n\n".join(blocks)
 
 
 def new_retriever_env(doc, index_dir=None, accept_threshold=None, scorer=None):
@@ -344,7 +407,8 @@ def new_retriever_env(doc, index_dir=None, accept_threshold=None, scorer=None):
     is taken from the document so `submit_answer` can grade the agent; the env's
     score list is aliased into the doc metadata so each submit_answer score lands
     in the output (same list object). `scorer` overrides the default token-F1
-    grading (e.g. FEVER exact match).
+    grading (e.g. FEVER exact match). How much of each source is shown is capped by
+    the module-level MAX_PASSAGE_CHARS.
     """
     env = RetrieverEnv(
         ground_truth=doc.metadata["answer"], index_dir=index_dir,

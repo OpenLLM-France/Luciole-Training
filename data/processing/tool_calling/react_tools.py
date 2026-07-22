@@ -7,9 +7,10 @@ heavy dependencies live here -- the backends that execute these tools are:
   wiki_api   `search` + `lookup`                 -> WikiEnv      (react_wiki_env.py)
   retriever  `wikipedia_retriever` + `next_results` -> RetrieverEnv (react_retriever_env.py)
 
-Both tool sets share the same `submit_answer` finish tool and the same F1
-grading (GradedEnv, react_wiki_env.py); only the retrieval half differs. react_hotpot
-imports TOOL_SETS to expose the right schemas and picks the matching env factory.
+The tool sets share the same `submit_answer` finish tool and the same F1 grading
+(GradedEnv, react_wiki_env.py); only the retrieval half differs. react.py imports
+TOOL_SETS to expose the right schemas and picks the matching env factory. Datasets
+mapped to None in SUBMIT_ANSWER_TOOLS get no finish tool at all (see build_tool_sets).
 
 The `search` tools' descriptions depend on the run's `--auto_disambiguation`
 mode (manual: lists the ambiguous title's options; auto: opens the top one), so
@@ -69,9 +70,46 @@ FEVER_SUBMIT_ANSWER_TOOL["function"]["parameters"]["properties"]["short_answer"]
     "enum": ["supports", "refutes", "not enough info"],
 }
 
-# Datasets whose submit_answer differs from the default open-ended QA one. Any
-# dataset absent here uses SUBMIT_ANSWER_TOOL. Resolved per run by build_tool_sets.
-SUBMIT_ANSWER_TOOLS = {"fever": FEVER_SUBMIT_ANSWER_TOOL}
+# Datasets whose submit_answer differs from the default; anything absent uses
+# SUBMIT_ANSWER_TOOL. None = no finish tool at all: PleAIs_RAG is ungraded
+# (answer=None) and wants a prose answer, so its episodes end on the agent loop's
+# text-only break instead of via finish_tool.
+SUBMIT_ANSWER_TOOLS = {"fever": FEVER_SUBMIT_ANSWER_TOOL, "pleais_rag": None}
+
+
+# Retriever variant: each `supporting_facts` entry is a nested {id, quote} object
+# -- the id attribute of a <source id="A1" ...> tag the retriever emits, plus a
+# short snippet of evidence from it. The nested form keeps id and quote as
+# separate typed fields (no "A3: ..." string parsing, and quote overlap with the
+# source is easy to check as a soft monitoring signal), and exercises structured
+# tool output. We deliberately do NOT require the quote be verbatim: an unenforced
+# "copy exactly" rule would just teach the model to ignore instructions. Only the
+# retriever tool set emits those tags, so this variant is retriever-specific (see
+# RETRIEVER_TOOLS / build_tool_sets); the wiki_api and wiki_structured sets keep
+# the plain sentence form (a list of strings).
+RETRIEVER_SUBMIT_ANSWER_TOOL = copy.deepcopy(SUBMIT_ANSWER_TOOL)
+RETRIEVER_SUBMIT_ANSWER_TOOL["function"]["parameters"]["properties"]["supporting_facts"] = {
+    "type": "array",
+    "description": (
+        "The facts that support the answer, one per entry. Cite every source that "
+        "contributed to your reasoning, not just the final one. If no source "
+        "supports the answer, use an empty list."
+    ),
+    "items": {
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "The id of the supporting <source>, e.g. \"A3\".",
+            },
+            "quote": {
+                "type": "string",
+                "description": "A short snippet of the evidence from that source that supports this fact.",
+            },
+        },
+        "required": ["id", "quote"],
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -133,8 +171,7 @@ WIKIPEDIA_RETRIEVER_TOOL = {
             "keyword. The query can be a natural-language question or a "
             "description of the fact you need -- you do not need an exact page "
             "title. Returns the top matching passages, each with its article "
-            "title. Starts a new ranked list; use `next_results` to see further "
-            "results for the same query."
+            "title."
         ),
         "parameters": {
             "type": "object",
@@ -145,7 +182,7 @@ WIKIPEDIA_RETRIEVER_TOOL = {
                 },
                 "k": {
                     "type": "integer",
-                    "description": "Optional number of passages to return (default 5, max 10).",
+                    "description": "Optional number of passages to return (default 10, max 20).",
                 },
             },
             "required": ["query"],
@@ -169,7 +206,7 @@ NEXT_RESULTS_TOOL = {
             "properties": {
                 "k": {
                     "type": "integer",
-                    "description": "Optional number of additional passages to return (default 5, max 10).",
+                    "description": "Optional number of additional passages to return (default 10, max 20).",
                 },
             },
             "required": [],
@@ -183,8 +220,9 @@ RETRIEVER_TOOLS = [WIKIPEDIA_RETRIEVER_TOOL, NEXT_RESULTS_TOOL, SUBMIT_ANSWER_TO
 # ---------------------------------------------------------------------------
 # wiki_structured tool set: browse Wikipedia by section. `search` resolves a
 # title and loads the page, returning its introduction (abstract);
-# `get_page_structure` lists the page's section outline, and `get_section` reads
-# one section. (The abstract is not a separate tool: it is shown by `search`.)
+# `get_page_structure` lists the page's section outline, `get_section` reads one
+# section's prose, and `get_table` renders a section's data table(s) as Markdown.
+# (The abstract is not a separate tool: it is shown by `search`.)
 # Backed by WikiStructuredEnv (react_wiki_structured_env.py).
 # ---------------------------------------------------------------------------
 # search here returns the page's abstract (WikiStructuredEnv._landing_obs),
@@ -244,13 +282,39 @@ GET_SECTION_TOOL = {
     },
 }
 
+GET_TABLE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_table",
+        "description": (
+            "Return the data table(s) of a section of the currently loaded page, "
+            "rendered as a Markdown table. Sections such as filmographies, "
+            "discographies, awards, sports standings or election results store "
+            "their facts in tables, which get_section does not include -- use "
+            "get_table to read them (get_page_structure marks such sections with "
+            "a [table] annotation). Long tables are returned one page at a time "
+            "(continue with continue_reading)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "section": {
+                    "type": "string",
+                    "description": "Exact title of the section whose table(s) to read.",
+                }
+            },
+            "required": ["section"],
+        },
+    },
+}
+
 CONTINUE_READING_TOOL = {
     "type": "function",
     "function": {
         "name": "continue_reading",
         "description": (
-            "Return the next page of the introduction or section currently being "
-            "read one page at a time."
+            "Return the next page of the introduction, section or table currently "
+            "being read one page at a time."
         ),
         "parameters": {"type": "object", "properties": {}, "required": []},
     },
@@ -260,6 +324,7 @@ WIKI_STRUCTURED_TOOLS = [
     STRUCTURED_SEARCH_TOOL,
     GET_PAGE_STRUCTURE_TOOL,
     GET_SECTION_TOOL,
+    GET_TABLE_TOOL,
     CONTINUE_READING_TOOL,
     SUBMIT_ANSWER_TOOL,
 ]
@@ -297,16 +362,36 @@ def build_tool_sets(auto_disambiguation=False, dataset_name=None):
       wiki_structured have a `search`; the retriever set is left untouched.
     - the `submit_answer` description depends on `dataset_name`: FEVER submits a
       3-way verdict, the QA datasets submit a short exact answer. Every tool set
-      ends in the shared SUBMIT_ANSWER_TOOL, swapped here for the dataset's.
+      ends in the shared SUBMIT_ANSWER_TOOL, swapped here for the dataset's -- or
+      dropped entirely for a dataset mapped to None (PleAIs_RAG answers in prose,
+      so it is offered no finish tool at all).
+    - the retriever set's `supporting_facts` lists passage ids, not (title,
+      sentence) pairs, since that is what its observations expose.
     """
     clause = _DISAMBIG_CLAUSE_AUTO if auto_disambiguation else _DISAMBIG_CLAUSE_MANUAL
     submit_tool = SUBMIT_ANSWER_TOOLS.get(dataset_name, SUBMIT_ANSWER_TOOL)
+    # The id-based supporting_facts field, composed over whichever submit_answer
+    # the dataset uses (so e.g. FEVER keeps its verdict short_answer).
+    id_supporting_facts = (
+        RETRIEVER_SUBMIT_ANSWER_TOOL["function"]["parameters"]["properties"]["supporting_facts"]
+    )
 
-    def resolved(tools, has_search):
+    def resolved(tools, has_search, has_source_ids=False):
         tools = list(tools)
-        # Swap the shared submit_answer (always the final tool) for the dataset's.
+        # Swap the shared submit_answer (always the final tool) for the dataset's,
+        # or drop it when the dataset declares no finish tool.
         if tools and tools[-1] is SUBMIT_ANSWER_TOOL:
-            tools = tools[:-1] + [submit_tool]
+            submit = submit_tool
+            if submit is None:
+                # The dataset declares no finish tool: leave the set without one.
+                tools = tools[:-1]
+            else:
+                if has_source_ids:
+                    # Copy so the dataset's shared schema is untouched.
+                    submit = copy.deepcopy(submit)
+                    params = submit["function"]["parameters"]
+                    params["properties"]["supporting_facts"] = copy.deepcopy(id_supporting_facts)
+                tools = tools[:-1] + [submit]
         if has_search:
             # The search tool leads both wiki sets; copy it so the appended
             # clause does not mutate the shared module-level schema.
@@ -318,5 +403,5 @@ def build_tool_sets(auto_disambiguation=False, dataset_name=None):
     return {
         "wiki_api": resolved(WIKI_API_TOOLS, has_search=True),
         "wiki_structured": resolved(WIKI_STRUCTURED_TOOLS, has_search=True),
-        "retriever": resolved(RETRIEVER_TOOLS, has_search=False),
+        "retriever": resolved(RETRIEVER_TOOLS, has_search=False, has_source_ids=True),
     }

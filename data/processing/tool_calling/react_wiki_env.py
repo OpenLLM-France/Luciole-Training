@@ -324,14 +324,22 @@ class GradedEnv:
             evidence, loop stays open;
           - no ground truth     : recorded, episode ends (nothing to grade).
         """
-        # supporting_facts must be a list of strings; reject anything else so the
-        # model gets a chance to correct the call rather than silently recording
-        # a malformed value.
+        # supporting_facts is a list whose entries are either plain strings
+        # (wiki_api / wiki_structured evidence sentences) or {id, quote} objects
+        # (the retriever variant). Reject anything else so the model gets a chance
+        # to correct the call rather than silently recording a malformed value.
+        def _ok_fact(f):
+            if isinstance(f, str):
+                return True
+            return (isinstance(f, dict)
+                    and isinstance(f.get("id"), str)
+                    and isinstance(f.get("quote"), str))
+
         if supporting_facts is not None and not (
-            isinstance(supporting_facts, list)
-            and all(isinstance(f, str) for f in supporting_facts)
+            isinstance(supporting_facts, list) and all(_ok_fact(f) for f in supporting_facts)
         ):
-            return "Error: 'supporting_facts' must be a list of strings."
+            return ("Error: 'supporting_facts' must be a list of strings or of "
+                    "{\"id\": ..., \"quote\": ...} objects.")
         self.answer = short_answer
         self.detailed_answer = detailed_answer
         self.supporting_facts = supporting_facts
