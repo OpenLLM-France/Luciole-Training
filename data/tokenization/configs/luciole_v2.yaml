@@ -1,0 +1,37 @@
+output_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/luciole_v2"
+datasets:
+  # Stack Edu datasets
+  - name: stack_edu-c
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/C_*.jsonl.gz
+  - name: stack_edu-cpp
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Cpp_*.jsonl.gz
+  - name: stack_edu-csharp
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Csharp_*.jsonl.gz
+  - name: stack_edu-go
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Go_*.jsonl.gz
+  # - name: stack_edu-html
+  #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/HTML_*.jsonl.gz
+  - name: stack_edu-java
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Java_*.jsonl.gz
+  - name: stack_edu-javascript
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/JavaScript_*.jsonl.gz
+  - name: stack_edu-markdown
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Markdown_*.jsonl.gz
+  - name: stack_edu-php
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/PHP_*.jsonl.gz
+  - name: stack_edu-python
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Python_*.jsonl
+  - name: stack_edu-ruby
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Ruby_*.jsonl.gz
+  - name: stack_edu-rust
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Rust_*.jsonl.gz
+  - name: stack_edu-shell
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Shell_*.jsonl.gz
+  - name: stack_edu-sql
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/SQL_*.jsonl.gz
+  - name: stack_edu-swift
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Swift_*.jsonl.gz
+  - name: stack_edu-typescript
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/TypeScript_*.jsonl.gz
+  
+  # Math datasets

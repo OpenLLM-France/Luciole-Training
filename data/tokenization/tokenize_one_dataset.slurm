@@ -15,26 +15,22 @@ export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 export TOKENIZERS_PARALLELISM=false
 
-INPUT_FOLDER=$1
+INPUT_GLOB=$1
 OUTPUT_PATH=$2
-TOKENIZER_NAME=$3 
-REGEX_FILTER=$4
-REMOVE_PREFIX=$5
+TOKENIZER_NAME=$3
 
-echo "Starting tokenization for $INPUT_FOLDER"
+echo "Starting tokenization for $INPUT_GLOB"
 echo "Output will be saved to $OUTPUT_PATH"
 
 python preprocess_data_for_megatron.py \
-    --input=$INPUT_FOLDER \
-    --output-prefix=$OUTPUT_PATH \
+    --input="$INPUT_GLOB" \
     --preproc-folder \
+    --output-prefix="$OUTPUT_PATH" \
     --json-keys=text \
     --dataset-impl=mmap \
     --tokenizer-library=huggingface \
-    --tokenizer-model-name=$TOKENIZER_NAME \
+    --tokenizer-model-name="$TOKENIZER_NAME" \
     --use-fast \
     --append-eod \
     --workers=40 \
-    --regex-filter $REGEX_FILTER \
-    --log-interval 10000 \
-    $REMOVE_PREFIX
+    --log-interval 10000

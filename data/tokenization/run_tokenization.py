@@ -1,4 +1,5 @@
 import os
+import glob
 import subprocess
 import yaml
 import argparse
@@ -23,11 +24,6 @@ if __name__ == "__main__":
         type=str,
         default="",
         help="Tokenize only datasets whose name start with this value",
-    )
-    parser.add_argument(
-        "--remove-prefix",
-        action="store_true",
-        help="Remove prefix to the data.",
     )
     args = parser.parse_args()
     yaml_file = args.yaml_file
@@ -67,12 +63,18 @@ if __name__ == "__main__":
     for dataset in yaml_data["datasets"]:
         name = dataset["name"]
         raw_path = dataset["path"]
-        regex_filter = dataset.get("regex", r".*\.json.*")
+        # `path` is either a folder, or a glob pattern selecting the files to
+        # tokenize. The deprecated `regex` key is ignored.
+        files_glob = (
+            raw_path
+            if glob.has_magic(raw_path)
+            else os.path.join(raw_path, "**", "*.json*")
+        )
 
         output_idx = os.path.join(tokens_dataset_path, f"{name}_text_document.idx")
         output_bin = os.path.join(tokens_dataset_path, f"{name}_text_document.bin")
 
-        if os.path.isdir(raw_path):
+        if glob.glob(files_glob, recursive=True):
             if not os.path.isfile(output_idx) and name.startswith(args.start_with):
                 if os.path.isfile(output_bin):
                     print("--------------------------------------")
@@ -92,11 +94,9 @@ if __name__ == "__main__":
                             "sbatch",
                             f"--job-name=tok_{name}",
                             "tokenize_one_dataset.slurm",
-                            raw_path,
+                            files_glob,
                             os.path.join(tokens_dataset_path, name),
                             tokenizer_name,
-                            regex_filter,
-                            "--remove-prefix" if args.remove_prefix else "",
                         ]
                     )
             else:
@@ -105,5 +105,5 @@ if __name__ == "__main__":
                 print("--------------------------------------")
         else:
             print("--------------------------------------")
-            print(f"❌ Raw dataset not found for {name} at {raw_path}.")
+            print(f"❌ No raw data found for {name} at {raw_path}.")
             print("--------------------------------------")

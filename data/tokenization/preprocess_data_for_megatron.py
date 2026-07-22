@@ -93,12 +93,11 @@ Refer to get_nmt_tokenizer in nemo/collections/nlp/modules/common/tokenizer_util
 import argparse
 import gzip
 import json
+import glob
 import multiprocessing
 import os
-import pathlib
 import sys
 import time
-import re
 
 import ftfy
 import torch
@@ -182,9 +181,6 @@ class Encoder(object):
             ids = {}
             for key in self.args.json_keys:
                 text = data[key]
-                if self.args.remove_prefix:
-                    if "metadata" in data and "prefix" in data["metadata"]:
-                        text = text[len(data["metadata"]["prefix"]) :]
                 if self.args.apply_ftfy:
                     text = ftfy.fix_text(text)
                 doc_ids = []
@@ -219,7 +215,7 @@ def get_args():
         "--input",
         type=str,
         required=True,
-        help="Path to the input json or json.gz file. If preprocessing an entire folder, set the --preproc-folder flag and provide the path to the folder in this arg.",
+        help="Path to the input json or json.gz file. If preprocessing several files, set the --preproc-folder flag and provide a folder path or a glob pattern in this arg.",
     )
     group.add_argument(
         "--json-keys",
@@ -234,11 +230,6 @@ def get_args():
         "--keep-newlines",
         action="store_true",
         help="Keep newlines between sentences when splitting.",
-    )
-    group.add_argument(
-        "--remove-prefix",
-        action="store_true",
-        help="Remove prefix to the data.",
     )
     group.add_argument(
         "--text_file", action="store_true", help="Use text file instead of json."
@@ -266,12 +257,6 @@ def get_args():
     group.add_argument("--use-fast", action="store_true", help="")
     group.add_argument(
         "--vocab-file", type=str, default=None, help="Path to the vocab file"
-    )
-    group.add_argument(
-        "--files-filter", type=str, default="**/*.json*", help="files filter str"
-    )
-    group.add_argument(
-        "--regex-filter", type=str, default=".*\.json.*", help="files filter str"
     )
     group.add_argument(
         "--merge-file",
@@ -335,7 +320,7 @@ def get_args():
     group.add_argument(
         "--preproc-folder",
         action="store_true",
-        help="If set, will preprocess all .json or .jsonl or json.gz or .jsonl.gz files into a single .bin and .idx file. Folder path provided via the --input arg",
+        help="If set, will preprocess all .json or .jsonl or json.gz or .jsonl.gz files into a single .bin and .idx file. Folder path or glob pattern provided via the --input arg",
     )
     group.add_argument(
         "--apply-ftfy",
@@ -361,6 +346,9 @@ def get_args():
     args.vocab_extra_ids = 0
     # TODO: There are dependencies b/w libraries and model files / tokenizer type strings to check.
     assert args.tokenizer_model_name is not None or args.tokenizer_model is not None
+    assert (
+        not args.apply_ftfy
+    ), "--apply-ftfy is not supported: the text must be tokenized exactly as it is stored in the raw data. Fix the encoding upstream, at the dataset processing step, instead."
     return args
 
 
@@ -368,24 +356,21 @@ def main():
     args = get_args()
     startup_start = time.time()
     if args.preproc_folder:
-        print("Searching folder for .json or .jsonl or json.gz or .jsonl.gz files...")
-        assert os.path.exists(args.input), f"Folder does not exist: {args.input}"
-        json_files = pathlib.Path(args.input).glob(args.files_filter)
-        regex_pattern = re.compile(args.regex_filter)
-        json_files = (
-            str(f) for f in json_files if f.is_file() and regex_pattern.match(str(f))
-        )
+        print(f"Searching {args.input} for .json/.jsonl/.json.gz/.jsonl.gz files...")
         json_files = [
             f
-            for f in json_files
-            if f.endswith(".json")
-            or f.endswith(".jsonl")
-            or f.endswith(".json.gz")
-            or f.endswith(".jsonl.gz")
+            for f in sorted(glob.glob(args.input, recursive=True))
+            if os.path.isfile(f)
+            and (
+                f.endswith(".json")
+                or f.endswith(".jsonl")
+                or f.endswith(".json.gz")
+                or f.endswith(".jsonl.gz")
+            )
         ]
         if len(json_files) == 0:
             raise FileNotFoundError(
-                "No .json or .jsonl or json.gz or .jsonl.gz files found in folder."
+                f"No .json or .jsonl or json.gz or .jsonl.gz files matching {args.input}."
             )
         else:
             print(
