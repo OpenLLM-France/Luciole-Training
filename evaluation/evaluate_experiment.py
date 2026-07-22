@@ -311,6 +311,16 @@ def launch_evaluation(
 
     extra_env_vars = ""
 
+    # Gaperon sets head_dim explicitly in its config, which vLLM ignores (it
+    # recomputes hidden_size // num_attention_heads) -> shape mismatch at load
+    # time. The sitecustomize in vllm_patches/ fixes it when the olmo2 module is
+    # imported; it is a no-op for every other model, so it is set for all vLLM
+    # runs rather than sniffing the checkpoint name.
+    # https://huggingface.co/almanach/Gaperon-1125-24B/discussions/1
+    if command == "vllm":
+        patch_dir = Path(__file__).parent.resolve() / "vllm_patches"
+        extra_env_vars += f'export PYTHONPATH="{patch_dir}${{PYTHONPATH:+:$PYTHONPATH}}"\n'
+
     tasks = []
 
     steps_done = []
@@ -404,16 +414,6 @@ def launch_evaluation(
             and command == "accelerate"
         ):
             model_arg += ",batch_size=1"
-
-        # Gaperon sets head_dim explicitly in its config, which vLLM ignores
-        # (it recomputes hidden_size // num_attention_heads) -> shape mismatch
-        # at load time. The sitecustomize in vllm_patches/ fixes it on import.
-        # https://huggingface.co/almanach/Gaperon-1125-24B/discussions/1
-        if "Gaperon" in ckpt_dir.name and command == "vllm":
-            patch_dir = Path(__file__).parent.resolve() / "vllm_patches"
-            export_line = f'export PYTHONPATH="{patch_dir}${{PYTHONPATH:+:$PYTHONPATH}}"\n'
-            if export_line not in extra_env_vars:
-                extra_env_vars += export_line
 
         if revision:
             model_arg += f",revision={revision}"

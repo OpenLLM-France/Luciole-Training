@@ -22,6 +22,8 @@ The patch is a no-op for regular Olmo2 checkpoints, where ``head_dim`` equals
 """
 
 import inspect
+import os
+import sys
 import textwrap
 
 MODULE_NAME = "vllm.model_executor.models.olmo2"
@@ -75,6 +77,13 @@ def patch_module(module):
     exec(compile(source, f"<gaperon_olmo2_patch:{module.__file__}>", "exec"), namespace)
     cls.__init__ = namespace["__init__"]
     setattr(cls, _PATCHED_FLAG, True)
+    # Printed so the Slurm log tells "patch never ran" apart from "patch ran but
+    # did not help" -- the two have very different fixes.
+    print(
+        f"gaperon_olmo2_patch: patched Olmo2Attention.__init__ (pid {os.getpid()})",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def patch_now():
