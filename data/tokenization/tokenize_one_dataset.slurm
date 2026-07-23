@@ -12,6 +12,7 @@ module purge
 module load arch/a100 nemo/2.2.1
 export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
+export HF_HUB_OFFLINE=1
 
 export TOKENIZERS_PARALLELISM=false
 

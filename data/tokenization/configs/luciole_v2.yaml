@@ -1,16 +1,14 @@
 output_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/luciole_v2"
 datasets:
-  # Stack Edu datasets
+  #### Stack Edu datasets (add html?)
   - name: stack_edu-c
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/C_*.jsonl.gz
   - name: stack_edu-cpp
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Cpp_*.jsonl.gz
   - name: stack_edu-csharp
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Csharp_*.jsonl.gz
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/CSharp_*.jsonl.gz
   - name: stack_edu-go
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Go_*.jsonl.gz
-  # - name: stack_edu-html
-  #   path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/HTML_*.jsonl.gz
   - name: stack_edu-java
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Java_*.jsonl.gz
   - name: stack_edu-javascript
@@ -20,7 +18,7 @@ datasets:
   - name: stack_edu-php
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/PHP_*.jsonl.gz
   - name: stack_edu-python
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Python_*.jsonl
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Python_*.jsonl.gz
   - name: stack_edu-ruby
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Ruby_*.jsonl.gz
   - name: stack_edu-rust
@@ -33,5 +31,37 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/Swift_*.jsonl.gz
   - name: stack_edu-typescript
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu/TypeScript_*.jsonl.gz
-  
+
+  #### Stack Edu datasets - FIM
+  - name: stack_edu_fim-c
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-C_*/*.jsonl.zst
+  - name: stack_edu_fim-cpp
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Cpp_*/*.jsonl.zst
+  - name: stack_edu_fim-csharp
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-CSharp_*/*.jsonl.zst
+  - name: stack_edu_fim-go
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Go_*/*.jsonl.zst
+  - name: stack_edu_fim-java
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Java_*/*.jsonl.zst
+  - name: stack_edu_fim-javascript
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-JavaScript_*/*.jsonl.zst
+  - name: stack_edu_fim-markdown
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Markdown_*/*.jsonl.zst
+  - name: stack_edu_fim-php
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-PHP_*/*.jsonl.zst
+  - name: stack_edu_fim-python
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Python_*/*.jsonl.zst
+  - name: stack_edu_fim-ruby
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Ruby_*/*.jsonl.zst
+  - name: stack_edu_fim-rust
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Rust_*/*.jsonl.zst
+  - name: stack_edu_fim-shell
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Shell_*/*.jsonl.zst
+  - name: stack_edu_fim-sql
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-SQL_*/*.jsonl.zst
+  - name: stack_edu_fim-swift
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-Swift_*/*.jsonl.zst
+  - name: stack_edu_fim-typescript
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-TypeScript_*/*.jsonl.zst
+
   # Math datasets

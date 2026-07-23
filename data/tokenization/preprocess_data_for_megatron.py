@@ -101,6 +101,7 @@ import time
 
 import ftfy
 import torch
+import zstandard
 
 from nemo_patch import indexed_dataset
 from nemo_patch.tokenizer_utils import get_nmt_tokenizer
@@ -356,7 +357,9 @@ def main():
     args = get_args()
     startup_start = time.time()
     if args.preproc_folder:
-        print(f"Searching {args.input} for .json/.jsonl/.json.gz/.jsonl.gz files...")
+        print(
+            f"Searching {args.input} for .json/.jsonl/.json.gz/.jsonl.gz/.json.zst/.jsonl.zst files..."
+        )
         json_files = [
             f
             for f in sorted(glob.glob(args.input, recursive=True))
@@ -366,15 +369,17 @@ def main():
                 or f.endswith(".jsonl")
                 or f.endswith(".json.gz")
                 or f.endswith(".jsonl.gz")
+                or f.endswith(".json.zst")
+                or f.endswith(".jsonl.zst")
             )
         ]
         if len(json_files) == 0:
             raise FileNotFoundError(
-                f"No .json or .jsonl or json.gz or .jsonl.gz files matching {args.input}."
+                f"No .json or .jsonl or json.gz or .jsonl.gz or .json.zst or .jsonl.zst files matching {args.input}."
             )
         else:
             print(
-                f"Found {len(json_files)} .json or .jsonl or json.gz or .jsonl.gz files."
+                f"Found {len(json_files)} .json or .jsonl or json.gz or .jsonl.gz or .json.zst or .jsonl.zst files."
             )
         print("File list:")
         for rf in json_files:
@@ -427,6 +432,8 @@ def main():
         print(f"Processing file {json_file} {idx + 1}/{len(json_files)}")
         if json_file.endswith(".gz"):
             fin = gzip.open(json_file, "r")
+        elif json_file.endswith(".zst"):
+            fin = zstandard.open(json_file, "rt", encoding="utf-8")
         else:
             fin = open(json_file, "r", encoding="utf-8")
 
