@@ -56,6 +56,7 @@ if __name__ == "__main__":
                 "fr",
                 robots_txt_path=ROBOTSTXT_PATH,
                 output_path=f"{DATA_PATH}/synthetic_fineweb2_fr_extract_knowledge_filtered",
+                do_dedup=True,
                 do_edu=True,
                 do_pii=False,
                 do_decont=False,

@@ -39,6 +39,7 @@ if __name__ == "__main__":
                 language,
                 robots_txt_path=ROBOTSTXT_PATH,
                 output_path=f"{DATA_PATH}/hplt2_filtered/{language}",
+                do_dedup=True,
                 do_edu=True,
                 do_pii=True,
                 do_decont=False,

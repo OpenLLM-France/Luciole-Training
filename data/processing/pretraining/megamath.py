@@ -2,7 +2,7 @@ from utils import create_parser, parse_args, create_executor
 
 from datatrove.pipeline.readers import ParquetReader, JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
-from web_utils import get_robot_filter
+from web_utils import get_web_pipeline
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
 from utils import _custom_adapter_for_hf, HF_SCHEMA
 from functools import partial
@@ -50,7 +50,13 @@ if __name__ == "__main__":
         # Filtering
         pipeline = [
             JsonlReader(f"{DATA_PATH}/megamath/{name}/data"),
-            get_robot_filter(output_path=f"{DATA_PATH}/megamath_filtered/{name}"),
+            *get_web_pipeline(
+                "en",
+                output_path=f"{DATA_PATH}/megamath_filtered/{name}",
+                do_dedup=False,
+                do_edu=False,
+                do_pii=False,
+            ),
             JsonlWriter(f"{DATA_PATH}/megamath_filtered/{name}/data"),
         ]
 

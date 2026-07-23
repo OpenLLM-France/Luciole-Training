@@ -72,16 +72,6 @@ if __name__ == "__main__":
             JsonlReader(
                 f"{output_path}/data_merge/",
             ),
-            # HuggingFaceDatasetWriter(
-            #     dataset="OpenLLM-France/Luciole-Training-Dataset"
-            #     + ("-debug" if args.debug else ""),
-            #     private=True,
-            #     local_working_dir=f"{output_path}/data_hf",
-            #     output_filename=f"robots_txt/{slugify(DUMP_TO_PROCESS)}"
-            #     + "${rank}.parquet",
-            #     cleanup=True,
-            #     expand_metadata=True,
-            # ),
             HuggingFaceDatasetWriter(
                 dataset="OpenLLM-France/Luciole-Training-Dataset"
                 + ("-debug" if args.debug else ""),

@@ -26,6 +26,7 @@ if __name__ == "__main__":
         *get_web_pipeline(
             "en",
             f"{DATA_PATH}/fineweb_hq_filtered",
+            do_dedup=True,
             do_edu=False,
             do_pii=True,
             do_decont=False,

@@ -4,19 +4,25 @@ from datatrove.pipeline.filters import FastTextClassifierFilter
 from datatrove.pipeline.decont import NGramsDecontConfig, NGramsDecontFilter
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
-from datatrove.pipeline.filters import LambdaFilter
+from datatrove.pipeline.filters import LambdaFilter, CommonCrawlOptOutFilter
 import os
 import json
 
+OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
+if not OUTPUT_PATH:
+    raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
+
+ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
+
 FASTTEXT_PATH = os.path.join(
-    os.getenv("OpenLLM_OUTPUT"), "fasttext_classifiers/fineweb_edu_annotation"
+    OUTPUT_PATH, "fasttext_classifiers/fineweb_edu_annotation"
 )
 DECONT_PATH = os.path.join(
-    os.getenv("OpenLLM_OUTPUT"),
+    OUTPUT_PATH,
     "data/raw_data/full_datasets/decontamination_index/data",
 )
 ROBOTSTXT_PATH = os.path.join(
-    os.getenv("OpenLLM_OUTPUT"),
+    OUTPUT_PATH,
     "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge",
 )
 
@@ -212,7 +218,7 @@ class LanguageCodes:
         )
 
 
-def get_duplicated_urls(path="assets/duplicated_urls.json"):
+def get_duplicated_urls(path=os.path.join(ASSETS_PATH, "duplicated_urls.json")):
     wiki_languages = [
         "ar",
         "br",
@@ -247,7 +253,7 @@ def get_duplicated_urls(path="assets/duplicated_urls.json"):
     return all_keywords
 
 
-def edu_score(
+def annotate_edu_score(
     data: DocumentsPipeline, rank: int = 0, world_size: int = 1
 ) -> DocumentsPipeline:
     """
@@ -256,11 +262,11 @@ def edu_score(
     """
     for doc in data:
         # Handle educational score if present
-        edu_score = doc.metadata.pop("edu_score", None)
-        if edu_score is not None:
+        edu_labels = doc.metadata.pop("edu_score", None)
+        if edu_labels is not None:
             edu_score_mean = sum(
                 int(label.split("__label__")[-1]) * prob
-                for label, prob in edu_score.items()
+                for label, prob in edu_labels.items()
             )
             doc.metadata["edu_score_mean"] = edu_score_mean
             doc.metadata["edu_score"] = int(round(edu_score_mean))
@@ -269,26 +275,27 @@ def edu_score(
         yield doc
 
 
-def get_pii_formatter(language):
+def get_pii_formatters(language):
     pii_cleaning = [
-        PIIFormatter(ip_replacement="<IP_ADDRESS>"),
+        PIIFormatter(ip_replacement="<IP_ADDRESS>",  email_replacement=("email@example.com", "firstname.lastname@example.org")), #, "<EMAIL_ADDRESS>"
     ]
     if language in ["fra_Latn", "fr"]:
-        pii_cleaning.append(
-            PhoneNumberPII(["ZZ", "FR", "CA", "BE"], replacement="<PHONE_NUMBER>")
-        )
+        countries = ["FR", "CA", "BE"]
     elif language in ["deu_Latn", "de"]:
-        pii_cleaning.append(PhoneNumberPII(["ZZ", "DE"], replacement="<PHONE_NUMBER>"))
+        countries = ["DE"]
     elif language in ["spa_Latn", "es", "cat_Latn", "ca"]:
-        pii_cleaning.append(PhoneNumberPII(["ZZ", "ES"], replacement="<PHONE_NUMBER>"))
+        countries = ["ES"]
     elif language in ["ita_Latn", "it"]:
-        pii_cleaning.append(PhoneNumberPII(["ZZ", "IT"], replacement="<PHONE_NUMBER>"))
+        countries = ["IT"]
     elif language in ["por_Latn", "pt"]:
-        pii_cleaning.append(PhoneNumberPII(["ZZ", "PT"], replacement="<PHONE_NUMBER>"))
+        countries = ["PT"]
     elif language in ["nld_Latn", "nl"]:
-        pii_cleaning.append(PhoneNumberPII(["ZZ", "NL"], replacement="<PHONE_NUMBER>"))
+        countries = ["NL"]
     else:
-        pii_cleaning.append(PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"))
+        countries = ["ZZ"]  # no national region: only international numbers
+    pii_cleaning.append(
+        PhoneNumberPII(countries, replacement="<PHONE_NUMBER>")
+    )
     return pii_cleaning
 
 
@@ -314,7 +321,7 @@ def get_edu_filters(language, fasttext_path=FASTTEXT_PATH):
         print(
             f"Model not found at {model_url}. Skipping educational filters for {language}."
         )
-    edu_filters.append(edu_score)
+    edu_filters.append(annotate_edu_score)
     return edu_filters
 
 
@@ -345,21 +352,30 @@ def get_decontamination_filters(
     return filters
 
 
-def get_robot_filter(output_path, robots_txt_path=ROBOTSTXT_PATH):
-    return RobotsTxtFilter(
-        robots_txt_path=robots_txt_path,
-        exclusion_writer=JsonlWriter(
-            f"{output_path}/removed/robots_txt",
+def get_opt_out_filters(output_path, robots_txt_path=ROBOTSTXT_PATH):
+    return [
+        RobotsTxtFilter(
+            robots_txt_path=robots_txt_path,
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed/robots_txt",
+            ),
         ),
-    )
+        CommonCrawlOptOutFilter(
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed/commoncrawl_optout",
+            ),
+        ),
+    ]
 
 
 def get_dedup_filter(output_path):
+    duplicated_urls = get_duplicated_urls()
+
     def deduplicate_url(doc):
         url = doc.metadata.get("url", None)
         if url is None:
             return True
-        for keyword in get_duplicated_urls():
+        for keyword in duplicated_urls:
             if url.startswith(keyword):
                 return False, f"duplicate_url:{keyword}"
         return True
@@ -375,22 +391,27 @@ def get_dedup_filter(output_path):
 def get_web_pipeline(
     language,
     output_path,
+    do_dedup=True,
     do_edu=True,
     do_pii=True,
     do_decont=False,
     robots_txt_path=ROBOTSTXT_PATH,
 ):
+    dedup_filters = [get_dedup_filter(output_path)] if do_dedup else []
     edu_filters = get_edu_filters(language) if do_edu else []
-    pii_formatter = get_pii_formatter(language) if do_pii else []
+    pii_formatters = get_pii_formatters(language) if do_pii else []
     decontamination_filters = (
         get_decontamination_filters(language, output_path) if do_decont else []
     )
 
+    # The opt-out filters (robots.txt + Common Crawl opt-out) are a mandatory
+    # compliance floor: every web-sourced pipeline goes through get_web_pipeline
+    # so this stage can never be forgotten. Everything else is opt-in.
     pipeline = [
-        get_dedup_filter(output_path),
-        get_robot_filter(output_path, robots_txt_path=robots_txt_path),
+        *dedup_filters,
+        *get_opt_out_filters(output_path, robots_txt_path=robots_txt_path),
         *edu_filters,
-        *pii_formatter,
+        *pii_formatters,
         *decontamination_filters,
     ]
     return pipeline

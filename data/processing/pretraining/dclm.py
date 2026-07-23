@@ -1,6 +1,5 @@
 from utils import create_parser, parse_args, create_executor
-from web_utils import get_robot_filter, get_dedup_filter
-from datatrove.pipeline.formatters import PIIFormatter
+from web_utils import get_web_pipeline
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.readers import JsonlReader
@@ -20,9 +19,13 @@ if __name__ == "__main__":
                 {"name": "dclm", "split": "train"},
                 streaming=True,
             ),
-            get_dedup_filter(output_path=f"{DATA_PATH}/dclm_dolmino"),
-            get_robot_filter(output_path=f"{DATA_PATH}/dclm_dolmino"),
-            PIIFormatter(ip_replacement="<IP_ADDRESS>"),
+            *get_web_pipeline(
+                "en",
+                output_path=f"{DATA_PATH}/dclm_dolmino",
+                do_dedup=True,
+                do_edu=False,
+                do_pii=True,
+            ),
             JsonlWriter(f"{DATA_PATH}/dclm_dolmino/data"),
         ]
 

@@ -6,7 +6,7 @@ from utils import (
 )
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
-from web_utils import get_robot_filter
+from web_utils import get_web_pipeline
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import HuggingFaceDatasetWriter
 from utils import _custom_adapter_for_hf, HF_SCHEMA
@@ -40,7 +40,13 @@ if __name__ == "__main__":
                 f"hf://datasets/HuggingFaceTB/finemath/{name}",
                 glob_pattern="*.parquet",
             ),
-            get_robot_filter(output_path=f"{DATA_PATH}/finemath_filtered/{name}"),
+            *get_web_pipeline(
+                "en",
+                output_path=f"{DATA_PATH}/finemath_filtered/{name}",
+                do_dedup=False,
+                do_edu=False,
+                do_pii=False,
+            ),
             JsonlWriter(
                 f"{DATA_PATH}/finemath_filtered/{name}/data",
                 output_filename="score_${int_score}_rank${rank}.jsonl.gz",
