@@ -20,7 +20,7 @@ from utils import (
     normalize_answer,
     extract_answer_from_reasoning,
     load_env_key,
-    filter_row,
+    filter_rows,
 )
 
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
@@ -463,6 +463,10 @@ def main() -> None:
     parser.add_argument("--no-answer-match", action="store_true",
                         help="Traces have no 'Final Answer' line (unified-prompt format): skip exact-match "
                              "answer extraction and gate correctness on the factual judge (+ citation F1) only.")
+    parser.add_argument("--no-keep-pairs", action="store_true",
+                        help="Filter each row independently. By default an unanswerable row and the "
+                             "answerable row it was cloned from survive the filter together or not at "
+                             "all, so every refusal keeps the minimal pair it was built to form.")
     parser.add_argument("--export", type=str, default=None,
                         help="Export aggregate stats to a JSON file")
     args = parser.parse_args()
@@ -496,12 +500,18 @@ def main() -> None:
             print("Warning: --filter without --llm-judge-factual will not apply the factual judge threshold.")
         base = Path(output_path)
         filtered_path = str(base.parent / f"{base.stem}_filtered.jsonl")
-        filtered_rows = [r for r in eval_data["enriched_rows"]
-                         if filter_row(r, require_answer_match=not args.no_answer_match)]
+        filtered_rows, filter_stats = filter_rows(
+            eval_data["enriched_rows"],
+            keep_pairs=not args.no_keep_pairs,
+            require_answer_match=not args.no_answer_match,
+        )
         with open(filtered_path, "w", encoding="utf-8") as f:
             for row in filtered_rows:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
         print(f"Filtered dataset written: {filtered_path} ({len(filtered_rows)}/{len(eval_data['enriched_rows'])} rows kept)")
+        if filter_stats["pairs_dropped"]:
+            print(f"  ({filter_stats['pairs_dropped']} answerable/unanswerable pairs dropped whole, "
+                  f"{filter_stats['rows_dropped_by_pairing']} rows)")
 
     if args.export:
         export_data = {

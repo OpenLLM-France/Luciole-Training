@@ -26,7 +26,7 @@ from utils import (
     extract_cited_titles,
     evaluate_chunk_citations,
     extract_answer_from_reasoning,
-    filter_row,
+    filter_rows,
     run_judge_ordered,
     run_factual_judge_ordered,
     run_french_quality_judge_ordered,
@@ -470,6 +470,10 @@ def main():
     parser.add_argument("--no-answer-match", action="store_true",
                         help="Traces have no 'Final Answer' line (unified-prompt format): skip exact-match "
                              "answer extraction and gate correctness on the factual judge (+ citation F1) only.")
+    parser.add_argument("--no-keep-pairs", action="store_true",
+                        help="Filter each row independently. By default an unanswerable row and the "
+                             "answerable row it was cloned from survive the filter together or not at "
+                             "all, so every refusal keeps the minimal pair it was built to form.")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
@@ -498,12 +502,18 @@ def main():
                   "(eval_factual_judge_score will be missing, no rows will pass the filter).")
         base = Path(args.output)
         filtered_path = str(base.parent / f"{base.stem}_filtered.jsonl")
-        filtered_rows = [r for r in eval_data["enriched_rows"]
-                         if filter_row(r, require_answer_match=not args.no_answer_match)]
+        filtered_rows, filter_stats = filter_rows(
+            eval_data["enriched_rows"],
+            keep_pairs=not args.no_keep_pairs,
+            require_answer_match=not args.no_answer_match,
+        )
         with open(filtered_path, "w", encoding="utf-8") as f:
             for row in filtered_rows:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
         print(f"Filtered dataset written to: {filtered_path} ({len(filtered_rows)}/{len(eval_data['enriched_rows'])} rows kept)")
+        if filter_stats["pairs_dropped"]:
+            print(f"  ({filter_stats['pairs_dropped']} answerable/unanswerable pairs dropped whole, "
+                  f"{filter_stats['rows_dropped_by_pairing']} rows)")
 
     if args.export:
         export_data = {

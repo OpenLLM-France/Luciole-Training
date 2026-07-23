@@ -93,6 +93,13 @@ kept.
 Replacements are protected from later truncation, like the gold evidence kept by `partial` / `partial_hop` refusals.
 After the fix the AUC is 0.50 on both datasets. `--no-unanswerable-backfill` restores the old behaviour.
 
+**Joint filtering.** The answerable row faces a much stricter gate (factual judge at 5, citation F1 at 1.0) than its
+refusal, so independent filtering breaks most pairs. By default a pair survives as a whole or not at all;
+`--no-keep-pairs` filters row by row.
+
+> Yield: a created refusal reaches the dataset only if the generator refused (~47 %) **and** its twin passed the
+> quality filter (~45 %), about 21 %.
+
 ## Retries and resumption
 
 - Each task has 2 retries (5 min delay).

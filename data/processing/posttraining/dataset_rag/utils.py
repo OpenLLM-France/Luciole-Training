@@ -1287,3 +1287,58 @@ def filter_row(row: dict, *, french_quality_threshold: int = 5, require_answer_m
     if "eval_french_quality_judge_score" in row and (row["eval_french_quality_judge_score"] or 0) < french_quality_threshold:
         return False
     return True
+
+
+UNANSWERABLE_ID_SUFFIX = "_unanswerable"
+
+
+def pair_base_id(row_id: object) -> str:
+    """Question id shared by an answerable row and its unanswerable twin."""
+    text = str(row_id)
+    if text.endswith(UNANSWERABLE_ID_SUFFIX):
+        return text[: -len(UNANSWERABLE_ID_SUFFIX)]
+    return text
+
+
+def filter_rows(rows: list[dict], *, keep_pairs: bool = True, **kwargs) -> tuple[list[dict], dict]:
+    """Apply ``filter_row`` to every row, optionally keeping twins together.
+
+    An unanswerable row is a clone of an answerable one with the gold evidence
+    removed: same question, same distractors. The two form a minimal pair whose
+    only difference is what the refusal is supposed to depend on. Filtering them
+    independently breaks most pairs: the answerable side faces a far stricter
+    gate (judge score, citation F1) than the refusal side, so the dataset pays
+    the cost of the duplication while keeping only a minority of the contrast.
+
+    With ``keep_pairs`` a pair survives whole or not at all. Rows whose twin is
+    absent from the input are unaffected: pairing is only enforced where it was
+    actually built.
+    """
+    kept = [row for row in rows if filter_row(row, **kwargs)]
+    stats = {"kept_independently": len(kept), "pairs_dropped": 0, "rows_dropped_by_pairing": 0}
+    if not keep_pairs:
+        return kept, stats
+
+    def sides(subset: list[dict]) -> dict[str, set[bool]]:
+        seen: dict[str, set[bool]] = {}
+        for row in subset:
+            seen.setdefault(pair_base_id(row.get("id", "")), set()).add(
+                bool(row.get("is_unanswerable", False))
+            )
+        return seen
+
+    paired = sides(rows)
+    survived = sides(kept)
+    result = [
+        row
+        for row in kept
+        if len(paired[pair_base_id(row.get("id", ""))]) < 2
+        or len(survived[pair_base_id(row.get("id", ""))]) == 2
+    ]
+    stats["rows_dropped_by_pairing"] = len(kept) - len(result)
+    stats["pairs_dropped"] = sum(
+        1
+        for base, present in paired.items()
+        if len(present) == 2 and len(survived.get(base, set())) == 1
+    )
+    return result, stats
