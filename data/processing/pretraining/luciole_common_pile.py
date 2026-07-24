@@ -7,6 +7,7 @@ from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters import LambdaFilter
 import random
+from datatrove.data import DocumentsPipeline
 
 # (comma_repeats, comma_cooldown_repeats)
 repeats = {
@@ -42,17 +43,32 @@ repeats = {
 # USPTO - (0.25, 0)
 # Wikimedia - (6, 0.4)
 # Wikiteam - (4, 0)
+ratios = {k: (v[0]/6, v[1]/2) for k, v in repeats.items()}
 
-def reweighting_function(doc):
-    doc.metadata["source"] = source = doc.metadata["source"].split("/")[-1]
-    main_ratio, cooldown_ratio = (r / 8 for r in repeats[source])
-    if random.random() < main_ratio:
-        doc.metadata["phase"] = "main"
-        return True
-    elif random.random() < main_ratio + cooldown_ratio:
-        doc.metadata["phase"] = "cooldown"
-        return True
-    return False
+def reweighting(
+    data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+) -> DocumentsPipeline:
+    for doc in data:
+        doc.metadata["source"] = source = doc.metadata["source"].split("/")[-1]
+        main_ratio, cooldown_ratio = ratios[source]
+        if random.random() < main_ratio:
+            doc.metadata["phase"] = "main"
+            yield doc
+        if random.random() < cooldown_ratio:
+            doc.metadata["phase"] = "cooldown"
+            yield doc
+
+# def reweighting_function(doc):
+#     doc.metadata["source"] = source = doc.metadata["source"].split("/")[-1]
+#     main_ratio, cooldown_ratio = (r / 8 for r in repeats[source])
+#     rand = random.random()
+#     if rand < main_ratio:
+#         doc.metadata["phase"] = "main"
+#         return True
+#     elif rand < main_ratio + cooldown_ratio:
+#         doc.metadata["phase"] = "cooldown"
+#         return True
+#     return False
 
 if __name__ == "__main__":
     parser = create_parser()
@@ -63,9 +79,7 @@ if __name__ == "__main__":
         ParquetReader(
             "hf://datasets/OpenLLM-France/Luciole-Training-Dataset/data/common_pile",
         ),
-        LambdaFilter(
-            filter_function=reweighting_function,
-        ),
+        reweighting,
         JsonlWriter(
             f"{DATA_PATH}/common_pile_reweighted/data",
             output_filename="${phase}/${source}/rank${rank}.jsonl.gz",

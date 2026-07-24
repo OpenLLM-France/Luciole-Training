@@ -14,14 +14,14 @@ if not OUTPUT_PATH:
 
 ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 
-FASTTEXT_PATH = os.path.join(
+FASTTEXT_PATH = os.getenv("FASTTEXT_PATH") or os.path.join(
     OUTPUT_PATH, "fasttext_classifiers/fineweb_edu_annotation"
 )
-DECONT_PATH = os.path.join(
+DECONT_PATH = os.getenv("DECONT_PATH") or os.path.join(
     OUTPUT_PATH,
     "data/raw_data/full_datasets/decontamination_index/data",
 )
-ROBOTSTXT_PATH = os.path.join(
+ROBOTSTXT_PATH = os.getenv("ROBOTSTXT_PATH") or os.path.join(
     OUTPUT_PATH,
     "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge",
 )
@@ -352,10 +352,11 @@ def get_decontamination_filters(
     return filters
 
 
-def get_opt_out_filters(output_path, robots_txt_path=ROBOTSTXT_PATH):
+def get_opt_out_filters(output_path, keep_if_not_found=False):
     return [
         RobotsTxtFilter(
-            robots_txt_path=robots_txt_path,
+            robots_txt_path=ROBOTSTXT_PATH,
+            keep_if_not_found=keep_if_not_found,
             exclusion_writer=JsonlWriter(
                 f"{output_path}/removed/robots_txt",
             ),
@@ -395,7 +396,7 @@ def get_web_pipeline(
     do_edu=True,
     do_pii=True,
     do_decont=False,
-    robots_txt_path=ROBOTSTXT_PATH,
+    apertus_rule=False
 ):
     dedup_filters = [get_dedup_filter(output_path)] if do_dedup else []
     edu_filters = get_edu_filters(language) if do_edu else []
@@ -409,7 +410,7 @@ def get_web_pipeline(
     # so this stage can never be forgotten. Everything else is opt-in.
     pipeline = [
         *dedup_filters,
-        *get_opt_out_filters(output_path, robots_txt_path=robots_txt_path),
+        *get_opt_out_filters(output_path, keep_if_not_found=apertus_rule),
         *edu_filters,
         *pii_formatters,
         *decontamination_filters,
