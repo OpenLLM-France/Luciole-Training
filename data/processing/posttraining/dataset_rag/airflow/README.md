@@ -80,6 +80,8 @@ Distractors and hard refusals (enabled by default):
   (e.g. `intfloat/multilingual-e5-base`).
 - `partial_hop_ratio` (HotpotQA) / `partial_ratio` (TAT-QA), default 0.5: share of the created refusals that keep
   partial gold evidence (one hop out of two / one of the table-text modalities).
+- `unanswerable_ratio` (default 0.22): share of **created** refusals; about one in five reaches the final dataset
+  (see below), which gives a final refusal share of about 11 %.
 
 ## Answerable / refusal pairs
 

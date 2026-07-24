@@ -184,6 +184,10 @@ def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
             # Fraction of created unanswerable rows keeping one gold hop
             # (hard refusal with partial evidence).
             "partial_hop_ratio": 0.5,
+            # A refusal now survives the filter only together with the
+            # answerable row it was cloned from, which roughly halves the
+            # yield. 0.22 keeps the ~11% final refusal share, matching tatqa.
+            "unanswerable_ratio": 0.22,
         },
         tags=[*BASE_TAGS, "hotpotqa", language],
     )
@@ -198,6 +202,7 @@ def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
         f" --language {language}"
         f" --output {prefix}"
         " --unanswerable-partial-hop-ratio {{ params.partial_hop_ratio }}"
+        " --unanswerable-ratio {{ params.unanswerable_ratio }}"
         f" {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}.jsonl",),
@@ -255,6 +260,11 @@ def build_tatqa_dag() -> DAG:
             # Fraction of created unanswerable rows keeping partial gold
             # evidence (table-text questions).
             "partial_ratio": 0.5,
+            # A refusal now survives the filter only together with the
+            # answerable row it was cloned from, which roughly halves the
+            # yield: ~0.21 of the created refusals reach the final dataset.
+            # 0.22 lands back on the ~11% refusal share of the `full` run.
+            "unanswerable_ratio": 0.22,
         },
         tags=[*BASE_TAGS, "tatqa", "en"],
     )
@@ -283,6 +293,7 @@ def build_tatqa_dag() -> DAG:
         ' --source-documents "{{ params.input_json }}"'
         f" --output {prefix}_augmented"
         " --unanswerable-partial-ratio {{ params.partial_ratio }}"
+        " --unanswerable-ratio {{ params.unanswerable_ratio }}"
         f" {CONTEXTUALIZE_OPT} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}_augmented.jsonl",),
