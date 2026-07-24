@@ -129,7 +129,7 @@ if __name__ == "__main__":
                         ),
                     ),
                     PIIFormatter(remove_ips=False),
-                    PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>"),
+                    PhoneNumberPII(["ZZ"], replacement="<PHONE_NUMBER>", mask_digits=False),
                     PrefixFormatter(
                         infer_date_format=True,
                         additionnal_formatting=additionnal_formatting,
