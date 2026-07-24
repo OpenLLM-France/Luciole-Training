@@ -1,6 +1,7 @@
 from datatrove.pipeline.formatters import PIIFormatter, PhoneNumberPII
-from datatrove.data import DocumentsPipeline
+from datatrove.data import Document, DocumentsPipeline
 from datatrove.pipeline.filters import FastTextClassifierFilter
+from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.decont import NGramsDecontConfig, NGramsDecontFilter
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
@@ -275,9 +276,38 @@ def annotate_edu_score(
         yield doc
 
 
-def get_pii_formatters(language):
+class PIICountFilter(BaseFilter):
+    """Drop documents that contain a lot of PII.
+
+    Following Dolma (OLMo), pages with many PII spans are usually contact
+    directories / scraped listings / spam rather than useful prose, so the
+    whole document is removed instead of being left riddled with masks.
+
+    Counts the PII spans recorded in ``doc.metadata`` by the upstream
+    formatters (``pii_email`` + ``pii_ip`` from PIIFormatter, ``pii_phone``
+    from PhoneNumberPII), so this MUST run after them. Drops the doc when the
+    total is strictly greater than ``max_pii``.
+    """
+
+    name = "🔻  PII count"
+    _METADATA_KEYS = ("pii_email", "pii_ip", "pii_phone")
+
+    def __init__(self, max_pii=5, exclusion_writer=None):
+        super().__init__(exclusion_writer=exclusion_writer)
+        self.max_pii = max_pii
+
+    def filter(self, doc: Document):
+        n_pii = sum(len(doc.metadata.get(key, [])) for key in self._METADATA_KEYS)
+        if n_pii > self.max_pii:
+            return False, "too_much_pii"
+        return True
+
+
+def get_pii_formatters(language, max_pii=5):
     pii_cleaning = [
-        PIIFormatter(ip_replacement="<IP_ADDRESS>",  email_replacement=("email@example.com", "firstname.lastname@example.org")), #, "<EMAIL_ADDRESS>"
+        # email -> email@example.com / firstname.lastname@example.org,
+        # public IP -> non-responsive example IPs (datatrove defaults, rotated)
+        PIIFormatter(),
     ]
     if language in ["fra_Latn", "fr"]:
         countries = ["FR", "CA", "BE"]
@@ -293,9 +323,16 @@ def get_pii_formatters(language):
         countries = ["NL"]
     else:
         countries = ["ZZ"]  # no national region: only international numbers
+    # mask_digits masks each detected number in place: keeps the international
+    # "+cc" prefix (if written internationally), x-out other digits, preserving
+    # the original format. `countries` sets which national formats to detect.
     pii_cleaning.append(
-        PhoneNumberPII(countries, replacement="<PHONE_NUMBER>")
+        PhoneNumberPII(countries, mask_digits=True)
     )
+    # Runs last: counts the spans the formatters recorded in doc.metadata and
+    # drops PII-dense docs (contact dumps / listings). Set max_pii=None to skip.
+    if max_pii is not None:
+        pii_cleaning.append(PIICountFilter(max_pii=max_pii))
     return pii_cleaning
 
 
@@ -400,7 +437,7 @@ def get_web_pipeline(
 ):
     dedup_filters = [get_dedup_filter(output_path)] if do_dedup else []
     edu_filters = get_edu_filters(language) if do_edu else []
-    pii_formatters = get_pii_formatters(language) if do_pii else []
+    pii_formatters = get_pii_formatters(language, max_pii=5) if do_pii else []
     decontamination_filters = (
         get_decontamination_filters(language, output_path) if do_decont else []
     )
