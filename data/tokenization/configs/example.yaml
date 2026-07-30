@@ -1,6 +1,0 @@
-output_dir: "your/output/directory"
-datasets:
-  - name: name_of_your_tokenized_dataset
-    path: path/to/your/dataset # folder that contains the files to tokenize (.jsonl)
-  - name: name_of_your_tokenized_dataset
-    path: path/to/your/dataset # folder that contains the files to tokenize (.jsonl)

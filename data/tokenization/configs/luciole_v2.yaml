@@ -64,4 +64,8 @@ datasets:
   - name: stack_edu_fim-typescript
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/stack-edu-fim/dolma3_dolmino_pool/data/stack_edu_fim-TypeScript_*/*.jsonl.zst
 
-  # Math datasets
+  # Common Pile
+  - name: common_pile_main-en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile_reweighted/data/main/**/*.jsonl.gz
+  - name: common_pile_cooldown-en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile_reweighted/data/cooldown/**/*.jsonl.gz

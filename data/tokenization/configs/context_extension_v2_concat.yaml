@@ -1,0 +1,122 @@
+# Concatenates the datasets tokenized by configs/context_extension_v2.yaml into the
+# grouped dataset names used by
+# pretrain/train/datamixes/luciole_context_extension_longmino_25B.json
+#
+#   python run_concat_token.py configs/context_extension_longmino_v2_concat.yaml
+#
+# Inputs and outputs both live in the tokenization output_dir, so once this has run
+# the directory holds all 107 datamix names: 94 tokenized directly under their final
+# name (including fineweb2_edu3+_fr) and the 13 groups produced below.
+
+# Europarl
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_it_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_pt_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/europarl_multi_text_document
+
+# Eurovoc
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_it_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_nl_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_pt_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/eurovoc_filtered_multi_text_document
+
+# Wikimedia + Vikidia
+# ar
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_ar_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_ar_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_ar_text_document
+
+# ca
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_ca_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_ca_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_ca_text_document
+
+# de
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_de_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_de_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_de_text_document
+
+# en
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_en_text_document
+
+# es
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_es_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_es_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_es_text_document
+
+# it
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_it_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_it_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_it_text_document
+
+# pt
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_pt_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_pt_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_pt_text_document
+
+# regional
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_br_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_co_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_frp_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_pcd_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_eu_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia_oc_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_eu_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/vikidia_oc_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/wikimedia-vikidia_regional_text_document
+
+# Culturax
+# fr
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/culturax_edu1_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/culturax_edu2_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/culturax_edu3_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/culturax_edu4_fr_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/culturax_fr_text_document
+
+# HPLT2
+# fr
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/hplt2_edu1_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/hplt2_edu2_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/hplt2_edu3_fr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/hplt2_edu4_fr_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/hplt2_fr_text_document
+
+# Fineweb2
+# regional
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_ca_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_acf_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_br_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_co_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_crs_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_eu_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_frp_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_gcf_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_gcr_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_oc_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_pcd_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_rcf_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_tah_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_wln_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2/fineweb2_regional_text_document

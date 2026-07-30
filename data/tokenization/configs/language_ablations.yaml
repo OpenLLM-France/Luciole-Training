@@ -1,0 +1,10 @@
+output_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/language_ablation"
+datasets:
+  #### Stack Edu datasets (add html?)
+  - name: fineweb2_filtered-fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data/*.jsonl.gz
+  - name: fineweb_sample350BT-part1-en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_sample350BT/data/000[0-2]?.jsonl.gz
+  - name: fineweb_sample350BT-part2-en
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_sample350BT/data/000[3-4]?.jsonl.gz
+

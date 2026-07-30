@@ -1,0 +1,4 @@
+- input:
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/language_ablation/fineweb_sample350BT-part1-en_text_document
+    - /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/language_ablation/fineweb_sample350BT-part2-en_text_document
+  output: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/language_ablation/fineweb_sample350BT-grouped-en_text_document
