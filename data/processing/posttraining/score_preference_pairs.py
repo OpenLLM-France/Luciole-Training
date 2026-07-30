@@ -58,6 +58,16 @@ def render_judge_prompt(aspect: str, instruction: str, texts: list[str]) -> str:
 # Pipeline helpers
 # --------------------------------------------------------------------------- #
 
+# The judge rates the ANSWER only: a reasoning trace is scratchpad, not part of
+# what the user sees, and its verbosity would skew the ratings.
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def _strip_reasoning(text: str) -> str:
+    """Remove inlined <think>...</think> reasoning from an answer."""
+    return _THINK_RE.sub("", text).strip()
+
+
 def _format_instruction(messages: list[dict]) -> str:
     """Serialize the prompt context (system/user/RAG turns) into the Instruction field."""
     return "\n\n".join(
@@ -75,8 +85,8 @@ def preproc(data, rank: int = 0, world_size: int = 1, seed: int = 42):
         assert "chosen" in md and "rejected" in md, "doc needs 'chosen' and 'rejected'"
         context = md.get("context") or md["chosen"][:-1]
         answers = {
-            "chosen": md["chosen"][-1]["content"],
-            "rejected": md["rejected"][-1]["content"],
+            "chosen": _strip_reasoning(md["chosen"][-1]["content"]),
+            "rejected": _strip_reasoning(md["rejected"][-1]["content"]),
         }
         # randomize which answer is shown as <text 1> vs <text 2>
         order = ["chosen", "rejected"]
