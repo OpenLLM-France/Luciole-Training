@@ -389,18 +389,17 @@ def get_decontamination_filters(
     return filters
 
 
-def get_opt_out_filters(output_path, keep_if_not_found=False):
+def get_opt_out_filters(output_path):
     return [
-        RobotsTxtFilter(
-            robots_txt_path=ROBOTSTXT_PATH,
-            keep_if_not_found=keep_if_not_found,
-            exclusion_writer=JsonlWriter(
-                f"{output_path}/removed/robots_txt",
-            ),
-        ),
         CommonCrawlOptOutFilter(
             exclusion_writer=JsonlWriter(
                 f"{output_path}/removed/commoncrawl_optout",
+            ),
+        ),
+        RobotsTxtFilter(
+            robots_txt_path=ROBOTSTXT_PATH,
+            exclusion_writer=JsonlWriter(
+                f"{output_path}/removed/robots_txt",
             ),
         ),
     ]
@@ -433,7 +432,6 @@ def get_web_pipeline(
     do_edu=True,
     do_pii=True,
     do_decont=False,
-    apertus_rule=False
 ):
     dedup_filters = [get_dedup_filter(output_path)] if do_dedup else []
     edu_filters = get_edu_filters(language) if do_edu else []
@@ -447,7 +445,7 @@ def get_web_pipeline(
     # so this stage can never be forgotten. Everything else is opt-in.
     pipeline = [
         *dedup_filters,
-        *get_opt_out_filters(output_path, keep_if_not_found=apertus_rule),
+        *get_opt_out_filters(output_path),
         *edu_filters,
         *pii_formatters,
         *decontamination_filters,

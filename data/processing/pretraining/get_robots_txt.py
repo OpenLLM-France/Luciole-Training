@@ -8,7 +8,7 @@ from datatrove.pipeline.writers import HuggingFaceDatasetWriter
 from utils import _custom_adapter_for_hf, HF_SCHEMA
 from functools import partial
 
-DUMP_TO_PROCESS = ".CC-MAIN-2025-26"
+DUMP_TO_PROCESS = ".CC-MAIN-2026-25"
 
 if __name__ == "__main__":
     parser = create_parser()
