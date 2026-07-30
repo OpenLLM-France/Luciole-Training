@@ -8,6 +8,7 @@ from utils import (
     instruct_adapter,
     check_last_message,
     add_system_prompt,
+    NemoRLFormat,
 )
 
 
@@ -67,6 +68,7 @@ if __name__ == "__main__":
         format_messages,
         # partial(replace_tool_name, rename_names=True, rename_params=False),
         partial(add_system_prompt, tokenizer=tokenizer),
+        NemoRLFormat(),
         partial(apply_chat_template, tokenizer=tokenizer),
         check_last_message,
         JsonlWriter(

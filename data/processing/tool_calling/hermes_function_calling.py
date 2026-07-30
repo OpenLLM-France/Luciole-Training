@@ -9,6 +9,7 @@ from utils import (
     instruct_adapter,
     check_last_message,
     add_system_prompt,
+    NemoRLFormat,
 )
 from data.processing.tool_calling.smolagents_toolcalling import clean_tool_response
 
@@ -61,16 +62,25 @@ def format_messages(data, rank: int = 0, world_size: int = 1):
         except Exception:
             continue
 
-        # Format tool_calls
+        # Format tool_calls: pull each <tool_call>{...}</tool_call> block out of
+        # the assistant content into a structured tool_calls list, and strip the
+        # tags from the content so NemoRLFormat re-renders them consistently.
         for message in doc.metadata["messages"]:
-            if message["role"] == "assistant" and "<tool_call>" in message:
-                tool_calls = re.sub(
-                    r"<tool_call>(.*?)</tool_call>",
-                    r"\1",
+            if message["role"] == "assistant" and "<tool_call>" in message["content"]:
+                message["tool_calls"] = [
+                    json.loads(match.group(1).strip())
+                    for match in re.finditer(
+                        r"<tool_call>(.*?)</tool_call>",
+                        message["content"],
+                        flags=re.DOTALL,
+                    )
+                ]
+                message["content"] = re.sub(
+                    r"<tool_call>.*?</tool_call>",
+                    "",
                     message["content"],
                     flags=re.DOTALL,
-                )
-                message["tool_calls"] = json.loads(tool_calls)
+                ).strip()
         yield doc
 
 
@@ -96,6 +106,7 @@ if __name__ == "__main__":
             partial(add_system_prompt, tokenizer=tokenizer),
             clean_tool_response,
             check_last_message,
+            NemoRLFormat(),
             partial(apply_chat_template, tokenizer=tokenizer),
             FilterChinese(
                 exclusion_writer=JsonlWriter(

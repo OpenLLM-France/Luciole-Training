@@ -8,6 +8,8 @@ from utils import (
     apply_chat_template,
     instruct_adapter,
     check_last_message,
+    add_system_prompt,
+    NemoRLFormat,
 )
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
@@ -67,9 +69,8 @@ def clean_tool_response(data, rank: int = 0, world_size: int = 1):
         yield doc
 
 
-def reformat_messages(data, rank: int = 0, world_size: int = 1, tokenizer=None):
+def reformat_messages(data, rank: int = 0, world_size: int = 1):
     import json
-    import re
     import random
 
     for doc in data:
@@ -97,20 +98,9 @@ def reformat_messages(data, rank: int = 0, world_size: int = 1, tokenizer=None):
         if tools:
             random.shuffle(tools)
 
+        # Leave tools as a list of dicts; add_system_prompt bakes them into the
+        # system message and json.dumps them for a load_dataset-friendly column.
         doc.metadata["tools"] = tools
-
-        system_prompt = tokenizer.apply_chat_template(
-            [{"role": "system", "content": ""}],
-            tools=tools,
-            tokenize=False,
-        )
-        system_prompt = re.search(
-            r"<\|im_start\|>system\n(.*?)<\|im_end\|>", system_prompt, re.DOTALL
-        ).group(1)
-
-        doc.metadata["messages"] = [
-            {"role": "system", "content": system_prompt},
-        ] + doc.metadata["messages"]
         yield doc
 
 
@@ -130,9 +120,11 @@ if __name__ == "__main__":
             streaming=True,
             adapter=instruct_adapter,
         ),
-        partial(reformat_messages, tokenizer=tokenizer),
+        reformat_messages,
+        partial(add_system_prompt, tokenizer=tokenizer),
         ToolFiltering(),
         check_last_message,
+        NemoRLFormat(),
         partial(apply_chat_template, tokenizer=tokenizer),
         FilterChinese(
             exclusion_writer=JsonlWriter(
