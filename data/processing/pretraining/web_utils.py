@@ -267,9 +267,6 @@ def annotate_edu_score(
                 for label, prob in edu_labels.items()
             )
             doc.metadata["edu_score_mean"] = edu_score_mean
-            doc.metadata["edu_score"] = int(round(edu_score_mean))
-        else:
-            doc.metadata["edu_score"] = "unk"
         yield doc
 
 
@@ -300,7 +297,7 @@ class PIICountFilter(BaseFilter):
         return True
 
 
-def get_pii_formatters(language, max_pii=5):
+def get_pii_formatters(language, output_path, max_pii=5):
     pii_cleaning = [
         # email -> email@example.com / firstname.lastname@example.org,
         # public IP -> non-responsive example IPs (datatrove defaults, rotated)
@@ -329,7 +326,13 @@ def get_pii_formatters(language, max_pii=5):
     # Runs last: counts the spans the formatters recorded in doc.metadata and
     # drops PII-dense docs (contact dumps / listings). Set max_pii=None to skip.
     if max_pii is not None:
-        pii_cleaning.append(PIICountFilter(max_pii=max_pii))
+        pii_cleaning.append(
+            PIICountFilter(
+                max_pii=max_pii, exclusion_writer=JsonlWriter(
+                    f"{output_path}/removed/pii_filter",
+                ),
+            )
+        )
     return pii_cleaning
 
 
@@ -431,9 +434,9 @@ def get_web_pipeline(
     do_pii=True,
     do_decont=False,
 ):
-    dedup_filters = [get_dedup_filter(output_path)] if do_dedup else []
+    dedup_filters = [get_dedup_filter(output_path=output_path)] if do_dedup else []
     edu_filters = get_edu_filters(language) if do_edu else []
-    pii_formatters = get_pii_formatters(language, max_pii=5) if do_pii else []
+    pii_formatters = get_pii_formatters(language, max_pii=5, output_path=output_path) if do_pii else []
     decontamination_filters = (
         get_decontamination_filters(language, output_path) if do_decont else []
     )

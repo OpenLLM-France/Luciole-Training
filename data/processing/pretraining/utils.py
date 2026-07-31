@@ -90,7 +90,7 @@ assert os.path.isfile(
 ), f"set_env.sh not found at {SET_ENV_SCRIPT_PATH}"
 
 
-def create_executor(pipeline, local=False, debug=False, limit_debug=100, **kwargs):
+def create_executor(pipeline, local=False, debug=False, limit_debug=1000, **kwargs):
     # Debug mode
     if debug:
         kwargs["time"] = "02:00:00"
@@ -176,7 +176,7 @@ def create_parser():
     )
     parser.add_argument(
         "--limit_debug",
-        default=100,
+        default=1000,
         type=int,
         help="In --debug mode, cap the number of documents read per task to this "
              "(default 100). Ignored outside --debug.",

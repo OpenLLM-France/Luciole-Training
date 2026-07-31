@@ -94,7 +94,7 @@ if __name__ == "__main__":
         logging_dir=f"{OUTPUT_PATH}/logs",
         job_name=f"hplt4_{language}",
         skip_completed=not args.force,
-        tasks=max(50, len(shards)),
+        tasks=min(50, len(shards)),
         time="20:00:00",
         partition="cpu_p1",
         limit_debug=args.limit_debug,
