@@ -21,7 +21,7 @@ DECONT_PATH = os.getenv("DECONT_PATH") or os.path.join(
 )
 ROBOTSTXT_PATH = os.getenv("ROBOTSTXT_PATH") or os.path.join(
     DATA_PATH,
-    "robots_txt/cc-main-26-25/data_merge",
+    "robots_txt/cc-main-2026-25/data_merge",
 )
 
 
@@ -395,6 +395,7 @@ def get_opt_out_filters(output_path):
         ),
         RobotsTxtFilter(
             robots_txt_path=ROBOTSTXT_PATH,
+            use_database=True,
             exclusion_writer=JsonlWriter(
                 f"{output_path}/removed/robots_txt",
             ),

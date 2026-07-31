@@ -94,9 +94,10 @@ def create_executor(pipeline, local=False, debug=False, limit_debug=100, **kwarg
     # Debug mode
     if debug:
         kwargs["time"] = "02:00:00"
-        if "qos" in kwargs:
-            qos = kwargs.pop("qos", "qos_cpu-dev")
-            kwargs["qos"] = qos.split("-")[0] + "-dev"
+        # most call sites pass no qos at all, and the slurm branch would then default to the
+        # production queue - so derive the dev queue from whatever qos family applies
+        qos = kwargs.pop("qos", "qos_cpu-t3")
+        kwargs["qos"] = qos.split("-")[0] + "-dev"
         pipeline[0].limit = limit_debug
         kwargs["tasks"] = 1
         # kwargs["skip_completed"] = False

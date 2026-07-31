@@ -96,6 +96,7 @@ if __name__ == "__main__":
         skip_completed=not args.force,
         tasks=max(50, len(shards)),
         time="20:00:00",
+        partition="cpu_p1",
         limit_debug=args.limit_debug,
     )
 
