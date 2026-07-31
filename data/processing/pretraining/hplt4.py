@@ -8,10 +8,6 @@ from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter
 from web_utils import get_web_pipeline
 
-# Where the shards are downloaded. Deliberately not derived from --data_path,
-# so that --debug reads the same input and only redirects the output.
-RAW_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets/hplt4_raw")
-
 # Metadata kept as-is. Everything else is dropped: the `xml` and `md` fields
 # hold the same document in two other formats (they triple the size), and
 # `f`/`o`/`s`/`rs`/`de`/`c` are WARC bookkeeping.
@@ -59,14 +55,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input_folder",
         type=str,
-        default=None,
-        help=f"Folder holding the downloaded *.jsonl.zst shards "
-        f"(default: {RAW_PATH}/{{language}})",
+        default="/lustre/fswork/dataset/.HPLT/v4/clean/fra_Latn/",
     )
     args = parse_args(parser)
     language = args.language
     DATA_PATH = args.data_path
-    INPUT_PATH = args.input_folder or f"{RAW_PATH}/{language}"
+    INPUT_PATH = args.input_folder
     OUTPUT_PATH = f"{DATA_PATH}/hplt4_filtered/{language}"
 
     shards = get_datafolder(INPUT_PATH).list_files(glob_pattern="*.jsonl.zst")
@@ -100,7 +94,7 @@ if __name__ == "__main__":
         logging_dir=f"{OUTPUT_PATH}/logs",
         job_name=f"hplt4_{language}",
         skip_completed=not args.force,
-        tasks=len(shards),
+        tasks=max(50, len(shards)),
         time="20:00:00",
         limit_debug=args.limit_debug,
     )

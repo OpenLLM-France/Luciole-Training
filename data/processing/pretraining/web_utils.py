@@ -8,23 +8,20 @@ from datatrove.pipeline.filters.robots_txt_filter import RobotsTxtFilter
 from datatrove.pipeline.filters import LambdaFilter, CommonCrawlOptOutFilter
 import os
 import json
-
-OUTPUT_PATH = os.getenv("OpenLLM_OUTPUT")
-if not OUTPUT_PATH:
-    raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
+from utils import MAIN_PATH, DATA_PATH
 
 ASSETS_PATH = os.path.join(os.path.dirname(__file__), "assets")
 
 FASTTEXT_PATH = os.getenv("FASTTEXT_PATH") or os.path.join(
-    OUTPUT_PATH, "fasttext_classifiers/fineweb_edu_annotation"
+    MAIN_PATH, "fasttext_classifiers/fineweb_edu_annotation"
 )
 DECONT_PATH = os.getenv("DECONT_PATH") or os.path.join(
-    OUTPUT_PATH,
+    MAIN_PATH,
     "data/raw_data/full_datasets/decontamination_index/data",
 )
 ROBOTSTXT_PATH = os.getenv("ROBOTSTXT_PATH") or os.path.join(
-    OUTPUT_PATH,
-    "data/raw_data/full_datasets/robots_txt/cc-main-2025-26/data_merge",
+    DATA_PATH,
+    "robots_txt/cc-main-26-25/data_merge",
 )
 
 

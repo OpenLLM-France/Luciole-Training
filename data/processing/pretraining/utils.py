@@ -15,6 +15,7 @@ import pyarrow as pa
 MAIN_PATH = os.getenv("OpenLLM_OUTPUT")
 if not MAIN_PATH:
     raise RuntimeError("Environment variable 'OpenLLM_OUTPUT' is not set or is empty.")
+DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets_v2")
 
 FT176_LANGUAGES = [
     "en",
@@ -155,8 +156,6 @@ def add_sampler_filter(pipeline, sample_rate):
 
 
 def create_parser():
-    DATA_PATH = os.path.join(MAIN_PATH, "data/raw_data/full_datasets")
-
     parser = argparse.ArgumentParser(
         "", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )

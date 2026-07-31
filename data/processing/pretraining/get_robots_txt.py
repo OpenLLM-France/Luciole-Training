@@ -8,26 +8,32 @@ from datatrove.pipeline.writers import HuggingFaceDatasetWriter
 from utils import _custom_adapter_for_hf, HF_SCHEMA
 from functools import partial
 
-DUMP_TO_PROCESS = ".CC-MAIN-2026-25"
-
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument(
+        "--input_path",
+        default="/lustre/fsmisc/dataset/CommonCrawl/.CC-MAIN-2026-25",
+        type=str,
+    )
+    parser.add_argument(
+        "--output_path",
+        default=None,
+        type=str,
+    )
     args = parse_args(parser)
-    DATA_PATH = args.data_path
 
-    output_path = os.path.join(DATA_PATH, "robots_txt", slugify(DUMP_TO_PROCESS))
+    # name of the dump folder itself, with or without a trailing slash on --input_path
+    dump_name = os.path.basename(os.path.normpath(args.input_path))
+    output_path = args.output_path or os.path.join(
+        args.data_path, "robots_txt", slugify(dump_name)
+    )
 
     if not args.push_only:
         pipeline = [
             WarcForRobotsReader(
-                os.path.join(
-                    os.environ.get(
-                        "COMMONCRAWL_PATH", "/lustre/fsmisc/dataset/CommonCrawl"
-                    ),
-                    f"{DUMP_TO_PROCESS}/segments/",
-                ),
+                os.path.join(args.input_path, "segments"),
                 glob_pattern="*/robotstxt/*",  # we want the robotstxt files
-                default_metadata={"dump": DUMP_TO_PROCESS},
+                default_metadata={"dump": dump_name},
             ),
             JsonlWriter(
                 f"{output_path}/data/",
@@ -77,11 +83,11 @@ if __name__ == "__main__":
                 + ("-debug" if args.debug else ""),
                 private=True,
                 local_working_dir=f"{output_path}/data_hf",
-                output_filename=f"robots_txt/{slugify(DUMP_TO_PROCESS)}"
+                output_filename=f"robots_txt/{slugify(dump_name)}"
                 + "${rank}.parquet",
                 adapter=partial(
                     _custom_adapter_for_hf,
-                    source=slugify(DUMP_TO_PROCESS),
+                    source=slugify(dump_name),
                     id_key=None,
                     language="",
                     language_key=None,
