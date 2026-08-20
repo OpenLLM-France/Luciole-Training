@@ -70,6 +70,7 @@ def get_parser():
         choices=[
             "debug",
             "benchmark",
+            "ablation",
             "phase1",
             "phase2",
             "annealing",
@@ -354,6 +355,8 @@ if __name__ == "__main__":
     max_lr = recipe.optim.config.lr
     if args.mode in ["debug", "benchmark"]:
         warmup = 5
+    elif args.mode == "ablation":
+        warmup = 500
     elif args.mode == "phase1":
         warmup = 2000
     elif args.mode in ["phase2", "annealing"]:

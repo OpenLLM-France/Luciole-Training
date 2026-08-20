@@ -96,7 +96,7 @@ def create_slurm_script(slurm_args, train_args):
     return script
 
 
-def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL"):
+def generate_email_line(email, mail_type="ARRAY_TASKS,BEGIN,END,FAIL,TIME_LIMIT"):
     email_line = ""
     if email:
         mail_type = mail_type.upper()
@@ -264,7 +264,7 @@ def get_slurm_parser():
     )
     parser.add_argument(
         "--account",
-        default=os.environ.get("SLURM_ACCOUNT_GPU", "zwy@h100"),
+        default=os.environ.get("SLURM_ACCOUNT_GPU", "wuh@h100"),
         help="SLURM account to use (default from $SLURM_ACCOUNT_GPU env var).",
     )
     parser.add_argument(
