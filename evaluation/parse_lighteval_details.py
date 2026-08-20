@@ -42,6 +42,7 @@ class C:
         self.bold = "\033[1m" if e else ""
         self.dim = "\033[2m" if e else ""
         self.italic = "\033[3m" if e else ""
+        self.white = "\033[38;5;231m" if e else ""  # pure white
         self.label = "\033[38;5;110m" if e else ""  # soft blue
         self.question = "\033[38;5;223m" if e else ""  # warm sand
         self.reference = "\033[38;5;150m" if e else ""  # green
@@ -173,8 +174,11 @@ def metric_color(colors, value):
 def format_metrics(metric, colors):
     if not metric:
         return f"{colors.dim}(no metrics){colors.reset}"
+    items = list(metric.items())
+    numeric = [(k, v) for k, v in items if isinstance(v, (int, float))]
+    other = [(k, v) for k, v in items if not isinstance(v, (int, float))]
     parts = []
-    for key, value in metric.items():
+    for key, value in numeric + other:
         col = metric_color(colors, value)
         parts.append(f"{col}{key}={format_metric_value(value)}{colors.reset}")
     return "  ".join(parts)
@@ -299,7 +303,7 @@ def render_sample(
     out = []
     header = f"Sample {idx + 1}/{total}"
     out.append(
-        f"{colors.sep}┄┄ {colors.dim}{header}{colors.sep} "
+        f"{colors.white}┄┄ {header} "
         f"{'┄' * max(0, width - len(header) - 4)}{colors.reset}"
     )
     out.append(
@@ -313,19 +317,22 @@ def render_sample(
         )
     )
 
-    # Per-model answer + metrics.
-    ans_indent = "     "
-    ans_w = max(20, width - len(ans_indent))
+    # Per-model output + metrics.
+    metric_label = f"{colors.label}{colors.bold}{'Metric :':<{label_w}}{colors.reset} "
     for m in per_model:
         mcol = model_colors[m["mi"]]
         tag = f"{m['short']} " if m["short"] else ""
         if m["present"]:
-            metrics = format_metrics(m["metric"], colors)
-            out.append(f"{mcol}{colors.bold}▌ {tag}{colors.reset}{metrics}")
+            if m["short"]:
+                out.append(f"{mcol}{colors.bold}▌ {tag}{colors.reset}")
             answer = ellipsize_middle(m["answer"], max_answer)
             out.append(
-                f"{colors.answer}{wrap(ans_indent + answer, ans_w, ans_indent)}{colors.reset}"
+                render_shared_field(
+                    "Output :", answer, colors.answer, colors, width, label_w
+                )
             )
+            metrics = format_metrics(m["metric"], colors)
+            out.append(f"{metric_label}{metrics}")
         else:
             out.append(
                 f"{mcol}{colors.bold}▌ {tag}{colors.reset}"
