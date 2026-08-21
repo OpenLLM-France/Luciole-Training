@@ -102,12 +102,17 @@ def process_line(line):
 
 
 def custom_filter(line, subset, regional_feature):
+    if line["domain"] != subset:
+        return False
     if regional_feature == "all":
-        return line["domain"] == subset
-    elif regional_feature == "agnostic":
-        return (line["domain"] == subset) & (line["regional_feature"] == "agnostic")
-    else:  # non-agnostic
-        return (line["domain"] == subset) & (line["regional_feature"] != "agnostic")
+        return True
+    if regional_feature == "non-agnostic":
+        return line["regional_feature"] != "agnostic"
+    if regional_feature == "agnostic":
+        return line["regional_feature"] == "agnostic"
+    if regional_feature == "culture":
+        return line["regional_feature"] == "culture"
+    return False
 
 
 TASKS_TABLE.extend(
@@ -139,7 +144,7 @@ TASKS_TABLE.extend(
         for language in LANGUAGES
         for subset in SUBSETS
         for formulation in all_qa_formulations
-        for regional_feature in ["all", "agnostic", "non-agnostic"]
+        for regional_feature in ["all", "agnostic", "non-agnostic", "culture"]
     ]
 )
 

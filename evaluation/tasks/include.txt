@@ -2,3 +2,4 @@ custom|include_french|0
 custom|include_french_all_mcq_cf|0
 custom|include_french_non-agnostic_mcq_cf|0
 custom|include_french_agnostic_mcq_cf|0
+custom|include_french_culture_mcq_cf|0
