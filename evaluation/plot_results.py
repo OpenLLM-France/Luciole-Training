@@ -199,6 +199,36 @@ def assign_styles(df, apply_phase_style=True, color_spec=None):
     return style_map
 
 
+def _annotate_numbers(ax, X, Y, color, yerr=None):
+    """Print each Y value as text, horizontally centered above its point.
+
+    A small constant vertical gap (in points) separates the bottom of the text
+    from the top of the marker/bar (or the top of the error bar when ``yerr`` is
+    given), so it is independent of the data scale.
+    """
+    X = np.atleast_1d(X)
+    Y = np.atleast_1d(Y)
+    err = np.atleast_1d(yerr) if yerr is not None else None
+    for i in range(len(Y)):
+        y_top = Y[i]
+        if err is not None:
+            e = err[i] if i < len(err) else err[-1]
+            if e is not None and not np.isnan(e):
+                y_top = y_top + e
+        ax.annotate(
+            f"{Y[i]:.3g}",
+            xy=(X[i], y_top),
+            xytext=(0, 3),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color=color,
+            zorder=6,
+            clip_on=False,
+        )
+
+
 def _plot_curves(
     ax,
     series,
@@ -207,6 +237,7 @@ def _plot_curves(
     unit="T_tokens",
     xlog=False,
     use_dots=False,
+    print_numbers=False,
 ):
     """Plot a list of series on a single axis.
 
@@ -245,6 +276,8 @@ def _plot_curves(
                 edgecolor="white",
                 linewidth=0.5,
             )
+            if print_numbers:
+                _annotate_numbers(ax, [i], Y, color, yerr=s.get("stderr"))
         elif "r2" in s:
             ax.plot(
                 X,
@@ -274,6 +307,8 @@ def _plot_curves(
                 ha="left",
                 va="center",
             )
+            if print_numbers:
+                _annotate_numbers(ax, X, Y, color)
         else:
             if len(Y) == 1:
                 if use_dots:
@@ -287,6 +322,8 @@ def _plot_curves(
                         linewidth=2,
                         label=label,
                     )
+                    if print_numbers:
+                        _annotate_numbers(ax, X, Y, color)
                 else:
                     ax.axhline(
                         y=Y,
@@ -305,6 +342,8 @@ def _plot_curves(
                             markeredgecolor="white",
                             markeredgewidth=0.5,
                         )
+                        if print_numbers:
+                            _annotate_numbers(ax, [X[-1]], [Y[-1]], color)
                     else:
                         deferred_stars.append((Y[0], color))
             else:
@@ -318,6 +357,8 @@ def _plot_curves(
                     markeredgecolor="white",
                     markeredgewidth=0.5,
                 )
+                if print_numbers:
+                    _annotate_numbers(ax, X, Y, color)
                 if not use_dots:
                     ax.axhline(
                         y=Y[-1],
@@ -357,6 +398,8 @@ def _plot_curves(
                 clip_on=False,
                 zorder=5,
             )
+            if print_numbers:
+                _annotate_numbers(ax, [x_star], [y_val], color)
             # Horizontal arrow pointing right, just above the star
             arrow_y = y_val + y_offset
             ax.annotate(
@@ -414,6 +457,7 @@ def plot_task(
     use_dots=False,
     max_tokens=None,
     checkpoint_index=None,
+    print_numbers=False,
 ):
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -478,7 +522,14 @@ def plot_task(
         series.append(s)
 
     _plot_curves(
-        ax, series, color_map, style_map, unit=unit, xlog=xlog, use_dots=use_dots
+        ax,
+        series,
+        color_map,
+        style_map,
+        unit=unit,
+        xlog=xlog,
+        use_dots=use_dots,
+        print_numbers=print_numbers,
     )
     ax.set_ylabel(format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
@@ -570,6 +621,7 @@ def plot_aggregate(
     max_tokens=None,
     checkpoint_index=None,
     title=None,
+    print_numbers=False,
 ):
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
@@ -688,7 +740,14 @@ def plot_aggregate(
         )
 
     _plot_curves(
-        ax, series, color_map, style_map, unit=unit, xlog=xlog, use_dots=use_dots
+        ax,
+        series,
+        color_map,
+        style_map,
+        unit=unit,
+        xlog=xlog,
+        use_dots=use_dots,
+        print_numbers=print_numbers,
     )
     ax.set_ylabel(
         "Averaged "
@@ -768,6 +827,7 @@ def plot_list_of_tasks(
     rows_cols=None,
     color_spec=None,
     suptitle=None,
+    print_numbers=False,
 ):
     legend_fig = None
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
@@ -902,6 +962,10 @@ def plot_list_of_tasks(
                     label=expe_name_with_tokens,
                     color=color,
                 )
+                if print_numbers:
+                    _annotate_numbers(
+                        ax, values["context_length"], values["score"], color
+                    )
             ax.set_xlabel("Context Length")
             ax.set_xscale("log", base=2)
             ax.set_xticks(
@@ -1045,6 +1109,7 @@ def plot_list_of_tasks(
                     rows_cols=rows_cols,
                     color_spec=color_spec,
                     suptitle=suptitle,
+                    print_numbers=print_numbers,
                 )
             return
 
@@ -1116,6 +1181,7 @@ def plot_list_of_tasks(
                 title=title
                 if hide_details
                 else (f"Overall Performance ({title})" if title else None),
+                print_numbers=print_numbers,
             )
             # Visually emphasize the aggregate subplot
             agg_ax.set_facecolor("#f7f7f7")
@@ -1152,6 +1218,7 @@ def plot_list_of_tasks(
                 use_dots=use_dots,
                 max_tokens=max_tokens,
                 checkpoint_index=checkpoint_index,
+                print_numbers=print_numbers,
             )
 
             handles, labels = axes[ax_idx].get_legend_handles_labels()
@@ -1298,6 +1365,7 @@ def plot_experiments(df, args, max_subplot=20):
             rows_cols=args.rows_cols,
             color_spec=args.color,
             suptitle=args.title,
+            print_numbers=args.print_numbers,
         )
 
     if not args.output_path:
@@ -1523,6 +1591,11 @@ if __name__ == "__main__":
             "'g-g--g:b-b--b:') means green, green dashed, green dotted, blue, "
             "blue dashed, blue dotted. Cycles if fewer entries than systems."
         ),
+    )
+    parser.add_argument(
+        "--print_numbers",
+        action="store_true",
+        help="Print the performance value as text above each bar / data point.",
     )
     parser.add_argument(
         "--save_csv",
