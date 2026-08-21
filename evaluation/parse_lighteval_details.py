@@ -116,6 +116,35 @@ def extract_question(doc):
     return re.sub(r"^question\s*:\s*", "", meaningful[-1], flags=re.IGNORECASE)
 
 
+_TURN_RE = re.compile(
+    r"<\|im_start\|>\s*(\w+)\s*\n?(.*?)(?:<\|im_end\|>|\Z)", re.DOTALL
+)
+
+
+def extract_full_input(doc):
+    """Return the full user turn of ``doc.query`` (system prompt excluded).
+
+    When the prompt uses ``<|im_start|>role ... <|im_end|>`` chat markers, keep
+    the content of the last ``user`` turn. Otherwise (few-shot / plain prompts
+    with no role structure to strip) return the whole query unchanged.
+    """
+    query = doc.get("query", "") or ""
+    if not query.strip():
+        return "(no input found)"
+
+    turns = _TURN_RE.findall(query)
+    if turns:
+        user_turns = [content for role, content in turns if role.lower() == "user"]
+        if user_turns:
+            return user_turns[-1].strip()
+        non_system = [
+            content.strip() for role, content in turns if role.lower() != "system"
+        ]
+        if any(non_system):
+            return "\n".join(c for c in non_system if c).strip()
+    return query.strip()
+
+
 def extract_references(doc, sep="  |  "):
     """Return the reference answer(s) joined by ``sep``."""
     choices = doc.get("choices")
@@ -210,7 +239,7 @@ def derive_labels(paths):
     return out
 
 
-def load_parquet(path, match_on):
+def load_parquet(path, match_on, cut_long_input=False):
     """Load a parquet into a list of per-sample dicts + the raw match keys."""
     import pandas as pd
 
@@ -228,7 +257,9 @@ def load_parquet(path, match_on):
         keys.append(key)
         samples.append(
             {
-                "question": extract_question(doc),
+                "question": (
+                    extract_question(doc) if cut_long_input else extract_full_input(doc)
+                ),
                 "references": extract_references(doc),
                 "answer": extract_answer(model_response),
                 "metric": metric,
@@ -449,6 +480,11 @@ def main():
         action="store_true",
         help="Skip per-sample output; print only the summary.",
     )
+    parser.add_argument(
+        "--cut_long_input",
+        action="store_true",
+        help="Show only the extracted question instead of the full user turn.",
+    )
     args = parser.parse_args()
 
     for p in args.parquets:
@@ -475,7 +511,9 @@ def main():
         labels = derive_labels(args.parquets)
 
     # Load & align.
-    loaded = [load_parquet(p, args.match_on) for p in args.parquets]
+    loaded = [
+        load_parquet(p, args.match_on, args.cut_long_input) for p in args.parquets
+    ]
     all_samples = [s for s, _ in loaded]
     all_keys = [k for _, k in loaded]
     check_alignment(all_keys, labels)
