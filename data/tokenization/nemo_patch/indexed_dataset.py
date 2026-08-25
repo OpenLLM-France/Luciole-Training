@@ -36,8 +36,6 @@ from itertools import accumulate
 import numpy as np
 import torch
 
-from nemo.utils import logging
-
 
 def __best_fitting_dtype(vocab_size=None):
     if vocab_size is not None and vocab_size < 65500:
@@ -464,23 +462,23 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
                 offset = stream.tell()
 
             if not skip_warmup:
-                logging.info("    warming up index mmap file...")
+                # print("    warming up index mmap file...")
                 _warmup_mmap_file(path)
 
             self._bin_buffer_mmap = np.memmap(path, mode="r", order="C")
             self._bin_buffer = memoryview(self._bin_buffer_mmap)
-            logging.info("    reading sizes...")
+            # print("    reading sizes...")
             self._sizes = np.frombuffer(
                 self._bin_buffer, dtype=np.int32, count=self._len, offset=offset
             )
-            logging.info("    reading pointers...")
+            # print("    reading pointers...")
             self._pointers = np.frombuffer(
                 self._bin_buffer,
                 dtype=np.int64,
                 count=self._len,
                 offset=offset + self._sizes.nbytes,
             )
-            logging.info("    reading document index...")
+            # print("    reading document index...")
             self._doc_idx = np.frombuffer(
                 self._bin_buffer,
                 dtype=np.int64,
@@ -535,19 +533,19 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
         if not delay_data_mmap:
             self._create_data_mmap(skip_warmup)
         else:
-            logging.info("    skip creating data numpy buffer of mmap...")
+            # print("    skip creating data numpy buffer of mmap...")
             self._bin_buffer_mmap = None
             self._bin_buffer = None
 
     def _create_data_mmap(self, skip_warmup):
         if not skip_warmup:
-            logging.info("    warming up data mmap file...")
+            print("    warming up data mmap file...")
             _warmup_mmap_file(data_file_path(self._path))
-        logging.info("    creating numpy buffer of mmap...")
+        # print("    creating numpy buffer of mmap...")
         self._bin_buffer_mmap = np.memmap(
             data_file_path(self._path), mode="r", order="C"
         )
-        logging.info("    creating memory view of numpy buffer...")
+        # print("    creating memory view of numpy buffer...")
         self._bin_buffer = memoryview(self._bin_buffer_mmap)
 
     def __del__(self):
