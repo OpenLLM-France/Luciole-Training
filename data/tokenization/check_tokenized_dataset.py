@@ -24,7 +24,7 @@ def inspect_tokens(bin_file):
     for i, data in enumerate(tqdm.tqdm(dataset)):
         text = tokenizer.decode(data)
         text = text.replace("\n", "\\n")
-        data = list(data)
+        data = data.tolist()
         num_tokens += len(data)
         num_chars += len(text)
         num_docs += 1
