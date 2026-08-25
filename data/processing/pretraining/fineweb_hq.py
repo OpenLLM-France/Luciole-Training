@@ -14,13 +14,12 @@ def keep_rate(rounded_score):
     return min(max((rounded_score - 0.5) / 0.5, 0.0), 1.0)
 
 
-def process_score(doc, subsample=False):
+def process_score(doc, subsample=False, sample_rate=1.0):
     score = doc.metadata.get("quality_score", 0.0)
     rounded = round(score / 0.05) * 0.05
     doc.metadata["quality_score_rounded"] = f"{rounded:.2f}"
-    if subsample:
-        return _rng.uniform() < keep_rate(rounded)
-    return score > 0.5
+    rate = keep_rate(rounded) if subsample else float(score > 0.5)
+    return _rng.uniform() < rate * sample_rate
 
 
 if __name__ == "__main__":
@@ -32,6 +31,13 @@ if __name__ == "__main__":
         "score (0.50 -> 0, 0.55 -> 0.1, ..., 1.00 -> 1) instead of keeping "
         "everything above 0.5",
     )
+    parser.add_argument(
+        "--sample_rate",
+        default=1.0,
+        type=float,
+        help="Global fraction of the documents to randomly keep (1.0 = no "
+        "sampling). Multiplies the per-document keep rate.",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
@@ -40,7 +46,13 @@ if __name__ == "__main__":
         ParquetReader(
             "hf://datasets/epfml/FineWeb-HQ/data",
         ),
-        LambdaFilter(partial(process_score, subsample=args.subsample)),
+        LambdaFilter(
+            partial(
+                process_score,
+                subsample=args.subsample,
+                sample_rate=args.sample_rate,
+            )
+        ),
         *get_web_pipeline(
             "en",
             f"{DATA_PATH}/fineweb_hq_filtered",
