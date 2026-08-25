@@ -1,0 +1,22 @@
+  GNU nano 5.6.1                                                    v3_idiomatic_expressions.txt                                                               
+# MCQ
+custom|v3_idiomatic_expressions_mcq_context_mcf|0
+custom|v3_idiomatic_expressions_mcq_mcf|0
+custom|v3_idiomatic_expressions_mcq_context_cf|0
+custom|v3_idiomatic_expressions_mcq_cf|0
+custom|v3_idiomatic_expressions_mcq_context_hybrid|0
+custom|v3_idiomatic_expressions_mcq_hybrid|0
+# FIB
+custom|v3_idiomatic_expressions_fib_context|0
+custom|v3_idiomatic_expressions_fib|0
+# MCQ — English distractor
+custom|v3_idiomatic_expressions_mcq_context_mcf_english_distractor:similar|0
+custom|v3_idiomatic_expressions_mcq_mcf_english_distractor:similar|0
+custom|v3_idiomatic_expressions_mcq_context_cf_english_distractor:similar|0
+custom|v3_idiomatic_expressions_mcq_cf_english_distractor:similar|0
+custom|v3_idiomatic_expressions_mcq_context_hybrid_english_distractor:similar|0
+custom|v3_idiomatic_expressions_mcq_hybrid_english_distractor:similar|0
+
+# FIB — English distractor
+custom|v3_idiomatic_expressions_fib_context_english_distractor:similar|0
+custom|v3_idiomatic_expressions_fib_english_distractor:similar|0
