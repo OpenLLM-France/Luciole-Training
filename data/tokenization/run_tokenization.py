@@ -34,6 +34,37 @@ if __name__ == "__main__":
     with open(yaml_file, "r") as f:
         yaml_data = yaml.safe_load(f)
 
+    # Reject unknown keys, so that a removed/misspelled option (e.g. the
+    # deprecated `regex`) fails loudly instead of being silently ignored.
+    TOP_LEVEL_KEYS = {"output_dir", "datasets"}
+    DATASET_KEYS = {"name", "path"}
+
+    unknown = set(yaml_data) - TOP_LEVEL_KEYS
+    assert not unknown, (
+        f"Unknown key(s) {sorted(unknown)} in {yaml_file}. "
+        f"Supported top-level keys: {sorted(TOP_LEVEL_KEYS)}."
+    )
+    missing = TOP_LEVEL_KEYS - set(yaml_data)
+    assert not missing, f"Missing key(s) {sorted(missing)} in {yaml_file}."
+
+    for i, dataset in enumerate(yaml_data["datasets"]):
+        unknown = set(dataset) - DATASET_KEYS
+        assert not unknown, (
+            f"Unknown key(s) {sorted(unknown)} in dataset #{i} "
+            f"({dataset.get('name', '<unnamed>')}) of {yaml_file}. "
+            f"Supported dataset keys: {sorted(DATASET_KEYS)}. "
+            "`regex` is gone: put the file filter directly in `path` as a glob."
+        )
+        missing = DATASET_KEYS - set(dataset)
+        assert not missing, (
+            f"Missing key(s) {sorted(missing)} in dataset #{i} "
+            f"({dataset.get('name', '<unnamed>')}) of {yaml_file}."
+        )
+
+    names = [d["name"] for d in yaml_data["datasets"]]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    assert not duplicates, f"Duplicate dataset name(s) {duplicates} in {yaml_file}."
+
     # Read output dir
     tokens_dataset_path = yaml_data["output_dir"]
     os.makedirs(tokens_dataset_path, exist_ok=True)

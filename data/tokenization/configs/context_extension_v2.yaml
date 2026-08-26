@@ -12,6 +12,13 @@
 #   culturax_fr                 -> culturax_edu{1,2,3,4}_fr
 #   hplt2_fr                    -> hplt2_edu{1,2,3,4}_fr
 #   fineweb2_edu3+_fr           -> no v1 counterpart, added at the end of this file
+#
+# `path` is a folder or a Python glob (run_tokenization.py); the old `regex` key
+# is gone. Globs have no alternation, so three former alternation-regex entries
+# are split here and concatenated back in context_extension_v2_concat.yaml:
+#   parlement_fr                -> parlement_{interventions,discourspublics,questionsecrites,amendements}_fr
+#   pleias-synth_multi          -> pleias-synth_{de,it,es,pt,ar,nl}
+#   pleias-synth_regional       -> pleias-synth_{eu,oc,ca}
 
 output_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/context_extension_v2"
 datasets:
@@ -78,19 +85,19 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/europarl/pt
   # Eurovoc
   - name: eurovoc_filtered_de
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/deu
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/deu
   - name: eurovoc_filtered_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/eng
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/eng
   - name: eurovoc_filtered_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/fra
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/fra
   - name: eurovoc_filtered_it
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/ita
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/ita
   - name: eurovoc_filtered_nl
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/nld
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/nld
   - name: eurovoc_filtered_pt
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/por
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/por
   - name: eurovoc_filtered_es
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered/data/spa
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/eurovoc_filtered_v2/data/spa
   # Common Pile
   - name: common-pile_data-provenance-initiative_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_pile/data_provenance_initiative_filtered/data
@@ -131,9 +138,17 @@ datasets:
   # Lucie 
   - name: croissant-aligned_aligned
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/croissantaligned/data
-  - name: parlement_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/
-    regex: .*/(interventionsparlement|discourspublics|questionsecritesparlement|amendementsparlement)/data/.*\.jsonl\.gz
+  # parlement_fr was a single entry with an alternation regex; globs have no
+  # alternation, so it is tokenized as 4 entries and concatenated back into
+  # parlement_fr by context_extension_v2_concat.yaml.
+  - name: parlement_interventions_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/interventionsparlement/data
+  - name: parlement_discourspublics_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/discourspublics/data
+  - name: parlement_questionsecrites_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/questionsecritesparlement/data
+  - name: parlement_amendements_fr
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/lucie_dataset/main/amendementsparlement/data
   # Open-data (wo balo)
   - name: opendata_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/opendata/data/
@@ -165,11 +180,9 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/common_corpus_filtered/data/government/wto
   # FineMath-4plus
   - name: finemath-filtered_4plus_math
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/finemath_filtered/finemath-4plus/data
-    regex: .*/score_[4-5].*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/finemath_filtered/finemath-4plus/data/**/score_[4-5]*.jsonl.gz
   - name: infiwebmath-filtered_4plus_math
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/finemath_filtered/infiwebmath-4plus/data
-    regex: .*/score_[4-5].*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/finemath_filtered/infiwebmath-4plus/data/**/score_[4-5]*.jsonl.gz
   # Math
   - name: open-code-reasoning_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_code_reasoning/data
@@ -181,28 +194,22 @@ datasets:
   ## HPLT2 2
   # FR
   - name: hplt2_edu1_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-    regex: .*/edu_1_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data/**/edu_1_*.jsonl.gz
   - name: hplt2_edu2_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-    regex: .*/edu_2_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data/**/edu_2_*.jsonl.gz
   - name: hplt2_edu3_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-    regex: .*/edu_3_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data/**/edu_3_*.jsonl.gz
   - name: hplt2_edu4_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data
-    regex: .*/edu_4_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/hplt2_filtered/fra_Latn/data/**/edu_4_*.jsonl.gz
   ## Fineweb 2
   # FR
   # fineweb2_edu3+_fr is the dataset the datamix actually uses: edu levels 3 and
   # above. data_to_tokenize_v1.yaml only has fineweb2_edu3_fr (edu_3 alone), which
   # was never tokenized under that name, so the entry is defined here instead.
   - name: fineweb2_edu3+_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
-    regex: .*/cluster_size-.*_edu_[3-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data/**/cluster_size-*_edu_[3-5]_rank*.jsonl.gz
   - name: fineweb2_edu4_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data
-    regex: .*/cluster_size-.*_edu_4_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/fra_Latn/data/**/cluster_size-*_edu_4_rank*.jsonl.gz
   # OTHER
   - name: fineweb2_ca
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/cat_Latn/data
@@ -234,40 +241,29 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_filtered/wln_Latn/data
   # FINEWEB-2 HQ
   - name: fineweb2_hq_ar
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/arb_Arab/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/arb_Arab/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   - name: fineweb2_hq_de
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/deu_Latn/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/deu_Latn/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   - name: fineweb2_hq_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/fra_Latn/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/fra_Latn/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   - name: fineweb2_hq_it
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/ita_Latn/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/ita_Latn/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   - name: fineweb2_hq_nl
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/nld_Latn/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/nld_Latn/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   - name: fineweb2_hq_pt
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/por_Latn/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/por_Latn/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   - name: fineweb2_hq_es
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/spa_Latn/data
-    regex: .*/cluster_size-.*_edu_[1-5]_rank.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb2_hq_filtered/spa_Latn/data/**/cluster_size-*_edu_[1-5]_rank*.jsonl.gz
   ## CULTURAX
   # FR
   - name: culturax_edu1_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data
-    regex: .*/.*_edu_1_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data/**/*_edu_1_*.jsonl.gz
   - name: culturax_edu2_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data
-    regex: .*/.*_edu_2_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data/**/*_edu_2_*.jsonl.gz
   - name: culturax_edu3_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data
-    regex: .*/.*_edu_3_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data/**/*_edu_3_*.jsonl.gz
   - name: culturax_edu4_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data
-    regex: .*/.*_edu_4_.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/culturax_filtered/fr/data/**/*_edu_4_*.jsonl.gz
   # Nemotron post-training
   - name: nemotron-posttraining-math_math
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining/math/data
@@ -322,52 +318,55 @@ datasets:
   - name: paradocs_en-pt_aligned
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/paradocs_geom0.33/en-pt_revert0.5/data
   # Pleias Synth
+  # pleias-synth_multi and pleias-synth_regional were alternation regexes; globs
+  # have no alternation, so they are tokenized per language and concatenated back
+  # by context_extension_v2_concat.yaml.
   - name: pleias-synth_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
-    regex: .*/en.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/en*.jsonl.gz
   - name: pleias-synth_fr
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
-    regex: .*/fr.*\.jsonl\.gz$
-  - name: pleias-synth_multi
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
-    regex: .*/de.*\.jsonl\.gz$|.*/it.*\.jsonl\.gz$|.*/es.*\.jsonl\.gz$|.*/pt.*\.jsonl\.gz$|.*/ar.*\.jsonl\.gz$|.*/nl.*\.jsonl\.gz$
-  - name: pleias-synth_regional
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data
-    regex: .*/eu.*\.jsonl\.gz$|.*/oc.*\.jsonl\.gz$|.*/ca.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/fr*.jsonl.gz
+  - name: pleias-synth_de
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/de*.jsonl.gz
+  - name: pleias-synth_it
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/it*.jsonl.gz
+  - name: pleias-synth_es
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/es*.jsonl.gz
+  - name: pleias-synth_pt
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/pt*.jsonl.gz
+  - name: pleias-synth_ar
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/ar*.jsonl.gz
+  - name: pleias-synth_nl
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/nl*.jsonl.gz
+  - name: pleias-synth_eu
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/eu*.jsonl.gz
+  - name: pleias-synth_oc
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/oc*.jsonl.gz
+  - name: pleias-synth_ca
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/pleias_synth/data/**/ca*.jsonl.gz
   # Nemotron translated
   - name: nemotron-posttraining-fr-think-translated_fr
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_translation/multilingual_fr/data_cleaned
   # Fineweb-HQ
   - name: fineweb-hq_quality-100_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_1\.00.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_1.00*.jsonl.gz
   - name: fineweb-hq_quality-95_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.95.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.95*.jsonl.gz
   - name: fineweb-hq_quality-90_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.90.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.90*.jsonl.gz
   - name: fineweb-hq_quality-85_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.85.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.85*.jsonl.gz
   - name: fineweb-hq_quality-80_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.80.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.80*.jsonl.gz
   - name: fineweb-hq_quality-75_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.75.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.75*.jsonl.gz
   - name: fineweb-hq_quality-70_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.70.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.70*.jsonl.gz
   - name: fineweb-hq_quality-65_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.65.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.65*.jsonl.gz
   - name: fineweb-hq_quality-60_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.60.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.60*.jsonl.gz
   - name: fineweb-hq_quality-55_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data
-    regex: .*/quality_0\.55.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/fineweb_hq_filtered/data/**/quality_0.55*.jsonl.gz
   # MISC
   - name: open-thoughts-code_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_thoughts/data/code
@@ -375,14 +374,11 @@ datasets:
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/open_thoughts/data/science
   # Longmino
   - name: longmino_olmocr-2e13_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data
-    regex: .*/olmocr_science_pdfs.*_2e13.*/.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data/olmocr_science_pdfs*_2e13*/**/*.jsonl.gz
   - name: longmino_olmocr-2e14_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data
-    regex: .*/olmocr_science_pdfs.*_2e14.*/.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data/olmocr_science_pdfs*_2e14*/**/*.jsonl.gz
   - name: longmino_olmocr-2e15_en
-    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data
-    regex: .*/olmocr_science_pdfs.*_2e15.*/.*\.jsonl\.gz$
+    path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data/olmocr_science_pdfs*_2e15*/**/*.jsonl.gz
   - name: longmino_lc-synth-cwe_en
     path: /lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/dolma3_longmino/data/lc_synth-cwe_s2pdf
   - name: longmino_lc-synth-rex_en
