@@ -154,7 +154,23 @@ def extract_references(doc, sep="  |  "):
     return sep.join(refs) if refs else "(no reference)"
 
 
-def extract_answer(model_response):
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+_THINK_PLACEHOLDER = "<thinking...>"
+
+
+def strip_thinking(text):
+    """Replace complete ``<think>...</think>`` reasoning blocks with a placeholder.
+
+    Only well-formed blocks (both opening and closing tags) are replaced. A
+    dangling ``<think>`` with no closing tag (truncated generation) is left
+    untouched, so nothing is lost.
+    """
+    return _THINK_RE.sub(_THINK_PLACEHOLDER, text)
+
+
+def extract_answer(model_response, hide_thinking=False):
     """Return the post-processed model answer as a single stripped string."""
     tpp = model_response.get("text_post_processed")
     if tpp is None:
@@ -163,7 +179,10 @@ def extract_answer(model_response):
         text = tpp[0]
     except (IndexError, KeyError, TypeError):
         text = tpp
-    return re.sub(r"\s+", " ", str(text)).strip() or "(empty answer)"
+    text = str(text)
+    if hide_thinking:
+        text = strip_thinking(text)
+    return re.sub(r"\s+", " ", text).strip() or "(empty answer)"
 
 
 def ellipsize_middle(text, max_len):
@@ -239,7 +258,7 @@ def derive_labels(paths):
     return out
 
 
-def load_parquet(path, match_on, cut_long_input=False):
+def load_parquet(path, match_on, cut_long_input=False, hide_thinking=False):
     """Load a parquet into a list of per-sample dicts + the raw match keys."""
     import pandas as pd
 
@@ -261,7 +280,7 @@ def load_parquet(path, match_on, cut_long_input=False):
                     extract_question(doc) if cut_long_input else extract_full_input(doc)
                 ),
                 "references": extract_references(doc),
-                "answer": extract_answer(model_response),
+                "answer": extract_answer(model_response, hide_thinking),
                 "metric": metric,
             }
         )
@@ -476,14 +495,25 @@ def main():
         help="Only show samples where models disagree on a metric.",
     )
     parser.add_argument(
+        "--diff-metrics",
+        action="store_true",
+        help="Only show samples where any numerical metric differs across the "
+        "compared models (requires at least 2 parquet files).",
+    )
+    parser.add_argument(
         "--summary-only",
         action="store_true",
         help="Skip per-sample output; print only the summary.",
     )
     parser.add_argument(
-        "--cut_long_input",
+        "--cut-long-input",
         action="store_true",
         help="Show only the extracted question instead of the full user turn.",
+    )
+    parser.add_argument(
+        "--hide-thinking",
+        action="store_true",
+        help="Hide reasoning wrapped in <think> ... </think> tags in the model output.",
     )
     args = parser.parse_args()
 
@@ -512,7 +542,8 @@ def main():
 
     # Load & align.
     loaded = [
-        load_parquet(p, args.match_on, args.cut_long_input) for p in args.parquets
+        load_parquet(p, args.match_on, args.cut_long_input, args.hide_thinking)
+        for p in args.parquets
     ]
     all_samples = [s for s, _ in loaded]
     all_keys = [k for _, k in loaded]
@@ -572,6 +603,24 @@ def main():
             )
         vals = [v for v in metric_vals if v is not None]
         disagree = len(vals) > 1 and (max(vals) - min(vals) > 1e-9)
+        # Do any numerical metric (by key) differ across the present models?
+        present_metrics = [pm["metric"] for pm in per_model if pm["present"]]
+        metrics_differ = False
+        if len(present_metrics) > 1:
+            metric_keys = set()
+            for md in present_metrics:
+                metric_keys.update(
+                    k for k, v in md.items() if isinstance(v, (int, float))
+                )
+            for k in metric_keys:
+                kvals = [
+                    md[k]
+                    for md in present_metrics
+                    if isinstance(md.get(k), (int, float))
+                ]
+                if len(kvals) > 1 and (max(kvals) - min(kvals) > 1e-9):
+                    metrics_differ = True
+                    break
         rows.append(
             {
                 "idx": j,
@@ -584,11 +633,14 @@ def main():
                     else float("-inf")
                 ),
                 "disagree": disagree,
+                "metrics_differ": metrics_differ,
             }
         )
 
     if args.diff_only:
         rows = [r for r in rows if r["disagree"]]
+    if args.diff_metrics:
+        rows = [r for r in rows if r["metrics_differ"]]
     if args.sort != "none":
         rows.sort(key=lambda r: r["sort_key"], reverse=(args.sort == "desc"))
 
@@ -620,6 +672,8 @@ def main():
     span = f"showing {start + 1}..{end} of {len(rows)}"
     if args.diff_only:
         span += " (disagreements only)"
+    if args.diff_metrics:
+        span += " (differing metrics only)"
     print(f"{colors.dim}  {span}{colors.reset}")
     print(f"{colors.sep}╰{'─' * (width - 2)}╯{colors.reset}")
 
