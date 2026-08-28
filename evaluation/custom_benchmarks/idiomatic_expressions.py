@@ -55,7 +55,7 @@ all_qa_formulations = [MCFFormulation(), CFFormulation(), HybridFormulation()]
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name=f"idiomatic_expressions_mcq{'_context' if use_context else ''}_{formulation.name.lower()}:{subset.lower().replace(' ', '_')}",
+            name=f"v2_idiomatic_expressions_mcq{'_context' if use_context else ''}_{formulation.name.lower()}:{subset.lower().replace(' ', '_')}",
             prompt_function=get_mcq_prompt_function(
                 Language.FRENCH,
                 partial(
@@ -65,10 +65,10 @@ TASKS_TABLE.extend(
                 formulation=formulation,
             ),
             suite=["custom"],
-            hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
+            hf_repo="OpenLLM-France/EIFFEL",
             hf_subset=subset,
-            evaluation_splits=("train",),
-            few_shots_split="train",
+            evaluation_splits=("test",),
+            few_shots_split="test",
             metrics=get_metrics_for_formulation(
                 formulation,
                 [
@@ -99,13 +99,13 @@ def prompt_fn(line, task_name: str, use_context: bool) -> Doc:
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name=f"idiomatic_expressions_fib{'_context' if use_context else ''}:{subset.lower().replace(' ', '_')}",
+            name=f"v2_idiomatic_expressions_fib{'_context' if use_context else ''}:{subset.lower().replace(' ', '_')}",
             prompt_function=partial(prompt_fn, use_context=use_context),
             suite=["custom"],
-            hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
+            hf_repo="OpenLLM-France/EIFFEL",
             hf_subset=subset,
-            evaluation_splits=("train",),
-            few_shots_split="train",
+            evaluation_splits=("test",),
+            few_shots_split="test",
             metrics=[Metrics.loglikelihood_acc],
         )
         for subset in SUBSETS
@@ -142,14 +142,14 @@ def prompt_fn(line, task_name: str, fr_to_en=True) -> Doc:
 TASKS_TABLE.extend(
     [
         LightevalTaskConfig(
-            name=f"idiomatic_expressions_translation:{subset.lower().replace(' ', '_')}",
+            name=f"v2_idiomatic_expressions_translation:{subset.lower().replace(' ', '_')}",
             prompt_function=prompt_fn,
             suite=["custom"],
-            hf_repo="OpenLLM-BPI/french_idiomatic_expressions",
+            hf_repo="OpenLLM-France/EIFFEL",
             hf_subset=subset,
             hf_filter=lambda x: x["French"] != "///" and x["English"] != "///",
-            evaluation_splits=("train",),
-            few_shots_split="train",
+            evaluation_splits=("test",),
+            few_shots_split="test",
             few_shots_select="random_sampling_from_train",
             generation_size=300,
             metrics=[Metrics.bleu, Metrics.bleu_1, Metrics.bleu_4],
