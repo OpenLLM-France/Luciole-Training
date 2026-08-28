@@ -2,3 +2,17 @@ community|aya_red_teaming_fra|0
 community|aya_red_teaming_spa|0
 community|aya_red_teaming_ara|0
 community|aya_red_teaming_eng|0
+community|advbench_fr|0
+# community|advbench_de|0
+# community|advbench_es|0
+# community|advbench_it|0
+# community|advbench_nl|0
+# community|advbench_pt|0
+# community|advbench_ar|0
+community|polyguard_fr|0
+# community|polyguard_de|0
+# community|polyguard_es|0
+# community|polyguard_it|0
+# community|polyguard_nl|0
+# community|polyguard_pt|0
+# community|polyguard_ar|0

@@ -1,0 +1,3 @@
+community|aya_red_teaming_fra|0
+community|advbench_fr|0
+community|polyguard_fr|0
