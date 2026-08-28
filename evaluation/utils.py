@@ -66,6 +66,31 @@ task_group_mapping = {
         ("custom|gsm8k|5", "extractive_match"),
         ("leaderboard|gsm8k|5", "em_with_normalize_gold&normalize_pred"),
     ],
+    "language_ablations": [
+        # French
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm"),
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm"),  # _token
+        # English
+        ("lighteval|arc:easy|0", "acc_with_logprob_normalization"),
+        ("lighteval|global_mmlu_all_eng_cf:_average|0", "acc_norm"),
+        ("leaderboard|hellaswag|0", "acc_with_logprob_normalization"),
+    ],
+    "eiffel": [
+        (bench, "acc")
+        for bench in [
+            # MCQ
+            # "custom|v2_idiomatic_expressions_mcq_context_mcf:_average|0",
+            # "custom|v2_idiomatic_expressions_mcq_mcf:_average|0",
+            "custom|v2_idiomatic_expressions_mcq_context_cf:_average|0",
+            "custom|v2_idiomatic_expressions_mcq_cf:_average|0",
+            # "custom|v2_idiomatic_expressions_mcq_context_hybrid:_average|0",
+            # "custom|v2_idiomatic_expressions_mcq_hybrid:_average|0",
+            # FIB
+            "custom|v2_idiomatic_expressions_fib_context:_average|0",
+            "custom|v2_idiomatic_expressions_fib:_average|0",
+        ]
+    ],
     "cultural": [
         ("lighteval|global_mmlu_cs_eng_cf:_average|0", "acc_norm"),
         ("lighteval|global_mmlu_ca_eng_cf:_average|0", "acc_norm"),
@@ -231,10 +256,29 @@ task_group_mapping = {
         ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
         ("community|advbench|0", "safety_rate_llama_guard"),
         ("community|hexphi:_average|0", "safety_rate_llama_guard"),
-        # ("community|aya_red_teaming_eng|0", "safety_rate_llama_guard"),
-        # ("community|aya_red_teaming_fra|0", "safety_rate_llama_guard"),
-        # ("community|aya_red_teaming_spa|0", "safety_rate_llama_guard"),
-        # ("community|aya_red_teaming_ara|0", "safety_rate_llama_guard"),
+    ],
+    "safety_multilang": [
+        ("community|aya_red_teaming_eng|0", "safety_rate_llama_guard"),
+        ("community|aya_red_teaming_fra|0", "safety_rate_llama_guard"),
+        ("community|aya_red_teaming_spa|0", "safety_rate_llama_guard"),
+        ("community|aya_red_teaming_ara|0", "safety_rate_llama_guard"),
+        ("community|advbench_fr|0", "safety_rate_llama_guard"),
+        ("community|polyguard_fr|0", "safety_rate_llama_guard"),
+    ],
+    "safety_fr": [
+        ("community|aya_red_teaming_fra|0", "safety_rate_llama_guard"),
+        ("community|advbench_fr|0", "safety_rate_llama_guard"),
+        ("community|polyguard_fr|0", "safety_rate_llama_guard"),
+    ],
+    "presupposition": [
+        # ("community|scoolkid:_average|0", "refusal"),
+        ("community|scoolkid:false_premise|0", "refusal"),
+        ("community|scoolkid:absurd_premise|0", "refusal"),
+        ("community|pcbench:active|0", "recognition"),
+        ("community|pcbench:passive|0", "recognition"),
+        # ("community|pcbench_normal|0", "correctness"),
+        ("community|falseqa:false_premise|0", "handled_correctly"),
+        # ("community|falseqa:true_premise|0", "handled_correctly"),
     ],
 }
 
