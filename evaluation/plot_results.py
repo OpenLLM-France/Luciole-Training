@@ -199,6 +199,17 @@ def assign_styles(df, apply_phase_style=True, color_spec=None):
     return style_map
 
 
+def _resolve_ymax(ymax, i):
+    """Return the ymax value for the i-th detail plot.
+
+    ``ymax`` is a list of floats (or None). If it has fewer entries than plots,
+    the last value applies to all remaining plots.
+    """
+    if not ymax:
+        return None
+    return ymax[i] if i < len(ymax) else ymax[-1]
+
+
 def _annotate_numbers(ax, X, Y, color, yerr=None):
     """Print each Y value as text, horizontally centered above its point.
 
@@ -828,6 +839,7 @@ def plot_list_of_tasks(
     color_spec=None,
     suptitle=None,
     print_numbers=False,
+    ymax=None,
 ):
     legend_fig = None
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
@@ -1035,6 +1047,9 @@ def plot_list_of_tasks(
 
         for i, subtask in enumerate(detail_subtasks):
             _plot_ruler_on_ax(axes[detail_start + i], subtask)
+            ymax_val = _resolve_ymax(ymax, i)
+            if ymax_val is not None:
+                axes[detail_start + i].set_ylim(top=ymax_val)
 
         # Hide xlabel on non-bottom-row detail subplots
         for i in range(n_details):
@@ -1110,6 +1125,7 @@ def plot_list_of_tasks(
                     color_spec=color_spec,
                     suptitle=suptitle,
                     print_numbers=print_numbers,
+                    ymax=ymax,
                 )
             return
 
@@ -1220,6 +1236,10 @@ def plot_list_of_tasks(
                 checkpoint_index=checkpoint_index,
                 print_numbers=print_numbers,
             )
+
+            ymax_val = _resolve_ymax(ymax, i)
+            if ymax_val is not None:
+                axes[ax_idx].set_ylim(top=ymax_val)
 
             handles, labels = axes[ax_idx].get_legend_handles_labels()
             for handle, label in zip(handles, labels):
@@ -1366,6 +1386,7 @@ def plot_experiments(df, args, max_subplot=20):
             color_spec=args.color,
             suptitle=args.title,
             print_numbers=args.print_numbers,
+            ymax=args.ymax,
         )
 
     if not args.output_path:
@@ -1596,6 +1617,16 @@ if __name__ == "__main__":
         "--print_numbers",
         action="store_true",
         help="Print the performance value as text above each bar / data point.",
+    )
+    parser.add_argument(
+        "--ymax",
+        type=float,
+        nargs="+",
+        default=None,
+        help="Maximum y-axis value for the individual benchmark plots (not the "
+        "'Overall Performance' one). A single value applies to all plots; a list "
+        "applies one value per plot, the last value being repeated if there are "
+        "fewer values than plots.",
     )
     parser.add_argument(
         "--save_csv",
