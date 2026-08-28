@@ -53,7 +53,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     for split_name in ["interactive_agent", "search", "tool_calling"]:

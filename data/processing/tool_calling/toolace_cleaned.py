@@ -71,16 +71,21 @@ def format_messages(
         for i, message in enumerate(messages):
             if message["content"] is None:
                 message.pop("content")
-            
-            if message["role"] == "assistant" and cleaned_messages[-1]["role"] == "assistant":
+
+            if (
+                message["role"] == "assistant"
+                and cleaned_messages[-1]["role"] == "assistant"
+            ):
                 if "content" in message or "content" in cleaned_messages:
                     raise ValueError("content must be empty")
                 cleaned_messages[-1]["tool_calls"].extend(message["tool_calls"])
-                continue   
+                continue
 
             if message["role"] == "tool":
                 for tool_response in message["content"]:
-                    cleaned_messages.append({"role": "tool", "content": json.dumps(tool_response)})
+                    cleaned_messages.append(
+                        {"role": "tool", "content": json.dumps(tool_response)}
+                    )
             else:
                 cleaned_messages.append(message)
         doc.metadata["messages"] = cleaned_messages
@@ -93,7 +98,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     pipeline = [
@@ -125,4 +130,3 @@ if __name__ == "__main__":
         skip_completed=not args.force,
     )
     main_processing_executor.run()
-

@@ -26,9 +26,9 @@ policy:
   tokenizer:
     name: "/lustre/fsmisc/dataset/HuggingFace_Models/Qwen/Qwen3.5-4B"
     chat_template: "/lustre/fsmisc/dataset/HuggingFace_Models/Qwen/Qwen3.5-4B/chat_template.jinja"
-    # name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink" ## specify if you'd like to use a tokenizer different from the model's default
+    # name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/Luciole-1B-Instruct-1.1" ## specify if you'd like to use a tokenizer different from the model's default
     # chat_template can be a Jinja template string or path to a .jinja file
-    # chat_template: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink/chat_template.jinja"
+    # chat_template: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/Luciole-1B-Instruct-1.1/chat_template.jinja"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   train_global_batch_size: 4
   train_micro_batch_size: 1

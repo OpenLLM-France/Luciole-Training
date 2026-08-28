@@ -33,13 +33,13 @@ MODEL_SELECT() {
     case $MODEL_NAME in
         luciole-1b-annealing)
             MODEL_PATH="${OpenLLM_OUTPUT}/pretrain/luciole_serie/luciole_nemotron1b_annealing/huggingface_checkpoints/luciole_nemotron1b_annealing-step_0118237"
-            TOKENIZER_NAME="OpenLLM-BPI/tokenizer_128k-arab-regional_v2"
+            TOKENIZER_NAME="OpenLLM-France/Luciole-1B-Base"
             MODEL_TEMPLATE_TYPE="base"
             MODEL_FRAMEWORK="vllm"
             ;;
         luciole-1b-phase1)
             MODEL_PATH="${OpenLLM_OUTPUT}/pretrain/luciole_serie/luciole_nemotron1b/huggingface_checkpoints/luciole_nemotron1b-step_0715786.tmp"
-            TOKENIZER_NAME="OpenLLM-BPI/tokenizer_128k-arab-regional_v2"
+            TOKENIZER_NAME="OpenLLM-France/Luciole-1B-Base"
             MODEL_TEMPLATE_TYPE="base"
             MODEL_FRAMEWORK="vllm"
             ;;

@@ -70,7 +70,7 @@ if __name__ == "__main__":
     ]
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     # Add adapter that add empty text if the text field is None, to avoid skipping data

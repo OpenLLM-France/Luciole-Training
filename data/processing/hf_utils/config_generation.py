@@ -4,7 +4,7 @@ import re
 api = HfApi()
 
 info = api.repo_info(
-    repo_id="OpenLLM-BPI/Luciole-Training-Dataset",
+    repo_id="OpenLLM-France/Luciole-Training-Dataset",
     repo_type="dataset",
     files_metadata=True,
 )

@@ -39,7 +39,7 @@ if __name__ == "__main__":
             ),
             EurovocFormatter(),
             ExtremeTokenizerFilter(
-                tokenizer_name_or_path="OpenLLM-BPI/tokenizer_128k-arab-regional_v2",
+                tokenizer_name_or_path="OpenLLM-France/Luciole-1B-Base",
                 max_token_per_char=0.38,
                 normalize_digits=True,
                 mode="CHUNKS",

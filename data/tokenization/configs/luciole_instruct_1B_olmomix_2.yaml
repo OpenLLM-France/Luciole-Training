@@ -1,6 +1,6 @@
 output_dir: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/tokenized_data/tokens_luciole_instruct_olmomix_2"
 model_path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/sft/luciole_1b/instruct_models/sft_luciole_1B_instruct_olmomix_2/huggingface_checkpoints/sft_luciole_1B_instruct_olmomix_2-step_4148/"
-tokenizer_path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink"
+tokenizer_path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/Luciole-1B-Instruct-1.1"
 datasets:
   - name: "nemotron_chat"
     path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/nemotron_posttraining_v3_chat/data/chat/"

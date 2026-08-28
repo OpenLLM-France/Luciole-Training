@@ -107,7 +107,7 @@ bash preload_hf_models.sh
 
 Then evaluate:
 ```bash
-python evaluate_experiment.py $experiment_path tasks/en.txt --hf_model OpenLLM-BPI/Luciole-7B
+python evaluate_experiment.py $experiment_path tasks/en.txt --hf_model OpenLLM-France/Luciole-7B
 ```
 
 Results are saved in `$experiment_path/evaluation/`.

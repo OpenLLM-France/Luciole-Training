@@ -59,9 +59,7 @@ if __name__ == "__main__":
     assert os.path.exists(input + ".bin"), "Input .bin file must exist."
     assert os.path.exists(input + ".idx"), "Input .idx file must exist."
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2"
-    )
+    tokenizer = AutoTokenizer.from_pretrained("OpenLLM-France/Luciole-1B-Base")
 
     stats_dict = {}
     dataset = indexed_dataset.MMapIndexedDataset(input)

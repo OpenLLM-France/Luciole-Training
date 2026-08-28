@@ -63,7 +63,7 @@ python processing/fineweb2            # run on SLURM
 
 # 2. Tokenize
 python tokenization/run_tokenization.py datasets.yaml $OpenLLM_OUTPUT/data/tokens \
-    --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
+    --tokenizer_name OpenLLM-France/Luciole-1B-Base
 
 # 3. Train
 cd ../pretrain/train/

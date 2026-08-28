@@ -9,6 +9,7 @@ from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 
+
 class CitationFilter(BaseFilter):
     name = "✳️  Citation Filtering"
 
@@ -19,7 +20,7 @@ class CitationFilter(BaseFilter):
     def extract_sources(text: str) -> dict:
         import re
 
-        matches = re.findall(r'<(source_\d+)>(.*?)</\1>', text, re.DOTALL)
+        matches = re.findall(r"<(source_\d+)>(.*?)</\1>", text, re.DOTALL)
         return {key: value.strip() for key, value in matches}
 
     def replace_citation(self, doc: Document, sources: dict, synthetic_answer: str):
@@ -60,6 +61,7 @@ class CitationFilter(BaseFilter):
         doc.metadata["has_citation"] = self.has_citation(cleaned_answer)
 
         return True
+
 
 def format_data(
     data,
@@ -135,7 +137,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     ##########

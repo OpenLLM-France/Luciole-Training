@@ -99,7 +99,7 @@ Four epochs were passed on each dataset.
 * Filtering by keyword and foreign language strings: we [remove examples](https://github.com/OpenLLM-France/Luciole-Training/blob/main/data/processing/posttraining/preprocess.py) in which the assistant is presented as model other than Luciole (e.g., ChatGPT, Gemma, Llama, ...) as well as those in which there are strings of non-roman characters (signaling the presence of Arabic, Russian or Chinese text).
 
 ### Instruction template:
-Luciole-1B-SFT-1.1 was trained on the chat template inspired from [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B/). In our chat template, we removed thinking capability and added a default system prompt. The resulting template can be found [here](https://huggingface.co/OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_nothink/blob/main/chat_template.jinja).
+Luciole-1B-SFT-1.1 was trained on the chat template inspired from [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B/). In our chat template, we removed thinking capability and added a default system prompt. The resulting template can be found [here](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1/blob/main/chat_template.jinja).
 
 
 An example: 

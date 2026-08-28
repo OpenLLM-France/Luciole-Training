@@ -68,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument("--seq_length", default=1024, type=int)
     parser.add_argument(
         "--tokenizer_name",
-        default="OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct",
+        default="OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct",
         type=str,
     )
     parser.add_argument("--chat", default=False, action="store_true")

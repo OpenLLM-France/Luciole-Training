@@ -21,9 +21,9 @@ checkpointing:
 policy:
   model_name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
   tokenizer:
-    name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink" ## specify if you'd like to use a tokenizer different from the model's default
+    name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/Luciole-1B-Instruct-1.1" ## specify if you'd like to use a tokenizer different from the model's default
     # chat_template can be a Jinja template string or path to a .jinja file
-    chat_template: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_nothink/chat_template.jinja"
+    chat_template: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/Luciole-1B-Instruct-1.1/chat_template.jinja"
     chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   train_global_batch_size: 512
   train_micro_batch_size: 1

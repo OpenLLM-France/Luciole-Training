@@ -117,7 +117,7 @@ dataset_groups:
 
 ```bash
 python tokenization/run_tokenization.py YAML_FILE OUTPUT_DIR \
-    --tokenizer_name OpenLLM-BPI/tokenizer_128k-arab-regional_v2
+    --tokenizer_name OpenLLM-France/tokenizer_128k-arab-regional_v2
 ```
 This submits one SLURM job per dataset.
 
@@ -157,5 +157,5 @@ huggingface-cli download open-web-math/open-web-math --repo-type dataset
 huggingface-cli download EleutherAI/proof-pile-2 --repo-type dataset --include algebraic-stack/*
 
 # Tokenizer
-huggingface-cli download OpenLLM-BPI/tokenizer_128k-arab-regional_v2 --repo-type model
+huggingface-cli download OpenLLM-France/tokenizer_128k-arab-regional_v2 --repo-type model
 ```

@@ -4,9 +4,7 @@ from datatrove.pipeline.writers import JsonlWriter
 from functools import partial
 from transformers import AutoTokenizer
 from utils import (
-    apply_chat_template,
     instruct_adapter,
-    check_last_message,
     from_tools_to_system,
     format_tool_calls,
 )
@@ -34,7 +32,7 @@ def format_messages(
             tool_calls = []
         message["content"] = format_tool_calls(tool_calls, content)
         return message
-    
+
     for doc in data:
         # Tool
         tools = doc.metadata.get("tools", [])
@@ -48,13 +46,17 @@ def format_messages(
         chosen_response = extract_toolcall(doc.metadata["chosen_response"])
         rejected_response = extract_toolcall(doc.metadata["rejected_response"])
 
-        doc.metadata["chosen"] = [
-            {"role": "system", "content": system_prompt}
-        ] + doc.metadata["messages"] + [chosen_response]
+        doc.metadata["chosen"] = (
+            [{"role": "system", "content": system_prompt}]
+            + doc.metadata["messages"]
+            + [chosen_response]
+        )
 
-        doc.metadata["rejected"] = [
-            {"role": "system", "content": system_prompt}
-        ] + doc.metadata["messages"] + [rejected_response]
+        doc.metadata["rejected"] = (
+            [{"role": "system", "content": system_prompt}]
+            + doc.metadata["messages"]
+            + [rejected_response]
+        )
         yield doc
 
 
@@ -64,7 +66,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     pipeline = [

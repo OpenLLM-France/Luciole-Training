@@ -3,7 +3,7 @@ import os
 from huggingface_hub import HfApi
 
 ROOT_DIR = os.getenv("OpenLLM_OUTPUT") + "/ruler_evaluation"
-TOKENIZER_NAME = "OpenLLM-BPI/tokenizer_128k-arab-regional_v2"
+TOKENIZER_NAME = "OpenLLM-France/Luciole-1B-Base"
 BENCHMARK = "synthetic"
 TASKS = [
     "niah_single_1",
@@ -42,19 +42,19 @@ for TASK in TASKS:
         api.upload_file(
             path_or_fileobj=os.path.join(DATA_DIR, "validation.parquet"),
             path_in_repo=path_in_repo,
-            repo_id="OpenLLM-BPI/RULER-luciole_tokenizer_128k-arab-regional_v2",
+            repo_id="OpenLLM-France/RULER-luciole_tokenizer_128k-arab-regional_v2",
             repo_type="dataset",
         )
 
     # api.delete_file(
     #     path_in_repo=path_in_repo,
-    #     repo_id="OpenLLM-BPI/RULER-luciole_tokenizer_128k-arab-regional_v2",
+    #     repo_id="OpenLLM-France/RULER-luciole_tokenizer_128k-arab-regional_v2",
     #     repo_type="dataset",
     # )
 
 api.upload_file(
     path_or_fileobj="dataset_readme.md",
     path_in_repo="README.md",
-    repo_id="OpenLLM-BPI/RULER-luciole_tokenizer_128k-arab-regional_v2",
+    repo_id="OpenLLM-France/RULER-luciole_tokenizer_128k-arab-regional_v2",
     repo_type="dataset",
 )

@@ -18,7 +18,7 @@ def format_messages(data, rank: int = 0, world_size: int = 1):
     import json
     import re
     import random
-    
+
     def _format_messages(messages):
         role_map = {
             "system": "system",
@@ -54,9 +54,7 @@ def format_messages(data, rank: int = 0, world_size: int = 1):
         # Format tools
         doc.metadata.pop("tools")  # Not always correct
         try:
-            tools = extract_tools_from_system_prompt(
-                system_prompt["content"]
-            )
+            tools = extract_tools_from_system_prompt(system_prompt["content"])
             random.shuffle(tools)
             doc.metadata["tools"] = tools
         except Exception:
@@ -90,7 +88,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     for subset in ["func_calling", "glaive_func_calling"]:

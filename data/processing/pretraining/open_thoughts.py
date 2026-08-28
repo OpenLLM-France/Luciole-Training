@@ -74,7 +74,7 @@ if __name__ == "__main__":
             partial(
                 convert_messages,
                 tokenizer=AutoTokenizer.from_pretrained(
-                    "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct"
+                    "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct"
                 ),
             ),
             JsonlWriter(

@@ -5,13 +5,9 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
 from transformers import AutoTokenizer
 from utils import (
-    apply_chat_template,
     instruct_adapter,
-    check_last_message,
-    add_system_prompt,
     nemo_rl_format_messages,
 )
-from datatrove.pipeline.filters import LambdaFilter
 
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 
@@ -124,7 +120,7 @@ def create_rejected(
             options = []
             if "}" in text:
                 idx = text.rfind("}")
-                options.append(text[:idx] + text[idx + 1:])  # drop a closing brace
+                options.append(text[:idx] + text[idx + 1 :])  # drop a closing brace
             if '"' in text:
                 options.append(text.replace('"', "", 1))  # drop a quote
             if ":" in text:
@@ -231,12 +227,12 @@ def create_rejected(
 
 CORRUPT_ARGUMENT_PROMPT = (
     "You are generating a HARD NEGATIVE example to train a tool-calling model.\n"
-    "You are given a single tool call as a JSON object with a \"name\" and an "
-    "\"arguments\" object.\n"
+    'You are given a single tool call as a JSON object with a "name" and an '
+    '"arguments" object.\n'
     "Produce a corrupted version of this tool call in which one or more ARGUMENT "
     "VALUES are wrong, so the call no longer answers the request correctly.\n"
     "Rules:\n"
-    "- Keep the function \"name\" exactly the same.\n"
+    '- Keep the function "name" exactly the same.\n'
     "- Keep exactly the same argument keys (never add or drop a key).\n"
     "- Change one or more argument VALUES to plausible but INCORRECT values "
     "(e.g. a wrong city, a wrong number, swapped units, a wrong date). Keep each "
@@ -304,7 +300,9 @@ def corrupt_argument_query_builder(runner, doc):
             {"role": "system", "content": CORRUPT_ARGUMENT_PROMPT},
             {
                 "role": "user",
-                "content": json.dumps(_tool_call_payload(tool_call), ensure_ascii=False),
+                "content": json.dumps(
+                    _tool_call_payload(tool_call), ensure_ascii=False
+                ),
             },
         ],
         "max_tokens": 256,
@@ -366,7 +364,7 @@ if __name__ == "__main__":
     args = parse_args(parser)
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     pipeline = [

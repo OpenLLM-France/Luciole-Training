@@ -54,7 +54,7 @@ for subset in subsets:
                 name=f"ruler_{length}:{subset}",
                 suite=["custom"],
                 prompt_function=prompt.ruler,
-                hf_repo="OpenLLM-BPI/RULER-luciole_tokenizer_128k-arab-regional_v2",
+                hf_repo="OpenLLM-France/RULER-luciole_tokenizer_128k-arab-regional_v2",
                 hf_subset=f"{subset}-{length}",
                 hf_avail_splits=["validation"],
                 evaluation_splits=["validation"],

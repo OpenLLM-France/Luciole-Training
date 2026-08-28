@@ -5,6 +5,7 @@ from functools import partial
 from transformers import AutoTokenizer
 from utils import apply_chat_template, instruct_adapter, add_system_prompt
 
+
 def format_messages(
     data,
     rank: int = 0,
@@ -26,7 +27,7 @@ def format_messages(
             {"role": role_map.get(turn["from"]), "content": turn["value"]}
             for turn in messages
         ]
-    
+
     for doc in data:
         # Process tools
         tools = doc.metadata.get("tools", "[]")
@@ -46,7 +47,7 @@ if __name__ == "__main__":
     DATA_PATH = args.data_path
 
     tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-BPI/tokenizer_128k-arab-regional_v2_instruct_train"
+        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
     )
 
     pipeline = [
@@ -76,4 +77,3 @@ if __name__ == "__main__":
         skip_completed=not args.force,
     )
     main_processing_executor.run()
-
