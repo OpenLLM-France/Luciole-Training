@@ -314,6 +314,7 @@ def launch_evaluation(
                     "math_fr",
                     # "safety_multilang",
                     "rag2",
+                    # "scoolkid", "pcbench", "falseqa", # TODO: presupposition
                 ]
             ]
             + [
@@ -395,6 +396,25 @@ def launch_evaluation(
                 else (2 if length > 32768 else 1),
             )
             for length in lengths
+        ]
+
+    if not COMMANDS and os.path.isfile(
+        Path(__file__).parent / "tasks" / f"{eval_type}.txt"
+    ):
+        custom_tasks = "multilingual"
+        if os.path.isfile(
+            Path(__file__).parent / "custom_benchmarks" / f"{eval_type}.py"
+        ):
+            custom_tasks = eval_type
+
+        COMMANDS += [
+            dict(
+                task_to_evaluate=f"tasks/{eval_type}.txt",
+                multiple_of=multiple_of,
+                command=command,
+                custom_tasks=custom_tasks,
+                gpus=gpus,
+            )
         ]
 
     if not COMMANDS:
