@@ -329,10 +329,9 @@ def launch_evaluation(
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
 
-        step = None
+        _, step = get_step(ckpt)
 
         if min_step:
-            _, step = get_step(ckpt)
             if (step + 1) < min_step:
                 if not dry_run:
                     print(
@@ -341,20 +340,21 @@ def launch_evaluation(
                 continue
 
         if multiple_of and multiple_of != 1:
-            _, step = get_step(ckpt)
-            if (step + 1) % multiple_of > 1:
+            if (step + 1) % multiple_of > 1 or step == 0:
                 if not dry_run:
                     print(
                         f"Skipping checkpoint: {ckpt} {revision}. Step {step + 1} is not a multiple of {multiple_of}"
                     )
                 continue
 
-        if ckpt.endswith("-last"):  # and (multiple_of is None or step in steps_done):
+        if ckpt.endswith("-last") and (step in steps_done):  # and (multiple_of is None or step in steps_done):
             if not dry_run:
                 print(f"Skipping last checkpoint: {ckpt}")
             continue
 
         steps_done.append(step)
+        if not dry_run:
+            print(f"Accepting checkpoint: {ckpt}")
 
         results_exist = (
             (
