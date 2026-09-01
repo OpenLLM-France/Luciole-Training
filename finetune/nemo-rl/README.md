@@ -30,6 +30,7 @@ export TORCH_CUDA_ARCH_LIST=9.0
 Install the required dependencies:
 ```bash
 uv run --locked --extra mcore --directory .
+uv pip install orjson
 ```
 
 If you are on Jean-Zay, the build process will probably get killed (`c++: fatal error: Killed signal terminated program cc1plus `),

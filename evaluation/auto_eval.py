@@ -122,7 +122,7 @@ module purge
 module load anaconda-py3/2024.06
 conda activate eval-env
 
-python plot_results.py {compared_models} --group all {plot_groups} --output_path {experiment_path}/figs --dpi 150
+python {source_path}/evaluation/plot_results.py {compared_models} --group all {plot_groups} --output_path {experiment_path}/figs --dpi 150
 
 # Variables
 TO="{email}"
@@ -132,10 +132,10 @@ SUBJECT="Evaluation $EXPERIMENT_NAME"
 BODY="Please find the attachments."
 FOLDER="{experiment_path}/figs"
 
-# Check that TO is not empty
+# Nothing to mail if no address was given: the figures are already written.
 if [[ -z "$TO" ]]; then
-    echo "Error: TO is empty, aborting."
-    exit 1
+    echo "No email given (--email), skipping mail. Figures are in $FOLDER."
+    exit 0
 fi
 
 # Build the attachment parameters for mailx
@@ -461,7 +461,7 @@ def launch_evaluation(
 
 
 def launch_plot(
-    experiment_path, email="", dependency_job_id=None, eval_type="pretrain"
+    experiment_path, email="", dependency_job_id=None, eval_type="pretrain", dry_run=False
 ):
     print(f"Launching plot for {experiment_path}")
     # Plot groups are selected from the base eval_type, ignoring any "/filter" suffix.
@@ -487,7 +487,7 @@ def launch_plot(
             compared_models = [
                 f"{base}/pretrain/luciole_serie/luciole_nemotron1b",
                 f"{base}/pretrain/luciole_serie/luciole_variant_nemotron1b_phase2",
-                f"{base}/pretrain/luciole_serie/luciole_nemotron1b_annealin",
+                f"{base}/pretrain/luciole_serie/luciole_nemotron1b_annealing",
                 f"{base}/pretrain/luciole_serie/luciole_32k_nemotron1b_context_extension",
                 f"{base}/pretrain/compared_models/OLMo-2-0425-1B",
                 f"{base}/pretrain/compared_models/EuroLLM-1.7B",
@@ -532,6 +532,7 @@ def launch_plot(
     job_script = SBATCH_PLOT_TEMPLATE.format(
         log_dir=job_dir / "slurm_logs",
         experiment_path=experiment_path,
+        source_path=Path(__file__).parent.parent.resolve(),
         compared_models=" ".join(compared_models),
         plot_groups=plot_groups,
         email=email.replace(",", " "),
@@ -545,6 +546,10 @@ def launch_plot(
     command = ["sbatch", str(job_filename)]
     if dependency_job_id:
         command.insert(1, f"--dependency=afterany:{dependency_job_id}")
+
+    if dry_run:
+        print(" ".join(command))
+        return None
 
     subprocess.run(
         command,
@@ -678,11 +683,13 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
     )
 
-    if not args.hf_model and evaluation_job_id:
-        # Plot
+    if not args.hf_model:
+        # Plot. Also runs when no evaluation job was submitted (everything was
+        # already evaluated, or --dry_run): there is simply no dependency then.
         launch_plot(
             args.experiment_path,
             dependency_job_id=evaluation_job_id,
             email=args.email,
             eval_type=args.eval_type,
+            dry_run=args.dry_run,
         )
