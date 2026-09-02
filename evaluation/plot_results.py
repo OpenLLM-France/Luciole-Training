@@ -542,7 +542,7 @@ def plot_task(
         use_dots=use_dots,
         print_numbers=print_numbers,
     )
-    ax.set_ylabel(format_metric_for_title(metric))
+    ax.set_ylabel("Time (s)" if metric == "time" else format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
 
 
@@ -1318,47 +1318,78 @@ def check_all_systems_have_results(
             raise RuntimeError(message)
 
 
-def plot_experiments(df, args, max_subplot=20):
+def plot_experiments(df, args, max_subplot=20, task_list_map=None):
     if args.output_path:
         os.makedirs(args.output_path, exist_ok=True)
 
     for g in args.group:
         print(f"Processing group: {g}...")
-        if g == "all":
-            list_of_tasks_to_plot = list(
-                df[["task", "metric"]]
-                .drop_duplicates()
-                .itertuples(index=False, name=None)
-            )
-            list_of_tasks_to_plot = [
-                task
-                for task in list_of_tasks_to_plot
-                if (task[0] != "all")
-                and not ("mmlu" in task[0] and "average" not in task[0])
-            ]
-        elif g == "agg":
-            # Take all the row that have metric == "agg"
-            list_of_tasks_to_plot = list(
-                df[df["metric"] == "agg"][["task", "metric"]]
-                .drop_duplicates()
-                .itertuples(index=False, name=None)
-            )
+        if args.plot_time:
+            # Time mode: one plot per *list* of benchmarks (df already holds one
+            # series per eval list, with metric "time"). The group selects which
+            # benchmarks matter; every eval list containing one of them is plotted.
+            if g == "agg":
+                print(
+                    "WARNING: group 'agg' is not supported with --plot_time; skipping."
+                )
+                continue
+            if g == "all":
+                target_lists = sorted(df["task"].drop_duplicates())
+            else:
+                group_tasks = {task for task, _metric in resolve_group(g)}
+                target_lists = sorted(
+                    {
+                        eval_list
+                        for task in group_tasks
+                        for eval_list in (task_list_map or {}).get(task, ())
+                    }
+                )
+            if not target_lists:
+                message = f"No evaluation-time results to plot for group '{g}'."
+                if args.ignore_no_results:
+                    print(f"WARNING: {message}")
+                    continue
+                raise RuntimeError(message)
+            list_of_tasks_to_plot = [(eval_list, "time") for eval_list in target_lists]
+            add_aggregate = False
         else:
-            list_of_tasks_to_plot = resolve_group(g)
+            if g == "all":
+                list_of_tasks_to_plot = list(
+                    df[["task", "metric"]]
+                    .drop_duplicates()
+                    .itertuples(index=False, name=None)
+                )
+                list_of_tasks_to_plot = [
+                    task
+                    for task in list_of_tasks_to_plot
+                    if (task[0] != "all")
+                    and not ("mmlu" in task[0] and "average" not in task[0])
+                ]
+            elif g == "agg":
+                # Take all the row that have metric == "agg"
+                list_of_tasks_to_plot = list(
+                    df[df["metric"] == "agg"][["task", "metric"]]
+                    .drop_duplicates()
+                    .itertuples(index=False, name=None)
+                )
+            else:
+                list_of_tasks_to_plot = resolve_group(g)
 
-        check_all_systems_have_results(
-            df, list_of_tasks_to_plot, g, ignore_no_results=args.ignore_no_results
-        )
+            check_all_systems_have_results(
+                df, list_of_tasks_to_plot, g, ignore_no_results=args.ignore_no_results
+            )
 
-        # Skip the aggregate/average subplot when there is a single benchmark:
-        # the average would be identical to that benchmark's own plot.
-        add_aggregate = (
-            g not in ("all", "agg")
-            and not args.hide_average
-            and len(list_of_tasks_to_plot) > 1
-        )
+            # Skip the aggregate/average subplot when there is a single benchmark:
+            # the average would be identical to that benchmark's own plot.
+            add_aggregate = (
+                g not in ("all", "agg")
+                and not args.hide_average
+                and len(list_of_tasks_to_plot) > 1
+            )
         info_str = f"{'_xlog' if args.xlog else ''}{'_fit' if args.fit else ''}{'_flops' if args.unit == 'FLOPs' else ''}"
         info_str += "_average" if (args.hide_details and add_aggregate) else "_details"
+        if args.plot_time:
+            info_str += "_time"
         g_for_filename = g.replace("/", "_")
         filename = f"{args.filename_prefix}{g_for_filename}{info_str}{args.filename_suffix}.png"
 
@@ -1474,6 +1505,91 @@ def process_experiments(args):
             print()
 
     return final_df
+
+
+def process_experiments_time(args):
+    """Read experiments and build a per-list total-evaluation-time dataframe.
+
+    The evaluation time is stored once per results file (i.e. once per *list* of
+    benchmarks, not per benchmark), so the returned dataframe has one series per
+    eval list: same "curve" shape as :func:`process_experiments` but with
+    ``task`` = the eval list, ``metric`` = ``"time"`` and ``score`` = the total
+    evaluation time in seconds.
+
+    Returns ``(time_df, task_list_map)`` where ``task_list_map`` maps each
+    benchmark task name to the set of eval lists it was found in, used to turn a
+    ``--group`` (a set of benchmarks) into the eval lists to plot.
+    """
+    if args.legend:
+        assert len(args.legend) <= len(
+            args.experiment_path
+        ), "Length of legend must match number of experiment paths."
+        args.legend = [legend.replace("_", " ") for legend in args.legend]
+        if len(args.legend) < len(args.experiment_path):
+            args.legend += [None] * (len(args.experiment_path) - len(args.legend))
+
+    # Process each experiment separately and concatenate in command-line order, so
+    # the experiment order is preserved (same as process_experiments) -- otherwise a
+    # single global groupby would sort the systems alphabetically.
+    time_results = []
+    task_list_map = {}
+    missing_systems = []
+    for iexpe, path in enumerate(args.experiment_path):
+        expe_name = args.legend[iexpe] if args.legend else None
+        df = read_experiment_results(
+            path, evaluation_dir=args.evaluation_dir, expe_name=expe_name
+        )
+        if df is None or df.empty:
+            missing_systems.append(expe_name if expe_name else path)
+            continue
+        if "eval_list" not in df.columns or "eval_time" not in df.columns:
+            continue
+
+        # benchmark task name -> eval list(s) it appears in
+        for task, eval_list in (
+            df[["task", "eval_list"]].dropna().itertuples(index=False, name=None)
+        ):
+            task_list_map.setdefault(task, set()).add(eval_list)
+
+        # One time value per results file (= per eval list per checkpoint).
+        raw = df.dropna(subset=["eval_time", "eval_list"]).drop_duplicates(
+            subset=["eval_list", "expe_name", "tokens", "timestamp"]
+        )
+        if raw.empty:
+            continue
+        time_rows = pd.DataFrame(
+            {
+                "task": raw["eval_list"].to_numpy(),
+                "max_samples": raw["max_samples"].to_numpy(),
+                "metric": "time",
+                "expe_name": raw["expe_name"].to_numpy(),
+                "tokens": raw["tokens"].to_numpy(),
+                "FLOPs": raw["FLOPs"].to_numpy(),
+                "score": raw["eval_time"].to_numpy(),
+                "stderr": np.nan,
+                "model_size": raw["model_size"].to_numpy(),
+                "timestamp": raw["timestamp"].to_numpy(),
+            }
+        )
+        time_results.append(
+            process_results(time_rows, window=args.window, fit=args.fit)
+        )
+
+    if missing_systems:
+        message = "No results found for the following system(s): " + ", ".join(
+            missing_systems
+        )
+        if args.ignore_no_results:
+            print(f"WARNING: {message}")
+        else:
+            raise RuntimeError(message)
+
+    if not time_results:
+        print("No evaluation-time results found for the given experiments.")
+        exit(0)
+
+    time_df = pd.concat(time_results, ignore_index=True)
+    return time_df, task_list_map
 
 
 if __name__ == "__main__":
@@ -1633,6 +1749,16 @@ if __name__ == "__main__":
         action="store_true",
         help="If set, save the processed results to a CSV file instead of plotting.",
     )
+    parser.add_argument(
+        "--plot_time",
+        action="store_true",
+        help="Plot the total evaluation time (in seconds) of each list of "
+        "benchmarks instead of the performance. Time is measured per results file "
+        "(a whole list of benchmarks), so there is one plot per list, not per "
+        "benchmark. --group still selects which benchmarks to consider: every list "
+        "that contains at least one of them is plotted (including the other "
+        "benchmarks that were run together in the same list).",
+    )
 
     args = parser.parse_args()
 
@@ -1647,6 +1773,12 @@ if __name__ == "__main__":
             len(parts) == 2
         ), f"--rows_cols must be in ROWSxCOLS format (e.g. 3x4), got '{args.rows_cols}'"
         args.rows_cols = (int(parts[0]), int(parts[1]))
+
+    if args.plot_time:
+        df, task_list_map = process_experiments_time(args)
+        print(df)
+        plot_experiments(df, args, max_subplot=20, task_list_map=task_list_map)
+        exit(0)
 
     df = process_experiments(args)
     print(df)

@@ -616,6 +616,17 @@ def read_json_file(file_path):
     df["timestamp"] = pd.to_datetime(
         file_path.stem.replace("results_", ""), format="%Y-%m-%dT%H-%M-%S.%f"
     )
+
+    # Evaluation-time bookkeeping (constant per file): which "list of benchmarks"
+    # this file corresponds to (the eval folder, i.e. the task-file stem), and the
+    # total wall-clock time to run that whole list. The path is
+    # ".../<eval_list>/results/<checkpoint>/results_<timestamp>.json".
+    df["eval_list"] = file_path.parents[2].name if len(file_path.parents) >= 3 else None
+    # Stored as a string in the results JSON, so coerce to float (NaN if missing or
+    # unparseable) to keep it numeric everywhere downstream.
+    df["eval_time"] = pd.to_numeric(
+        data["config_general"].get("total_evaluation_time_secondes"), errors="coerce"
+    )
     return df
 
 
@@ -647,9 +658,13 @@ def read_experiment_results(
         df["expe_name"] = expe_name
 
     # Remove duplicates
+    # "eval_list"/"eval_time" are excluded from the key so this keeps the exact same
+    # behaviour as before they were added: rows identical in the measured values are
+    # deduplicated (keeping the most recent), regardless of their evaluation time.
     len_before_dup = len(df)
     df = df.sort_values("timestamp", ascending=False).drop_duplicates(
-        subset=df.columns.difference(["timestamp"]), keep="first"
+        subset=df.columns.difference(["timestamp", "eval_list", "eval_time"]),
+        keep="first",
     )
     len_after_dup = len(df)
     if len_before_dup > len_after_dup:
