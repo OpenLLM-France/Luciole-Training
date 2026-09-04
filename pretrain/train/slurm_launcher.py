@@ -15,7 +15,7 @@ SLURM_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name={name}
 #SBATCH --nodes={num_nodes}
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=64
+#SBATCH --cpus-per-task=96
 #SBATCH --gres=gpu:{gpus_per_node}
 #SBATCH --time={time}
 #SBATCH --output={output_dir}/job_%j/log.out 
@@ -52,6 +52,7 @@ export NCCL_NVLS_ENABLE=0
 export NVTE_DP_AMAX_REDUCE_INTERVAL=0
 export NVTE_ASYNC_AMAX_REDUCTION=1
 export TOKENIZERS_PARALLELISM=false
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 module purge
 module load arch/{gpu} {nemo_version}
