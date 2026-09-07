@@ -5,20 +5,44 @@ from functools import partial
 from transformers import AutoTokenizer
 from utils import (
     instruct_adapter,
-    from_tools_to_system,
+    add_system_prompt,
     format_tool_calls,
     normalize_tool_schema,
 )
+from when2call import drop_optional_marker
 
 
-def format_messages(
+def format_tools(
     data,
     rank: int = 0,
     world_size: int = 1,
-    tokenizer=None,
 ):
     import json
     import random
+
+    for doc in data:
+        tools = doc.metadata.get("tools", [])
+        tools = [normalize_tool_schema(json.loads(tool)) for tool in tools]
+        tools = [drop_optional_marker(tool) for tool in tools]
+        tools = [{"type": "function", "function": tool} for tool in tools]
+        random.shuffle(tools)
+        # Left as a list of dicts: add_system_prompt bakes them into the system
+        # message and json.dumps them for a load_dataset-friendly column.
+        doc.metadata["tools"] = tools
+        yield doc
+
+
+def build_pairs(
+    data,
+    rank: int = 0,
+    world_size: int = 1,
+):
+    """Fork the prompt into a chosen and a rejected conversation.
+
+    ``messages`` already carries the system message with the tool schemas baked
+    in, courtesy of add_system_prompt.
+    """
+    import json
     import re
 
     def extract_toolcall(message):
@@ -35,29 +59,13 @@ def format_messages(
         return message
 
     for doc in data:
-        # Tool
-        tools = doc.metadata.get("tools", [])
-        tools = [normalize_tool_schema(json.loads(tool)) for tool in tools]
-        tools = [{"type": "function", "function": tool} for tool in tools]
-        random.shuffle(tools)
-
-        # tool call
-        system_prompt = from_tools_to_system("", tools, tokenizer)
-        doc.metadata["tools"] = json.dumps(tools)
-        chosen_response = extract_toolcall(doc.metadata["chosen_response"])
-        rejected_response = extract_toolcall(doc.metadata["rejected_response"])
-
-        doc.metadata["chosen"] = (
-            [{"role": "system", "content": system_prompt}]
-            + doc.metadata["messages"]
-            + [chosen_response]
-        )
-
-        doc.metadata["rejected"] = (
-            [{"role": "system", "content": system_prompt}]
-            + doc.metadata["messages"]
-            + [rejected_response]
-        )
+        prompt = doc.metadata["messages"]
+        doc.metadata["chosen"] = prompt + [
+            extract_toolcall(doc.metadata["chosen_response"])
+        ]
+        doc.metadata["rejected"] = prompt + [
+            extract_toolcall(doc.metadata["rejected_response"])
+        ]
         yield doc
 
 
@@ -77,7 +85,9 @@ if __name__ == "__main__":
             streaming=True,
             adapter=instruct_adapter,
         ),
-        partial(format_messages, tokenizer=tokenizer),
+        format_tools,
+        partial(add_system_prompt, tokenizer=tokenizer),
+        build_pairs,
         JsonlWriter(
             f"{DATA_PATH}/when2call_dpo/data",
             expand_metadata=True,

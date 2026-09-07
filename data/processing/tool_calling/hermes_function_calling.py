@@ -11,7 +11,7 @@ from utils import (
     add_system_prompt,
     NemoRLFormat,
 )
-from data.processing.tool_calling.smolagents_toolcalling import clean_tool_response
+from smolagents_toolcalling import clean_tool_response
 
 
 def format_messages(data, rank: int = 0, world_size: int = 1):
