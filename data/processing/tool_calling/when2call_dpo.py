@@ -7,6 +7,7 @@ from utils import (
     instruct_adapter,
     from_tools_to_system,
     format_tool_calls,
+    normalize_tool_schema,
 )
 
 
@@ -36,7 +37,7 @@ def format_messages(
     for doc in data:
         # Tool
         tools = doc.metadata.get("tools", [])
-        tools = [json.loads(tool) for tool in tools]
+        tools = [normalize_tool_schema(json.loads(tool)) for tool in tools]
         tools = [{"type": "function", "function": tool} for tool in tools]
         random.shuffle(tools)
 

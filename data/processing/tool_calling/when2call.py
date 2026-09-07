@@ -11,6 +11,11 @@ from utils import (
     NemoRLFormat,
 )
 
+def normalize_tool_schema(tool):
+    required = tool.pop("required", None)
+    if required is not None:
+        tool.setdefault("parameters", {}).setdefault("required", required)
+    return tool
 
 def format_messages(
     data,
@@ -22,7 +27,7 @@ def format_messages(
 
     for doc in data:
         tools = doc.metadata.get("tools", [])
-        tools = [json.loads(tool) for tool in tools]
+        tools = [normalize_tool_schema(json.loads(tool)) for tool in tools]
         tools = [{"type": "function", "function": tool} for tool in tools]
         random.shuffle(tools)
         doc.metadata["tools"] = tools
