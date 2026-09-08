@@ -8,32 +8,6 @@ from functools import partial
 AWS_ACCESS_KEY_ID = "xxx"
 AWS_SECRET_ACCESS_KEY = "xxx"
 
-STACK_EDU_LANGUAGES = [
-    "Python",
-    "C",
-    "CSharp",
-    "Cpp",
-    "Go",
-    "Java",
-    "JavaScript",
-    "Markdown",
-    "PHP",
-    "Ruby",
-    "Rust",
-    "SQL",
-    "Shell",
-    "Swift",
-    "TypeScript",
-]
-
-# Stack-Edu only ships an educational classifier for the languages above, so
-# these come straight from The Stack v2 instead (same blob_id / Software
-# Heritage download path, but no quality filtering beyond vendor/generated).
-STACK_V2_LANGUAGES = [
-    "HTML",
-    "CSS",
-]
-
 
 def download_contents(blob_id):
     key = f"content/{blob_id}"
@@ -114,22 +88,31 @@ if __name__ == "__main__":
         s3 = session.client("s3")
         bucket_name = "softwareheritage"
 
+        # For Python
         for language in args.languages:
-            assert language in STACK_EDU_LANGUAGES + STACK_V2_LANGUAGES
+            assert language in [
+                "Python",
+                "C",
+                "CSharp",
+                "Cpp",
+                "Go",
+                "Java",
+                "JavaScript",
+                "Markdown",
+                "PHP",
+                "Ruby",
+                "Rust",
+                "SQL",
+                "Shell",
+                "Swift",
+                "TypeScript",
+            ]
 
+            # For Python
             num_proc = 96
-            if language in STACK_EDU_LANGUAGES:
-                ds = load_dataset(
-                    "HuggingFaceTB/stack-edu", language, split="train", num_proc=num_proc
-                )
-            else:
-                ds = load_dataset(
-                    "bigcode/the-stack-v2", language, split="train", num_proc=num_proc
-                )
-                ds = ds.filter(
-                    lambda x: not x["is_vendor"] and not x["is_generated"],
-                    num_proc=num_proc,
-                )
+            ds = load_dataset(
+                "HuggingFaceTB/stack-edu", language, split="train", num_proc=num_proc
+            )
             ds = ds.map(download_contents, input_columns="blob_id", num_proc=num_proc)
             ds = ds.filter(lambda x: x["download_success"])
 
