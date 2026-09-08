@@ -6,7 +6,12 @@ from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from functools import partial
 from transformers import AutoTokenizer
-from utils import apply_chat_template, instruct_adapter
+from utils import (
+    apply_chat_template,
+    instruct_adapter,
+    add_system_prompt,
+    NemoRLFormat,
+)
 
 
 class DolciFilter(BaseFilter):
@@ -58,9 +63,8 @@ class DolciFilter(BaseFilter):
                 )
         return tool_calls
 
-    def __init__(self, tokenizer=None, exclusion_writer: DiskWriter = None):
+    def __init__(self, exclusion_writer: DiskWriter = None):
         super().__init__(exclusion_writer)
-        self.tokenizer = tokenizer
 
     def filter(self, doc: Document):
         import json
@@ -73,17 +77,9 @@ class DolciFilter(BaseFilter):
 
         tools = json.loads(system_turn["functions"])
         random.shuffle(tools)
+        # Left as a list of dicts: add_system_prompt bakes them into the system
+        # message and json.dumps them for a load_dataset-friendly column.
         doc.metadata["tools"] = tools
-
-        rendered = self.tokenizer.apply_chat_template(
-            [{"role": "system", "content": ""}],
-            tools=tools,
-            tokenize=False,
-        )
-        m = re.search(r"<\|im_start\|>system\n(.*?)<\|im_end\|>", rendered, re.DOTALL)
-        if m is None:
-            return False, "system_block_extraction_error"
-        system_prompt = m.group(1)
 
         def split_tool_content(content, n):
             decoder = json.JSONDecoder()
@@ -134,9 +130,7 @@ class DolciFilter(BaseFilter):
             elif message["role"] == "tool":
                 last_tool_call_count = 0
 
-        doc.metadata["messages"] = [
-            {"role": "system", "content": system_prompt},
-        ] + cleaned
+        doc.metadata["messages"] = cleaned
         return True
 
 
@@ -156,11 +150,12 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         DolciFilter(
-            tokenizer=tokenizer,
             exclusion_writer=JsonlWriter(
                 f"{DATA_PATH}/dolci_tools/function_tools_parsing_error"
             ),
         ),
+        partial(add_system_prompt, tokenizer=tokenizer),
+        NemoRLFormat(),
         partial(apply_chat_template, tokenizer=tokenizer),
         JsonlWriter(
             f"{DATA_PATH}/dolci_tools/data",
