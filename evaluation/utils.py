@@ -443,6 +443,8 @@ def get_training_tokens_and_model_size(file_path):
             model_size = 1.319309312
         elif "8b" in str(file_path).lower():
             model_size = 8.075686912
+        elif "14b" in str(file_path).lower():
+            model_size = 14.0
         elif "23b" in str(file_path).lower():
             model_size = 23.216467968
         else:
