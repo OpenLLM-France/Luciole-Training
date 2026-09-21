@@ -602,6 +602,7 @@ def format_group_name_for_title(group_name):
         "fr": "French",
         "multilingual": "Other Languages",
         "translation": "Translation",
+        "instruct": "Instruct (no reasoning MCQ)",
     }.get(group_name, None)
 
 

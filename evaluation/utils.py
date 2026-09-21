@@ -296,6 +296,27 @@ task_group_mapping["common"] = [
     if task in task_group_mapping["finetune"]
 ]
 
+# "instruct" = the generative instruct benchmarks. It is the full "finetune" set MINUS
+# the MCQ / likelihood tasks of tasks/reasoning.txt (hellaswag, winogrande, mlmm_arc_fra,
+# mlmm_hellaswag_fra): those need loglikelihood scoring, which is not available for GGUF
+# models, so excluding them lets a single plot compare BF16 against every quantization
+# (FP8 / FP4 / FP4A16 / Q4_K_M / Q5_K_M / Q8_0). The French math benchmarks (math_fr.txt)
+# are appended since they are generative and ran across all variants.
+_reasoning_mcq_tasks = {
+    "leaderboard|hellaswag|0",
+    "leaderboard|winogrande|0",
+    "lighteval|mlmm_hellaswag_fra_cf|0",
+    "lighteval|mlmm_arc_fra_cf:challenge|0",
+}
+task_group_mapping["instruct"] = [
+    (task, metric)
+    for task, metric in task_group_mapping["finetune"]
+    if task not in _reasoning_mcq_tasks
+] + [
+    ("community|mathalea_generative_frprompt:_average|0", "mathalea_pass@1"),
+    ("community|exo7_generative|0", "f1"),
+]
+
 
 # Callable metrics referenced in task_group_mapping, grouped by the (full) task name
 # they are paired with. They are computed from a task's other metrics when reading the
@@ -448,7 +469,27 @@ def get_training_tokens_and_model_size(file_path):
         else:
             raise ValueError(f"Unknown model size for model in: {file_path}")
 
-        is_global, steps = get_step(str(file_path))
+        try:
+            is_global, steps = get_step(str(file_path))
+        except RuntimeError:
+            # Final / released model (Luciole-<n>-Instruct-1.1 and its quantized
+            # variants: BF16 / FP8 / FP4 / FP4A16 / Q4_K_M / Q5_K_M / Q8_0): no training
+            # step in the path. Use the fully-trained token count for this size (same as
+            # the corresponding SFT checkpoint) so the model still places on any
+            # token-axis plot; the variant-comparison bar plots do not use it anyway.
+            steps_phase1 = 715787
+            steps_phase2 = 358930
+            steps_phase3_annealing = 118238 if model_size < 23 else 71526
+            steps_extension = 5960 if model_size < 23 else 11920
+            steps = (
+                steps_phase1
+                + steps_phase2
+                + steps_phase3_annealing
+                + 2 * steps_extension
+            )
+            if 7.9 < model_size < 8.1:
+                steps += 11921
+            return steps * 4096 * 1024 / 10**9, model_size
 
         if not is_global:
             steps_phase1 = 715787
