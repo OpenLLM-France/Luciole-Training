@@ -38,6 +38,18 @@ def from_tools_to_system(system_content, tools, tokenizer):
     ).group(1)
     return system_prompt
 
+def normalize_tool_schema(tool):
+    """Move a tool's top-level ``required`` list inside its ``parameters``.
+
+    When2Call declares required params next to ``parameters`` instead of in it,
+    which is where the JSON-schema envelope (and the chat template) expects them.
+    """
+    required = tool.pop("required", None)
+    if required is not None:
+        tool.setdefault("parameters", {}).setdefault("required", required)
+    return tool
+
+
 def add_system_prompt(
     data,
     rank: int = 0,
