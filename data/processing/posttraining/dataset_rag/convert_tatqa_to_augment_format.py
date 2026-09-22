@@ -564,7 +564,9 @@ def convert(
     with open(output_file, "w", encoding="utf-8") as f:
         for row in rows_out:
             if output_format == "benchmark":
-                row = augment_row_to_benchmark(row, include_id=include_id)
+                row = augment_row_to_benchmark(
+                    row, include_id=include_id, renumber_titles=True
+                )
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     for w in warnings:

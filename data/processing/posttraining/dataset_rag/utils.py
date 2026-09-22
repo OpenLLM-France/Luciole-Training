@@ -154,15 +154,17 @@ def format_context_chunks(
     if shuffle:
         random.shuffle(final_chunks)
 
-    # Renumber paragraph chunks sequentially so displayed order matches numbering.
-    # Non-paragraph titles (e.g. "Table") are kept as-is.
+    # Renumber paragraph and table chunks sequentially so displayed order matches
+    # numbering. Tables must be renumbered too: distractors are titled
+    # "Table dist_<hash>" and the gold one "Table", which would leak which is gold.
     title_mapping: dict[str, str] = {}
-    para_counter = 0
+    counters = {"Paragraph": 0, "Table": 0}
     for chunk in final_chunks:
         old_title = chunk["title"]
-        if old_title.startswith("Paragraph"):
-            para_counter += 1
-            new_title = f"Paragraph {para_counter}"
+        prefix = next((p for p in counters if old_title.startswith(p)), None)
+        if prefix:
+            counters[prefix] += 1
+            new_title = f"{prefix} {counters[prefix]}"
         else:
             new_title = old_title
         title_mapping[old_title] = new_title

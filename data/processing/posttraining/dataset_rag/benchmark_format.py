@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Helpers for exporting prompt-agnostic RAG benchmark rows."""
 
+import random
 from collections import defaultdict
 from typing import Any
 
@@ -32,7 +33,45 @@ def supporting_indices(
     return indices
 
 
-def augment_row_to_benchmark(row: dict, *, include_id: bool = True) -> dict:
+def shuffle_and_renumber(
+    titles: list[str],
+    documents: list[str],
+    supporting_titles: list[str],
+    seed_key: str,
+) -> tuple[list[str], list[str], list[str]]:
+    """Shuffle chunks per row and renumber "Paragraph*"/"Table*" titles 1..N.
+
+    Raw converter titles leak provenance ("Table" = gold doc, "Paragraph dist_<hash>"
+    = cross-doc distractor, source chunks always first), and the benchmark prompt
+    shows titles verbatim. Renumbering after a per-id deterministic shuffle makes
+    titles and order carry no signal. Other titles are kept as-is.
+    """
+    order = list(range(len(titles)))
+    random.Random(f"benchmark_order:{seed_key}").shuffle(order)
+    counters = {"Paragraph": 0, "Table": 0}
+    mapping: dict[str, str] = {}
+    new_titles: list[str] = []
+    for idx in order:
+        old = titles[idx]
+        prefix = next((p for p in counters if old.startswith(p)), None)
+        if prefix is None:
+            new = old
+        else:
+            counters[prefix] += 1
+            new = f"{prefix} {counters[prefix]}"
+        mapping.setdefault(old, new)
+        new_titles.append(new)
+    new_documents = [documents[idx] for idx in order]
+    new_supporting = [mapping.get(str(t), str(t)) for t in supporting_titles]
+    return new_titles, new_documents, new_supporting
+
+
+def augment_row_to_benchmark(
+    row: dict,
+    *,
+    include_id: bool = True,
+    renumber_titles: bool = False,
+) -> dict:
     """Convert an augmentation-format row to the benchmark schema.
 
     Output schema:
@@ -46,6 +85,10 @@ def augment_row_to_benchmark(row: dict, *, include_id: bool = True) -> dict:
     titles = [str(title) for title in context["title"]]
     documents = [_chunk_text(sentences) for sentences in context["sentences"]]
     supporting_titles = row.get("supporting_facts", {}).get("title", [])
+    if renumber_titles:
+        titles, documents, supporting_titles = shuffle_and_renumber(
+            titles, documents, supporting_titles, str(row.get("id", row["question"]))
+        )
 
     benchmark_row = {
         "query": row["question"],
