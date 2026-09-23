@@ -295,6 +295,17 @@ def launch_evaluation(
         experiment_path, hf_model, infer_ckpt_name, is_nemo_rl
     )
     if last_checkpoint_only:
+        # Sort by the actual step so the last one is really the highest step,
+        # keeping revisions aligned with their checkpoints.
+        checkpoints, revisions = (
+            list(x)
+            for x in zip(
+                *sorted(
+                    zip(checkpoints, revisions),
+                    key=lambda ckpt_rev: get_step(ckpt_rev[0])[1],
+                )
+            )
+        )
         checkpoints = [checkpoints[-1]]
         revisions = [revisions[-1]]
 
