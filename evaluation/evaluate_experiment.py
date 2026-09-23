@@ -319,7 +319,9 @@ def launch_evaluation(
     # https://huggingface.co/almanach/Gaperon-1125-24B/discussions/1
     if command == "vllm":
         patch_dir = Path(__file__).parent.resolve() / "vllm_patches"
-        extra_env_vars += f'export PYTHONPATH="{patch_dir}${{PYTHONPATH:+:$PYTHONPATH}}"\n'
+        extra_env_vars += (
+            f'export PYTHONPATH="{patch_dir}${{PYTHONPATH:+:$PYTHONPATH}}"\n'
+        )
 
     tasks = []
 
@@ -329,9 +331,10 @@ def launch_evaluation(
         if isinstance(ckpt, Path):
             ckpt = ckpt.name
 
-        _, step = get_step(ckpt)
+        step = None
 
         if min_step:
+            _, step = get_step(ckpt)
             if (step + 1) < min_step:
                 if not dry_run:
                     print(
@@ -340,6 +343,7 @@ def launch_evaluation(
                 continue
 
         if multiple_of and multiple_of != 1:
+            _, step = get_step(ckpt)
             if (step + 1) % multiple_of > 1 or step == 0:
                 if not dry_run:
                     print(
@@ -347,10 +351,12 @@ def launch_evaluation(
                     )
                 continue
 
-        if ckpt.endswith("-last") and (step in steps_done):  # and (multiple_of is None or step in steps_done):
-            if not dry_run:
-                print(f"Skipping last checkpoint: {ckpt}")
-            continue
+        if ckpt.endswith("-last"):
+            _, step = get_step(ckpt)
+            if step in steps_done:  # and (multiple_of is None or step in steps_done):
+                if not dry_run:
+                    print(f"Skipping last checkpoint: {ckpt}")
+                continue
 
         steps_done.append(step)
         if not dry_run:
