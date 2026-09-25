@@ -1,0 +1,12 @@
+# General Knowledge
+lighteval|global_mmlu_all_fra_mcf|0
+lighteval|mlmm_arc_fra_mcf:challenge|0
+
+# Reading Comprehension
+lighteval|belebele_fra_Latn_mcf|0
+
+# Natural Language Understanding
+lighteval|mlmm_hellaswag_fra_mcf|0
+
+# Other MCQ
+community|eiffel_mcq_mcf|0

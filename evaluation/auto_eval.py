@@ -309,11 +309,15 @@ def launch_evaluation(
                     "ifbench",
                     "ifeval",
                     "ifeval_fr",
-                    "gsm_plus",
                     "safety",
-                    "math_fr",
+                    "safety_hard",
                     # "safety_multilang",
+                    "gsm_plus",
+                    "math_fr",
+                    "fr_generative",
+                    "fr_math",
                     "rag2",
+                    "bbh",
                     # "scoolkid", "pcbench", "falseqa", # TODO: presupposition
                 ]
             ]
@@ -350,6 +354,14 @@ def launch_evaluation(
                 ),
                 dict(
                     task_to_evaluate="tasks/reasoning.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    custom_tasks="multilingual",
+                    max_samples=1000,
+                    gpus=gpus,
+                ),
+                dict(
+                    task_to_evaluate="tasks/fr_mcf.txt",
                     multiple_of=multiple_of,
                     command=command,
                     custom_tasks="multilingual",
@@ -461,7 +473,11 @@ def launch_evaluation(
 
 
 def launch_plot(
-    experiment_path, email="", dependency_job_id=None, eval_type="pretrain", dry_run=False
+    experiment_path,
+    email="",
+    dependency_job_id=None,
+    eval_type="pretrain",
+    dry_run=False,
 ):
     print(f"Launching plot for {experiment_path}")
     # Plot groups are selected from the base eval_type, ignoring any "/filter" suffix.

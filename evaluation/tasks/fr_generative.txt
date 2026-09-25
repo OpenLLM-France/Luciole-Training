@@ -1,0 +1,4 @@
+community|piqa_fr_gen|0
+community|include_fr_gen|5
+community|blend_fr|0
+community|carte_generative|0
