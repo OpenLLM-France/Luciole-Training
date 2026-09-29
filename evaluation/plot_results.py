@@ -7,6 +7,7 @@ from utils import (
     read_experiment_results,
     format_task_for_title,
     task_group_mapping,
+    group_aliases,
 )
 from agg_score import (
     calculate_agg_score,
@@ -1611,7 +1612,8 @@ if __name__ == "__main__":
         "'agg'. A group can be restricted to a subset of its tasks with the "
         "'group/regex' syntax: e.g. 'finetune/mixeval' keeps only the tasks of "
         "the 'finetune' group whose name matches the regex 'mixeval'. "
-        f"Available groups: {', '.join(['all', 'agg'] + list(task_group_mapping.keys()))}.",
+        f"Available groups: {', '.join(['all', 'agg'] + list(task_group_mapping.keys()))}. "
+        f"Aliases (expand to several groups): {', '.join(k + ' -> ' + ' '.join(v) for k, v in group_aliases.items())}.",
     )
     parser.add_argument(
         "--ignore-no-results",
@@ -1762,6 +1764,16 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # Expand group aliases (e.g. "instruct" -> its constituent groups), so that passing
+    # an alias is equivalent to passing its groups on the command line (one plot each).
+    # Order is preserved and duplicates removed (an alias may overlap another --group).
+    expanded_groups = []
+    for g in args.group:
+        for expanded in group_aliases.get(g, [g]):
+            if expanded not in expanded_groups:
+                expanded_groups.append(expanded)
+    args.group = expanded_groups
 
     # Validate group specs early (resolve_group raises on unknown group / bad regex)
     for g in args.group:
