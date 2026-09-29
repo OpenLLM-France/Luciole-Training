@@ -200,6 +200,67 @@ def assign_styles(df, apply_phase_style=True, color_spec=None):
     return style_map
 
 
+# Hatch patterns used to tell apart variants that share a color (same surname).
+# The first variant stays solid (""); matplotlib draws the hatch in the bar edge
+# color (white here), so it shows as a white pattern over the shared fill color.
+_VARIANT_HATCHES = ["", "///", "...", "xxx", "\\\\", "ooo", "++", "||", "--"]
+
+
+def get_surname(name):
+    """Model 'surname' used to color variants of the same base model alike.
+
+    Split the name on '-', '_' or whitespace, keep the first field, then keep each
+    following field while it starts with a digit. E.g. 'Luciole-8B-SFT-Thinking'
+    and 'Olmo-3-7B-Think-DPO' give 'Luciole-8B' and 'Olmo-3-7B'.
+    """
+    fields = [f for f in re.split(r"[-_\s]+", name.strip()) if f]
+    if not fields:
+        return name
+    parts = [fields[0]]
+    for field in fields[1:]:
+        if field[0].isdigit():
+            parts.append(field)
+        else:
+            break
+    return "-".join(parts)
+
+
+def assign_variant_colors_and_hatches(df):
+    """Color models by surname; give same-surname variants distinct hatches.
+
+    Returns ``(color_map, hatch_map)``. Each surname gets one palette color (in
+    order of first appearance); models whose surname is unique get an empty hatch
+    (solid bar), while surnames shared by several models get a different hatch per
+    variant, in order of first appearance.
+    """
+    unique_experiments = list(df["expe_name"].unique())
+    surnames = {name: get_surname(name) for name in unique_experiments}
+
+    surname_order = []
+    for name in unique_experiments:
+        if surnames[name] not in surname_order:
+            surname_order.append(surnames[name])
+    surname_color = {
+        s: _PALETTE[i % len(_PALETTE)] for i, s in enumerate(surname_order)
+    }
+    color_map = {name: surname_color[surnames[name]] for name in unique_experiments}
+
+    counts = {s: 0 for s in surname_order}
+    for name in unique_experiments:
+        counts[surnames[name]] += 1
+    hatch_map = {}
+    seen_per_surname = {}
+    for name in unique_experiments:
+        s = surnames[name]
+        if counts[s] <= 1:
+            hatch_map[name] = ""
+        else:
+            k = seen_per_surname.get(s, 0)
+            hatch_map[name] = _VARIANT_HATCHES[k % len(_VARIANT_HATCHES)]
+            seen_per_surname[s] = k + 1
+    return color_map, hatch_map
+
+
 def _resolve_ymax(ymax, i):
     """Return the ymax value for the i-th detail plot.
 
@@ -250,6 +311,7 @@ def _plot_curves(
     xlog=False,
     use_dots=False,
     print_numbers=False,
+    hatch_map=None,
 ):
     """Plot a list of series on a single axis.
 
@@ -287,6 +349,7 @@ def _plot_curves(
                 capsize=4,
                 edgecolor="white",
                 linewidth=0.5,
+                hatch=(hatch_map or {}).get(s["expe_name"], ""),
             )
             if print_numbers:
                 _annotate_numbers(ax, [i], Y, color, yerr=s.get("stderr"))
@@ -470,6 +533,7 @@ def plot_task(
     max_tokens=None,
     checkpoint_index=None,
     print_numbers=False,
+    hatch_map=None,
 ):
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -542,6 +606,7 @@ def plot_task(
         xlog=xlog,
         use_dots=use_dots,
         print_numbers=print_numbers,
+        hatch_map=hatch_map,
     )
     ax.set_ylabel("Time (s)" if metric == "time" else format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
@@ -635,6 +700,7 @@ def plot_aggregate(
     checkpoint_index=None,
     title=None,
     print_numbers=False,
+    hatch_map=None,
 ):
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
@@ -761,6 +827,7 @@ def plot_aggregate(
         xlog=xlog,
         use_dots=use_dots,
         print_numbers=print_numbers,
+        hatch_map=hatch_map,
     )
     ax.set_ylabel(
         "Averaged "
@@ -1143,6 +1210,33 @@ def plot_list_of_tasks(
             df, apply_phase_style=apply_phase_style, color_spec=color_spec
         )
 
+        # Single-point bar comparisons (one bar per model): color models by surname
+        # and distinguish same-surname variants with hatches. Skipped for multi-
+        # checkpoint curve plots and when colors are set explicitly via --color. Only
+        # kicks in when at least two models actually share a surname, so plots without
+        # variants keep their previous colors.
+        hatch_map = None
+
+        def _selected_len(row):
+            # Length each series will have after checkpoint selection (mirrors the
+            # select_checkpoint logic used inside plot_task/plot_aggregate), so bars
+            # are detected even though selection has not happened yet on this df.
+            score = row["score"]
+            full = len(score) if hasattr(score, "__len__") else 1
+            if checkpoint_index is None:
+                return full
+            return (
+                1
+                if get_checkpoint_index(checkpoint_index, row["expe_name"]) is not None
+                else full
+            )
+
+        bars_mode = len(df) > 0 and df.apply(_selected_len, axis=1).max() == 1
+        if bars_mode and color_spec is None:
+            variant_colors, variant_hatches = assign_variant_colors_and_hatches(df)
+            if any(variant_hatches.values()):
+                color_map, hatch_map = variant_colors, variant_hatches
+
         if add_aggregate:
             # Layout: first row for aggregate + legend, remaining rows for details
             if num_tasks > 0:
@@ -1200,6 +1294,7 @@ def plot_list_of_tasks(
                 if hide_details
                 else (f"Overall Performance ({title})" if title else None),
                 print_numbers=print_numbers,
+                hatch_map=hatch_map,
             )
             # Visually emphasize the aggregate subplot
             agg_ax.set_facecolor("#f7f7f7")
@@ -1237,6 +1332,7 @@ def plot_list_of_tasks(
                 max_tokens=max_tokens,
                 checkpoint_index=checkpoint_index,
                 print_numbers=print_numbers,
+                hatch_map=hatch_map,
             )
 
             ymax_val = _resolve_ymax(ymax, i)
