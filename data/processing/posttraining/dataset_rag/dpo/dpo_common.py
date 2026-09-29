@@ -25,6 +25,25 @@ def md5(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()
 
 
+# ── Lexical refusal (EN/FR/DE patterns of dataset_rag/utils.py REFUSAL_PATTERNS)
+
+REFUSAL_PATTERNS = [
+    r"(?:do not|don't|cannot|can't|unable to) (?:allow me to |)(?:answer|provide|respond)",
+    r"(?:not enough|insufficient) information",
+    r"does not (?:contain|allow|provide)",
+    r"ne (?:me )?permettent? pas",
+    r"pas en mesure de répondre",
+    r"ne (?:peux|puis) pas (?:fournir|répondre)",
+    r"(?:nicht in der Lage|ermöglich(?:t|en) es mir nicht|kann .* nicht beantworten)",
+    r"nicht genügend Informationen",
+]
+_REFUSAL_RE = [re.compile(p, re.IGNORECASE) for p in REFUSAL_PATTERNS]
+
+
+def lexical_refusal(text: str) -> bool:
+    return any(p.search(text) for p in _REFUSAL_RE)
+
+
 # ── Context & citations ─────────────────────────────────────────────────────
 
 _FILENAME_RE = re.compile(r"^\* filename: (.+?)\s*$", re.M)
