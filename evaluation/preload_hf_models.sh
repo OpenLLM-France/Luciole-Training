@@ -11,8 +11,6 @@ export OpenLLM_OUTPUT=$qgz_ALL_CCFRSCRATCH/OpenLLM-BPI-output
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
 # instruct models
-hf download mistralai/Ministral-3-3B-Reasoning-2512
-hf download mistralai/Ministral-3-8B-Reasoning-2512
 hf download allenai/Olmo-3-7B-Instruct-DPO
 hf download allenai/Olmo-3-7B-Think-DPO
 hf download almanach/Gaperon-1125-1B-SFT
@@ -26,9 +24,11 @@ hf download meta-llama/Llama-3.1-8B-Instruct
 hf download meta-llama/Llama-3.2-1B-Instruct
 # hf download HuggingFaceTB/SmolLM2-1.7B
 hf download HuggingFaceTB/SmolLM3-3B
-hf download mistralai/Ministral-3-8B-Instruct-2512
+# hf download mistralai/Ministral-3-8B-Instruct-2512
 hf download mistralai/Ministral-3-3B-Instruct-2512-BF16
+hf download mistralai/Ministral-3-3B-Reasoning-2512
 hf download mistralai/Ministral-3-8B-Instruct-2512-BF16
+hf download mistralai/Ministral-3-8B-Reasoning-2512
 hf download mistralai/Mistral-Small-24B-Instruct-2501
 hf download mistralai/Mistral-Small-3.2-24B-Instruct-2506
 hf download OpenLLM-France/Lucie-7B-Instruct-v1.1
