@@ -222,8 +222,8 @@ task_group_mapping = {
     "instruct_fr": [
         # ── 1. Commonsense reasoning ───────────────────────────────────────────────
         (
-            "lighteval|mlmm_hellaswag_fra_mcf|0",
-            "acc",
+            "lighteval|mlmm_hellaswag_fra_cf|0",
+            "acc_norm_token",
         ),  # HellaSwag: sentence-completion commonsense (MC) — easiest
         (
             "community|piqa_fr_gen|0",
@@ -231,21 +231,21 @@ task_group_mapping = {
         ),  # PIQA: physical commonsense, generative (extraction adds difficulty)
         # ── 2. Language understanding (French) ─────────────────────────────────────
         (
-            "lighteval|belebele_fra_Latn_mcf|0",
-            "acc",
+            "lighteval|belebele_fra_Latn_cf|0",
+            "acc_norm_token",
         ),  # Belebele: reading comprehension over a passage (MC)
         (
-            "community|eiffel_mcq_mcf:_average|0",
-            "acc",
+            "community|eiffel_mcq_cf:_average|0",
+            "acc_norm_token",
         ),  # EIFFEL: French idiomatic expressions — niche, harder
         # ── 3. Knowledge — academic & scientific ───────────────────────────────────
         (
-            "lighteval|mlmm_arc_fra_mcf:challenge|0",
-            "acc",
+            "lighteval|mlmm_arc_fra_cf:challenge|0",
+            "acc_norm_token",
         ),  # ARC-Challenge: grade-school science (MC)
         (
-            "lighteval|global_mmlu_all_fra_mcf:_average|0",
-            "acc",
+            "lighteval|global_mmlu_all_fra_cf:_average|0",
+            "acc_norm_token",
         ),  # Global-MMLU: 57 academic subjects (MC), broader/harder
         (
             "community|gpqa-fr:diamond|0",

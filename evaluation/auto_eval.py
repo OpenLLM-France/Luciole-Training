@@ -361,13 +361,21 @@ def launch_evaluation(
                     gpus=gpus,
                 ),
                 dict(
-                    task_to_evaluate="tasks/fr_mcf.txt",
+                    task_to_evaluate="tasks/fr_cf.txt",
                     multiple_of=multiple_of,
                     command=command,
                     custom_tasks="multilingual",
                     max_samples=1000,
                     gpus=gpus,
                 ),
+                # dict(
+                #     task_to_evaluate="tasks/translation.txt",
+                #     multiple_of=multiple_of,
+                #     command=command,
+                #     custom_tasks="multilingual",
+                #     max_samples=1000,
+                #     gpus=gpus,
+                # ),
                 # dict(
                 #     task_to_evaluate="tasks/gsm8k.txt",
                 #     multiple_of=multiple_of,
