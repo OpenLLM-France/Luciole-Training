@@ -29,6 +29,8 @@ Two stages, so the 675 MB evaluated file never leaves the Airflow host:
   # 2) locally, dataset_rag venv (formatting_sft imports utils -> aiohttp)
   venv/bin/python dpo/build_dpo_prompts_heldout.py format --rows heldout_rows.jsonl \
       --out dpo/data/prompts_hpv4heldout.jsonl
+  # then, as for the v4 pool
+  python3 dpo/add_strict_variants.py --pool dpo/data/prompts_hpv4heldout.jsonl
 """
 import argparse
 import collections
