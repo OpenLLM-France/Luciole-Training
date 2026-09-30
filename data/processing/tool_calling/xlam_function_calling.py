@@ -1,9 +1,10 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
-from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from functools import partial
 from transformers import AutoTokenizer
 from utils import (
+    hub_adapter,
     FilterChinese,
     apply_chat_template,
     instruct_adapter,
@@ -108,8 +109,14 @@ if __name__ == "__main__":
         FilterChinese(
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/xlam/chinese_heavy"),
         ),
-        JsonlWriter(
-            f"{DATA_PATH}/xlam_oaiformat/data",
+        HuggingFaceDatasetWriter(
+            dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
+            local_working_dir=f"{DATA_PATH}/xlam_oaiformat",
+            output_filename="data/xlam_oaiformat/${rank}.parquet",
+            adapter=hub_adapter,
+            schema=None,
+            private=True,
+            cleanup=False,
             expand_metadata=True,
         ),
     ]

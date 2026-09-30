@@ -1,4 +1,5 @@
 import os
+import sys
 import importlib.util
 
 # Directly load posttraining/utils.py under a unique module name to avoid
@@ -10,6 +11,10 @@ spec = importlib.util.spec_from_file_location(
     os.path.join(os.path.dirname(__file__), "..", "posttraining", "utils.py"),
 )
 posttraining_utils = importlib.util.module_from_spec(spec)
+# Register under its module name so functions pulled from it (whose
+# __module__ is "posttraining_utils") can be re-imported by name -- needed for
+# dill/multiprocess to unpickle them by reference in forked worker processes.
+sys.modules["posttraining_utils"] = posttraining_utils
 spec.loader.exec_module(posttraining_utils)
 
 create_parser = posttraining_utils.create_parser
@@ -38,16 +43,35 @@ def from_tools_to_system(system_content, tools, tokenizer):
     ).group(1)
     return system_prompt
 
-def normalize_tool_schema(tool):
-    """Move a tool's top-level ``required`` list inside its ``parameters``.
+def hub_adapter(self, document):
+    """Row adapter for the Hub writers: emit only the five shared columns.
 
-    When2Call declares required params next to ``parameters`` instead of in it,
-    which is where the JSON-schema envelope (and the chat template) expects them.
+    The default adapter writes every metadata key as its own column
+    (``expand_metadata``), which gives each dataset a different schema -- so one
+    ``load_dataset`` over the repo cannot union them -- and lets an optional
+    field that is ``None`` in the first row type that column ``null``, after
+    which the whole batch is rejected ("Table schema does not match schema used
+    to create file"). Pinning the columns here gives every dataset in the repo
+    one stable schema.
+
+    ``dataset`` is the source id set by HuggingFaceDatasetReader; readers that
+    do not set it (Parquet/Jsonl) leave it empty rather than null, so the column
+    stays typed.
     """
-    required = tool.pop("required", None)
-    if required is not None:
-        tool.setdefault("parameters", {}).setdefault("required", required)
-    return tool
+    import json
+
+    tools = document.metadata.get("tools")
+    messages = document.metadata.get("messages") or []
+    return {
+        "id": str(document.id),
+        "dataset": str(document.metadata.get("dataset") or ""),
+        "tools": tools if isinstance(tools, str) else json.dumps(tools or []),
+        "messages": [
+            {"role": str(m.get("role", "")), "content": str(m.get("content") or "")}
+            for m in messages
+        ],
+        "text": document.text or "",
+    }
 
 
 def add_system_prompt(

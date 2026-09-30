@@ -2,11 +2,12 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.readers import ParquetReader
-from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 from functools import partial
 from transformers import AutoTokenizer
 from utils import (
+    hub_adapter,
     apply_chat_template,
     instruct_adapter,
     add_system_prompt,
@@ -67,6 +68,8 @@ class DolciFilter(BaseFilter):
         super().__init__(exclusion_writer)
 
     def filter(self, doc: Document):
+        # HuggingFaceDatasetReader sets this; the Parquet/Jsonl readers do not.
+        doc.metadata.setdefault("dataset", "allenai/Dolci-Instruct-SFT-Tool-Use")
         import json
         import random
         import re
@@ -157,8 +160,14 @@ if __name__ == "__main__":
         partial(add_system_prompt, tokenizer=tokenizer),
         NemoRLFormat(),
         partial(apply_chat_template, tokenizer=tokenizer),
-        JsonlWriter(
-            f"{DATA_PATH}/dolci_tools/data",
+        HuggingFaceDatasetWriter(
+            dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
+            local_working_dir=f"{DATA_PATH}/dolci_tools",
+            output_filename="data/dolci_tools/${rank}.parquet",
+            adapter=hub_adapter,
+            schema=None,
+            private=True,
+            cleanup=False,
             expand_metadata=True,
         ),
     ]

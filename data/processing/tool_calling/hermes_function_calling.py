@@ -1,9 +1,10 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
-from datatrove.pipeline.writers import JsonlWriter
+from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from functools import partial
 from transformers import AutoTokenizer
 from utils import (
+    hub_adapter,
     FilterChinese,
     apply_chat_template,
     instruct_adapter,
@@ -108,11 +109,17 @@ if __name__ == "__main__":
             partial(apply_chat_template, tokenizer=tokenizer),
             FilterChinese(
                 exclusion_writer=JsonlWriter(
-                    f"{DATA_PATH}/hermes_oai_format/{subset}/chinese_heavy"
+                    f"{DATA_PATH}/hermes_oaiformat/{subset}/chinese_heavy"
                 ),
             ),
-            JsonlWriter(
-                f"{DATA_PATH}/hermes_oai_format/{subset}/data",
+            HuggingFaceDatasetWriter(
+                dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
+                local_working_dir=f"{DATA_PATH}/hermes_oaiformat/{subset}",
+                output_filename=f"data/hermes_oaiformat/{subset}/${{rank}}.parquet",
+                adapter=hub_adapter,
+                schema=None,
+                private=True,
+                cleanup=False,
                 expand_metadata=True,
             ),
         ]
@@ -121,8 +128,8 @@ if __name__ == "__main__":
             pipeline,
             local=args.local,
             debug=args.debug,
-            logging_dir=f"{DATA_PATH}/hermes_oai_format/{subset}/logs",
-            job_name="hermes_oai_format",
+            logging_dir=f"{DATA_PATH}/hermes_oaiformat/{subset}/logs",
+            job_name="hermes_oaiformat",
             tasks=1,
             time="00:30:00",
             # partition="cpu_p1",
