@@ -220,17 +220,60 @@ task_group_mapping = {
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
     ],
     "instruct_fr": [
-        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
-        ("lighteval|mlmm_arc_fra_mcf:challenge|0", "acc"),
-        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
-        ("lighteval|mlmm_hellaswag_fra_mcf|0", "acc"),
-        ("community|gpqa-fr:diamond|0", "gpqa_fr_pass@1"),
-        ("community|ifeval-fr|0", "prompt_level_loose_acc"),
-        ("community|bbh_fr:_average|0", "em"),
-        ("community|blend_fr|0", "blend_acc"),
-        ("community|carte_generative|0", "carte_pass@1"),
-        ("community|include_fr_gen|5", "acc"),
-        ("community|piqa_fr_gen|0", "piqa_gen_acc"),
+        # ── 1. Commonsense reasoning ───────────────────────────────────────────────
+        (
+            "lighteval|mlmm_hellaswag_fra_mcf|0",
+            "acc",
+        ),  # HellaSwag: sentence-completion commonsense (MC) — easiest
+        (
+            "community|piqa_fr_gen|0",
+            "piqa_gen_acc",
+        ),  # PIQA: physical commonsense, generative (extraction adds difficulty)
+        # ── 2. Language understanding (French) ─────────────────────────────────────
+        (
+            "lighteval|belebele_fra_Latn_mcf|0",
+            "acc",
+        ),  # Belebele: reading comprehension over a passage (MC)
+        (
+            "community|eiffel_mcq_mcf:_average|0",
+            "acc",
+        ),  # EIFFEL: French idiomatic expressions — niche, harder
+        # ── 3. Knowledge — academic & scientific ───────────────────────────────────
+        (
+            "lighteval|mlmm_arc_fra_mcf:challenge|0",
+            "acc",
+        ),  # ARC-Challenge: grade-school science (MC)
+        (
+            "lighteval|global_mmlu_all_fra_mcf:_average|0",
+            "acc",
+        ),  # Global-MMLU: 57 academic subjects (MC), broader/harder
+        (
+            "community|gpqa-fr:diamond|0",
+            "gpqa_fr_pass@1",
+        ),  # GPQA-Diamond: graduate "Google-proof" science — hardest here
+        # ── 4. Knowledge — cultural & regional (French/local) ──────────────────────
+        (
+            "community|include_fr_gen|5",
+            "acc",
+        ),  # INCLUDE: local-exam regional knowledge, 5-shot (MC-style)
+        (
+            "community|carte_generative|0",
+            "carte_pass@1",
+        ),  # CARTE: French regional knowledge, generative MCQ (+IDK option)
+        (
+            "community|blend_fr|0",
+            "blend_acc",
+        ),  # BLEnD: everyday cultural knowledge, open short-answer — hardest
+        # ── 5. Complex / multi-step reasoning ──────────────────────────────────────
+        (
+            "community|bbh_fr:_average|0",
+            "em",
+        ),  # BIG-Bench-Hard: multi-step reasoning, CoT generative
+        # ── 6. Instruction following ───────────────────────────────────────────────
+        (
+            "community|ifeval-fr|0",
+            "prompt_level_loose_acc",
+        ),  # IFEval: verifiable instruction constraints
     ],
     "instruct_math": [
         ("lighteval|gsm8k|0", "extractive_match"),
