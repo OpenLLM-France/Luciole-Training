@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 from argparse import ArgumentParser
 import os
@@ -56,7 +57,7 @@ module load cudnn/9.10.2.21-12-cuda
 module load nccl/2.27.3-1-cuda                          
 module load uv/0.8.3         
 
-cd $SCRATCH/nemo-rl3 #TODO make it more robust by not hardcoding nemo-rl path
+cd $SCRATCH/nemo-rl #TODO make it more robust by not hardcoding nemo-rl path
 source .venv/bin/activate 
 
 python {source_path}/finetune/nemo-rl/convert_experiment.py {experiment_path} {prefix_name}
@@ -86,7 +87,7 @@ export NVTE_DEBUG_LEVEL=2
 module purge
 module load arch/h100
 module load uv/0.8.3
-cd $SCRATCH/nemo-rl-latest
+cd $SCRATCH/nemo-rl
 source .venv/bin/activate
 
 # The venv's Python (miniforge 3.13) links _ssl against OpenSSL >= 3.3.0, but the
@@ -157,6 +158,7 @@ fi
 # Send email
 eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS $TO
 """
+
 
 
 def launch_conversion(
@@ -460,6 +462,7 @@ def launch_evaluation(
     return ",".join(job_ids) if job_ids else None
 
 
+
 def launch_plot(
     experiment_path, email="", dependency_job_id=None, eval_type="pretrain", dry_run=False
 ):
@@ -634,6 +637,15 @@ if __name__ == "__main__":
         help="Additional model args to pass to lighteval, separated by commas (format 'arg1=value1,arg2=value2', e.g. --additional_model_args='override_chat_template=False').",
     )
     parser.add_argument(
+        "--bfcl",
+        action="store_true",
+        help=(
+            "If set, only launch a BFCL (Berkeley Function-Calling Leaderboard) "
+            "evaluation, saved in <experiment_path>/evaluation/bfcl (no lighteval "
+            "task, no plot)."
+        ),
+    )
+    parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
     )
     parser.add_argument(
@@ -641,6 +653,11 @@ if __name__ == "__main__":
     )
     parser.add_argument("--latest", action="store_true", help="Convert Nemo-RL ckpts.")
     args = parser.parse_args()
+
+    # Resolve symlinks so all path-derived logic below (model size detection,
+    # compared_models selection, nested checkpoint dir, prefix_name, ...) sees
+    # the real experiment directory name instead of a symlink's own name.
+    args.experiment_path = str(Path(args.experiment_path).resolve())
 
     if not args.is_nemo_rl:
         has_original_checkpoints = (
@@ -666,6 +683,28 @@ if __name__ == "__main__":
             print("#" * 80)
     else:
         conversion_job_id = None
+
+    # Launch BFCL evaluation job
+    if args.bfcl:
+        import evaluate_experiment_on_bfcl
+
+        evaluate_experiment_on_bfcl.launch_evaluation(
+            args.experiment_path,
+            hf_model=args.hf_model,
+            multiple_of=args.multiple_of,
+            dependency=conversion_job_id,
+            force=args.force,
+            infer_ckpt_name=launch_conversion_needed,
+            last_checkpoint_only=args.last_checkpoint_only,
+            is_nemo_rl=args.is_nemo_rl,
+            dry_run=args.dry_run,
+        )
+        if args.dry_run:
+            print("#" * 80)
+
+    if args.bfcl:
+        # Nothing else to do: no lighteval task, hence nothing new to plot.
+        sys.exit(0)
 
     # Launch evaluation job
     evaluation_job_id = launch_evaluation(
