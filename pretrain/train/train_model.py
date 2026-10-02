@@ -75,6 +75,7 @@ def get_parser():
             "phase2",
             "annealing",
             "context_extension",
+            "continual_pretrain",
         ],
         type=str,
     )
@@ -121,6 +122,13 @@ def get_parser():
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--rotary_base", type=float, default=10000)
     parser.add_argument("--no_load_optim_state", default=False, action="store_true")
+    parser.add_argument(
+        "--end_step",
+        default=None,
+        type=int,
+        help="If set, stop training once this global step is reached, without changing "
+        "the optimizer/scheduler horizon (trainer.max_steps).",
+    )
     parser.add_argument(
         "--dry_run",
         action="store_true",
@@ -265,7 +273,7 @@ if __name__ == "__main__":
     recipe.trainer.max_steps = max_steps
     recipe.trainer.val_check_interval = max_steps
     recipe.trainer.limit_val_batches = 0.0
-    recipe.trainer.log_every_n_steps = 1 if args.mode in ["debug", "benchmark"] else 5
+    recipe.trainer.log_every_n_steps = 1 # if args.mode in ["debug", "benchmark"] else 5
     recipe.trainer.strategy.pipeline_dtype = torch.bfloat16
     recipe.trainer.strategy.ckpt_async_save = True
 
@@ -305,8 +313,11 @@ if __name__ == "__main__":
         run.Config(CustomTimingCallback)
     )  # , max_training_time_per_step=args.max_training_time_per_step))
     logger.info("Added TimingCallback")
-    # recipe.trainer.callbacks.append(run.Config(StopAtEndOfPhaseCallback, end_step=args.end_step))
-    # logger.info("Added StopAtEndOfPhaseCallback")
+    if args.end_step:
+        recipe.trainer.callbacks.append(
+            run.Config(StopAtEndOfPhaseCallback, end_step=args.end_step)
+        )
+        logger.info(f"Added StopAtEndOfPhaseCallback with end_step: {args.end_step}")
     recipe.trainer.callbacks.append(
         run.Config(
             GarbageCollectionCallback,
@@ -361,7 +372,7 @@ if __name__ == "__main__":
         warmup = 2000
     elif args.mode in ["phase2", "annealing"]:
         warmup = 0
-    elif args.mode == "context_extension":
+    elif args.mode in ["context_extension", "continual_pretrain"]:
         warmup = 200
     # Scheduler setup
     if args.scheduler == "wsd":

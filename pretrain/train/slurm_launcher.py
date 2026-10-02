@@ -122,10 +122,13 @@ def dict_to_cli(args_dict):
 
 
 def write_launch_slurm(
-    slurm_path, slurm_content, task="", slurm_array=None, dependency=None
+    slurm_path, slurm_content, task="", slurm_array=None, dependency=None, no_submit=False
 ):
     with open(slurm_path, "w") as fout:
         fout.write(slurm_content)
+    if no_submit:
+        logger.info(f"📝 SLURM script written to {slurm_path} (not submitted)")
+        return None
     command = ["sbatch"]
     if slurm_array:
         command += [f"--array=1-{slurm_array}%1"]
@@ -203,6 +206,7 @@ def submit_job(slurm_args, train_args):
     # SLURM args
     slurm_array = slurm_args.pop("slurm_array")
     dependency = slurm_args.pop("dependency")
+    no_submit = slurm_args.pop("no_submit")
 
     slurm_script = create_slurm_script(slurm_args, train_args)
     logger.info(f"🧪 Experiment name : {expe_name}")
@@ -216,7 +220,11 @@ def submit_job(slurm_args, train_args):
         task="train",
         slurm_array=slurm_array,
         dependency=dependency,
+        no_submit=no_submit,
     )
+
+    if no_submit:
+        return None, xp_output_dir
 
     sub_xp_output_dir = os.path.join(xp_output_dir, f"job_{job_id}")
     os.makedirs(sub_xp_output_dir, exist_ok=True)
@@ -278,6 +286,11 @@ def get_slurm_parser():
         "--dependency",
         default=None,
         type=str,
+    )
+    parser.add_argument(
+        "--no_submit",
+        action="store_true",
+        help="If given, write the SLURM script but do not submit it with sbatch.",
     )
     parser.add_argument(
         "--nemo_version",
