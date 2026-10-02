@@ -8,6 +8,9 @@
 {"task": "lighteval|xcodah_fra_cf", "metric":"acc_norm", "task_type":"Reasoning & Commonsense", "category": "mcq", "num_classes": 5, "language": "fr"}
 {"task": "lighteval|xcsqa_fra_cf", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense",  "category": "mcq", "num_classes": 4, "language": "fr"}
 {"task": "lighteval|xnli2.0_fra_cf", "metric":"acc_norm_token", "task_type":"Reasoning & Commonsense", "category": "classification", "num_classes": 3, "language": "fr"}
+{"task": "community|eiffel_mcq_cf:_average", "metric":"acc_norm_token", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "fr"}
+{"task": "community|carte_generative", "metric":"carte_pass@1", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 5, "language": "fr"}
+{"task": "community|blend_fr", "metric":"blend_acc", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 6, "language": "fr"}
 // {"task": "lighteval|meta_mmlu_fra_cf:_average", "metric":"acc_norm_pmi", "task_type":"Knowledge & Reading Comprehension", "category": "mcq", "num_classes": 4, "language": "fr"}
 //
 // ** English tasks **

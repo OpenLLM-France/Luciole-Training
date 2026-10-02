@@ -7,6 +7,7 @@ from utils import (
     read_experiment_results,
     format_task_for_title,
     task_group_mapping,
+    group_aliases,
 )
 from agg_score import (
     calculate_agg_score,
@@ -199,6 +200,67 @@ def assign_styles(df, apply_phase_style=True, color_spec=None):
     return style_map
 
 
+# Hatch patterns used to tell apart variants that share a color (same surname).
+# The first variant stays solid (""); matplotlib draws the hatch in the bar edge
+# color (white here), so it shows as a white pattern over the shared fill color.
+_VARIANT_HATCHES = ["", "///", "...", "xxx", "\\\\", "ooo", "++", "||", "--"]
+
+
+def get_surname(name):
+    """Model 'surname' used to color variants of the same base model alike.
+
+    Split the name on '-', '_' or whitespace, keep the first field, then keep each
+    following field while it starts with a digit. E.g. 'Luciole-8B-SFT-Thinking'
+    and 'Olmo-3-7B-Think-DPO' give 'Luciole-8B' and 'Olmo-3-7B'.
+    """
+    fields = [f for f in re.split(r"[-_\s]+", name.strip()) if f]
+    if not fields:
+        return name
+    parts = [fields[0]]
+    for field in fields[1:]:
+        if field[0].isdigit():
+            parts.append(field)
+        else:
+            break
+    return "-".join(parts)
+
+
+def assign_variant_colors_and_hatches(df):
+    """Color models by surname; give same-surname variants distinct hatches.
+
+    Returns ``(color_map, hatch_map)``. Each surname gets one palette color (in
+    order of first appearance); models whose surname is unique get an empty hatch
+    (solid bar), while surnames shared by several models get a different hatch per
+    variant, in order of first appearance.
+    """
+    unique_experiments = list(df["expe_name"].unique())
+    surnames = {name: get_surname(name) for name in unique_experiments}
+
+    surname_order = []
+    for name in unique_experiments:
+        if surnames[name] not in surname_order:
+            surname_order.append(surnames[name])
+    surname_color = {
+        s: _PALETTE[i % len(_PALETTE)] for i, s in enumerate(surname_order)
+    }
+    color_map = {name: surname_color[surnames[name]] for name in unique_experiments}
+
+    counts = {s: 0 for s in surname_order}
+    for name in unique_experiments:
+        counts[surnames[name]] += 1
+    hatch_map = {}
+    seen_per_surname = {}
+    for name in unique_experiments:
+        s = surnames[name]
+        if counts[s] <= 1:
+            hatch_map[name] = ""
+        else:
+            k = seen_per_surname.get(s, 0)
+            hatch_map[name] = _VARIANT_HATCHES[k % len(_VARIANT_HATCHES)]
+            seen_per_surname[s] = k + 1
+    return color_map, hatch_map
+
+
 def _resolve_ymax(ymax, i):
     """Return the ymax value for the i-th detail plot.
 
@@ -249,6 +311,7 @@ def _plot_curves(
     xlog=False,
     use_dots=False,
     print_numbers=False,
+    hatch_map=None,
 ):
     """Plot a list of series on a single axis.
 
@@ -257,7 +320,11 @@ def _plot_curves(
         and optionally: stderr, r2, slope, intercept (for fit mode).
     """
     xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
-    use_bars = all(len(s["Y"]) == 1 for s in series)
+    # Bars whenever every system sits at a single checkpoint (a single x value). A system
+    # may still carry several y values there -- duplicate evaluations of the same checkpoint
+    # that disagree -- which are drawn as side-by-side bars below. Several *distinct* x
+    # (real checkpoints) switch the axis to curves.
+    use_bars = all(len(np.unique(np.asarray(s["X"]))) <= 1 for s in series)
 
     maxX_nodots = (
         None
@@ -277,18 +344,37 @@ def _plot_curves(
         Y = np.array(s["Y"])
 
         if use_bars:
-            ax.bar(
-                i,
-                Y,
-                color=color,
-                label=label,
-                yerr=s.get("stderr"),
-                capsize=4,
-                edgecolor="white",
-                linewidth=0.5,
-            )
-            if print_numbers:
-                _annotate_numbers(ax, [i], Y, color, yerr=s.get("stderr"))
+            heights = np.atleast_1d(Y).astype(float)
+            raw_err = s.get("stderr")
+            err_list = list(np.atleast_1d(raw_err)) if raw_err is not None else []
+            n = len(heights)
+            # One slot per system (width 0.8); split it into n side-by-side bars when a
+            # checkpoint has several disagreeing results, so the conflict is visible.
+            total_w = 0.8
+            bar_w = total_w / n
+            offsets = (np.arange(n) - (n - 1) / 2.0) * bar_w
+            conflict = n > 1
+            for k in range(n):
+                yerr_k = err_list[k] if k < len(err_list) else None
+                if yerr_k is not None and np.isnan(yerr_k):
+                    yerr_k = None
+                ax.bar(
+                    i + offsets[k],
+                    heights[k],
+                    width=bar_w,
+                    color=color,
+                    label=label if k == 0 else None,
+                    yerr=yerr_k,
+                    capsize=4,
+                    # Flag a conflicting system with a red outline so it stands out.
+                    edgecolor="red" if conflict else "white",
+                    linewidth=1.2 if conflict else 0.5,
+                    hatch=(hatch_map or {}).get(s["expe_name"], ""),
+                )
+                if print_numbers:
+                    _annotate_numbers(
+                        ax, [i + offsets[k]], [heights[k]], color, yerr=yerr_k
+                    )
         elif "r2" in s:
             ax.plot(
                 X,
@@ -469,6 +555,7 @@ def plot_task(
     max_tokens=None,
     checkpoint_index=None,
     print_numbers=False,
+    hatch_map=None,
 ):
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -488,18 +575,23 @@ def plot_task(
     if checkpoint_index is not None:
 
         def select_checkpoint(row, checkpoint_index):
-            expe_name = row["expe_name"]
-            actual_checkpoint_index = get_checkpoint_index(checkpoint_index, expe_name)
+            actual_checkpoint_index = get_checkpoint_index(
+                checkpoint_index, row["expe_name"]
+            )
             if actual_checkpoint_index is not None:
+                # Select by distinct checkpoint (token count), keeping *all* entries at that
+                # checkpoint -- duplicate evaluations that disagree stay as several values,
+                # drawn as side-by-side bars.
+                distinct = sorted(set(row["tokens"]))
                 try:
-                    row["tokens"] = [row["tokens"][actual_checkpoint_index]]
-                    row["FLOPs"] = [row["FLOPs"][actual_checkpoint_index]]
-                    row["score"] = [row["score"][actual_checkpoint_index]]
-                    row["stderr"] = [row["stderr"][actual_checkpoint_index]]
+                    chosen = distinct[actual_checkpoint_index]
                 except IndexError:
                     raise RuntimeError(
-                        f"Checkpoint index {actual_checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})"
+                        f"Checkpoint index {actual_checkpoint_index} out of range for {row['expe_name']} ({len(distinct)} checkpoints for task={task}, metric={metric})"
                     )
+                keep = [j for j, t in enumerate(row["tokens"]) if t == chosen]
+                for col in ("tokens", "FLOPs", "score", "stderr"):
+                    row[col] = [row[col][j] for j in keep]
             return row
 
         df = df.apply(select_checkpoint, axis=1, checkpoint_index=checkpoint_index)
@@ -541,6 +633,7 @@ def plot_task(
         xlog=xlog,
         use_dots=use_dots,
         print_numbers=print_numbers,
+        hatch_map=hatch_map,
     )
     ax.set_ylabel("Time (s)" if metric == "time" else format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
@@ -634,6 +727,7 @@ def plot_aggregate(
     checkpoint_index=None,
     title=None,
     print_numbers=False,
+    hatch_map=None,
 ):
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
@@ -682,12 +776,17 @@ def plot_aggregate(
                     checkpoint_index, expe_name
                 )
                 if actual_checkpoint_index is not None:
+                    # Select the chosen distinct checkpoint; average any duplicate
+                    # evaluations of it into a single value for the aggregate.
+                    distinct = sorted(set(tokens_list))
                     try:
-                        tokens_list = [tokens_list[actual_checkpoint_index]]
-                        scores_list = [scores_list[actual_checkpoint_index]]
-                        flops_list = [flops_list[actual_checkpoint_index]]
+                        chosen = distinct[actual_checkpoint_index]
                     except IndexError:
                         continue
+                    keep = [j for j, t in enumerate(tokens_list) if t == chosen]
+                    scores_list = [float(np.mean([scores_list[j] for j in keep]))]
+                    flops_list = [flops_list[keep[0]]]
+                    tokens_list = [chosen]
 
             if max_tokens:
                 cutoff = sum(t <= max_tokens for t in tokens_list)
@@ -760,6 +859,7 @@ def plot_aggregate(
         xlog=xlog,
         use_dots=use_dots,
         print_numbers=print_numbers,
+        hatch_map=hatch_map,
     )
     ax.set_ylabel(
         "Averaged "
@@ -1142,6 +1242,33 @@ def plot_list_of_tasks(
             df, apply_phase_style=apply_phase_style, color_spec=color_spec
         )
 
+        # Single-point bar comparisons (one bar per model): color models by surname
+        # and distinguish same-surname variants with hatches. Skipped for multi-
+        # checkpoint curve plots and when colors are set explicitly via --color. Only
+        # kicks in when at least two models actually share a surname, so plots without
+        # variants keep their previous colors.
+        hatch_map = None
+
+        def _selected_len(row):
+            # Number of distinct checkpoints each series will show after selection (mirrors
+            # select_checkpoint). A single checkpoint evaluated several times still counts
+            # as one -- the disagreement becomes side-by-side bars, not a curve.
+            tokens = row["tokens"]
+            distinct = len(set(tokens)) if hasattr(tokens, "__len__") else 1
+            if checkpoint_index is None:
+                return distinct
+            return (
+                1
+                if get_checkpoint_index(checkpoint_index, row["expe_name"]) is not None
+                else distinct
+            )
+
+        bars_mode = len(df) > 0 and df.apply(_selected_len, axis=1).max() == 1
+        if bars_mode and color_spec is None:
+            variant_colors, variant_hatches = assign_variant_colors_and_hatches(df)
+            if any(variant_hatches.values()):
+                color_map, hatch_map = variant_colors, variant_hatches
+
         if add_aggregate:
             # Layout: first row for aggregate + legend, remaining rows for details
             if num_tasks > 0:
@@ -1199,6 +1326,7 @@ def plot_list_of_tasks(
                 if hide_details
                 else (f"Overall Performance ({title})" if title else None),
                 print_numbers=print_numbers,
+                hatch_map=hatch_map,
             )
             # Visually emphasize the aggregate subplot
             agg_ax.set_facecolor("#f7f7f7")
@@ -1236,6 +1364,7 @@ def plot_list_of_tasks(
                 max_tokens=max_tokens,
                 checkpoint_index=checkpoint_index,
                 print_numbers=print_numbers,
+                hatch_map=hatch_map,
             )
 
             ymax_val = _resolve_ymax(ymax, i)
@@ -1611,7 +1740,8 @@ if __name__ == "__main__":
         "'agg'. A group can be restricted to a subset of its tasks with the "
         "'group/regex' syntax: e.g. 'finetune/mixeval' keeps only the tasks of "
         "the 'finetune' group whose name matches the regex 'mixeval'. "
-        f"Available groups: {', '.join(['all', 'agg'] + list(task_group_mapping.keys()))}.",
+        f"Available groups: {', '.join(['all', 'agg'] + list(task_group_mapping.keys()))}. "
+        f"Aliases (expand to several groups): {', '.join(k + ' -> ' + ' '.join(v) for k, v in group_aliases.items())}.",
     )
     parser.add_argument(
         "--ignore-no-results",
@@ -1762,6 +1892,16 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # Expand group aliases (e.g. "instruct" -> its constituent groups), so that passing
+    # an alias is equivalent to passing its groups on the command line (one plot each).
+    # Order is preserved and duplicates removed (an alias may overlap another --group).
+    expanded_groups = []
+    for g in args.group:
+        for expanded in group_aliases.get(g, [g]):
+            if expanded not in expanded_groups:
+                expanded_groups.append(expanded)
+    args.group = expanded_groups
 
     # Validate group specs early (resolve_group raises on unknown group / bad regex)
     for g in args.group:

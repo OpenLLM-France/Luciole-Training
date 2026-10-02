@@ -12,24 +12,24 @@ from lighteval.tasks.templates.utils.formulation import (
     MCFFormulation,
 )
 from lighteval.utils.language import Language
-from functools import partial
 
 
 TASKS_TABLE = []
 
 SUBSETS = [
-    'mot réutilisé',
-    'expression idiomatique',
-    'mot emprunté',
-    'verlan',
-    'mot emprunté anglais',
-    'mot modifié',
-    'siglaison',
-    'sens modifié'
+    "mot réutilisé",
+    "expression idiomatique",
+    "mot emprunté",
+    "verlan",
+    "mot emprunté anglais",
+    "mot modifié",
+    "siglaison",
+    "sens modifié",
 ]
 
 
 # CORE FUNCTION (CONTEXT ONLY)
+
 
 def get_choices_and_gold_from_line(line):
     sentence_context = line["French with context"]
@@ -49,7 +49,9 @@ def get_choices_and_gold_from_line(line):
 
     return choices, gold_idx
 
+
 # MCQ TASK
+
 
 def process_line(line):
     question = "Quelle est la réponse correcte parmi les 4 propositions suivantes?"
@@ -74,7 +76,7 @@ TASKS_TABLE.extend(
                 formulation=formulation,
             ),
             suite=["custom"],
-            hf_repo="OpenLLM-BPI/french_youth_slang",
+            hf_repo="OpenLLM-France/french_youth_slang",
             hf_subset=subset,
             evaluation_splits=("train",),
             few_shots_split="train",
@@ -93,15 +95,15 @@ TASKS_TABLE.extend(
 )
 
 
-
 # FIB TASK
+
 
 def prompt_fn(line, task_name: str) -> Doc:
     choices, gold_idx = get_choices_and_gold_from_line(line)
 
     return Doc(
         task_name=task_name,
-        query="", 
+        query="",
         choices=choices,
         gold_index=gold_idx,
     )
@@ -113,7 +115,7 @@ TASKS_TABLE.extend(
             name=f"french_youth_slang_fib_context:{subset.lower().replace(' ', '_')}",
             prompt_function=prompt_fn,
             suite=["custom"],
-            hf_repo="OpenLLM-BPI/french_youth_slang",
+            hf_repo="OpenLLM-France/french_youth_slang",
             hf_subset=subset,
             evaluation_splits=("train",),
             few_shots_split="train",

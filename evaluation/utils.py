@@ -204,6 +204,89 @@ task_group_mapping = {
         ("extended|ifbench_multiturn|0", "prompt_level_loose_acc"),
         ("extended|mixeval_easy:_average|0", "judge_score_flow"),
         ("extended|mixeval_hard:_average|0", "judge_score_flow"),
+        # ("community|bbh:_average|0", "em"),
+        # ("community|bbh_fr:_average|0", "em"),
+    ],
+    "instruct_en": [
+        ("leaderboard|hellaswag|0", "acc"),
+        ("leaderboard|winogrande|0", "acc"),
+        ("lighteval|mmlu_pro|5", "extractive_match"),
+        ("community|bbh:_average|0", "em"),
+        ("lighteval|gpqa:diamond|0", "gpqa_pass@k_with_k"),
+        ("extended|ifeval|0", "prompt_level_loose_acc"),
+        ("extended|ifbench_test|0", "prompt_level_loose_acc"),
+        ("extended|ifbench_multiturn|0", "prompt_level_loose_acc"),
+        ("extended|mixeval_easy:_average|0", "judge_score_flow"),
+        ("extended|mixeval_hard:_average|0", "judge_score_flow"),
+    ],
+    "instruct_fr": [
+        # ── 1. Commonsense reasoning ───────────────────────────────────────────────
+        (
+            "lighteval|mlmm_hellaswag_fra_cf|0",
+            "acc_norm_token",
+        ),  # HellaSwag: sentence-completion commonsense (MC) — easiest
+        (
+            "community|piqa_fr_gen|0",
+            "piqa_gen_acc",
+        ),  # PIQA: physical commonsense, generative (extraction adds difficulty)
+        # ── 2. Language understanding (French) ─────────────────────────────────────
+        (
+            "lighteval|belebele_fra_Latn_cf|0",
+            "acc_norm_token",
+        ),  # Belebele: reading comprehension over a passage (MC)
+        (
+            "community|eiffel_mcq_cf:_average|0",
+            "acc_norm_token",
+        ),  # EIFFEL: French idiomatic expressions — niche, harder
+        # ── 3. Knowledge — academic & scientific ───────────────────────────────────
+        (
+            "lighteval|mlmm_arc_fra_cf:challenge|0",
+            "acc_norm_token",
+        ),  # ARC-Challenge: grade-school science (MC)
+        (
+            "lighteval|global_mmlu_all_fra_cf:_average|0",
+            "acc_norm_token",
+        ),  # Global-MMLU: 57 academic subjects (MC), broader/harder
+        (
+            "community|gpqa-fr:diamond|0",
+            "gpqa_fr_pass@1",
+        ),  # GPQA-Diamond: graduate "Google-proof" science — hardest here
+        # ── 4. Knowledge — cultural & regional (French/local) ──────────────────────
+        (
+            "community|include_fr_gen|5",
+            "acc",
+        ),  # INCLUDE: local-exam regional knowledge, 5-shot (MC-style)
+        (
+            "community|carte_generative|0",
+            "carte_pass@1",
+        ),  # CARTE: French regional knowledge, generative MCQ (+IDK option)
+        (
+            "community|blend_fr|0",
+            "blend_acc",
+        ),  # BLEnD: everyday cultural knowledge, open short-answer — hardest
+        # ── 5. Complex / multi-step reasoning ──────────────────────────────────────
+        (
+            "community|bbh_fr:_average|0",
+            "em",
+        ),  # BIG-Bench-Hard: multi-step reasoning, CoT generative
+        # ── 6. Instruction following ───────────────────────────────────────────────
+        (
+            "community|ifeval-fr|0",
+            "prompt_level_loose_acc",
+        ),  # IFEval: verifiable instruction constraints
+    ],
+    "instruct_math": [
+        ("lighteval|gsm8k|0", "extractive_match"),
+        ("lighteval|gsm_plus|0", "extractive_match"),
+        (
+            "lighteval|mgsm-rev2:fr|8",
+            "em_with_type_exact_match&normalize_gold&normalize_pred",
+        ),
+        ("lighteval|aime25|0", "pass@k_with_k&n"),
+        ("community|aime25-fr|0", "pass@k_with_k&n"),
+        ("community|mathalea_generative_frprompt:_average|0", "mathalea_pass@1"),
+        ("community|exo7_generative|0", "f1"),
+        ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
     ],
     "math": [
         ("lighteval|gsm8k|0", "extractive_match"),
@@ -260,6 +343,8 @@ task_group_mapping = {
         ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
         ("community|advbench|0", "safety_rate_llama_guard"),
         ("community|hexphi:_average|0", "safety_rate_llama_guard"),
+        ("community|wildjailbreak|0", "safety_rate"),
+        ("community|wildjailbreak|0", "refusal_rate"),
     ],
     "safety_multilang": [
         ("community|aya_red_teaming_eng|0", "safety_rate_llama_guard"),
@@ -296,7 +381,7 @@ task_group_mapping["common"] = [
     if task in task_group_mapping["finetune"]
 ]
 
-# "instruct" = the generative instruct benchmarks. It is the full "finetune" set MINUS
+# "finetune_no_mcq" = the generative instruct benchmarks. It is the full "finetune" set MINUS
 # the MCQ / likelihood tasks of tasks/reasoning.txt (hellaswag, winogrande, mlmm_arc_fra,
 # mlmm_hellaswag_fra): those need loglikelihood scoring, which is not available for GGUF
 # models, so excluding them lets a single plot compare BF16 against every quantization
@@ -308,7 +393,7 @@ _reasoning_mcq_tasks = {
     "lighteval|mlmm_hellaswag_fra_cf|0",
     "lighteval|mlmm_arc_fra_cf:challenge|0",
 }
-task_group_mapping["instruct"] = [
+task_group_mapping["finetune_no_mcq"] = [
     (task, metric)
     for task, metric in task_group_mapping["finetune"]
     if task not in _reasoning_mcq_tasks
@@ -316,6 +401,21 @@ task_group_mapping["instruct"] = [
     ("community|mathalea_generative_frprompt:_average|0", "mathalea_pass@1"),
     ("community|exo7_generative|0", "f1"),
 ]
+
+
+# Group aliases for plotting: a single group name that expands to several groups (one
+# plot per group), exactly as if each listed group had been passed on the command line.
+# Used by plot_results.py to expand ``--group`` before plotting.
+group_aliases = {
+    "instruct": [
+        "instruct_en",
+        "instruct_fr",
+        "instruct_math",
+        "rag",
+        "safety",
+        "translation",
+    ],
+}
 
 
 # Callable metrics referenced in task_group_mapping, grouped by the (full) task name
@@ -450,7 +550,7 @@ def get_training_tokens_and_model_size(file_path):
         model_size = float(match.group(1))
         tokens = 7000
     elif "Olmo-3" in str(file_path):
-        match = re.search(r"Olmo-3-([0-9.]+)B", str(file_path))
+        match = re.search(r"Olmo-3\.?[0-9]*-([0-9.]+)B", str(file_path))
         model_size = int(match.group(1))
         tokens = 6000
     elif (
@@ -677,6 +777,12 @@ def read_json_file(file_path):
     return df
 
 
+# Absolute score gap above which duplicate evaluations of the same checkpoint/benchmark
+# are flagged (instead of silently collapsed to the most recent). A re-run that reproduces
+# should match closely; a larger gap is worth a look.
+SCORE_DISCREPANCY_TOL = 0.01
+
+
 def read_experiment_results(
     main_dir, evaluation_dir="evaluation", expe_name=None, split_per_tokens=False
 ):
@@ -704,18 +810,62 @@ def read_experiment_results(
     else:
         df["expe_name"] = expe_name
 
-    # Remove duplicates
-    # "eval_list"/"eval_time" are excluded from the key so this keeps the exact same
-    # behaviour as before they were added: rows identical in the measured values are
-    # deduplicated (keeping the most recent), regardless of their evaluation time.
+    # Deduplicate per measurement *identity* -- (task, metric, expe_name, tokens,
+    # max_samples, model_size, FLOPs), i.e. every column except the measured values
+    # ("score"/"stderr") and the per-file bookkeeping ("timestamp"/"eval_list"/"eval_time").
+    # A checkpoint re-evaluated on the same benchmark should reproduce, so:
+    #   - runs that AGREE (scores within SCORE_DISCREPANCY_TOL) collapse to the most recent,
+    #   - runs that DISAGREE are all kept, so the plot draws them as separate bars and the
+    #     discrepancy is visible (people look at the figure, not at warnings).
+    # Genuinely different checkpoints keep different "tokens" and are never collapsed.
+    identity_cols = list(
+        df.columns.difference(
+            ["timestamp", "eval_list", "eval_time", "score", "stderr"]
+        )
+    )
+
+    def _dedup_identity_group(group):
+        group = group.sort_values("timestamp", ascending=False)
+        # "all" is lighteval's per-file aggregate (mean over the benchmarks that file ran),
+        # so it legitimately differs between eval files and is never plotted per-benchmark:
+        # just keep the most recent.
+        if group["task"].iloc[0] == "all":
+            return group.head(1)
+        # Greedily keep most-recent-first, dropping any run within SCORE_DISCREPANCY_TOL of
+        # one already kept; distinct (disagreeing) scores survive.
+        kept_idx, kept_scores = [], []
+        for idx, score in zip(group.index, group["score"]):
+            if pd.isna(score):
+                if not any(pd.isna(k) for k in kept_scores):
+                    kept_idx.append(idx)
+                    kept_scores.append(score)
+            elif all(
+                pd.isna(k) or abs(score - k) > SCORE_DISCREPANCY_TOL
+                for k in kept_scores
+            ):
+                kept_idx.append(idx)
+                kept_scores.append(score)
+        return group.loc[kept_idx]
+
     len_before_dup = len(df)
-    df = df.sort_values("timestamp", ascending=False).drop_duplicates(
-        subset=df.columns.difference(["timestamp", "eval_list", "eval_time"]),
-        keep="first",
+    df = df.groupby(identity_cols, dropna=False, group_keys=False).apply(
+        _dedup_identity_group
     )
     len_after_dup = len(df)
     if len_before_dup > len_after_dup:
         print(f"Removed {len_before_dup - len_after_dup} duplicate rows")
+
+    # Report any benchmark kept with several disagreeing results (also shown on the plot).
+    conflicts = df.groupby(identity_cols, dropna=False).size()
+    for key in conflicts[conflicts > 1].index:
+        info = dict(zip(identity_cols, key if isinstance(key, tuple) else (key,)))
+        scores = df.loc[
+            (df[identity_cols] == pd.Series(info)).all(axis=1), "score"
+        ].tolist()
+        print(
+            f"WARNING: {info.get('task')} [{info.get('metric')}] has differing scores "
+            f"{sorted(round(float(s), 4) for s in scores)} -- shown as separate bars"
+        )
 
     print("Example:")
     print(df.iloc[0])
