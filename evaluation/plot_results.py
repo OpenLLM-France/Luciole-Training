@@ -320,7 +320,11 @@ def _plot_curves(
         and optionally: stderr, r2, slope, intercept (for fit mode).
     """
     xscale = 1 / 1000.0 if unit == "T_tokens" else 1.0
-    use_bars = all(len(s["Y"]) == 1 for s in series)
+    # Bars whenever every system sits at a single checkpoint (a single x value). A system
+    # may still carry several y values there -- duplicate evaluations of the same checkpoint
+    # that disagree -- which are drawn as side-by-side bars below. Several *distinct* x
+    # (real checkpoints) switch the axis to curves.
+    use_bars = all(len(np.unique(np.asarray(s["X"]))) <= 1 for s in series)
 
     maxX_nodots = (
         None
@@ -340,19 +344,37 @@ def _plot_curves(
         Y = np.array(s["Y"])
 
         if use_bars:
-            ax.bar(
-                i,
-                Y,
-                color=color,
-                label=label,
-                yerr=s.get("stderr"),
-                capsize=4,
-                edgecolor="white",
-                linewidth=0.5,
-                hatch=(hatch_map or {}).get(s["expe_name"], ""),
-            )
-            if print_numbers:
-                _annotate_numbers(ax, [i], Y, color, yerr=s.get("stderr"))
+            heights = np.atleast_1d(Y).astype(float)
+            raw_err = s.get("stderr")
+            err_list = list(np.atleast_1d(raw_err)) if raw_err is not None else []
+            n = len(heights)
+            # One slot per system (width 0.8); split it into n side-by-side bars when a
+            # checkpoint has several disagreeing results, so the conflict is visible.
+            total_w = 0.8
+            bar_w = total_w / n
+            offsets = (np.arange(n) - (n - 1) / 2.0) * bar_w
+            conflict = n > 1
+            for k in range(n):
+                yerr_k = err_list[k] if k < len(err_list) else None
+                if yerr_k is not None and np.isnan(yerr_k):
+                    yerr_k = None
+                ax.bar(
+                    i + offsets[k],
+                    heights[k],
+                    width=bar_w,
+                    color=color,
+                    label=label if k == 0 else None,
+                    yerr=yerr_k,
+                    capsize=4,
+                    # Flag a conflicting system with a red outline so it stands out.
+                    edgecolor="red" if conflict else "white",
+                    linewidth=1.2 if conflict else 0.5,
+                    hatch=(hatch_map or {}).get(s["expe_name"], ""),
+                )
+                if print_numbers:
+                    _annotate_numbers(
+                        ax, [i + offsets[k]], [heights[k]], color, yerr=yerr_k
+                    )
         elif "r2" in s:
             ax.plot(
                 X,
@@ -553,18 +575,23 @@ def plot_task(
     if checkpoint_index is not None:
 
         def select_checkpoint(row, checkpoint_index):
-            expe_name = row["expe_name"]
-            actual_checkpoint_index = get_checkpoint_index(checkpoint_index, expe_name)
+            actual_checkpoint_index = get_checkpoint_index(
+                checkpoint_index, row["expe_name"]
+            )
             if actual_checkpoint_index is not None:
+                # Select by distinct checkpoint (token count), keeping *all* entries at that
+                # checkpoint -- duplicate evaluations that disagree stay as several values,
+                # drawn as side-by-side bars.
+                distinct = sorted(set(row["tokens"]))
                 try:
-                    row["tokens"] = [row["tokens"][actual_checkpoint_index]]
-                    row["FLOPs"] = [row["FLOPs"][actual_checkpoint_index]]
-                    row["score"] = [row["score"][actual_checkpoint_index]]
-                    row["stderr"] = [row["stderr"][actual_checkpoint_index]]
+                    chosen = distinct[actual_checkpoint_index]
                 except IndexError:
                     raise RuntimeError(
-                        f"Checkpoint index {actual_checkpoint_index} out of range for {row['expe_name']} ({len(row['tokens'])} values for task={task}, metric={metric})"
+                        f"Checkpoint index {actual_checkpoint_index} out of range for {row['expe_name']} ({len(distinct)} checkpoints for task={task}, metric={metric})"
                     )
+                keep = [j for j, t in enumerate(row["tokens"]) if t == chosen]
+                for col in ("tokens", "FLOPs", "score", "stderr"):
+                    row[col] = [row[col][j] for j in keep]
             return row
 
         df = df.apply(select_checkpoint, axis=1, checkpoint_index=checkpoint_index)
@@ -749,12 +776,17 @@ def plot_aggregate(
                     checkpoint_index, expe_name
                 )
                 if actual_checkpoint_index is not None:
+                    # Select the chosen distinct checkpoint; average any duplicate
+                    # evaluations of it into a single value for the aggregate.
+                    distinct = sorted(set(tokens_list))
                     try:
-                        tokens_list = [tokens_list[actual_checkpoint_index]]
-                        scores_list = [scores_list[actual_checkpoint_index]]
-                        flops_list = [flops_list[actual_checkpoint_index]]
+                        chosen = distinct[actual_checkpoint_index]
                     except IndexError:
                         continue
+                    keep = [j for j, t in enumerate(tokens_list) if t == chosen]
+                    scores_list = [float(np.mean([scores_list[j] for j in keep]))]
+                    flops_list = [flops_list[keep[0]]]
+                    tokens_list = [chosen]
 
             if max_tokens:
                 cutoff = sum(t <= max_tokens for t in tokens_list)
@@ -1218,17 +1250,17 @@ def plot_list_of_tasks(
         hatch_map = None
 
         def _selected_len(row):
-            # Length each series will have after checkpoint selection (mirrors the
-            # select_checkpoint logic used inside plot_task/plot_aggregate), so bars
-            # are detected even though selection has not happened yet on this df.
-            score = row["score"]
-            full = len(score) if hasattr(score, "__len__") else 1
+            # Number of distinct checkpoints each series will show after selection (mirrors
+            # select_checkpoint). A single checkpoint evaluated several times still counts
+            # as one -- the disagreement becomes side-by-side bars, not a curve.
+            tokens = row["tokens"]
+            distinct = len(set(tokens)) if hasattr(tokens, "__len__") else 1
             if checkpoint_index is None:
-                return full
+                return distinct
             return (
                 1
                 if get_checkpoint_index(checkpoint_index, row["expe_name"]) is not None
-                else full
+                else distinct
             )
 
         bars_mode = len(df) > 0 and df.apply(_selected_len, axis=1).max() == 1

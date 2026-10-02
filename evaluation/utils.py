@@ -777,6 +777,12 @@ def read_json_file(file_path):
     return df
 
 
+# Absolute score gap above which duplicate evaluations of the same checkpoint/benchmark
+# are flagged (instead of silently collapsed to the most recent). A re-run that reproduces
+# should match closely; a larger gap is worth a look.
+SCORE_DISCREPANCY_TOL = 0.01
+
+
 def read_experiment_results(
     main_dir, evaluation_dir="evaluation", expe_name=None, split_per_tokens=False
 ):
@@ -804,18 +810,62 @@ def read_experiment_results(
     else:
         df["expe_name"] = expe_name
 
-    # Remove duplicates
-    # "eval_list"/"eval_time" are excluded from the key so this keeps the exact same
-    # behaviour as before they were added: rows identical in the measured values are
-    # deduplicated (keeping the most recent), regardless of their evaluation time.
+    # Deduplicate per measurement *identity* -- (task, metric, expe_name, tokens,
+    # max_samples, model_size, FLOPs), i.e. every column except the measured values
+    # ("score"/"stderr") and the per-file bookkeeping ("timestamp"/"eval_list"/"eval_time").
+    # A checkpoint re-evaluated on the same benchmark should reproduce, so:
+    #   - runs that AGREE (scores within SCORE_DISCREPANCY_TOL) collapse to the most recent,
+    #   - runs that DISAGREE are all kept, so the plot draws them as separate bars and the
+    #     discrepancy is visible (people look at the figure, not at warnings).
+    # Genuinely different checkpoints keep different "tokens" and are never collapsed.
+    identity_cols = list(
+        df.columns.difference(
+            ["timestamp", "eval_list", "eval_time", "score", "stderr"]
+        )
+    )
+
+    def _dedup_identity_group(group):
+        group = group.sort_values("timestamp", ascending=False)
+        # "all" is lighteval's per-file aggregate (mean over the benchmarks that file ran),
+        # so it legitimately differs between eval files and is never plotted per-benchmark:
+        # just keep the most recent.
+        if group["task"].iloc[0] == "all":
+            return group.head(1)
+        # Greedily keep most-recent-first, dropping any run within SCORE_DISCREPANCY_TOL of
+        # one already kept; distinct (disagreeing) scores survive.
+        kept_idx, kept_scores = [], []
+        for idx, score in zip(group.index, group["score"]):
+            if pd.isna(score):
+                if not any(pd.isna(k) for k in kept_scores):
+                    kept_idx.append(idx)
+                    kept_scores.append(score)
+            elif all(
+                pd.isna(k) or abs(score - k) > SCORE_DISCREPANCY_TOL
+                for k in kept_scores
+            ):
+                kept_idx.append(idx)
+                kept_scores.append(score)
+        return group.loc[kept_idx]
+
     len_before_dup = len(df)
-    df = df.sort_values("timestamp", ascending=False).drop_duplicates(
-        subset=df.columns.difference(["timestamp", "eval_list", "eval_time"]),
-        keep="first",
+    df = df.groupby(identity_cols, dropna=False, group_keys=False).apply(
+        _dedup_identity_group
     )
     len_after_dup = len(df)
     if len_before_dup > len_after_dup:
         print(f"Removed {len_before_dup - len_after_dup} duplicate rows")
+
+    # Report any benchmark kept with several disagreeing results (also shown on the plot).
+    conflicts = df.groupby(identity_cols, dropna=False).size()
+    for key in conflicts[conflicts > 1].index:
+        info = dict(zip(identity_cols, key if isinstance(key, tuple) else (key,)))
+        scores = df.loc[
+            (df[identity_cols] == pd.Series(info)).all(axis=1), "score"
+        ].tolist()
+        print(
+            f"WARNING: {info.get('task')} [{info.get('metric')}] has differing scores "
+            f"{sorted(round(float(s), 4) for s in scores)} -- shown as separate bars"
+        )
 
     print("Example:")
     print(df.iloc[0])
