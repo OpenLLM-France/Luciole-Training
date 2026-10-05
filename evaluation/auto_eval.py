@@ -57,7 +57,7 @@ module load cudnn/9.10.2.21-12-cuda
 module load nccl/2.27.3-1-cuda                          
 module load uv/0.8.3         
 
-cd $SCRATCH/nemo-rl #TODO make it more robust by not hardcoding nemo-rl path
+cd $SCRATCH/nemo-rl3 #TODO make it more robust by not hardcoding nemo-rl path
 source .venv/bin/activate 
 
 python {source_path}/finetune/nemo-rl/convert_experiment.py {experiment_path} {prefix_name}
@@ -87,7 +87,7 @@ export NVTE_DEBUG_LEVEL=2
 module purge
 module load arch/h100
 module load uv/0.8.3
-cd $SCRATCH/nemo-rl
+cd $SCRATCH/nemo-rl-latest
 source .venv/bin/activate
 
 # The venv's Python (miniforge 3.13) links _ssl against OpenSSL >= 3.3.0, but the
