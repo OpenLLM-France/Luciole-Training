@@ -9,10 +9,14 @@ conda activate eval-env
 
 export HF_HOME=$qgz_ALL_CCFRSCRATCH/.cache/huggingface
 
+hf download flowaicom/Flow-Judge-v0.1
+hf download meta-llama/Llama-Guard-4-12B     # safety (gen 4 ; gated)
+hf download allenai/wildguard                # safety/ WildJailbreak
+hf download Qwen/Qwen2.5-7B-Instruct         # presupposition (scoolkid / falseqa / pcbench)
+
 python -c "import nltk; nltk.download('punkt_tab'); nltk.download('stopwords'); nltk.download('averaged_perceptron_tagger_eng')" # ifbench
 python -c "from spacy.cli import download; download('en_core_web_sm')"  # ifbench
 
-hf download flowaicom/Flow-Judge-v0.1
 python -c "from comet import download_model, load_from_checkpoint; model_path = download_model('Unbabel/wmt22-comet-da'); load_from_checkpoint(model_path)"  # translation (FLORES)
 python -c "from transformers import MT5ForConditionalGeneration, AutoTokenizer; MT5ForConditionalGeneration.from_pretrained('google/metricx-24-hybrid-large-v2p6'); AutoTokenizer.from_pretrained('google/mt5-large')"  # translation (FLORES)
 
