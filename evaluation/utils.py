@@ -415,6 +415,12 @@ group_aliases = {
         "safety",
         "translation",
     ],
+    "pretrain": [
+        "en",
+        "fr",
+        "multilingual",
+        "ruler",
+    ],
 }
 
 
