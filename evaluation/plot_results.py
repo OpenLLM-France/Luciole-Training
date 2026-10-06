@@ -946,7 +946,12 @@ def plot_list_of_tasks(
     if all([metric == "ruler_match" for _, metric in list_of_tasks_to_plot]):
 
         def full_expe_name(expe_name, tokens):
-            if "B training tokens" not in expe_name:
+            # Tag the legend with the training-token count only to tell apart several
+            # checkpoints of the same experiment (see ``multi_checkpoint`` below);
+            # a single-checkpoint experiment keeps its bare name.
+            if "B training tokens" in expe_name:
+                return expe_name
+            if multi_checkpoint.get(expe_name, False):
                 return f"{expe_name} ({int(tokens)}B training tokens)"
             return expe_name
 
@@ -960,6 +965,24 @@ def plot_list_of_tasks(
         ruler_color_map = {}  # maps expe_name_with_tokens -> color
         ruler_style_map = {}  # maps expe_name_with_tokens -> linestyle
         df_filtered = df[df["metric"] == "ruler_match"]
+
+        # An experiment needs the training-token tag only when several of its checkpoints
+        # (distinct token counts) are plotted. Compute the set of plotted token counts per
+        # experiment, mirroring the checkpoint selection applied in the loops below.
+        tokens_per_expe = {}
+        for _, row in df_filtered.iterrows():
+            expe = row["expe_name"]
+            row_tokens = row["tokens"]
+            if checkpoint_index is not None:
+                aci = get_checkpoint_index(checkpoint_index, expe)
+                if aci is not None:
+                    try:
+                        row_tokens = [row["tokens"][aci]]
+                    except IndexError:
+                        continue  # reported by the main loop below
+            tokens_per_expe.setdefault(expe, set()).update(int(t) for t in row_tokens)
+        multi_checkpoint = {e: len(ts) > 1 for e, ts in tokens_per_expe.items()}
+
         data = {}
         all_data = {}
         all_context_lengths = set()
