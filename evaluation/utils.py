@@ -288,6 +288,16 @@ task_group_mapping = {
         ("community|exo7_generative|0", "f1"),
         ("extended|lcb:codegeneration|0", "codegen_pass@1:16"),
     ],
+    "aime": [
+        ("lighteval|aime25|0", "pass@k_with_k&n"),
+        ("community|aime25-fr|0", "pass@k_with_k&n"),
+        ("lighteval|aime25_gpassk|0", "mmath_g-pass@16"),
+        ("lighteval|aime25_gpassk|0", "math_g-pass@16_0.0"),
+        ("lighteval|aime25_gpassk|0", "math_g-pass@16_0.25"),
+        ("lighteval|aime25_gpassk|0", "math_g-pass@16_0.5"),
+        ("lighteval|aime25_gpassk|0", "math_g-pass@16_0.75"),
+        ("lighteval|aime25_gpassk|0", "math_g-pass@16_1.0"),
+    ],
     "math": [
         ("lighteval|gsm8k|0", "extractive_match"),
         ("lighteval|gsm_plus|0", "extractive_match"),
@@ -413,7 +423,7 @@ group_aliases = {
         "instruct_math",
         "rag",
         "safety",
-        "translation",
+        # "translation",
     ],
     "pretrain": [
         "en",
