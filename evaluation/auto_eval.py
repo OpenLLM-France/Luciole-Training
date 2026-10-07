@@ -160,7 +160,6 @@ eval echo "$BODY" | mailx -s "$SUBJECT" $ATTACHMENTS $TO
 """
 
 
-
 def launch_conversion(
     experiment_path, arch, multiple_of=1, dry_run=False, is_nemo_rl=False, latest=False
 ):
@@ -402,7 +401,10 @@ def launch_evaluation(
 
     if eval_type.startswith("ruler") or eval_type == "context_extension":
         lengths = [4096, 8192, 16384, 32768, 65536, 131072]
-        if eval_type.startswith("ruler_"):
+        if eval_type.startswith("ruler<="):
+            length_str = eval_type.split("<=")[1]
+            lengths = [le for le in lengths if le <= int(length_str)]
+        elif eval_type.startswith("ruler_"):
             length_str = eval_type.split("_")[1]
             lengths = [int(length_str)]
 
@@ -480,7 +482,6 @@ def launch_evaluation(
             f"Launching evaluation for {experiment_path} with job ids: {' '.join(job_ids)}"
         )
     return ",".join(job_ids) if job_ids else None
-
 
 
 def launch_plot(
