@@ -110,58 +110,32 @@ def format_expe_name_for_color(expe_name):
     )
 
 
-_VALID_COLOR_CHARS = set("bgrcmykw")
-_VALID_LINESTYLES = {"-", "--", "-.", ":"}
+def parse_style_list(spec, cast=str):
+    """Parse a whitespace-separated ``--color/--linestyle/--linewidth`` value into a list.
 
-
-def parse_color_spec(spec):
-    """Parse a --color string into a list of (color, linestyle) tuples.
-
-    Each system is described by a single-character matplotlib color code (one
-    of 'bgrcmykw') optionally followed by a linestyle ('-', '--', '-.', ':').
-    A missing linestyle defaults to solid '-'. Systems are concatenated with no
-    separator; the next color letter starts the next system.
-
-    Example:
-        'gg--g:bb--b:' (equivalently 'g-g--g:b-b--b:') ->
-        [('g', '-'), ('g', '--'), ('g', ':'),
-         ('b', '-'), ('b', '--'), ('b', ':')]
+    One entry per system, in command-line order, cycled if there are fewer entries than
+    systems. Returns None when ``spec`` is None/empty. Examples:
+        "r b g" / "cornsilk gold black"  -> ['r', 'b', 'g'] / ['cornsilk', 'gold', 'black']
+        "- - -- :"                        -> ['-', '-', '--', ':']
+        "1 2 3"                           -> [1.0, 2.0, 3.0]   (with cast=float)
     """
-    linestyle_chars = set("-.:")
-    result = []
-    i, n = 0, len(spec)
-    while i < n:
-        color = spec[i]
-        if color not in _VALID_COLOR_CHARS:
-            raise ValueError(
-                f"Invalid color '{color}' in --color spec '{spec}'. "
-                f"Expected one of '{''.join(sorted(_VALID_COLOR_CHARS))}'."
-            )
-        i += 1
-        j = i
-        while j < n and spec[j] in linestyle_chars:
-            j += 1
-        linestyle = spec[i:j] if j > i else "-"
-        if linestyle not in _VALID_LINESTYLES:
-            raise ValueError(
-                f"Invalid linestyle '{linestyle}' in --color spec '{spec}'. "
-                f"Expected one of {sorted(_VALID_LINESTYLES)}."
-            )
-        result.append((color, linestyle))
-        i = j
-    if not result:
-        raise ValueError(f"Empty --color spec '{spec}'.")
-    return result
+    if not spec:
+        return None
+    items = [cast(tok) for tok in spec.split()]
+    return items or None
 
 
-def assign_colors(df, apply_phase_style=True, color_spec=None):
+def _map_by_order(df, values):
+    """Map each experiment (in order of first appearance) to ``values[i % len]``."""
+    return {
+        name: values[i % len(values)] for i, name in enumerate(df["expe_name"].unique())
+    }
+
+
+def assign_colors(df, apply_phase_style=True, color_list=None):
+    if color_list:
+        return _map_by_order(df, color_list)
     unique_experiments = df["expe_name"].unique()
-    if color_spec is not None:
-        parsed = parse_color_spec(color_spec)
-        return {
-            name: parsed[i % len(parsed)][0]
-            for i, name in enumerate(unique_experiments)
-        }
     colors = _PALETTE
     color_map = {}
     i = -1
@@ -180,24 +154,18 @@ def assign_colors(df, apply_phase_style=True, color_spec=None):
     return color_map
 
 
-def assign_styles(df, apply_phase_style=True, color_spec=None):
-    unique_experiments = df["expe_name"].unique()
-    if color_spec is not None:
-        parsed = parse_color_spec(color_spec)
-        return {
-            name: parsed[i % len(parsed)][1]
-            for i, name in enumerate(unique_experiments)
-        }
+def assign_styles(df, apply_phase_style=True, linestyle_list=None):
+    if linestyle_list:
+        return _map_by_order(df, linestyle_list)
     style_map = {}
-    for name in unique_experiments:
-        if apply_phase_style:
-            if "phase2" in name:
-                style_map[name] = ":"
-            else:
-                style_map[name] = "-"
-        else:
-            style_map[name] = "-"
+    for name in df["expe_name"].unique():
+        style_map[name] = ":" if (apply_phase_style and "phase2" in name) else "-"
     return style_map
+
+
+def assign_linewidths(df, linewidth_list=None):
+    """Map each experiment to a line width from ``--linewidth`` (empty -> matplotlib default)."""
+    return _map_by_order(df, linewidth_list) if linewidth_list else {}
 
 
 # Hatch patterns used to tell apart variants that share a color (same surname).
@@ -312,6 +280,7 @@ def _plot_curves(
     use_dots=False,
     print_numbers=False,
     hatch_map=None,
+    linewidth_map=None,
 ):
     """Plot a list of series on a single axis.
 
@@ -338,6 +307,8 @@ def _plot_curves(
     for i, s in enumerate(series):
         color = color_map[s["expe_name"]]
         linestyle = style_map[s["expe_name"]]
+        # --linewidth override for line plots (bars ignore it); None -> matplotlib default.
+        lw = (linewidth_map or {}).get(s["expe_name"])
         label = format_expename_for_title(s["expe_name"])
 
         X = np.array(s["X"]) * xscale
@@ -450,6 +421,7 @@ def _plot_curves(
                     marker="o",
                     color=color,
                     linestyle=linestyle,
+                    linewidth=lw,
                     label=label,
                     markeredgecolor="white",
                     markeredgewidth=0.5,
@@ -556,6 +528,7 @@ def plot_task(
     checkpoint_index=None,
     print_numbers=False,
     hatch_map=None,
+    linewidth_map=None,
 ):
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -634,6 +607,7 @@ def plot_task(
         use_dots=use_dots,
         print_numbers=print_numbers,
         hatch_map=hatch_map,
+        linewidth_map=linewidth_map,
     )
     ax.set_ylabel("Time (s)" if metric == "time" else format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
@@ -728,6 +702,7 @@ def plot_aggregate(
     title=None,
     print_numbers=False,
     hatch_map=None,
+    linewidth_map=None,
 ):
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
@@ -860,6 +835,7 @@ def plot_aggregate(
         use_dots=use_dots,
         print_numbers=print_numbers,
         hatch_map=hatch_map,
+        linewidth_map=linewidth_map,
     )
     ax.set_ylabel(
         "Averaged "
@@ -937,7 +913,9 @@ def plot_list_of_tasks(
     add_aggregate=False,
     separate_legend=False,
     rows_cols=None,
-    color_spec=None,
+    color_list=None,
+    linestyle_list=None,
+    linewidth_list=None,
     suptitle=None,
     print_numbers=False,
     ymax=None,
@@ -957,13 +935,15 @@ def plot_list_of_tasks(
 
         # Ruler
         color_map = assign_colors(
-            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+            df, apply_phase_style=apply_phase_style, color_list=color_list
         )
         style_map = assign_styles(
-            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+            df, apply_phase_style=apply_phase_style, linestyle_list=linestyle_list
         )
+        linewidth_map = assign_linewidths(df, linewidth_list)
         ruler_color_map = {}  # maps expe_name_with_tokens -> color
         ruler_style_map = {}  # maps expe_name_with_tokens -> linestyle
+        ruler_linewidth_map = {}  # maps expe_name_with_tokens -> linewidth
         df_filtered = df[df["metric"] == "ruler_match"]
 
         # An experiment needs the training-token tag only when several of its checkpoints
@@ -1029,6 +1009,9 @@ def plot_list_of_tasks(
                     ):
                         ruler_color_map[expe_name_with_tokens] = color_map[expe_name]
                         ruler_style_map[expe_name_with_tokens] = style_map[expe_name]
+                        ruler_linewidth_map[expe_name_with_tokens] = linewidth_map.get(
+                            expe_name
+                        )
                     data[expe_name_with_tokens]["context_length"].append(context_length)
                     data[expe_name_with_tokens]["score"].append(score)
             for subtask in subtasks:
@@ -1050,6 +1033,9 @@ def plot_list_of_tasks(
                             ruler_style_map[expe_name_with_tokens] = style_map[
                                 expe_name
                             ]
+                            ruler_linewidth_map[
+                                expe_name_with_tokens
+                            ] = linewidth_map.get(expe_name)
                         if expe_name_with_tokens not in all_data[subtask]:
                             all_data[subtask][expe_name_with_tokens] = {
                                 "context_length": [],
@@ -1090,17 +1076,20 @@ def plot_list_of_tasks(
                 #     else False
                 # )
                 color = ruler_color_map.get(expe_name_with_tokens)
-                if color_spec is not None:
+                # --linestyle applies per system when given, else solid; --linewidth per
+                # system when given, else matplotlib default (None).
+                if linestyle_list:
                     linestyle = ruler_style_map.get(expe_name_with_tokens, "-")
                 else:
-                    linestyle = "-"  # if is_first else "--"
+                    linestyle = "-"
                 ax.plot(
                     values["context_length"],
                     values["score"],
-                    marker="o",  # if is_first else None,
+                    # marker="o",  # if is_first else None,
                     # markersize=10,
                     # markeredgewidth=2,
                     linestyle=linestyle,
+                    linewidth=ruler_linewidth_map.get(expe_name_with_tokens),
                     label=expe_name_with_tokens,
                     color=color,
                 )
@@ -1252,7 +1241,9 @@ def plot_list_of_tasks(
                     add_aggregate=add_aggregate,
                     separate_legend=separate_legend,
                     rows_cols=rows_cols,
-                    color_spec=color_spec,
+                    color_list=color_list,
+                    linestyle_list=linestyle_list,
+                    linewidth_list=linewidth_list,
                     suptitle=suptitle,
                     print_numbers=print_numbers,
                     ymax=ymax,
@@ -1265,11 +1256,12 @@ def plot_list_of_tasks(
             num_tasks = len(list_of_tasks_to_plot)
 
         color_map = assign_colors(
-            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+            df, apply_phase_style=apply_phase_style, color_list=color_list
         )  # Global color map
         style_map = assign_styles(
-            df, apply_phase_style=apply_phase_style, color_spec=color_spec
+            df, apply_phase_style=apply_phase_style, linestyle_list=linestyle_list
         )
+        linewidth_map = assign_linewidths(df, linewidth_list)
 
         # Single-point bar comparisons (one bar per model): color models by surname
         # and distinguish same-surname variants with hatches. Skipped for multi-
@@ -1293,7 +1285,7 @@ def plot_list_of_tasks(
             )
 
         bars_mode = len(df) > 0 and df.apply(_selected_len, axis=1).max() == 1
-        if bars_mode and color_spec is None:
+        if bars_mode and color_list is None:
             variant_colors, variant_hatches = assign_variant_colors_and_hatches(df)
             if any(variant_hatches.values()):
                 color_map, hatch_map = variant_colors, variant_hatches
@@ -1356,6 +1348,7 @@ def plot_list_of_tasks(
                 else (f"Overall Performance ({title})" if title else None),
                 print_numbers=print_numbers,
                 hatch_map=hatch_map,
+                linewidth_map=linewidth_map,
             )
             # Visually emphasize the aggregate subplot
             agg_ax.set_facecolor("#f7f7f7")
@@ -1394,6 +1387,7 @@ def plot_list_of_tasks(
                 checkpoint_index=checkpoint_index,
                 print_numbers=print_numbers,
                 hatch_map=hatch_map,
+                linewidth_map=linewidth_map,
             )
 
             ymax_val = _resolve_ymax(ymax, i)
@@ -1573,7 +1567,9 @@ def plot_experiments(df, args, max_subplot=20, task_list_map=None):
             separate_legend=args.separate_legend,
             title=format_group_name_for_title(g),
             rows_cols=args.rows_cols,
-            color_spec=args.color,
+            color_list=parse_style_list(args.color),
+            linestyle_list=parse_style_list(args.linestyle),
+            linewidth_list=parse_style_list(args.linewidth, cast=float),
             suptitle=args.title,
             print_numbers=args.print_numbers,
             ymax=args.ymax,
@@ -1881,13 +1877,28 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help=(
-            "Choose consecutive colors/linestyles per system (one curve/bar per "
-            "system, in input order). Each system is a single-char color "
-            "('bgrcmykw') optionally followed by a linestyle ('-', '--', '-.', "
-            "':'); a missing linestyle defaults to solid. Systems are "
-            "concatenated with no separator. Example: 'gg--g:bb--b:' (== "
-            "'g-g--g:b-b--b:') means green, green dashed, green dotted, blue, "
-            "blue dashed, blue dotted. Cycles if fewer entries than systems."
+            "Whitespace-separated list of matplotlib colors, one per system in input "
+            "order (cycled if fewer than systems). Any matplotlib color works: single "
+            "chars, names or hex. Applies to both bars and lines. "
+            "Examples: --color 'r b g' or --color 'cornsilk gold black'."
+        ),
+    )
+    parser.add_argument(
+        "--linestyle",
+        type=str,
+        default=None,
+        help=(
+            "Whitespace-separated list of line styles, one per system (cycled). Applies "
+            "to line plots only (e.g. RULER), not bars. Example: --linestyle '- - -- :'."
+        ),
+    )
+    parser.add_argument(
+        "--linewidth",
+        type=str,
+        default=None,
+        help=(
+            "Whitespace-separated list of line widths, one per system (cycled). Applies "
+            "to line plots only (e.g. RULER), not bars. Example: --linewidth '1 2 3 1 1 2'."
         ),
     )
     parser.add_argument(
