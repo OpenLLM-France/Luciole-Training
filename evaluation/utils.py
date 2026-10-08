@@ -356,6 +356,14 @@ task_group_mapping = {
         ("community|wildjailbreak|0", "safety_rate"),
         ("community|wildjailbreak|0", "refusal_rate"),
     ],
+    "safety_presupposition": [
+        ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
+        ("community|hexphi:_average|0", "safety_rate_llama_guard"),
+        ("community|wildjailbreak|0", "refusal_rate"),
+        ("community|scoolkid:false_premise|0", "refusal"),
+        ("community|pcbench:active|0", "recognition"),
+        ("community|falseqa:false_premise|0", "handled_correctly"),
+    ],
     "safety_multilang": [
         ("community|aya_red_teaming_eng|0", "safety_rate_llama_guard"),
         ("community|aya_red_teaming_fra|0", "safety_rate_llama_guard"),
@@ -422,7 +430,8 @@ group_aliases = {
         "instruct_fr",
         "instruct_math",
         "rag",
-        "safety",
+        "safety_presupposition",
+        # "safety",
         # "translation",
     ],
     "pretrain": [

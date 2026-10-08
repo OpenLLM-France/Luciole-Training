@@ -983,6 +983,24 @@ def plot_list_of_tasks(
             tokens_per_expe.setdefault(expe, set()).update(int(t) for t in row_tokens)
         multi_checkpoint = {e: len(ts) > 1 for e, ts in tokens_per_expe.items()}
 
+        def _select_checkpoint_tokens_scores(row):
+            # Keep only the selected checkpoint's (tokens, score) pairs. Applied to BOTH
+            # the average and the per-subtask data so they agree -- otherwise the detail
+            # subplots would plot every checkpoint while the average plots only one.
+            row_tokens, row_score = row["tokens"], row["score"]
+            if checkpoint_index is not None:
+                aci = get_checkpoint_index(checkpoint_index, row["expe_name"])
+                if aci is not None:
+                    try:
+                        row_tokens = [row["tokens"][aci]]
+                        row_score = [row["score"][aci]]
+                    except IndexError:
+                        raise RuntimeError(
+                            f"Checkpoint index {aci} out of range for "
+                            f"{row['expe_name']} ({len(row['tokens'])} values)"
+                        )
+            return row_tokens, row_score
+
         data = {}
         all_data = {}
         all_context_lengths = set()
@@ -997,20 +1015,7 @@ def plot_list_of_tasks(
             df_task = df_filtered[df_filtered["task"] == task]
             for _, row in df_task.iterrows():
                 expe_name = row["expe_name"]
-                row_tokens = row["tokens"]
-                row_score = row["score"]
-                if checkpoint_index is not None:
-                    actual_checkpoint_index = get_checkpoint_index(
-                        checkpoint_index, expe_name
-                    )
-                    if actual_checkpoint_index is not None:
-                        try:
-                            row_tokens = [row["tokens"][actual_checkpoint_index]]
-                            row_score = [row["score"][actual_checkpoint_index]]
-                        except IndexError:
-                            raise RuntimeError(
-                                f"Checkpoint index {actual_checkpoint_index} out of range for {expe_name} ({len(row['tokens'])} values for task={task})"
-                            )
+                row_tokens, row_score = _select_checkpoint_tokens_scores(row)
                 for tokens, score in zip(row_tokens, row_score):
                     expe_name_with_tokens = full_expe_name(expe_name, tokens)
                     if expe_name_with_tokens not in data:
@@ -1032,7 +1037,8 @@ def plot_list_of_tasks(
                 all_data[subtask] = all_data.get(subtask, {})
                 for _, row in df_subtask.iterrows():
                     expe_name = row["expe_name"]
-                    for tokens, score in zip(row["tokens"], row["score"]):
+                    row_tokens, row_score = _select_checkpoint_tokens_scores(row)
+                    for tokens, score in zip(row_tokens, row_score):
                         expe_name_with_tokens = full_expe_name(expe_name, tokens)
                         if (
                             expe_name_with_tokens not in ruler_color_map
@@ -1064,11 +1070,11 @@ def plot_list_of_tasks(
         n_details = len(detail_subtasks)
 
         # Determine stable ordering of experiments (first one gets solid line)
-        ruler_expe_order = list(
-            dict.fromkeys(
-                name for subtask_data in all_data.values() for name in subtask_data
-            )
-        )
+        # ruler_expe_order = list(
+        #     dict.fromkeys(
+        #         name for subtask_data in all_data.values() for name in subtask_data
+        #     )
+        # )
 
         def _plot_ruler_on_ax(ax, subtask_name):
             subtask_data = all_data[subtask_name]
@@ -1078,16 +1084,16 @@ def plot_list_of_tasks(
                     sorted_indices
                 ]
                 values["score"] = np.array(values["score"])[sorted_indices]
-                is_first = (
-                    ruler_expe_order.index(expe_name_with_tokens) == 0
-                    if expe_name_with_tokens in ruler_expe_order
-                    else False
-                )
+                # is_first = (
+                #     ruler_expe_order.index(expe_name_with_tokens) == 0
+                #     if expe_name_with_tokens in ruler_expe_order
+                #     else False
+                # )
                 color = ruler_color_map.get(expe_name_with_tokens)
                 if color_spec is not None:
                     linestyle = ruler_style_map.get(expe_name_with_tokens, "-")
                 else:
-                    linestyle = "-" if is_first else "--"
+                    linestyle = "-"  # if is_first else "--"
                 ax.plot(
                     values["context_length"],
                     values["score"],
