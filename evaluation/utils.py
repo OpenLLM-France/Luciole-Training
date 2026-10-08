@@ -808,8 +808,61 @@ def read_json_file(file_path):
 SCORE_DISCREPANCY_TOL = 0.01
 
 
+def _position_checkpoint_index(checkpoint_index):
+    """Integer position for the checkpoint selectors we can safely pre-filter on.
+
+    Only the first/last checkpoint (``0``, ``-1`` or ``"last"``) is optimized: the
+    downstream code re-applies ``distinct_tokens[index]`` on the reduced file set, which
+    stays valid only for ``0``/``-1`` (any other index would fall out of range). Everything
+    else (``None``, ``"last-not-luciole"``, other integers, non-integers) returns ``None``
+    so the full set of files is parsed as before.
+    """
+    if checkpoint_index == "last":
+        return -1
+    try:
+        idx = int(checkpoint_index)
+    except (ValueError, TypeError):
+        return None
+    return idx if idx in (0, -1) else None
+
+
+def _filter_to_selected_checkpoint(files, aci):
+    """Keep only the result files of the selected checkpoint, per evaluation folder.
+
+    Checkpoints are ranked by their training-token count, read from the file *path* via
+    :func:`get_training_tokens_and_model_size` (no JSON is opened), so the many non-selected
+    checkpoints are never parsed. This mirrors the downstream selection (which picks the
+    ``aci``-th distinct token count). As a safety net, all files of a folder are kept when
+    their token counts cannot be determined or ``aci`` is out of range.
+    """
+    by_folder = {}
+    for f in files:
+        p = Path(f)
+        folder = p.parents[2] if len(p.parents) >= 3 else p.parent
+        tokens, _ = get_training_tokens_and_model_size(p)
+        by_folder.setdefault(folder, []).append((f, tokens))
+    kept = []
+    for entries in by_folder.values():
+        token_vals = [t for _f, t in entries]
+        distinct = sorted({t for t in token_vals if t is not None})
+        if any(t is None for t in token_vals) or not distinct:
+            kept.extend(f for f, _t in entries)  # cannot rank -> keep all (safe)
+            continue
+        try:
+            chosen = distinct[aci]
+        except IndexError:
+            kept.extend(f for f, _t in entries)  # out of range -> keep all
+            continue
+        kept.extend(f for f, t in entries if t == chosen)
+    return kept
+
+
 def read_experiment_results(
-    main_dir, evaluation_dir="evaluation", expe_name=None, split_per_tokens=False
+    main_dir,
+    evaluation_dir="evaluation",
+    expe_name=None,
+    split_per_tokens=False,
+    checkpoint_index=None,
 ):
     print(f"Processing {main_dir}...")
     main_dir = Path(main_dir)
@@ -819,11 +872,19 @@ def read_experiment_results(
     if expe_name is None:
         expe_name = main_dir.name
 
-    dataframes = [
-        read_json_file(Path(f))
+    files = [
+        f
         for f in glob.glob(str(main_dir / "**" / "results_*.json"), recursive=True)
         if evaluation_dir in Path(f).parts and "deprecated" not in f
     ]
+    # When a single checkpoint is requested, drop the other checkpoints' files up front
+    # (ranked from the path) so their JSONs are never parsed. Skipped when splitting per
+    # tokens, which needs every checkpoint.
+    aci = None if split_per_tokens else _position_checkpoint_index(checkpoint_index)
+    if aci is not None:
+        files = _filter_to_selected_checkpoint(files, aci)
+
+    dataframes = [read_json_file(Path(f)) for f in files]
     if not dataframes:
         print(f"No valid JSON result files found in {main_dir}")
         return

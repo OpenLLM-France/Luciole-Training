@@ -1604,6 +1604,7 @@ def process_experiments(args):
             path,
             evaluation_dir=args.evaluation_dir,
             expe_name=expe_name,
+            checkpoint_index=args.checkpoint_index,
         )
 
         if df is None or df.empty:
