@@ -168,6 +168,11 @@ def assign_linewidths(df, linewidth_list=None):
     return _map_by_order(df, linewidth_list) if linewidth_list else {}
 
 
+def assign_alphas(df, alpha_list=None):
+    """Map each experiment to an opacity from ``--alpha`` (empty -> fully opaque)."""
+    return _map_by_order(df, alpha_list) if alpha_list else {}
+
+
 # Hatch patterns used to tell apart variants that share a color (same surname).
 # The first variant stays solid (""); matplotlib draws the hatch in the bar edge
 # color (white here), so it shows as a white pattern over the shared fill color.
@@ -281,6 +286,7 @@ def _plot_curves(
     print_numbers=False,
     hatch_map=None,
     linewidth_map=None,
+    alpha_map=None,
 ):
     """Plot a list of series on a single axis.
 
@@ -309,6 +315,8 @@ def _plot_curves(
         linestyle = style_map[s["expe_name"]]
         # --linewidth override for line plots (bars ignore it); None -> matplotlib default.
         lw = (linewidth_map or {}).get(s["expe_name"])
+        # --alpha opacity (applies to bars and lines); None -> fully opaque.
+        alpha = (alpha_map or {}).get(s["expe_name"])
         label = format_expename_for_title(s["expe_name"])
 
         X = np.array(s["X"]) * xscale
@@ -334,6 +342,7 @@ def _plot_curves(
                     heights[k],
                     width=bar_w,
                     color=color,
+                    alpha=alpha,
                     label=label if k == 0 else None,
                     yerr=yerr_k,
                     capsize=4,
@@ -422,6 +431,7 @@ def _plot_curves(
                     color=color,
                     linestyle=linestyle,
                     linewidth=lw,
+                    alpha=alpha,
                     label=label,
                     markeredgecolor="white",
                     markeredgewidth=0.5,
@@ -529,6 +539,7 @@ def plot_task(
     print_numbers=False,
     hatch_map=None,
     linewidth_map=None,
+    alpha_map=None,
 ):
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
     df = df[(df["task"] == task) & (df["metric"] == metric)]
@@ -608,6 +619,7 @@ def plot_task(
         print_numbers=print_numbers,
         hatch_map=hatch_map,
         linewidth_map=linewidth_map,
+        alpha_map=alpha_map,
     )
     ax.set_ylabel("Time (s)" if metric == "time" else format_metric_for_title(metric))
     ax.set_title(format_task_for_title(task))
@@ -703,6 +715,7 @@ def plot_aggregate(
     print_numbers=False,
     hatch_map=None,
     linewidth_map=None,
+    alpha_map=None,
 ):
     """Plot the average normalized score across all benchmarks in the list."""
     df_info = get_info()
@@ -836,6 +849,7 @@ def plot_aggregate(
         print_numbers=print_numbers,
         hatch_map=hatch_map,
         linewidth_map=linewidth_map,
+        alpha_map=alpha_map,
     )
     ax.set_ylabel(
         "Averaged "
@@ -916,6 +930,7 @@ def plot_list_of_tasks(
     color_list=None,
     linestyle_list=None,
     linewidth_list=None,
+    alpha_list=None,
     suptitle=None,
     print_numbers=False,
     ymax=None,
@@ -941,9 +956,11 @@ def plot_list_of_tasks(
             df, apply_phase_style=apply_phase_style, linestyle_list=linestyle_list
         )
         linewidth_map = assign_linewidths(df, linewidth_list)
+        alpha_map = assign_alphas(df, alpha_list)
         ruler_color_map = {}  # maps expe_name_with_tokens -> color
         ruler_style_map = {}  # maps expe_name_with_tokens -> linestyle
         ruler_linewidth_map = {}  # maps expe_name_with_tokens -> linewidth
+        ruler_alpha_map = {}  # maps expe_name_with_tokens -> alpha
         df_filtered = df[df["metric"] == "ruler_match"]
 
         # An experiment needs the training-token tag only when several of its checkpoints
@@ -1012,6 +1029,9 @@ def plot_list_of_tasks(
                         ruler_linewidth_map[expe_name_with_tokens] = linewidth_map.get(
                             expe_name
                         )
+                        ruler_alpha_map[expe_name_with_tokens] = alpha_map.get(
+                            expe_name
+                        )
                     data[expe_name_with_tokens]["context_length"].append(context_length)
                     data[expe_name_with_tokens]["score"].append(score)
             for subtask in subtasks:
@@ -1036,6 +1056,9 @@ def plot_list_of_tasks(
                             ruler_linewidth_map[
                                 expe_name_with_tokens
                             ] = linewidth_map.get(expe_name)
+                            ruler_alpha_map[expe_name_with_tokens] = alpha_map.get(
+                                expe_name
+                            )
                         if expe_name_with_tokens not in all_data[subtask]:
                             all_data[subtask][expe_name_with_tokens] = {
                                 "context_length": [],
@@ -1090,6 +1113,7 @@ def plot_list_of_tasks(
                     # markeredgewidth=2,
                     linestyle=linestyle,
                     linewidth=ruler_linewidth_map.get(expe_name_with_tokens),
+                    alpha=ruler_alpha_map.get(expe_name_with_tokens),
                     label=expe_name_with_tokens,
                     color=color,
                 )
@@ -1244,6 +1268,7 @@ def plot_list_of_tasks(
                     color_list=color_list,
                     linestyle_list=linestyle_list,
                     linewidth_list=linewidth_list,
+                    alpha_list=alpha_list,
                     suptitle=suptitle,
                     print_numbers=print_numbers,
                     ymax=ymax,
@@ -1262,6 +1287,7 @@ def plot_list_of_tasks(
             df, apply_phase_style=apply_phase_style, linestyle_list=linestyle_list
         )
         linewidth_map = assign_linewidths(df, linewidth_list)
+        alpha_map = assign_alphas(df, alpha_list)
 
         # Single-point bar comparisons (one bar per model): color models by surname
         # and distinguish same-surname variants with hatches. Skipped for multi-
@@ -1349,6 +1375,7 @@ def plot_list_of_tasks(
                 print_numbers=print_numbers,
                 hatch_map=hatch_map,
                 linewidth_map=linewidth_map,
+                alpha_map=alpha_map,
             )
             # Visually emphasize the aggregate subplot
             agg_ax.set_facecolor("#f7f7f7")
@@ -1388,6 +1415,7 @@ def plot_list_of_tasks(
                 print_numbers=print_numbers,
                 hatch_map=hatch_map,
                 linewidth_map=linewidth_map,
+                alpha_map=alpha_map,
             )
 
             ymax_val = _resolve_ymax(ymax, i)
@@ -1570,6 +1598,7 @@ def plot_experiments(df, args, max_subplot=20, task_list_map=None):
             color_list=parse_style_list(args.color),
             linestyle_list=parse_style_list(args.linestyle),
             linewidth_list=parse_style_list(args.linewidth, cast=float),
+            alpha_list=parse_style_list(args.alpha, cast=float),
             suptitle=args.title,
             print_numbers=args.print_numbers,
             ymax=args.ymax,
@@ -1899,6 +1928,16 @@ if __name__ == "__main__":
         help=(
             "Whitespace-separated list of line widths, one per system (cycled). Applies "
             "to line plots only (e.g. RULER), not bars. Example: --linewidth '1 2 3 1 1 2'."
+        ),
+    )
+    parser.add_argument(
+        "--alpha",
+        type=str,
+        default=None,
+        help=(
+            "Whitespace-separated list of opacities in [0,1], one per system (cycled). "
+            "Applies to both bars and lines. Handy to shade same-colored models by size "
+            "(a dark base color + lower alpha = lighter). Example: --alpha '1 0.6 0.35'."
         ),
     )
     parser.add_argument(
