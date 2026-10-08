@@ -9,6 +9,7 @@ orchestration, retries and logs.
 | `dataset_rag_hotpotqa_fr` | augment (FR) → evaluate/filter (+ French quality judge) → formatting_sft |
 | `dataset_rag_tatqa` | convert (distractors) → augment → evaluate/filter → formatting_sft |
 | `dataset_rag_frenchqa_piaf` | convert → augment → evaluate/filter → formatting_sft (`--mixed-system-prompt`) |
+| `dataset_rag_dpo_prompts`, `dataset_rag_dpo_delta` | DPO preference data, see [DPO.md](DPO.md) |
 
 Outputs go to `airflow_runs/<dag_id>/<run_name>/` under `dataset_rag/`.
 
