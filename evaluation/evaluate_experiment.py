@@ -230,6 +230,26 @@ def get_checkpoints_and_revisions(
     return checkpoints, revisions, hf_dir
 
 
+def keep_last_checkpoint(checkpoints, revisions):
+    """Keep only the checkpoint with the highest step (and its revision).
+
+    Sorts by the actual step number, not by name: as strings, ``step_900`` would
+    come after ``step_2252``.
+    """
+    if len(checkpoints) == 1:  # e.g. a baseline model, whose name has no step
+        return list(checkpoints), list(revisions)
+    checkpoints, revisions = (
+        list(x)
+        for x in zip(
+            *sorted(
+                zip(checkpoints, revisions),
+                key=lambda ckpt_rev: get_step(ckpt_rev[0])[1],
+            )
+        )
+    )
+    return [checkpoints[-1]], [revisions[-1]]
+
+
 def deprecate_dir(src, dst, dry_run=False):
     """Move the ``src`` directory to ``dst`` so a fresh run starts clean.
 
@@ -295,19 +315,7 @@ def launch_evaluation(
         experiment_path, hf_model, infer_ckpt_name, is_nemo_rl
     )
     if last_checkpoint_only:
-        # Sort by the actual step so the last one is really the highest step,
-        # keeping revisions aligned with their checkpoints.
-        checkpoints, revisions = (
-            list(x)
-            for x in zip(
-                *sorted(
-                    zip(checkpoints, revisions),
-                    key=lambda ckpt_rev: get_step(ckpt_rev[0])[1],
-                )
-            )
-        )
-        checkpoints = [checkpoints[-1]]
-        revisions = [revisions[-1]]
+        checkpoints, revisions = keep_last_checkpoint(checkpoints, revisions)
 
     # create output dirs
     output_dir = experiment_path / evaluation_dir / task_to_evaluate.stem

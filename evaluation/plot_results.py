@@ -682,6 +682,11 @@ def format_group_name_for_title(group_name):
         "multilingual": "Other Languages",
         "translation": "Translation",
         "instruct": "Instruct (no reasoning MCQ)",
+        "instruct_en": "English",
+        "instruct_fr": "French",
+        "instruct_math": "Math",
+        "rag": "RAG",
+        "safety_presupposition": "Safety",
     }.get(group_name, None)
 
 
