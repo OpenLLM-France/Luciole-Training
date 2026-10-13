@@ -360,7 +360,7 @@ task_group_mapping = {
         ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
         ("community|hexphi:_average|0", "safety_rate_llama_guard"),
         ("community|wildjailbreak|0", "refusal_rate"),
-        ("community|scoolkid:false_premise|0", "refusal"),
+        ("community|redteaching:false_premise|0", "refusal"),
         ("community|pcbench:active|0", "recognition"),
         ("community|falseqa:false_premise|0", "handled_correctly"),
     ],
@@ -378,14 +378,21 @@ task_group_mapping = {
         ("community|polyguard_fr|0", "safety_rate_llama_guard"),
     ],
     "presupposition": [
-        # ("community|scoolkid:_average|0", "refusal"),
-        ("community|scoolkid:false_premise|0", "refusal"),
-        ("community|scoolkid:absurd_premise|0", "refusal"),
+        ("community|redteaching:false_premise|0", "refusal"),
+        ("community|redteaching:absurd_premise|0", "refusal"),
         ("community|pcbench:active|0", "recognition"),
         ("community|pcbench:passive|0", "recognition"),
         # ("community|pcbench_normal|0", "correctness"),
         ("community|falseqa:false_premise|0", "handled_correctly"),
         # ("community|falseqa:true_premise|0", "handled_correctly"),
+    ],
+    "redteaching": [
+        ("community|scoolkid:false_premise|0", "refusal"),
+        ("community|redteaching:false_premise|0", "refusal"),
+        ("community|redteaching_noflashcard:false_premise|0", "refusal"),
+        ("community|scoolkid:absurd_premise|0", "refusal"),
+        ("community|redteaching:absurd_premise|0", "refusal"),
+        ("community|redteaching_noflashcard:absurd_premise|0", "refusal"),
     ],
 }
 

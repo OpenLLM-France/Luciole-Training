@@ -319,7 +319,7 @@ def launch_evaluation(
                     "fr_math",
                     "rag2",
                     "bbh",
-                    # "scoolkid", "pcbench", "falseqa", # TODO: presupposition
+                    "presupposition",  # previously "redteaching", "pcbench", "falseqa"
                 ]
             ]
             + [

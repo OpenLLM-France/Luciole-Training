@@ -1,0 +1,2 @@
+community|redteaching|0
+community|redteaching_noflashcard|0

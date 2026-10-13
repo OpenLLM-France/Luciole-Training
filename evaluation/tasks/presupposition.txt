@@ -1,0 +1,9 @@
+# community|scoolkid|0
+# community|redteaching|0
+# community|redteaching_noflashcard|0
+community|redteaching:false_premise|0
+# community|falseqa|0
+community|falseqa:false_premise|0
+# community|pcbench|0
+# community|pcbench_normal|0
+community|pcbench:active|0
