@@ -16,7 +16,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from evaluate_experiment import get_checkpoints_and_revisions
+from evaluate_experiment import get_checkpoints_and_revisions, keep_last_checkpoint
 from utils import get_step
 
 BFCL_TEMPLATE = """#!/bin/bash
@@ -144,8 +144,7 @@ def launch_evaluation(
         experiment_path, hf_model, infer_ckpt_name, is_nemo_rl
     )
     if last_checkpoint_only:
-        checkpoints = [checkpoints[-1]]
-        revisions = [revisions[-1]]
+        checkpoints, revisions = keep_last_checkpoint(checkpoints, revisions)
 
     output_dir = experiment_path / evaluation_dir / "bfcl"
     log_dir = output_dir / "slurm_logs"

@@ -690,6 +690,7 @@ def format_group_name_for_title(group_name):
         "instruct_math": "Math",
         "rag": "RAG",
         "safety": "Safety",
+        "safety_presupposition": "Safety & False Premise",
     }.get(base, None)
 
 
