@@ -676,13 +676,21 @@ def format_unit(unit):
 
 
 def format_group_name_for_title(group_name):
+    # Ignore any "group/regex" suffix for the display name.
+    base = group_name.partition("/")[0]
     return {
         "en": "English",
         "fr": "French",
         "multilingual": "Other Languages",
         "translation": "Translation",
         "instruct": "Instruct (no reasoning MCQ)",
-    }.get(group_name, None)
+        # Sub-groups the "instruct" alias expands to.
+        "instruct_en": "English",
+        "instruct_fr": "French",
+        "instruct_math": "Math",
+        "rag": "RAG",
+        "safety": "Safety",
+    }.get(base, None)
 
 
 def _sort_legend_dict(legend_dict, df):
@@ -1593,13 +1601,17 @@ def plot_experiments(df, args, max_subplot=20, task_list_map=None):
             dpi=args.dpi,
             add_aggregate=add_aggregate,
             separate_legend=args.separate_legend,
-            title=format_group_name_for_title(g),
+            # With --group_title the group name becomes the global figure title; the
+            # aggregate subplot then keeps a plain "Overall Performance" (title=None).
+            title=None if args.group_title else format_group_name_for_title(g),
             rows_cols=args.rows_cols,
             color_list=parse_style_list(args.color),
             linestyle_list=parse_style_list(args.linestyle),
             linewidth_list=parse_style_list(args.linewidth, cast=float),
             alpha_list=parse_style_list(args.alpha, cast=float),
-            suptitle=args.title,
+            suptitle=(format_group_name_for_title(g) or g)
+            if args.group_title
+            else args.title,
             print_numbers=args.print_numbers,
             ymax=args.ymax,
         )
@@ -1810,6 +1822,13 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Global title (suptitle) added at the top of each figure.",
+    )
+    parser.add_argument(
+        "--group_title",
+        action="store_true",
+        help="Use the benchmark group's name as the global figure title, e.g. "
+        "'--group instruct' titles each figure 'English', 'French', 'Math', 'RAG', "
+        "'Safety'. Overrides --title.",
     )
     parser.add_argument(
         "--output_path",
