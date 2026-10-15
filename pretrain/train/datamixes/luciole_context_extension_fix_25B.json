@@ -272,23 +272,27 @@
         },
         {
             "name": "longmino_lc-synth-cwe_en_text_document",
-            "weight": 6586823.0
+            "weight": 4640094.0
         },
         {
             "name": "longmino_lc-synth-rex_en_text_document",
-            "weight": 19185017.0
+            "weight": 13514904.0
         },
         {
             "name": "longmino_olmocr-2e13_en_text_document",
-            "weight": 7527999.0
+            "weight": 5303106.0
         },
         {
             "name": "longmino_olmocr-2e14_en_text_document",
-            "weight": 7052349.0
+            "weight": 4968034.0
         },
         {
             "name": "longmino_olmocr-2e15_en_text_document",
-            "weight": 21564040.0
+            "weight": 15190811.0
+        },
+        {
+            "name": "longmino_olmocr-2e16_en_text_document",
+            "weight": 18299279.0
         },
         {
             "name": "nemotron-posttraining-chat_en_text_document",
