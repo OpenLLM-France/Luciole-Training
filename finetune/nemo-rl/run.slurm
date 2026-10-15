@@ -14,7 +14,7 @@
 #set -euo pipefail
 
 export CONFIG_FILE=$(realpath "$1")
-export EXPERIMENT_PATH=$(realpath "$2")
+export EXPERIMENT_PATH=$(realpath -m "$2")
 method=${3:-sft} # default to sft
 
 mkdir -p "$EXPERIMENT_PATH/slurm_logs"

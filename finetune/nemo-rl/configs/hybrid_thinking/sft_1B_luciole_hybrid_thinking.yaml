@@ -1,0 +1,96 @@
+defaults: "template.yaml"
+
+sft:
+  max_num_steps: 5070
+
+policy:
+  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
+  tokenizer:
+    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/a8307e58fae17aa899c4de71b2770613912b0e6e"
+    chat_template: "${policy.tokenizer.name}/chat_template.jinja"
+    chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
+  megatron_cfg:
+    scheduler:
+      lr_decay_iters: 5064  # keep in line with max_num_steps
+      lr_warmup_iters: 152  # round(0.03 * max_num_steps) = round(152.1)
+
+data:
+  use_preserving_dataset: false  # not read by openai_format_v2 (only by openai_format / _multifiles)
+  train_data_path:
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/chat/data/*.jsonl"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/code/data/*.jsonl"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/instruction_following/data/*.jsonl"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/math/data/*.jsonl"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/science/data/*.jsonl"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/smolagents_toolcalling/data/*.jsonl.gz"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/nemotron_agentic_sft_v2/data/*.jsonl.gz"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/pleais_rag/openrag_thinking/data/*.jsonl.gz"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_posttraining_v3_chat/data/chat_oaiformat/data/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/persona_math/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_posttraining_v3_chat/data/instruction_following_oaiformat/data/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/dolci_instructsft/data/PreciseIF/*.jsonl.gz" 
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/math/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/dolci_code/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/dolci_nli/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/dolci_science/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/hardcoded/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/multilingual/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/persona_math/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/simple_hardcoded/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/smol_if/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/system_chats/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/translation/*.jsonl"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/rag/hotpotqa_v4/*.parquet"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/rag/tatqa_v4/*.parquet"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/code/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/stem/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/xlam_oaiformat/data/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/when2call_oaiformat/data/missing_argument/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_oaiformat/func_calling/data/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_oaiformat/glaive_func_calling/data/*.jsonl.gz"
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/pleais_rag/openrag/data/en/*.jsonl.gz"
+      weight: 0.125
+      chat_template_kwargs: {enable_thinking: false}
+  val_data_path: 
+    -  path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/smolagents_toolcalling/data/*.jsonl.gz" 
+       weight: 0.17
+       chat_template_kwargs: {enable_thinking: true}

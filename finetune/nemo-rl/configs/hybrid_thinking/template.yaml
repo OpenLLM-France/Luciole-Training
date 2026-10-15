@@ -1,18 +1,18 @@
+# Shared training settings for the hybrid-thinking SFT runs (model, tokenizer/chat template,
+# optimizer, packing, logging). The run configs only set the number of steps and the data,
+# e.g. sft_1B_luciole_hybrid_thinking.yaml: `defaults: "template.yaml"`.
+
 # SFT Algorithm Configuration
 sft:
-  # samples - 1439962 
-  # bsz - 1024
-  # steps - 1406 => * 4 epochs = 5624
   ## total number of steps to train will equal
   ## min((max_num_epochs * len(train_dataloader)), max_num_steps)
   max_num_epochs: 4
-  max_num_steps: 1000
 
   val_period: 500
   val_batches: 8
   val_global_batch_size: 256
   val_micro_batch_size: 1
-  val_at_start: false
+  val_at_start: true
   seed: 42
 
 checkpointing:
@@ -20,18 +20,12 @@ checkpointing:
   checkpoint_dir: "${oc.env:EXPERIMENT_PATH}/checkpoints"
   metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
   higher_is_better: false
-  keep_top_k: 1000
-  save_period: 100
+  keep_top_k: 10
+  save_period: 50
   checkpoint_must_save_by: null
 
 policy:
-  model_name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
-  tokenizer:
-    name: "${oc.env:OpenLLM_OUTPUT}/pretrain/luciole_serie/tokenizer_128k-arab-regional_v2_instruct_train" ## specify if you'd like to use a tokenizer different from the model's default
-    # chat_template can be a Jinja template string or path to a .jinja file
-    chat_template: "${policy.tokenizer.name}/chat_template.jinja"
-    chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
-  train_global_batch_size: 1024
+  train_global_batch_size: 2048
   train_micro_batch_size: 1
   max_total_sequence_length: 16384
   precision: "bfloat16"
@@ -48,7 +42,7 @@ policy:
     tensor_parallel_size: 1
     context_parallel_size: 1
     custom_parallel_plan: null
-
+  
     # LoRA (Low-Rank Adaptation) Configuration
     lora_cfg:
       enabled: False  # Set to True to enable LoRA fine-tuning
@@ -68,7 +62,7 @@ policy:
     sequence_length_round: 64
 
   sequence_packing:
-    enabled: True 
+    enabled: True # changing to false
     train_mb_tokens: ${mul:${policy.max_total_sequence_length}, ${policy.train_micro_batch_size}}
     algorithm: "modified_first_fit_decreasing"
     sequence_length_round: 64
@@ -78,18 +72,18 @@ policy:
   make_sequence_length_divisible_by: ${policy.dtensor_cfg.tensor_parallel_size}
   max_grad_norm: 1.0
 
-  # optimizer:
-  #   name: "torch.optim.AdamW"
-  #   kwargs:
-  #     lr: 1.0e-5
-  #     weight_decay: 0.01
-  #     betas: [0.9, 0.95]
-  #     eps: 1e-5
-  #     # when using Dtensor, we need to set foreach
-  #     # and fused to False
-  #     foreach: False
-  #     fused: False
-
+  optimizer:
+    name: "torch.optim.AdamW"
+    kwargs:
+      lr: 3.0e-5
+      weight_decay: 0.1
+      betas: [0.9, 0.95]
+      eps: 1e-5
+      # when using Dtensor, we need to set foreach
+      # and fused to False
+      foreach: False
+      fused: False
+    
   ## ignored since enabled=false, but needed for testing purposes
   megatron_cfg:
     enabled: true
@@ -107,7 +101,7 @@ policy:
     sequence_parallel: false
     freeze_moe_router: false
     moe_router_dtype: null
-    moe_router_load_balancing_type: "none"
+    moe_router_load_balancing_type: "aux_loss"
     moe_router_bias_update_rate: 1e-3
     moe_permute_fusion: false
     #gives ~20% training perf speedup with sequence packing 
@@ -119,9 +113,9 @@ policy:
 
     optimizer:
       optimizer: "adam"
-      lr: 3.0e-5
-      min_lr: 3.0e-6
-      weight_decay: 0.1
+      lr: 2.0e-5
+      min_lr: 2.0e-6
+      weight_decay: 0.01
       bf16: true
       fp16: false
       params_dtype: "bfloat16"
@@ -149,8 +143,6 @@ policy:
       end_weight_decay: ${policy.megatron_cfg.optimizer.weight_decay}
       weight_decay_incr_style: "constant"
       lr_decay_style: "cosine"
-      lr_decay_iters: 5524
-      lr_warmup_iters: 100
       lr_warmup_init: 0
 
     distributed_data_parallel_config:
@@ -166,42 +158,11 @@ data:
   add_eos: false
   add_generation_prompt: true
   shuffle: true
-  num_workers: 1
-  seed: null
+  num_workers: 2
 
-  dataset_name: openai_format
-  train_data_path:
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/aya_dataset_Qwen3_32B_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_multilingual8_Qwen3_32B_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/hermes_function_calling_v1_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_smollm3_everyday_conversations_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/LongAlign_64k_context_lang_annotated_lang_6_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_smollm3_explore_instruct_rewriting_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/LongAlign_64k_Qwen3_32B_yarn_131k_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_smollm3_smol_magpie_ultra_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/Mixture_of_Thoughts_science_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_smollm3_smol_rewrite_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/multi_turn_reasoning_if_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_smollm3_smol_summarize_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/OpenHermes_2.5_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_smollm3_systemchats_30k_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/OpenThoughts3_1.2M_no_think_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/OpenThoughts3_1.2M_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/s1k_1.1_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_systemchats_Qwen3_32B_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_everyday_convs_reasoning_Qwen3_32B_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/table_gpt_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/table_gpt_Qwen3_32B_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/tulu_3_sft_personas_instruction_following_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/xlam_traces_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smoltalk_multilingual_8languages_lang_5_no_think/data/*.jsonl.gz"
-    - "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/smolagents_toolcalling_traces_think/data/*.jsonl.gz"
-  val_data_path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/smoltalk2/aya_dataset_Qwen3_32B_think/data/*.jsonl.gz"
-  chat_key: "messages"                     # Key for messages in the data
-  system_key: null                         # Key for system message (optional)
-  system_prompt: null                      # Default system prompt (optional)
-  tool_key: null                        # Key for tools in the data
-  use_preserving_dataset: false            # If true, uses PreservingDataset to preserve heterogeneous schemas (e.g., tool calls with varying argument structures)
+  dataset_name: openai_format_v2
+  chat_key: "messages"  # Key for messages in the data
+  tool_key: null        # Key for tools in the data (null: tools are not read from a column)
 
 logger:
   log_dir: "${oc.env:EXPERIMENT_PATH}/logs"  # Base directory for all logs
@@ -222,8 +183,8 @@ logger:
     experiment_name: "sft-dev"
     run_name: "sft-dev-${data.dataset_name}"
   gpu_monitoring:
-    collection_interval: 10  # How often to collect GPU usage metrics (in seconds)
-    flush_interval: 10  # How often to flush GPU usage metrics to the loggers (in seconds)
+    collection_interval: 1  # How often to collect GPU usage metrics (in seconds)
+    flush_interval: 1  # How often to flush GPU usage metrics to the loggers (in seconds)
 
 cluster:
   gpus_per_node: 1
