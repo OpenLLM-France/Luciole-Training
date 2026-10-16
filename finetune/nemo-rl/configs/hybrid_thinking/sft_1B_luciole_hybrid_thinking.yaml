@@ -6,7 +6,7 @@ sft:
 policy:
   model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
   tokenizer:
-    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/a8307e58fae17aa899c4de71b2770613912b0e6e"
+    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/8d9e730eedf0a6b6dde9344d105fa075697af3bb"
     chat_template: "${policy.tokenizer.name}/chat_template.jinja"
     chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   megatron_cfg:
