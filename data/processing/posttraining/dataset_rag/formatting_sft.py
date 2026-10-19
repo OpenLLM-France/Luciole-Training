@@ -482,9 +482,18 @@ def format_prompt(
     )
 
 
-def _pick_style(rng) -> CitationStyle:
-    """Randomly pick a citation markup style (augmentation applied at formatting)."""
-    return rng.choice(CITATION_STYLES)
+def _pick_style(rng, fixed_style: CitationStyle | None = None) -> CitationStyle:
+    """Randomly pick a citation markup style (augmentation applied at formatting).
+
+    With *fixed_style*, that style is returned instead, but the draw still happens
+    so the rng stream (refusal phrases, strict slice, ...) is identical to a
+    randomized run with the same seed: only the markup differs.
+    """
+    drawn = rng.choice(CITATION_STYLES)
+    return fixed_style or drawn
+
+
+CITATION_STYLES_BY_NAME = {s.name: s for s in CITATION_STYLES}
 
 
 def _resolve_end_of_completion(row: dict, rng) -> bool:
@@ -545,12 +554,18 @@ def _pick_system_lang(rng, data_language: str, mixed_system_prompt: bool) -> str
     return data_language
 
 
-def convert_row(row: dict, language: str = "en", rng=None, mixed_system_prompt: bool = False) -> dict:
+def convert_row(
+    row: dict,
+    language: str = "en",
+    rng=None,
+    mixed_system_prompt: bool = False,
+    fixed_style: CitationStyle | None = None,
+) -> dict:
     """Convert a single row to prompt/completion format with randomized citation style."""
     if rng is None:
         rng = random
 
-    style = _pick_style(rng)
+    style = _pick_style(rng, fixed_style)
     end_of_completion = _resolve_end_of_completion(row, rng)
     system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
     is_unanswerable = row.get("is_unanswerable", False)
@@ -625,6 +640,7 @@ def convert_dataset(
     include_metadata: bool = True,
     seed: int | None = None,
     mixed_system_prompt: bool = False,
+    fixed_style: CitationStyle | None = None,
 ) -> ConversionStats:
     """Convert augmented dataset to prompt/completion format."""
     stats = ConversionStats()
@@ -637,7 +653,9 @@ def convert_dataset(
             row = json.loads(line)
 
             try:
-                converted = convert_row(row, language, rng, mixed_system_prompt=mixed_system_prompt)
+                converted = convert_row(
+                    row, language, rng, mixed_system_prompt=mixed_system_prompt, fixed_style=fixed_style
+                )
 
                 if not include_metadata:
                     minimal = {
@@ -673,6 +691,7 @@ def convert_to_chat_format(
     include_metadata: bool = True,
     seed: int | None = None,
     mixed_system_prompt: bool = False,
+    fixed_style: CitationStyle | None = None,
 ) -> ConversionStats:
     """Convert augmented dataset to chat/messages format for instruction fine-tuning."""
     stats = ConversionStats()
@@ -699,7 +718,7 @@ def convert_to_chat_format(
             row = json.loads(line)
 
             try:
-                style = _pick_style(rng)
+                style = _pick_style(rng, fixed_style)
                 end_of_completion = _resolve_end_of_completion(row, rng)
                 system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
                 is_unanswerable = row.get("is_unanswerable", False)
@@ -816,6 +835,10 @@ def main():
                         help=f"For non-English data, use English system-prompt instructions on "
                              f"{int(MIXED_SYSTEM_EN_PROB*100)}%% of rows (query, docs, and answer stay in the data language). "
                              f"Trains the model to handle English instructions paired with non-English content.")
+    parser.add_argument("--citation-style", type=str, choices=list(CITATION_STYLES_BY_NAME), default=None,
+                        help="Use this single citation markup style for every row instead of a random one. "
+                             "Placement (inline vs References) still follows the per-row stored value, and "
+                             "the rng stream is unchanged, so only the markup differs from a randomized run.")
 
     args = parser.parse_args()
 
@@ -834,7 +857,11 @@ def main():
     print(f"Converting: {resolved_input}")
     print(f"Format: {args.format}")
     print(f"Language: {args.language}")
-    print(f"Citation styles: {len(CITATION_STYLES)} variants, EOC ratio: {EOC_PROB:.0%}")
+    fixed_style = CITATION_STYLES_BY_NAME[args.citation_style] if args.citation_style else None
+    if fixed_style:
+        print(f"Citation style: {fixed_style.name} (fixed), placement from stored per-row value")
+    else:
+        print(f"Citation styles: {len(CITATION_STYLES)} variants, EOC ratio: {EOC_PROB:.0%}")
     print(f"Refusal variants: {len(UNANSWERABLE_REFUSALS.get(args.language, UNANSWERABLE_REFUSALS['en']))} per language")
     print(f"Strict (verbatim) refusal ratio: {STRICT_REFUSAL_PROB:.0%} of unanswerable rows (rest grounded)")
     if args.seed is not None:
@@ -847,6 +874,7 @@ def main():
             include_metadata=not args.no_metadata,
             seed=args.seed,
             mixed_system_prompt=args.mixed_system_prompt,
+            fixed_style=fixed_style,
         )
     else:
         stats = convert_dataset(
@@ -856,6 +884,7 @@ def main():
             include_metadata=not args.no_metadata,
             seed=args.seed,
             mixed_system_prompt=args.mixed_system_prompt,
+            fixed_style=fixed_style,
         )
 
     print_stats(stats, output_file)
