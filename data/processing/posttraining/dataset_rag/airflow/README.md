@@ -64,7 +64,9 @@ Common parameters:
 - `seed` (default 42), `sft_format` (`chat` or `prompt_completion`).
 
 Dataset parameters: `dataset_cache` (HotpotQA), `input_json`, `num_distractors`, `distractor_start_rank`
-(TAT-QA / multilingual).
+(TAT-QA / multilingual). `dataset_cache` must point to a `datasets.save_to_disk` copy: `hotpotqa_cache_train/` for
+`dataset_rag_hotpotqa_en` (see the main README) and, for `dataset_rag_hotpotqa_fr`, a machine-translated HotpotQA
+that is not distributed here (default `hotpotqa_french_cache_train.bak/`).
 
 Models (HotpotQA DAGs): `gen_model`, `gen_max_tokens`, `gen_timeout`, `gen_chat_template_kwargs` (JSON, e.g.
 `{"enable_thinking": false}`), `gen_concurrency`, `judge_model`, `judge_concurrency`, `citation_format` (`markup`

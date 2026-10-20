@@ -56,9 +56,15 @@ Comments and log messages in the code are partly in French.
 
 ## Setup
 
+Two Python environments: `venv` for the data pipelines (also used by the Airflow tasks, SFT and DPO), and `.venv`
+for the standalone DPO launchers (`dpo/requirements.txt`, Python 3.13; set `DPO_VENV` to use another
+path). They are separate because the pipeline pins `datasets<4`.
+
 ```bash
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
+python3.13 -m venv .venv
+./.venv/bin/pip install -r dpo/requirements.txt
 cp .env.example .env      # LLM endpoint (OpenAI-compatible) used for generation and judging
 ```
 
@@ -70,8 +76,13 @@ endpoint URLs as arguments or through `LLM_API_URL` (base `/v1` URL). Shell scri
 
 Input data:
 
-* HotpotQA: downloaded from the Hub (`hotpotqa/hotpot_qa`, `distractor`) and cached under `hotpotqa_cache_train/` on
-  first use;
+* HotpotQA: the HotpotQA DAGs read a `datasets` copy of `hotpotqa/hotpot_qa` (`distractor`, train) saved under
+  `hotpotqa_cache_train/`; create it once with
+  `python -c "from datasets import load_dataset; load_dataset('hotpotqa/hotpot_qa', 'distractor', split='train').save_to_disk('hotpotqa_cache_train')"`
+  (`augment_hotpotqa.py` run without `--dataset` downloads and caches it under `hotpotqa_cache/` by itself);
+* HotpotQA FR (translated): `dataset_rag_hotpotqa_fr` expects a machine-translated HotpotQA saved with `datasets`
+  under `hotpotqa_french_cache_train.bak/`, not distributed here; point its `dataset_cache` parameter elsewhere or
+  use the native `dataset_rag_hotpotqa_fr_abstracts`;
 * TAT-QA: `tatqa_dataset_train.json` from the [official repository](https://github.com/NExTplusplus/TAT-QA) at the
   root of this directory;
 * HotpotQA-fr abstracts: [`Mvanypersele/hotpotqa-fr-abstracts`](https://huggingface.co/datasets/Mvanypersele/hotpotqa-fr-abstracts);
