@@ -7,7 +7,7 @@ orchestration, retries and logs.
 |---|---|
 | `dataset_rag_hotpotqa_en` | augment → evaluate/filter → formatting_sft |
 | `dataset_rag_hotpotqa_fr` | augment (FR) → evaluate/filter (+ French quality judge) → formatting_sft |
-| `dataset_rag_hotpotqa_fr_abstracts` | convert (`Mvanypersele/hotpotqa-fr-abstracts`, length filter) → augment → evaluate/filter (+ French quality judge) → formatting_sft |
+| `dataset_rag_hotpotqa_fr_abstracts` | convert (`Mvanypersele/hotpotqa-fr-abstracts`, length filter) → augment **in parallel with** evaluate_stream (judges each row as soon as it is written) → evaluate/filter (reuses the cached verdicts) → formatting_sft |
 | `dataset_rag_tatqa` | convert (distractors) → augment → evaluate/filter → formatting_sft |
 | `dataset_rag_frenchqa_piaf` | convert → augment → evaluate/filter → formatting_sft (`--mixed-system-prompt`) |
 | `dataset_rag_dpo_prompts`, `dataset_rag_dpo_delta` | DPO preference data, see [DPO.md](DPO.md) |
@@ -33,12 +33,13 @@ overrides the Airflow venv). The DAG files also work with Airflow 2.x.
 
 ```bash
 ./run_airflow.sh db migrate
-./run_airflow.sh pools set llm_api 1 "Serialises the tasks that call the LLM API"
+./run_airflow.sh pools set llm_api 2 "Serialises the tasks that call the LLM API"
 ./run_airflow.sh standalone
 ```
 
-The `llm_api` pool is **mandatory** (LLM tasks wait for it): with one slot, the tasks that call the LLM endpoint
-run one at a time.
+The `llm_api` pool is **mandatory** (LLM tasks wait for it). Its 2 slots split the concurrency budget of the LLM
+endpoint: a task that may use the whole budget takes both slots (one LLM task at a time); the tasks of
+`dataset_rag_hotpotqa_fr_abstracts` take one each, so that generation and judges run side by side.
 
 The LLM key is read by the scripts from `.env` (`LLM_API_KEY`). Optional environment variables, set before starting
 the scheduler: `DATASET_RAG_DIR` (`dataset_rag/` directory, needed when the DAG files are deployed apart from the code),
@@ -66,11 +67,17 @@ Dataset parameters: `dataset_cache` (HotpotQA), `input_json`, `num_distractors`,
 (TAT-QA / multilingual).
 
 Models (HotpotQA DAGs): `gen_model`, `gen_max_tokens`, `gen_timeout`, `gen_chat_template_kwargs` (JSON, e.g.
-`{"enable_thinking": false}`), `gen_concurrency`, `judge_model`, `judge_concurrency`.
+`{"enable_thinking": false}`), `gen_concurrency`, `judge_model`, `judge_concurrency`, `citation_format` (`markup`
+by default; `ref` = numbered documents + inline `<ref id="N">excerpt</ref>`, excerpts checked verbatim at evaluation).
 An empty model means `LLM_MODEL` from `.env`. Judges run one after the other, so `judge_concurrency` is the peak load
 on the judge model. `dataset_rag_hotpotqa_fr_abstracts` adds `hf_config`, `hf_split`, `hf_revision` (empty = latest
 commit, logged in `*_convert_stats.json`), `max_seq_length` (8192) and `reserve_tokens` (1536); its convert task
 needs the Luciole tokenizer (`HF_TOKEN` or a local copy via `tokenizer`).
+
+Parallel evaluation: `evaluate_stream.py` reads the rows appended by `augment_hotpotqa.py`, judges them and writes the
+verdicts to `*_judge_cache.jsonl`; it stops on the `*.done` marker written by augment (failure after 2 h without a new
+row). `evaluate_and_filter.py --judge-cache` reuses these verdicts and only pays for failed calls; the cache also makes
+an evaluation retry resumable.
 
 `contextualize_ratio` (TAT-QA only, default 0.3): each retrieved chunk of a drawn row is mapped back to its source
 financial report and gets an OpenRAG `[CONTEXT]` summary built from the first two chunks of the report, its two

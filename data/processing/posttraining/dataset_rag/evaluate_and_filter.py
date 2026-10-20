@@ -14,6 +14,7 @@ the relevance of each reasoning trace on a 1-5 scale knowing the answer and the 
 
 import json
 import asyncio
+import hashlib
 from pathlib import Path
 from collections import defaultdict
 from utils import (
@@ -77,6 +78,79 @@ def run_factual_judge_openrouter(rows: list[dict], sf_lookup: dict[str, set[str]
 OUTPUT_FILE = Path(__file__).parent / "hotpotqa_augmented_evaluated.jsonl"
 
 
+class JudgeCache:
+    """Append-only JSONL of endpoint judge verdicts, keyed by (judge, model, row id, trace hash).
+
+    evaluate_stream.py fills it while the rows are still being generated, and this
+    script reuses it (--judge-cache), which also makes the evaluation resumable:
+    only the missing verdicts are paid. Failed calls (None) are never cached, so
+    they are retried on the next pass. Without a path the cache lives in memory.
+    """
+
+    def __init__(self, path: str | Path | None = None):
+        self.path = Path(path) if path else None
+        self.entries: dict[tuple, dict] = {}
+        # A killed writer can leave a torn last line: skip it on load, and start the
+        # next append on a fresh line so the fragment never glues onto a verdict.
+        self._needs_newline = False
+        if self.path and self.path.exists():
+            with open(self.path, encoding="utf-8") as f:
+                for line in f:
+                    if not line.endswith("\n"):
+                        self._needs_newline = True
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    self.entries[tuple(entry["key"])] = entry["result"]
+
+    @staticmethod
+    def key(judge: str, model: str, row: dict) -> tuple:
+        trace = hashlib.md5((row.get("reasoning_trace") or "").encode("utf-8")).hexdigest()
+        return (judge, model, str(row.get("id")), trace)
+
+    def get(self, key: tuple) -> dict | None:
+        return self.entries.get(key)
+
+    def add(self, key: tuple, result: dict | None) -> None:
+        if result is None:
+            return
+        self.entries[key] = result
+        if self.path:
+            with open(self.path, "a", encoding="utf-8") as f:
+                if self._needs_newline:
+                    f.write("\n")
+                    self._needs_newline = False
+                f.write(json.dumps({"key": list(key), "result": result}, ensure_ascii=False) + "\n")
+
+
+# Endpoint judges: name -> (runner, runs on unanswerable rows?, extra runner kwargs).
+# The refusal judge is the only one that looks at unanswerable rows.
+ENDPOINT_JUDGES = {
+    "relevance": (run_llm_judge, False, {}),
+    "factual": (run_factual_judge, False, {"sf_lookup": {}}),
+    "french_quality": (run_french_quality_judge, False, {}),
+    "refusal": (run_refusal_judge, True, {}),
+}
+
+
+def judge_rows(rows: list[dict], judge: str, cache: JudgeCache, **kwargs) -> list[dict | None]:
+    """Verdicts of one endpoint judge aligned to `rows`: cached ones reused, the rest computed and cached."""
+    run_fn, _, extra = ENDPOINT_JUDGES[judge]
+    keys = [JudgeCache.key(judge, kwargs["model"], r) for r in rows]
+    results = [cache.get(k) for k in keys]
+    todo = [i for i, res in enumerate(results) if res is None]
+    if len(todo) < len(rows):
+        print(f"\n{judge} judge: {len(rows) - len(todo)}/{len(rows)} verdicts reused from the judge cache")
+    if todo:
+        raw = run_fn([rows[i] for i in todo], **extra, **kwargs)
+        for i, jr in zip(todo, raw):
+            results[i] = jr
+            cache.add(keys[i], jr)
+    return results
+
+
 def _collect_judge_results(
     rows: list[dict],
     flag: bool,
@@ -91,6 +165,21 @@ def _collect_judge_results(
     answerable_rows = [rows[i] for i in answerable_indices]
     raw = run_fn(answerable_rows, **kwargs)
     for idx, jr in zip(answerable_indices, raw):
+        results[idx] = jr
+    return results
+
+
+def _collect_endpoint_judge(
+    rows: list[dict], flag: bool, judge: str, cache: JudgeCache, **kwargs,
+) -> list[dict | None]:
+    """Endpoint judge results aligned to `rows`, on the rows that judge applies to."""
+    results: list[dict | None] = [None] * len(rows)
+    if not flag:
+        return results
+    on_unanswerable = ENDPOINT_JUDGES[judge][1]
+    indices = [i for i, r in enumerate(rows) if bool(r.get("is_unanswerable", False)) == on_unanswerable]
+    raw = judge_rows([rows[i] for i in indices], judge, cache, **kwargs)
+    for idx, jr in zip(indices, raw):
         results[idx] = jr
     return results
 
@@ -155,7 +244,8 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
              llm_judge_refusal: bool = False,
              no_answer_match: bool = False,
              judge_model: str = LLM_MODEL,
-             judge_concurrency: int = LLM_MAX_CONCURRENT) -> dict:
+             judge_concurrency: int = LLM_MAX_CONCURRENT,
+             judge_cache: str | None = None) -> dict:
     """Evaluate all entries in the augmented dataset."""
     stats = defaultdict(int)
     stats_by_type = defaultdict(lambda: {"correct": 0, "total": 0})
@@ -167,26 +257,23 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         for line in f:
             rows.append(json.loads(line))
 
-    # Endpoint judges (not the OpenRouter ones) share the model and the concurrency cap.
+    # Endpoint judges (not the OpenRouter ones) share the model, the concurrency cap
+    # and the verdict cache.
     judge_kwargs = {"api_key": LLM_API_KEY, "model": judge_model, "concurrency": judge_concurrency}
-    judge_results = _collect_judge_results(rows, llm_judge, run_llm_judge, **judge_kwargs)
+    cache = JudgeCache(judge_cache)
+    judge_results = _collect_endpoint_judge(rows, llm_judge, "relevance", cache, **judge_kwargs)
     judge_stats: defaultdict = defaultdict(float)
-    factual_judge_results = _collect_judge_results(rows, llm_judge_factual, run_factual_judge, sf_lookup={}, **judge_kwargs)
+    factual_judge_results = _collect_endpoint_judge(rows, llm_judge_factual, "factual", cache, **judge_kwargs)
     factual_judge_stats: defaultdict = defaultdict(float)
     or_judge_results = _collect_judge_results(rows, llm_judge_openrouter, run_llm_judge_openrouter)
     or_judge_stats: defaultdict = defaultdict(float)
     or_factual_judge_results = _collect_judge_results(rows, llm_judge_factual_openrouter, run_factual_judge_openrouter, sf_lookup={})
     or_factual_judge_stats: defaultdict = defaultdict(float)
-    french_quality_judge_results = _collect_judge_results(rows, llm_judge_french_quality, run_french_quality_judge, **judge_kwargs)
+    french_quality_judge_results = _collect_endpoint_judge(rows, llm_judge_french_quality, "french_quality", cache, **judge_kwargs)
     french_quality_judge_stats: defaultdict = defaultdict(float)
 
     # Refusal judge runs on UNANSWERABLE rows only (opposite of the other judges).
-    refusal_judge_results: list[dict | None] = [None] * len(rows)
-    if llm_judge_refusal:
-        unans_indices = [i for i, r in enumerate(rows) if r.get("is_unanswerable", False)]
-        raw_refusal = run_refusal_judge([rows[i] for i in unans_indices], **judge_kwargs)
-        for idx, jr in zip(unans_indices, raw_refusal):
-            refusal_judge_results[idx] = jr
+    refusal_judge_results = _collect_endpoint_judge(rows, llm_judge_refusal, "refusal", cache, **judge_kwargs)
     refusal_judge_stats: defaultdict = defaultdict(float)
 
     chunk_stats = defaultdict(float)
@@ -506,11 +593,15 @@ def main():
                         help=f"Model for the endpoint judges (default: LLM_MODEL from .env, {LLM_MODEL})")
     parser.add_argument("--judge-concurrency", type=int, default=LLM_MAX_CONCURRENT,
                         help=f"Concurrent judge calls (default: {LLM_MAX_CONCURRENT}); judges run one after another")
+    parser.add_argument("--judge-cache", type=str, default=None,
+                        help="JSONL of endpoint judge verdicts to reuse and extend (filled by "
+                             "evaluate_stream.py during generation; also makes this run resumable)")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
-        print(f"Error: File not found: {args.input}")
-        return
+        parser.error(f"input file not found: {args.input}")
+    if Path(args.input).stat().st_size == 0:
+        parser.error(f"input file is empty: {args.input}")
 
     print(f"Evaluating: {args.input}")
     eval_data = evaluate(args.input, eval_chunks=args.eval_chunks,
@@ -522,7 +613,8 @@ def main():
                          llm_judge_refusal=args.llm_judge_refusal,
                          no_answer_match=args.no_answer_match,
                          judge_model=args.judge_model,
-                         judge_concurrency=args.judge_concurrency)
+                         judge_concurrency=args.judge_concurrency,
+                         judge_cache=args.judge_cache)
     print_report(eval_data)
 
     with open(args.output, "w", encoding="utf-8") as f:

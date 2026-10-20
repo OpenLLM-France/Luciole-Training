@@ -8,7 +8,8 @@ Pipelines:
   - dataset_rag_hotpotqa_en : augment -> evaluate/filter -> formatting_sft
   - dataset_rag_hotpotqa_fr : idem, prompts FR + juge qualité FR
   - dataset_rag_hotpotqa_fr_abstracts : convert (Mvanypersele/hotpotqa-fr-abstracts)
-                                -> idem FR ; générateur Qwen3.8-27B, juges Mistral à 6
+                                -> augment || evaluate_stream -> evaluate/filter -> formatting ;
+                                générateur Qwen3.8-27B, juges Mistral à 6 pendant la génération
   - dataset_rag_tatqa       : convert -> augment -> evaluate/filter -> formatting_sft
   - dataset_rag_frenchqa_piaf : convert multilingual -> augment -> evaluate/filter
                                 -> formatting_sft (--mixed-system-prompt)
@@ -33,8 +34,13 @@ Outputs land in <dataset_rag>/airflow_runs/<dag_id>/<run_name>/. Re-triggering
 with the same run_name resumes the augmentation from its checkpoint file
 (no LLM calls are re-paid); use a fresh run_name for a from-scratch build.
 
-The LLM-heavy tasks share the "llm_api" pool (create it once, see README) so
-two DAGs never hammer the LLM endpoint at the same time.
+The LLM-heavy tasks share the "llm_api" pool (create it once with 2 slots, see
+README) so two DAGs never hammer the LLM endpoint at the same time. A slot stands
+for half of the Mistral budget (12 concurrent calls across all jobs): a task that
+may send more than 6 concurrent Mistral calls takes both slots, which keeps the
+historical one-LLM-task-at-a-time behaviour. Parallel evaluation (HotpotQA FR
+abstracts) runs a non-Mistral generator (1 slot) next to the Mistral judges
+capped at 6 (1 slot), streamed by evaluate_stream.py while rows are generated.
 """
 
 from __future__ import annotations
@@ -121,10 +127,14 @@ LLM_PARAMS = {
     "gen_concurrency": 10,
     "judge_model": "",
     "judge_concurrency": 10,
+    # "markup" (quote/cite markers restyled at formatting) or "ref" (numbered
+    # documents + inline <ref id="N">excerpt</ref>, kept as generated).
+    "citation_format": "markup",
 }
 
 GEN_OPTS = (
     "--concurrency {{ params.gen_concurrency }}"
+    " --citation-format {{ params.citation_format }}"
     " --max-tokens {{ params.gen_max_tokens }} --timeout {{ params.gen_timeout }}"
     "{% if params.gen_model %} --model {{ params.gen_model }}{% endif %}"
     "{% if params.gen_chat_template_kwargs %}"
@@ -161,6 +171,7 @@ def _bash(
     body: str,
     llm: bool = False,
     required_outputs: tuple[str, ...] = (),
+    llm_slots: int = 2,
 ) -> BashOperator:
     """Wrap a pipeline command and reject missing or empty task artifacts."""
     output_checks = [
@@ -171,7 +182,7 @@ def _bash(
     command = "\n".join(
         ["set -euo pipefail", WORKDIR, 'mkdir -p "$WORKDIR"', body, *output_checks]
     )
-    kwargs = {"pool": LLM_POOL} if llm else {}
+    kwargs = {"pool": LLM_POOL, "pool_slots": llm_slots} if llm else {}
     return BashOperator(
         task_id=task_id,
         bash_command=command,
@@ -207,9 +218,16 @@ def build_hotpotqa_dag(
     *,
     abstracts_convert: bool = False,
     param_overrides: dict | None = None,
+    parallel_eval: bool = False,
 ) -> DAG:
     """HotpotQA pipeline; ``abstracts_convert`` prepends the hotpotqa-fr-abstracts
-    conversion, whose output then replaces ``dataset_cache``."""
+    conversion, whose output then replaces ``dataset_cache``.
+
+    ``parallel_eval`` judges rows while they are generated (evaluate_stream task
+    next to augment). Generation and judges then hit the endpoint together, so the
+    generator must not be Mistral and the judges stay at 6 concurrent calls (one
+    pool slot each, see the module docstring).
+    """
     steps = "convert -> " if abstracts_convert else ""
     extra_params = {}
     if abstracts_convert:
@@ -247,8 +265,15 @@ def build_hotpotqa_dag(
         },
         tags=[*BASE_TAGS, "hotpotqa", language],
     )
+    if parallel_eval:
+        overrides = param_overrides or {}
+        if "mistral" in overrides.get("gen_model", "mistral").lower() or overrides.get("judge_concurrency", 99) > 6:
+            raise ValueError(f"{dag_id}: parallel_eval needs a non-Mistral gen_model and judge_concurrency <= 6")
+    # One slot when generation and judging run side by side, both otherwise.
+    llm_slots = 1 if parallel_eval else 2
 
     prefix = f'"$WORKDIR"/hotpotqa_{language}_augmented'
+    judge_cache = f"{prefix}_judge_cache.jsonl"
     dataset_arg = '"{{ params.dataset_cache }}"'
 
     convert = None
@@ -280,22 +305,42 @@ def build_hotpotqa_dag(
         " --unanswerable-ratio {{ params.unanswerable_ratio }}"
         f" {GEN_OPTS} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
+        llm_slots=llm_slots,
         required_outputs=(f"{prefix}.jsonl",),
     )
 
     # --llm-judge-factual is mandatory: the filter always requires judge score 5,
     # so without it only unanswerable rows would survive.
     judge_fr = " --llm-judge-french-quality" if language == "fr" else ""
+    judges = f"--llm-judge-factual{judge_fr} --llm-judge-refusal {JUDGE_OPTS}"
+
+    stream = None
+    if parallel_eval:
+        # Judges each line as soon as augment appends it; verdicts go to the
+        # judge cache, so evaluate_and_filter below only pays for failed calls.
+        stream = _bash(
+            dag,
+            "evaluate_stream",
+            f"{PYTHON} evaluate_stream.py"
+            f" --input {prefix}.jsonl"
+            f" --judge-cache {judge_cache}"
+            f" {judges}",
+            llm=True,
+            llm_slots=llm_slots,
+        )
+
+    # The judge cache also makes a retry of this task resume instead of re-judging.
     evaluate = _bash(
         dag,
         "evaluate_and_filter",
         f"{PYTHON} evaluate_and_filter.py"
         f" --input {prefix}.jsonl"
         f" --output {prefix}_evaluated.jsonl"
-        f" --eval-chunks --llm-judge-factual{judge_fr} --llm-judge-refusal --no-answer-match --filter"
-        f" {JUDGE_OPTS}"
+        f" --eval-chunks {judges} --no-answer-match --filter"
+        f" --judge-cache {judge_cache}"
         f" --export {prefix}_stats.json",
         llm=True,
+        llm_slots=llm_slots,
         required_outputs=(
             f"{prefix}_evaluated.jsonl",
             f"{prefix}_evaluated_filtered.jsonl",
@@ -312,9 +357,10 @@ def build_hotpotqa_dag(
         ),
     )
 
+    first = [augment, stream] if stream is not None else [augment]
     if convert is not None:
-        convert >> augment
-    augment >> evaluate >> formatting
+        convert >> first
+    first >> evaluate >> formatting
     return dag
 
 
@@ -493,10 +539,12 @@ hotpotqa_fr = build_hotpotqa_dag(
     "dataset_rag_hotpotqa_fr", "fr", str(BASE_DIR / "hotpotqa_french_cache_train.bak")
 )
 # HotpotQA-fr natif (abstracts Wikipédia FR, sans traduction). Générateur
-# Qwen3.8-27B sans raisonnement ; juges Mistral bridés à 6 appels concurrents.
+# Qwen3.8-27B sans raisonnement ; juges Mistral bridés à 6 appels concurrents ;
+# citations au seul format <ref id="N">.
 hotpotqa_fr_abstracts = build_hotpotqa_dag(
     "dataset_rag_hotpotqa_fr_abstracts", "fr", "",
     abstracts_convert=True,
+    parallel_eval=True,
     param_overrides={
         "gen_model": "Qwen3.8-27B",
         "gen_max_tokens": 2048,
@@ -504,6 +552,7 @@ hotpotqa_fr_abstracts = build_hotpotqa_dag(
         "gen_chat_template_kwargs": '{"enable_thinking": false}',
         "judge_model": "Mistral-Small-3.2-24B-Instruct-2506-FP8",
         "judge_concurrency": 6,
+        "citation_format": "ref",
     },
 )
 tatqa = build_tatqa_dag()

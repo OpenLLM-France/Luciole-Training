@@ -374,6 +374,10 @@ async def main(
     output_prefix = output_prefix.removesuffix(".jsonl")
     output_file = f"{output_prefix}.jsonl"
     checkpoint_file = f"{output_prefix}_checkpoint.json"
+    # Written only once the output is complete: evaluate_stream.py, which judges
+    # the rows while they are generated, stops when it sees this marker.
+    done_marker = Path(f"{output_prefix}.done")
+    done_marker.unlink(missing_ok=True)
 
     rows_to_process = prepare_dataset_with_unanswerable(
         ds, unanswerable_ratio=unanswerable_ratio, language=language, limit=limit,
@@ -386,8 +390,14 @@ async def main(
     log(f"Rows to process: {len(rows_to_process)} (checkpoint: {len(processed_ids)} already done)")
 
     if not rows_to_process:
-        log("Nothing to process.")
-        return
+        if Path(output_file).is_file() and Path(output_file).stat().st_size > 0:
+            log("Nothing to process; existing non-empty output is complete.")
+            done_marker.touch()
+            return
+        raise RuntimeError(
+            "No rows remain to process, but the output JSONL is missing or empty. "
+            "The checkpoint and output are inconsistent."
+        )
 
     # Unanswerable rows now also call the LLM (to generate query-grounded refusals).
     needs_llm = bool(rows_to_process)
@@ -447,6 +457,12 @@ async def main(
                 )
 
     log(f"Done in {metrics.elapsed:.1f}s — {metrics.processed} processed, {metrics.failed} failed, {metrics.unanswerable_count} unanswerable")
+    if metrics.failed:
+        raise RuntimeError(
+            f"{metrics.failed} row(s) failed generation; successful rows were checkpointed "
+            "and the task should be retried."
+        )
+    done_marker.touch()
 
 
 if __name__ == "__main__":
@@ -486,6 +502,8 @@ if __name__ == "__main__":
                         help='JSON passed as chat_template_kwargs, e.g. \'{"enable_thinking": false}\' for Qwen3')
 
     args = parser.parse_args()
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be >= 1")
     gen_options = {"model": args.model, "max_tokens": args.max_tokens, "timeout_seconds": args.timeout}
     if args.chat_template_kwargs:
         gen_options["chat_template_kwargs"] = json.loads(args.chat_template_kwargs)

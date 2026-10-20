@@ -966,8 +966,9 @@ def main():
 
     resolved_input = _resolve_input_path(args.input)
     if resolved_input is None:
-        print(f"Error: File not found: {args.input}")
-        return
+        parser.error(f"input file not found: {args.input}")
+    if resolved_input.stat().st_size == 0:
+        parser.error(f"input file is empty: {resolved_input}")
 
     if args.output:
         output_file = args.output
