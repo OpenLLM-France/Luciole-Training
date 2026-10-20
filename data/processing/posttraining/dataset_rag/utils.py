@@ -25,7 +25,7 @@ def load_env_key(name: str, base_dir: Path | None = None) -> str | None:
     return os.environ.get(name)
 
 
-_DEFAULT_LLM_API_URL = "https://chat.lucie.ovh.linagora.com/v1/chat/completions"
+_DEFAULT_LLM_API_URL = "http://localhost:8000/v1/chat/completions"
 _DEFAULT_LLM_MODEL = "Mistral-Small-3.1-24B-Instruct-2503"
 
 LLM_API_URL = load_env_key("LLM_BASE_URL") or _DEFAULT_LLM_API_URL
