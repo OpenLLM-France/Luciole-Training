@@ -22,6 +22,7 @@ from utils import (
 )
 # Shared generation==inference prompt builder (single source of truth).
 from formatting_sft import (
+    CITATION_FORMATS,
     DEFAULT_CITATION_STYLE,
     EOC_PROB,
     _generic_refusal_instruction,
@@ -258,6 +259,8 @@ async def process_row(
     shuffle: bool = True,
     max_remove_background_ratio: float = 0.7,
     contextualize: bool = False,
+    gen_options: dict | None = None,
+    citation_format: str = "markup",
 ) -> dict | None:
     is_unanswerable = row.get("_is_unanswerable", False)
 
@@ -288,7 +291,9 @@ async def process_row(
 
     # Citation placement decided per row (deterministic by id) so the generation
     # prompt matches the inference prompt; formatting reuses this stored value.
-    end_of_completion = random.Random(f"{row['id']}:eoc").random() < EOC_PROB
+    # The ref format is inline only.
+    end_of_completion = (citation_format == "markup"
+                         and random.Random(f"{row['id']}:eoc").random() < EOC_PROB)
     # Answerable AND unanswerable rows are generated with the SAME OpenRAG prompt
     # (generic refusal instruction). On an insufficient context the model is
     # expected to refuse; the verification step keeps only the rows where it did.
@@ -298,11 +303,13 @@ async def process_row(
         style=DEFAULT_CITATION_STYLE,
         end_of_completion=end_of_completion,
         refusal_instruction=_generic_refusal_instruction(language),
+        citation_format=citation_format,
     )
     reasoning = await call_llm(
         session, row["question"], context_str, semaphore,
         api_key=LLM_API_KEY, system_prompt=system_prompt,
         context_in_system=True,
+        **(gen_options or {}),
     )
     # Whether the model actually refused (informational; the filter enforces it).
     grounded_refusal = bool(is_unanswerable and reasoning and detect_refusal(reasoning))
@@ -326,6 +333,7 @@ async def process_row(
         "is_unanswerable": is_unanswerable,
         "grounded_refusal": grounded_refusal,
         "citation_end_of_completion": end_of_completion,
+        "citation_format": citation_format,
         "supporting_facts_titles": sf_titles,
         **chunk_stats,
     }
@@ -344,6 +352,8 @@ async def main(
     contextualize_ratio: float = 0.0,
     unanswerable_partial_hop_ratio: float = 0.0,
     unanswerable_backfill: bool = True,
+    gen_options: dict | None = None,
+    citation_format: str = "markup",
 ):
     if seed is not None:
         random.seed(seed)
@@ -408,6 +418,8 @@ async def main(
                         shuffle=shuffle,
                         max_remove_background_ratio=max_remove_background_ratio,
                         contextualize=flag,
+                        gen_options=gen_options,
+                        citation_format=citation_format,
                     )
                     for row, flag in zip(batch, batch_flags)
                 ]
@@ -462,7 +474,22 @@ if __name__ == "__main__":
     parser.add_argument("--contextualize-ratio", type=float, default=0.0,
                         help="Reserved; must remain 0 because complete HotpotQA source documents are unavailable")
 
+    parser.add_argument("--model", type=str, default=LLM_MODEL,
+                        help=f"Generator model on the endpoint (default: LLM_MODEL from .env, {LLM_MODEL})")
+    parser.add_argument("--max-tokens", type=int, default=1024,
+                        help="Generation max_tokens (reasoning models need room for their thinking too)")
+    parser.add_argument("--timeout", type=int, default=120, help="Per-request timeout in seconds")
+    parser.add_argument("--citation-format", choices=CITATION_FORMATS, default="markup",
+                        help="markup: quote/cite markers, restyled at formatting (inline or References); "
+                             "ref: numbered documents + inline <ref id=\"N\">excerpt</ref>, used as generated")
+    parser.add_argument("--chat-template-kwargs", type=str, default=None,
+                        help='JSON passed as chat_template_kwargs, e.g. \'{"enable_thinking": false}\' for Qwen3')
+
     args = parser.parse_args()
+    gen_options = {"model": args.model, "max_tokens": args.max_tokens, "timeout_seconds": args.timeout}
+    if args.chat_template_kwargs:
+        gen_options["chat_template_kwargs"] = json.loads(args.chat_template_kwargs)
+    log(f"Generator: {gen_options}")
 
     asyncio.run(main(
         limit=args.limit,
@@ -477,4 +504,6 @@ if __name__ == "__main__":
         contextualize_ratio=args.contextualize_ratio,
         unanswerable_partial_hop_ratio=args.unanswerable_partial_hop_ratio,
         unanswerable_backfill=not args.no_unanswerable_backfill,
+        gen_options=gen_options,
+        citation_format=args.citation_format,
     ))

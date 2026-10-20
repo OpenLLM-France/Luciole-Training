@@ -276,6 +276,7 @@ async def call_llm(
     max_tokens: int = 1024,
     debug_http: bool = False,
     context_in_system: bool = False,
+    chat_template_kwargs: dict | None = None,
 ) -> str | None:
     if not api_key:
         raise ValueError("api_key is required for LLM calls (set LLM_API_KEY in .env or environment)")
@@ -299,6 +300,9 @@ async def call_llm(
         "temperature": 0.1,
         "max_tokens": max_tokens,
     }
+    if chat_template_kwargs:
+        # e.g. {"enable_thinking": False} for Qwen3-family generators.
+        payload["chat_template_kwargs"] = chat_template_kwargs
     async with semaphore:
         data = await post_chat_completion(
             session,
@@ -310,7 +314,10 @@ async def call_llm(
             debug_http=debug_http,
         )
         if data is not None:
-            return data["choices"][0]["message"]["content"]
+            # Reasoning models (Qwen) return content=None when max_tokens is hit
+            # mid-thinking, and a leading "\n\n" otherwise.
+            content = (data["choices"][0]["message"].get("content") or "").strip()
+            return content or None
     return None
 
 
@@ -1029,8 +1036,9 @@ async def run_french_quality_judge_ordered(
     api_url: str = LLM_API_URL,
     model: str = LLM_MODEL,
     desc: str = "LLM French quality judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
-    semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT)
+    semaphore = asyncio.Semaphore(concurrency)
     async with aiohttp.ClientSession() as session:
         from tqdm.asyncio import tqdm as atqdm
         tasks = [
@@ -1058,8 +1066,9 @@ async def run_judge_ordered(
     api_url: str = LLM_API_URL,
     model: str = LLM_MODEL,
     desc: str = "LLM judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
-    semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT)
+    semaphore = asyncio.Semaphore(concurrency)
     async with aiohttp.ClientSession() as session:
         from tqdm.asyncio import tqdm as atqdm
         tasks = [
@@ -1090,8 +1099,9 @@ async def run_factual_judge_ordered(
     api_url: str = LLM_API_URL,
     model: str = LLM_MODEL,
     desc: str = "LLM factual judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
-    semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT)
+    semaphore = asyncio.Semaphore(concurrency)
     async with aiohttp.ClientSession() as session:
         from tqdm.asyncio import tqdm as atqdm
         tasks = []
@@ -1127,12 +1137,13 @@ def run_llm_judge(
     api_url: str = LLM_API_URL,
     model: str = LLM_MODEL,
     desc: str = "LLM judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
     """Synchronous wrapper: run the relevance LLM judge on a list of rows."""
     if not api_key:
         raise ValueError("api_key is required for LLM judge (set LLM_API_KEY in .env or environment)")
     print(f"\nRunning LLM-as-a-judge ({model}) on {len(rows)} rows...")
-    return asyncio.run(run_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc))
+    return asyncio.run(run_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc, concurrency=concurrency))
 
 
 def run_factual_judge(
@@ -1143,12 +1154,13 @@ def run_factual_judge(
     api_url: str = LLM_API_URL,
     model: str = LLM_MODEL,
     desc: str = "LLM factual judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
     """Synchronous wrapper: run the factual LLM judge on a list of rows."""
     if not api_key:
         raise ValueError("api_key is required for LLM judge (set LLM_API_KEY in .env or environment)")
     print(f"\nRunning factual LLM-as-a-judge ({model}) on {len(rows)} rows...")
-    return asyncio.run(run_factual_judge_ordered(rows, sf_lookup, api_key=api_key, api_url=api_url, model=model, desc=desc))
+    return asyncio.run(run_factual_judge_ordered(rows, sf_lookup, api_key=api_key, api_url=api_url, model=model, desc=desc, concurrency=concurrency))
 
 
 def run_french_quality_judge(
@@ -1158,12 +1170,13 @@ def run_french_quality_judge(
     api_url: str = LLM_API_URL,
     model: str = LLM_MODEL,
     desc: str = "LLM French quality judge",
+    concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
     """Synchronous wrapper: run the French quality LLM judge on a list of rows."""
     if not api_key:
         raise ValueError("api_key is required for LLM judge (set LLM_API_KEY in .env or environment)")
     print(f"\nRunning French quality LLM-as-a-judge ({model}) on {len(rows)} rows...")
-    return asyncio.run(run_french_quality_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc))
+    return asyncio.run(run_french_quality_judge_ordered(rows, api_key=api_key, api_url=api_url, model=model, desc=desc, concurrency=concurrency))
 
 
 def _build_refusal_judge_user_prompt(question: str, context: str, reasoning: str) -> str:
@@ -1273,11 +1286,15 @@ def filter_row(row: dict, *, french_quality_threshold: int = 5, require_answer_m
       - eval_chunk_f1 must be 1.0   (requires --eval-chunks)
       - eval_factual_judge_score must be 5  (requires --llm-judge-factual or --llm-judge-factual-openrouter)
       - eval_french_quality_judge_score must be >= french_quality_threshold, default 5 (requires --llm-judge-french-quality)
+      - eval_ref_invalid must be 0 (ref citation format: every <ref id="N"> excerpt verbatim
+        in document N, no stray markup); checked on unanswerable rows too
 
     Unanswerable rows are kept only if the model actually refused
     (``eval_model_refused`` is True); rows where it hallucinated an answer on the
     insufficient context are dropped. Legacy rows without the field are kept.
     """
+    if row.get("eval_ref_invalid"):
+        return False
     if row.get("is_unanswerable", False):
         return row.get("eval_model_refused", True) is not False
     if require_answer_match and not row.get("eval_answer_correct"):

@@ -321,6 +321,7 @@ def _refusal_instruction(refusal: str, language: str) -> str:
 
 def _build_refusal_completion(
     row: dict, refusal: str, language: str, style: CitationStyle, end_of_completion: bool,
+    citation_format: str = "markup",
 ) -> str:
     """Completion for a generic (non-strict) unanswerable row.
 
@@ -330,8 +331,11 @@ def _build_refusal_completion(
     an empty trace falls back to the bare phrase. No "Final Answer" marker is used.
     """
     trace = (row.get("reasoning_trace") or "").strip()
-    trace = _strip_final_answer_line(normalize_cite_markers(trace))
-    trace = apply_citation_style(trace, style, end_of_completion, language)
+    if citation_format == "ref":
+        trace = _strip_final_answer_line(trace)
+    else:
+        trace = _strip_final_answer_line(normalize_cite_markers(trace))
+        trace = apply_citation_style(trace, style, end_of_completion, language)
     if not trace:
         return refusal
     if detect_refusal(trace):
@@ -496,6 +500,91 @@ def _pick_style(rng, fixed_style: CitationStyle | None = None) -> CitationStyle:
 CITATION_STYLES_BY_NAME = {s.name: s for s in CITATION_STYLES}
 
 
+# Numbered-reference citation format: context chunks are numbered ("[N] filename:")
+# and each verbatim excerpt is wrapped inline in a single tag pointing at its chunk
+# number. One tag binds excerpt and source, the excerpt is checkable against the
+# cited chunk, and a References list can be derived from the ids by the front-end.
+REF_TEMPLATE = '<ref id="{id}">{excerpt}</ref>'
+
+REF_CITATION_INSTRUCTION = {
+    "en": (
+        "When quoting from the context, wrap each excerpt inline with `<ref id=\"N\">excerpt</ref>`, "
+        "where `N` is the number of the cited document (the `[N]` before its filename) "
+        "and `excerpt` is copied verbatim from that document."
+    ),
+    "fr": (
+        "Lorsque vous citez le contexte, encadrez chaque extrait en ligne avec `<ref id=\"N\">extrait</ref>`, "
+        "où `N` est le numéro du document cité (le `[N]` devant son nom de fichier) "
+        "et `extrait` est recopié mot pour mot depuis ce document."
+    ),
+}
+
+# The first chunk follows the opening backtick of the context on the same line.
+_CHUNK_HEADER_RE = re.compile(r"(?:^|(?<=`))\* filename: ", re.MULTILINE)
+
+
+def number_context_chunks(context: str) -> str:
+    """Replace each chunk's ``* filename:`` header with ``[N] filename:`` (1-based, in order)."""
+    counter = iter(range(1, 10**6))
+    return _CHUNK_HEADER_RE.sub(lambda _: f"[{next(counter)}] filename: ", context)
+
+
+# Citation format of a row, chosen at generation and stored in the row
+# (``citation_format``) so formatting builds the same prompt. "markup" = quote +
+# cite markers restyled at formatting (4 styles, inline or References section);
+# "ref" = numbered documents + inline <ref id="N"> tags, never restyled.
+CITATION_FORMATS = ("markup", "ref")
+
+_REF_RE = re.compile(r'<ref id="(\d+)">(.*?)</ref>', re.DOTALL)
+# Left over once the valid <ref> tags are removed, any of these means a malformed
+# tag or a citation written in another format.
+_STRAY_CITATION_RE = re.compile(
+    r"</?ref\b|##Cite|##begin_quote##|##end_quote##|<<quote>>|<<cite:|<quote>|<cite>|\[QUOTE\]|\[Source:"
+)
+_CHUNK_TITLE_RE = re.compile(r"^\* filename: (.*)$", re.MULTILINE)
+
+
+def row_citation_format(row: dict) -> str:
+    """Citation format stored at generation; rows predating the field are "markup"."""
+    return row.get("citation_format") or "markup"
+
+
+def numbered_context_chunks(context: str) -> list[tuple[str | None, str]]:
+    """(title, chunk text) per context chunk, in the order number_context_chunks numbers them."""
+    chunks = []
+    for chunk in reformat_context_chunks(context).split(CONTEXT_SEPARATOR):
+        title = _CHUNK_TITLE_RE.search(chunk)
+        chunks.append((title.group(1).strip() if title else None, chunk))
+    return chunks
+
+
+def parse_ref_citations(answer: str, context: str) -> tuple[list[str], int, int]:
+    """Return (cited titles in first-seen order, number of <ref> tags, number of invalid ones).
+
+    A tag is invalid when its id is not a document number, its excerpt is empty,
+    or the excerpt is not verbatim (up to whitespace) in document N. Each stray
+    ``<ref``/``</ref>`` or citation markup of another format also counts as invalid.
+    """
+    def ws(text: str) -> str:
+        return re.sub(r"\s+", " ", text).strip()
+
+    chunks = numbered_context_chunks(context)
+    titles: list[str] = []
+    invalid = 0
+    refs = list(_REF_RE.finditer(answer))
+    for ref in refs:
+        n = int(ref.group(1))
+        excerpt = ws(ref.group(2))
+        if not 1 <= n <= len(chunks) or not excerpt or excerpt not in ws(chunks[n - 1][1]):
+            invalid += 1
+            continue
+        title = chunks[n - 1][0]
+        if title and title not in titles:
+            titles.append(title)
+    invalid += len(_STRAY_CITATION_RE.findall(_REF_RE.sub("", answer)))
+    return titles, len(refs), invalid
+
+
 def _resolve_end_of_completion(row: dict, rng) -> bool:
     """Citation placement (inline vs trailing References section).
 
@@ -520,25 +609,52 @@ def build_chat_system_prompt(
     style: CitationStyle,
     end_of_completion: bool,
     refusal_instruction: str,
+    citation_format: str = "markup",
 ) -> str:
     """Build the OpenRAG chat system prompt shared by generation and inference.
 
     Single source of truth for the prompt the model is conditioned on: the augment
     scripts call this (with DEFAULT_CITATION_STYLE) to generate each trace, and
     formatting calls it to build the training example's system message.
+
+    With ``citation_format="ref"`` the documents are numbered and the citation
+    rule is REF_CITATION_INSTRUCTION; *style* and *end_of_completion* are ignored.
     """
     template = {"en": CHAT_SYSTEM_PROMPT, "fr": CHAT_SYSTEM_PROMPT_FR}.get(language, CHAT_SYSTEM_PROMPT)
-    instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
-    return template.format(
+    citation_instruction = _citation_instruction(language, style, end_of_completion, citation_format)
+    prompt = template.format(
         context=reformat_context_chunks(context),
-        citation_instruction=instruction_dict.get(language, instruction_dict["en"]),
+        citation_instruction=citation_instruction,
         refusal_instruction=refusal_instruction,
     )
+    return _number_if_ref(prompt, citation_format)
 
 
-def _assistant_answer(row: dict, style: CitationStyle, end_of_completion: bool, language: str) -> str:
-    """Answer target: the generated trace, restyled, without a Final Answer line."""
-    trace = _strip_final_answer_line(normalize_cite_markers(row["reasoning_trace"]))
+def _citation_instruction(language: str, style: CitationStyle, end_of_completion: bool,
+                          citation_format: str) -> str:
+    if citation_format == "ref":
+        return REF_CITATION_INSTRUCTION.get(language, REF_CITATION_INSTRUCTION["en"])
+    instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
+    return instruction_dict.get(language, instruction_dict["en"])
+
+
+def _number_if_ref(prompt: str, citation_format: str) -> str:
+    """Number the documents of a ref-format prompt (they need ``* filename:`` headers)."""
+    if citation_format != "ref":
+        return prompt
+    numbered = number_context_chunks(prompt)
+    if "[1] filename: " not in numbered:
+        raise ValueError("ref citation format needs OpenRAG '* filename:' context chunks")
+    return numbered
+
+
+def _assistant_answer(row: dict, style: CitationStyle, end_of_completion: bool,
+                      language: str, citation_format: str) -> str:
+    """Answer target: ref traces are used as generated, markup traces are restyled."""
+    trace = row["reasoning_trace"]
+    if citation_format == "ref":
+        return _strip_final_answer_line(trace.strip())
+    trace = _strip_final_answer_line(normalize_cite_markers(trace))
     return apply_citation_style(trace, style, end_of_completion, language)
 
 
@@ -565,13 +681,13 @@ def convert_row(
     if rng is None:
         rng = random
 
+    citation_format = row_citation_format(row)
     style = _pick_style(rng, fixed_style)
     end_of_completion = _resolve_end_of_completion(row, rng)
     system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
     is_unanswerable = row.get("is_unanswerable", False)
 
-    instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
-    citation_instruction = instruction_dict.get(system_lang, instruction_dict["en"])
+    citation_instruction = _citation_instruction(system_lang, style, end_of_completion, citation_format)
 
     # Refusal phrase stays in data language (assistant must reply in that language);
     # the wrapping rule text follows system_lang.
@@ -583,9 +699,9 @@ def convert_row(
     if is_unanswerable and specific_refusal_instruction:
         completion = refusal
     elif is_unanswerable:
-        completion = _build_refusal_completion(row, refusal, language, style, end_of_completion)
+        completion = _build_refusal_completion(row, refusal, language, style, end_of_completion, citation_format)
     else:
-        completion = _assistant_answer(row, style, end_of_completion, language)
+        completion = _assistant_answer(row, style, end_of_completion, language, citation_format)
 
     if specific_refusal_instruction:
         refusal_instruction = _refusal_instruction(refusal, system_lang)
@@ -599,6 +715,7 @@ def convert_row(
         citation_instruction=citation_instruction,
         refusal_instruction=refusal_instruction,
     )
+    prompt = _number_if_ref(prompt, citation_format)
 
     result = {
         "prompt": prompt,
@@ -619,13 +736,14 @@ def convert_row(
         "eval_cited_titles", "eval_chunk_precision", "eval_chunk_recall", "eval_chunk_f1",
         "eval_factual_judge_score", "eval_factual_judge_justification",
         "eval_french_quality_judge_score", "eval_french_quality_judge_justification",
+        "eval_ref_count", "eval_ref_invalid",
     ]
     for field in metadata_fields:
         if field in row:
             result[field] = row[field]
 
     # Citation variation metadata
-    result["citation_style"] = style.name
+    result["citation_style"] = "ref" if citation_format == "ref" else style.name
     result["end_of_completion_citations"] = end_of_completion
     result["system_prompt_language"] = system_lang
     result["specific_refusal_instruction"] = specific_refusal_instruction
@@ -710,6 +828,7 @@ def convert_to_chat_format(
         "eval_cited_titles", "eval_chunk_precision", "eval_chunk_recall", "eval_chunk_f1",
         "eval_factual_judge_score", "eval_factual_judge_justification",
         "eval_french_quality_judge_score", "eval_french_quality_judge_justification",
+        "eval_ref_count", "eval_ref_invalid",
     ]
 
     with open(input_file, "r") as f_in, open(output_file, "w", encoding="utf-8") as f_out:
@@ -718,6 +837,7 @@ def convert_to_chat_format(
             row = json.loads(line)
 
             try:
+                citation_format = row_citation_format(row)
                 style = _pick_style(rng, fixed_style)
                 end_of_completion = _resolve_end_of_completion(row, rng)
                 system_lang = _pick_system_lang(rng, language, mixed_system_prompt)
@@ -732,11 +852,11 @@ def convert_to_chat_format(
                     assistant_content = refusal
                 elif is_unanswerable:
                     assistant_content = _build_refusal_completion(
-                        row, refusal, language, style, end_of_completion
+                        row, refusal, language, style, end_of_completion, citation_format
                     )
                 else:
                     assistant_content = _assistant_answer(
-                        row, style, end_of_completion, language
+                        row, style, end_of_completion, language, citation_format
                     )
 
                 if specific_refusal_instruction:
@@ -750,6 +870,7 @@ def convert_to_chat_format(
                     style=style,
                     end_of_completion=end_of_completion,
                     refusal_instruction=refusal_instruction,
+                    citation_format=citation_format,
                 )
 
                 chat_row = {
@@ -764,7 +885,7 @@ def convert_to_chat_format(
                     for field in metadata_fields:
                         if field in row:
                             chat_row[field] = row[field]
-                    chat_row["citation_style"] = style.name
+                    chat_row["citation_style"] = "ref" if citation_format == "ref" else style.name
                     chat_row["end_of_completion_citations"] = end_of_completion
                     chat_row["system_prompt_language"] = system_lang
                     chat_row["specific_refusal_instruction"] = specific_refusal_instruction
@@ -838,7 +959,8 @@ def main():
     parser.add_argument("--citation-style", type=str, choices=list(CITATION_STYLES_BY_NAME), default=None,
                         help="Use this single citation markup style for every row instead of a random one. "
                              "Placement (inline vs References) still follows the per-row stored value, and "
-                             "the rng stream is unchanged, so only the markup differs from a randomized run.")
+                             "the rng stream is unchanged, so only the markup differs from a randomized run. "
+                             "Rows generated in the ref format (citation_format=ref) are never restyled.")
 
     args = parser.parse_args()
 

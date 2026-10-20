@@ -36,6 +36,8 @@ from utils import (
     run_refusal_judge,
 )
 
+from formatting_sft import parse_ref_citations, row_citation_format
+
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
 
 # OpenRouter configuration
@@ -151,7 +153,9 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
              llm_judge_factual_openrouter: bool = False,
              llm_judge_french_quality: bool = False,
              llm_judge_refusal: bool = False,
-             no_answer_match: bool = False) -> dict:
+             no_answer_match: bool = False,
+             judge_model: str = LLM_MODEL,
+             judge_concurrency: int = LLM_MAX_CONCURRENT) -> dict:
     """Evaluate all entries in the augmented dataset."""
     stats = defaultdict(int)
     stats_by_type = defaultdict(lambda: {"correct": 0, "total": 0})
@@ -163,22 +167,24 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         for line in f:
             rows.append(json.loads(line))
 
-    judge_results = _collect_judge_results(rows, llm_judge, run_llm_judge, api_key=LLM_API_KEY)
+    # Endpoint judges (not the OpenRouter ones) share the model and the concurrency cap.
+    judge_kwargs = {"api_key": LLM_API_KEY, "model": judge_model, "concurrency": judge_concurrency}
+    judge_results = _collect_judge_results(rows, llm_judge, run_llm_judge, **judge_kwargs)
     judge_stats: defaultdict = defaultdict(float)
-    factual_judge_results = _collect_judge_results(rows, llm_judge_factual, run_factual_judge, sf_lookup={}, api_key=LLM_API_KEY)
+    factual_judge_results = _collect_judge_results(rows, llm_judge_factual, run_factual_judge, sf_lookup={}, **judge_kwargs)
     factual_judge_stats: defaultdict = defaultdict(float)
     or_judge_results = _collect_judge_results(rows, llm_judge_openrouter, run_llm_judge_openrouter)
     or_judge_stats: defaultdict = defaultdict(float)
     or_factual_judge_results = _collect_judge_results(rows, llm_judge_factual_openrouter, run_factual_judge_openrouter, sf_lookup={})
     or_factual_judge_stats: defaultdict = defaultdict(float)
-    french_quality_judge_results = _collect_judge_results(rows, llm_judge_french_quality, run_french_quality_judge, api_key=LLM_API_KEY)
+    french_quality_judge_results = _collect_judge_results(rows, llm_judge_french_quality, run_french_quality_judge, **judge_kwargs)
     french_quality_judge_stats: defaultdict = defaultdict(float)
 
     # Refusal judge runs on UNANSWERABLE rows only (opposite of the other judges).
     refusal_judge_results: list[dict | None] = [None] * len(rows)
     if llm_judge_refusal:
         unans_indices = [i for i, r in enumerate(rows) if r.get("is_unanswerable", False)]
-        raw_refusal = run_refusal_judge([rows[i] for i in unans_indices], api_key=LLM_API_KEY)
+        raw_refusal = run_refusal_judge([rows[i] for i in unans_indices], **judge_kwargs)
         for idx, jr in zip(unans_indices, raw_refusal):
             refusal_judge_results[idx] = jr
     refusal_judge_stats: defaultdict = defaultdict(float)
@@ -228,8 +234,20 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         chunk_recall = None
         chunk_f1 = None
 
+        # Ref-format rows: every <ref id="N"> must point at a document whose text
+        # holds the excerpt verbatim; refusals are checked too (they may quote).
+        ref_count = ref_invalid = None
+        is_ref = row_citation_format(row) == "ref"
+        if is_ref:
+            ref_titles, ref_count, ref_invalid = parse_ref_citations(reasoning, row.get("context", ""))
+            stats["ref_rows"] += 1
+            stats["ref_tags"] += ref_count
+            stats["ref_tags_invalid"] += ref_invalid
+            if ref_invalid:
+                stats["ref_rows_invalid"] += 1
+
         if eval_chunks and not is_unanswerable:
-            cited_titles = extract_cited_titles(reasoning)
+            cited_titles = ref_titles if is_ref else extract_cited_titles(reasoning)
             expected_titles = row.get("supporting_facts_titles", [])
             chunk_precision, chunk_recall = evaluate_chunk_citations(cited_titles, expected_titles)
 
@@ -274,6 +292,9 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
             enriched["eval_model_refused"] = model_refused
             if refusal_judge_justification is not None:
                 enriched["eval_refusal_judge_justification"] = refusal_judge_justification
+        if is_ref:
+            enriched["eval_ref_count"] = ref_count
+            enriched["eval_ref_invalid"] = ref_invalid
         if eval_chunks and not is_unanswerable:
             enriched["eval_cited_titles"] = cited_titles
             enriched["eval_chunk_precision"] = chunk_precision
@@ -373,6 +394,13 @@ def print_report(eval_data: dict):
     print(f"   Correct:   {correct}")
     print(f"   Incorrect: {stats.get('incorrect', 0)}")
     print(f"   Accuracy:  {accuracy:.1f}%")
+
+    if stats.get("ref_rows"):
+        print(f"\nREF CITATIONS (<ref id=\"N\">, verbatim excerpt in document N)")
+        print(f"   Rows:            {stats['ref_rows']}")
+        print(f"   Tags:            {stats.get('ref_tags', 0)}")
+        print(f"   Invalid tags:    {stats.get('ref_tags_invalid', 0)}")
+        print(f"   Rows w/ invalid: {stats.get('ref_rows_invalid', 0)} (dropped by --filter)")
 
     print(f"\nMATCH TYPES")
     print(f"   Exact matches:   {stats.get('match_exact', 0)}")
@@ -474,6 +502,10 @@ def main():
                         help="Filter each row independently. By default an unanswerable row and the "
                              "answerable row it was cloned from survive the filter together or not at "
                              "all, so every refusal keeps the minimal pair it was built to form.")
+    parser.add_argument("--judge-model", type=str, default=LLM_MODEL,
+                        help=f"Model for the endpoint judges (default: LLM_MODEL from .env, {LLM_MODEL})")
+    parser.add_argument("--judge-concurrency", type=int, default=LLM_MAX_CONCURRENT,
+                        help=f"Concurrent judge calls (default: {LLM_MAX_CONCURRENT}); judges run one after another")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
@@ -488,7 +520,9 @@ def main():
                          llm_judge_factual_openrouter=args.llm_judge_factual_openrouter,
                          llm_judge_french_quality=args.llm_judge_french_quality,
                          llm_judge_refusal=args.llm_judge_refusal,
-                         no_answer_match=args.no_answer_match)
+                         no_answer_match=args.no_answer_match,
+                         judge_model=args.judge_model,
+                         judge_concurrency=args.judge_concurrency)
     print_report(eval_data)
 
     with open(args.output, "w", encoding="utf-8") as f:

@@ -1,4 +1,9 @@
 aiohttp
 datasets<4.0.0
+huggingface_hub
 rank-bm25
 tqdm
+# convert_hotpotqa_fr_abstracts.py: token-length filter (Luciole tokenizer)
+transformers
+# optional: hybrid dense+BM25 distractor ranking (--dense-model)
+# sentence-transformers

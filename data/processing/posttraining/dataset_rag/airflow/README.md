@@ -7,6 +7,7 @@ orchestration, retries and logs.
 |---|---|
 | `dataset_rag_hotpotqa_en` | augment → evaluate/filter → formatting_sft |
 | `dataset_rag_hotpotqa_fr` | augment (FR) → evaluate/filter (+ French quality judge) → formatting_sft |
+| `dataset_rag_hotpotqa_fr_abstracts` | convert (`Mvanypersele/hotpotqa-fr-abstracts`, length filter) → augment → evaluate/filter (+ French quality judge) → formatting_sft |
 | `dataset_rag_tatqa` | convert (distractors) → augment → evaluate/filter → formatting_sft |
 | `dataset_rag_frenchqa_piaf` | convert → augment → evaluate/filter → formatting_sft (`--mixed-system-prompt`) |
 | `dataset_rag_dpo_prompts`, `dataset_rag_dpo_delta` | DPO preference data, see [DPO.md](DPO.md) |
@@ -63,6 +64,13 @@ Common parameters:
 
 Dataset parameters: `dataset_cache` (HotpotQA), `input_json`, `num_distractors`, `distractor_start_rank`
 (TAT-QA / multilingual).
+
+Models (HotpotQA DAGs): `gen_model`, `gen_max_tokens`, `gen_timeout`, `gen_chat_template_kwargs` (JSON, e.g.
+`{"enable_thinking": false}`), `gen_concurrency`, `judge_model`, `judge_concurrency`.
+An empty model means `LLM_MODEL` from `.env`. Judges run one after the other, so `judge_concurrency` is the peak load
+on the judge model. `dataset_rag_hotpotqa_fr_abstracts` adds `hf_config`, `hf_split`, `hf_revision` (empty = latest
+commit, logged in `*_convert_stats.json`), `max_seq_length` (8192) and `reserve_tokens` (1536); its convert task
+needs the Luciole tokenizer (`HF_TOKEN` or a local copy via `tokenizer`).
 
 `contextualize_ratio` (TAT-QA only, default 0.3): each retrieved chunk of a drawn row is mapped back to its source
 financial report and gets an OpenRAG `[CONTEXT]` summary built from the first two chunks of the report, its two

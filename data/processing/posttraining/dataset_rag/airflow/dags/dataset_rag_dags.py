@@ -7,6 +7,8 @@ stays in the scripts and Airflow only handles orchestration, retries and logs.
 Pipelines:
   - dataset_rag_hotpotqa_en : augment -> evaluate/filter -> formatting_sft
   - dataset_rag_hotpotqa_fr : idem, prompts FR + juge qualité FR
+  - dataset_rag_hotpotqa_fr_abstracts : convert (Mvanypersele/hotpotqa-fr-abstracts)
+                                -> idem FR ; générateur Qwen3.8-27B, juges Mistral à 6
   - dataset_rag_tatqa       : convert -> augment -> evaluate/filter -> formatting_sft
   - dataset_rag_frenchqa_piaf : convert multilingual -> augment -> evaluate/filter
                                 -> formatting_sft (--mixed-system-prompt)
@@ -107,6 +109,33 @@ DEFAULT_PARAMS = {
 
 CONTEXTUALIZE_OPT = "--contextualize-ratio {{ params.contextualize_ratio }}"
 
+# Generator / judge models (HotpotQA DAGs). Empty model = LLM_MODEL from .env.
+# Judges run one after another, so judge_concurrency is the peak load on the
+# judge model (Mistral: 12 concurrent calls max across all jobs).
+LLM_PARAMS = {
+    "gen_model": "",
+    "gen_max_tokens": 1024,
+    "gen_timeout": 120,
+    # JSON for chat_template_kwargs, e.g. {"enable_thinking": false} for Qwen3.
+    "gen_chat_template_kwargs": "",
+    "gen_concurrency": 10,
+    "judge_model": "",
+    "judge_concurrency": 10,
+}
+
+GEN_OPTS = (
+    "--concurrency {{ params.gen_concurrency }}"
+    " --max-tokens {{ params.gen_max_tokens }} --timeout {{ params.gen_timeout }}"
+    "{% if params.gen_model %} --model {{ params.gen_model }}{% endif %}"
+    "{% if params.gen_chat_template_kwargs %}"
+    " --chat-template-kwargs '{{ params.gen_chat_template_kwargs }}'{% endif %}"
+)
+
+JUDGE_OPTS = (
+    "--judge-concurrency {{ params.judge_concurrency }}"
+    "{% if params.judge_model %} --judge-model {{ params.judge_model }}{% endif %}"
+)
+
 # Mixed-difficulty distractor selection (converters). Empty distractor_mix
 # falls back to the legacy BM25 start-rank behaviour.
 MIX_PARAMS = {
@@ -171,10 +200,34 @@ def _formatting_output(input_path: str) -> str:
     return input_path.removesuffix(".jsonl") + "_{{ params.sft_format }}.jsonl"
 
 
-def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
+def build_hotpotqa_dag(
+    dag_id: str,
+    language: str,
+    dataset_cache: str,
+    *,
+    abstracts_convert: bool = False,
+    param_overrides: dict | None = None,
+) -> DAG:
+    """HotpotQA pipeline; ``abstracts_convert`` prepends the hotpotqa-fr-abstracts
+    conversion, whose output then replaces ``dataset_cache``."""
+    steps = "convert -> " if abstracts_convert else ""
+    extra_params = {}
+    if abstracts_convert:
+        extra_params = {
+            "hf_config": "filtered_qwen_v2",
+            "hf_split": "train",
+            # "" = latest commit, resolved and logged by the convert task.
+            "hf_revision": "",
+            # Rows whose documents cannot fit this training budget are dropped.
+            "max_seq_length": 8192,
+            "reserve_tokens": 1536,
+            # HF id or local dir. The Luciole repo is private: on hosts without
+            # HF_TOKEN, point this at a local copy of the tokenizer.
+            "tokenizer": "OpenLLM-France/Luciole-1B-SFT-1.1",
+        }
     dag = DAG(
         dag_id=dag_id,
-        description=f"HotpotQA {language.upper()}: augment -> evaluate/filter -> SFT format",
+        description=f"HotpotQA {language.upper()}: {steps}augment -> evaluate/filter -> SFT format",
         schedule=None,
         catchup=False,
         default_args=DEFAULT_ARGS,
@@ -188,22 +241,44 @@ def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
             # answerable row it was cloned from, which roughly halves the
             # yield. 0.22 keeps the ~11% final refusal share, matching tatqa.
             "unanswerable_ratio": 0.22,
+            **LLM_PARAMS,
+            **extra_params,
+            **(param_overrides or {}),
         },
         tags=[*BASE_TAGS, "hotpotqa", language],
     )
 
     prefix = f'"$WORKDIR"/hotpotqa_{language}_augmented'
+    dataset_arg = '"{{ params.dataset_cache }}"'
+
+    convert = None
+    if abstracts_convert:
+        converted = f'"$WORKDIR"/hotpotqa_{language}_converted.jsonl'
+        dataset_arg = converted
+        # Local only (HF download + tokenizer), no LLM call => no pool.
+        convert = _bash(
+            dag,
+            "convert",
+            f"{PYTHON} convert_hotpotqa_fr_abstracts.py"
+            " --config {{ params.hf_config }} --split {{ params.hf_split }}"
+            "{% if params.hf_revision %} --revision {{ params.hf_revision }}{% endif %}"
+            " --max-seq-length {{ params.max_seq_length }}"
+            " --reserve-tokens {{ params.reserve_tokens }}"
+            ' --tokenizer "{{ params.tokenizer }}"'
+            f" --output {converted}",
+            required_outputs=(converted,),
+        )
 
     augment = _bash(
         dag,
         "augment",
         f"{PYTHON} augment_hotpotqa.py"
-        ' --dataset "{{ params.dataset_cache }}"'
+        f" --dataset {dataset_arg}"
         f" --language {language}"
         f" --output {prefix}"
         " --unanswerable-partial-hop-ratio {{ params.partial_hop_ratio }}"
         " --unanswerable-ratio {{ params.unanswerable_ratio }}"
-        f" {SEED_OPT} {LIMIT_OPT}",
+        f" {GEN_OPTS} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}.jsonl",),
     )
@@ -218,6 +293,7 @@ def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
         f" --input {prefix}.jsonl"
         f" --output {prefix}_evaluated.jsonl"
         f" --eval-chunks --llm-judge-factual{judge_fr} --llm-judge-refusal --no-answer-match --filter"
+        f" {JUDGE_OPTS}"
         f" --export {prefix}_stats.json",
         llm=True,
         required_outputs=(
@@ -236,6 +312,8 @@ def build_hotpotqa_dag(dag_id: str, language: str, dataset_cache: str) -> DAG:
         ),
     )
 
+    if convert is not None:
+        convert >> augment
     augment >> evaluate >> formatting
     return dag
 
@@ -413,6 +491,20 @@ hotpotqa_en = build_hotpotqa_dag(
 # Le cache FR actuel est en .bak sur le disque ; ajustable via le param dataset_cache.
 hotpotqa_fr = build_hotpotqa_dag(
     "dataset_rag_hotpotqa_fr", "fr", str(BASE_DIR / "hotpotqa_french_cache_train.bak")
+)
+# HotpotQA-fr natif (abstracts Wikipédia FR, sans traduction). Générateur
+# Qwen3.8-27B sans raisonnement ; juges Mistral bridés à 6 appels concurrents.
+hotpotqa_fr_abstracts = build_hotpotqa_dag(
+    "dataset_rag_hotpotqa_fr_abstracts", "fr", "",
+    abstracts_convert=True,
+    param_overrides={
+        "gen_model": "Qwen3.8-27B",
+        "gen_max_tokens": 2048,
+        "gen_timeout": 300,
+        "gen_chat_template_kwargs": '{"enable_thinking": false}',
+        "judge_model": "Mistral-Small-3.2-24B-Instruct-2506-FP8",
+        "judge_concurrency": 6,
+    },
 )
 tatqa = build_tatqa_dag()
 frenchqa_piaf = build_multilingual_dag(
