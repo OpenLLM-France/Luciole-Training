@@ -359,7 +359,7 @@ task_group_mapping = {
     "safety_presupposition": [
         ("community|harmbench_contextual:_average|0", "safety_rate_llama_guard"),
         ("community|hexphi:_average|0", "safety_rate_llama_guard"),
-        ("community|wildjailbreak|0", "refusal_rate"),
+        ("community|wildjailbreak|0", "safety_rate"),
         ("community|redteaching:false_premise|0", "refusal"),
         ("community|pcbench:active|0", "recognition"),
         ("community|falseqa:false_premise|0", "handled_correctly"),
@@ -523,6 +523,9 @@ def get_training_tokens_and_model_size(file_path):
     elif "salamandra-7b" in str(file_path):
         tokens = 12_875
         model_size = 7.768_117_248
+    elif "ALIA-40b" in str(file_path):
+        tokens = 9_830
+        model_size = 40
     elif "Teuken-7B" in str(file_path):
         tokens = 6_000
         model_size = 7.0
