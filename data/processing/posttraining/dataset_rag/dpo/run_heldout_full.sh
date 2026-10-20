@@ -7,7 +7,7 @@
 set -uo pipefail
 RAG_ROOT="${RAG_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$RAG_ROOT"
-source .venv/bin/activate
+source "${DPO_VENV:-.venv}/bin/activate"
 DIR="${DIR:-dpo/data/heldout_full_sft4152}"
 POLICY="${POLICY:-models/sft_newrag_step4152}"
 KEY="$RAG_ROOT/.judge_key"

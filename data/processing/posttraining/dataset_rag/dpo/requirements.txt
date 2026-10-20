@@ -1,0 +1,12 @@
+# DPO environment (sampling clients, pair building, judging, release): a separate
+# virtualenv from the data pipeline (requirements.txt pins datasets<4). Versions of the
+# environment the paper runs used (Python 3.13). Launchers activate ${DPO_VENV:-.venv}.
+aiohttp==3.14.1
+datasets==5.0.0
+huggingface_hub==1.20.1
+numpy==2.5.0
+pandas==3.0.3
+pyarrow==24.0.0
+tokenizers==0.22.2
+tqdm==4.68.3
+transformers==5.12.1

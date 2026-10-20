@@ -8,7 +8,7 @@
 set -uo pipefail
 RAG_ROOT="${RAG_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$RAG_ROOT"
-source .venv/bin/activate
+source "${DPO_VENV:-.venv}/bin/activate"
 
 POLICY="$RAG_ROOT/${POLICY:?POLICY=models/<modèle>}"
 DIR="${DIR:?DIR=dpo/data/<pilote>}"

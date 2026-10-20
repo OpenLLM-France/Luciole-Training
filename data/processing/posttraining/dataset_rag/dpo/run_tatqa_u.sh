@@ -10,7 +10,7 @@
 set -uo pipefail
 RAG_ROOT="${RAG_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$RAG_ROOT"
-source .venv/bin/activate
+source "${DPO_VENV:-.venv}/bin/activate"
 ALL=dpo/data/heldout_tatqa_sft4152
 U=dpo/data/heldout_tatqa_u_sft4152
 G=dpo/data/heldout_tatqa_generic_sft4152
