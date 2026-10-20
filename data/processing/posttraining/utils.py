@@ -1,5 +1,7 @@
 import os
+import json
 import importlib.util
+from functools import cached_property
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
@@ -150,17 +152,133 @@ class NemoRLFormat(BaseFilter):
     name = "🐟 Nemo RL Format"
 
     def __init__(
-        self, message_fields="messages", exclusion_writer: DiskWriter = None
+        self,
+        message_fields="messages",
+        original_suffix: str | None = "_original",
+        exclusion_writer: DiskWriter = None,
     ):
+        """
+        original_suffix: if set, the pre-conversion (nested) messages of each field
+            are saved with json.dumps in ``metadata[f"{field}{original_suffix}"]``.
+            Set to None to disable.
+        """
         super().__init__(exclusion_writer)
         if isinstance(message_fields, str):
             message_fields = [message_fields]
         self.message_fields = message_fields
+        self.original_suffix = original_suffix
 
     def filter(self, doc: Document) -> bool:
         for message_key in self.message_fields:
             if message_key not in doc.metadata:
                 return False, f"missing_{message_key}"
+            if self.original_suffix:
+                doc.metadata[f"{message_key}{self.original_suffix}"] = json.dumps(
+                    doc.metadata[message_key], ensure_ascii=False
+                )
             doc.metadata[message_key] = nemo_rl_format_messages(doc.metadata[message_key])
         return True
 
+
+TOKEN_COUNT_BUCKETS = [
+    (2**12, "0-4k"),
+    (2**13, "4k-8k"),
+    (2**14, "8k-16k"),
+    (2**15, "16k-32k"),
+    (2**16, "32k-65k"),
+    (2**17, "65k-131k"),
+]
+
+
+def token_count_label(token_count: int) -> str:
+    for upper, label in TOKEN_COUNT_BUCKETS:
+        if token_count < upper:
+            return label
+    return "131k+"
+
+
+class ChatTokenCount(BaseFilter):
+    """Apply the chat template and count tokens (total and assistant turns).
+
+    Saves ``metadata["token_count"]`` (whole rendered conversation) and
+    ``metadata["assistant_token_count"]`` (tokens inside the template's
+    ``{% generation %}`` blocks, i.e. the trained-on tokens), plus
+    ``metadata["token_count_label"]`` (see ``token_count_label``). Documents are kept
+    unless one of the optional bounds is set and violated.
+
+    chat_template_kwargs: extra arguments passed to ``tokenizer.apply_chat_template``
+        (e.g. ``{"enable_thinking": False}``).
+    tools_key: if set, ``metadata[tools_key]`` (list or JSON string) is passed as
+        ``tools``.
+    """
+
+    name = "🔢 Chat Token Count"
+
+    def __init__(
+        self,
+        tokenizer_name_or_path: str,
+        messages_key: str = "messages",
+        tools_key: str | None = None,
+        chat_template_kwargs: dict | None = None,
+        max_tokens: int | None = None,
+        min_assistant_tokens: int | None = None,
+        exclusion_writer: DiskWriter = None,
+    ):
+        super().__init__(exclusion_writer)
+        self.tokenizer_name_or_path = tokenizer_name_or_path
+        self.messages_key = messages_key
+        self.tools_key = tools_key
+        self.chat_template_kwargs = chat_template_kwargs or {}
+        self.max_tokens = max_tokens
+        self.min_assistant_tokens = min_assistant_tokens
+
+    @cached_property
+    def tokenizer(self):
+        from transformers import AutoTokenizer
+
+        return AutoTokenizer.from_pretrained(self.tokenizer_name_or_path)
+
+    def update_doc_stats(self, doc: Document):
+        # BaseFilter.run calls this on kept documents only (dropped ones just
+        # count in dropped_<reason>). Replaces the base doc_len/doc_len_tokens.
+        self.stat_update("token_count", value=doc.metadata["token_count"], unit="doc")
+        self.stat_update(
+            "assistant_token_count",
+            value=doc.metadata["assistant_token_count"],
+            unit="doc",
+        )
+        self.stat_update(f"token_count_{doc.metadata['token_count_label']}")
+
+    def filter(self, doc: Document) -> bool:
+        import json
+
+        if self.messages_key not in doc.metadata:
+            return False, f"missing_{self.messages_key}"
+        kwargs = dict(self.chat_template_kwargs)
+        if self.tools_key is not None:
+            tools = doc.metadata.get(self.tools_key)
+            if isinstance(tools, str):
+                tools = json.loads(tools)
+            kwargs["tools"] = tools or None
+
+        out = self.tokenizer.apply_chat_template(
+            doc.metadata[self.messages_key],
+            tokenize=True,
+            return_dict=True,
+            return_assistant_tokens_mask=True,
+            **kwargs,
+        )
+        token_count = len(out["input_ids"])
+        assistant_token_count = sum(out["assistant_masks"])
+        doc.metadata["token_count"] = token_count
+        doc.metadata["assistant_token_count"] = assistant_token_count
+        doc.metadata["token_count_label"] = token_count_label(token_count)
+
+        if self.max_tokens is not None and token_count > self.max_tokens:
+            return False, "too_many_tokens"
+        if (
+            self.min_assistant_tokens is not None
+            and assistant_token_count < self.min_assistant_tokens
+        ):
+            return False, "too_few_assistant_tokens"
+        return True

@@ -1,5 +1,4 @@
 import os
-import sys
 import importlib.util
 
 # Directly load posttraining/utils.py under a unique module name to avoid
@@ -11,10 +10,6 @@ spec = importlib.util.spec_from_file_location(
     os.path.join(os.path.dirname(__file__), "..", "posttraining", "utils.py"),
 )
 posttraining_utils = importlib.util.module_from_spec(spec)
-# Register under its module name so functions pulled from it (whose
-# __module__ is "posttraining_utils") can be re-imported by name -- needed for
-# dill/multiprocess to unpickle them by reference in forked worker processes.
-sys.modules["posttraining_utils"] = posttraining_utils
 spec.loader.exec_module(posttraining_utils)
 
 create_parser = posttraining_utils.create_parser
@@ -30,6 +25,9 @@ format_tool_calls = posttraining_utils.format_tool_calls
 nemo_rl_format_messages = posttraining_utils.nemo_rl_format_messages
 NemoRLFormat = posttraining_utils.NemoRLFormat
 check_last_message = posttraining_utils.check_last_message
+TOKEN_COUNT_BUCKETS = posttraining_utils.TOKEN_COUNT_BUCKETS
+token_count_label = posttraining_utils.token_count_label
+ChatTokenCount = posttraining_utils.ChatTokenCount
 
 def from_tools_to_system(system_content, tools, tokenizer):
     import re
@@ -44,7 +42,7 @@ def from_tools_to_system(system_content, tools, tokenizer):
     return system_prompt
 
 def hub_adapter(self, document):
-    """Row adapter for the Hub writers: emit only the five shared columns.
+    """Row adapter for the Hub writers: emit only the six shared columns.
 
     The default adapter writes every metadata key as its own column
     (``expand_metadata``), which gives each dataset a different schema -- so one
@@ -57,11 +55,18 @@ def hub_adapter(self, document):
     ``dataset`` is the source id set by HuggingFaceDatasetReader; readers that
     do not set it (Parquet/Jsonl) leave it empty rather than null, so the column
     stays typed.
+
+    ``messages_original`` is the JSON string of the messages before the NeMo-RL
+    conversion (saved by ``NemoRLFormat`` in ``metadata["messages_original"]``);
+    it is an empty string when the pipeline did not save it.
     """
     import json
 
     tools = document.metadata.get("tools")
     messages = document.metadata.get("messages") or []
+    messages_original = document.metadata.get("messages_original") or ""
+    if not isinstance(messages_original, str):
+        messages_original = json.dumps(messages_original, ensure_ascii=False)
     return {
         "id": str(document.id),
         "dataset": str(document.metadata.get("dataset") or ""),
@@ -70,7 +75,7 @@ def hub_adapter(self, document):
             {"role": str(m.get("role", "")), "content": str(m.get("content") or "")}
             for m in messages
         ],
-        "text": document.text or "",
+        "messages_original": messages_original,
     }
 
 

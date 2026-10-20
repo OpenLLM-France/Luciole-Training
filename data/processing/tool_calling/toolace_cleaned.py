@@ -1,9 +1,7 @@
 from utils import create_parser, parse_args, create_executor, hub_adapter
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
-from functools import partial
-from transformers import AutoTokenizer
-from utils import apply_chat_template, instruct_adapter, add_system_prompt, NemoRLFormat
+from utils import instruct_adapter, NemoRLFormat
 
 def format_messages(
     data,
@@ -50,9 +48,6 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
 
     pipeline = [
         HuggingFaceDatasetReader(
@@ -61,9 +56,7 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         format_messages,
-        partial(add_system_prompt, tokenizer=tokenizer),
         NemoRLFormat(),
-        partial(apply_chat_template, tokenizer=tokenizer),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/toolace_cleaned",
@@ -73,6 +66,7 @@ if __name__ == "__main__":
             private=True,
             cleanup=False,
             expand_metadata=True,
+            commit_message=args.commit,
         ),
     ]
 

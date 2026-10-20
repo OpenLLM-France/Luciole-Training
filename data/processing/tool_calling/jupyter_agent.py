@@ -1,15 +1,11 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
-from functools import partial
-from transformers import AutoTokenizer
 from utils import (
     hub_adapter,
     FilterChinese,
-    apply_chat_template,
     instruct_adapter,
     check_last_message,
-    add_system_prompt,
     NemoRLFormat,
 )
 
@@ -89,8 +85,6 @@ def format_messages(
             for tool in doc.metadata.get("tools", [])
         ]
         random.shuffle(tools)
-        # Leave tools as a list of dicts; add_system_prompt bakes them into the
-        # system message and json.dumps them for a load_dataset-friendly column.
         doc.metadata["tools"] = tools
 
         messages = [drop_nulls(message) for message in doc.metadata["messages"]]
@@ -124,9 +118,6 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
 
     split = "thinking" if args.thinking else "non_thinking"
 
@@ -140,10 +131,8 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         format_messages,
-        partial(add_system_prompt, tokenizer=tokenizer),
         check_last_message,
         NemoRLFormat(),
-        partial(apply_chat_template, tokenizer=tokenizer),
         FilterChinese(
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/jupyter_agent/{split}/chinese_heavy"),
         ),
@@ -156,6 +145,7 @@ if __name__ == "__main__":
             private=True,
             cleanup=False,
             expand_metadata=True,
+            commit_message=args.commit,
         ),
     ]
 

@@ -2,14 +2,11 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from functools import partial
-from transformers import AutoTokenizer
 from utils import (
     hub_adapter,
     FilterChinese,
-    apply_chat_template,
     instruct_adapter,
     check_last_message,
-    add_system_prompt,
     NemoRLFormat,
 )
 from smolagents_toolcalling import clean_tool_response
@@ -64,23 +61,26 @@ def format_messages(data, rank: int = 0, world_size: int = 1):
         # Format tool_calls: pull each <tool_call>{...}</tool_call> block out of
         # the assistant content into a structured tool_calls list, and strip the
         # tags from the content so NemoRLFormat re-renders them consistently.
-        for message in doc.metadata["messages"]:
-            if message["role"] == "assistant" and "<tool_call>" in message["content"]:
-                message["tool_calls"] = [
-                    json.loads(match.group(1).strip())
-                    for match in re.finditer(
-                        r"<tool_call>(.*?)</tool_call>",
+        try:
+            for message in doc.metadata["messages"]:
+                if message["role"] == "assistant" and "<tool_call>" in message["content"]:
+                    message["tool_calls"] = [
+                        json.loads(match.group(1).strip())
+                        for match in re.finditer(
+                            r"<tool_call>(.*?)</tool_call>",
+                            message["content"],
+                            flags=re.DOTALL,
+                        )
+                    ]
+                    message["content"] = re.sub(
+                        r"<tool_call>.*?</tool_call>",
+                        "",
                         message["content"],
                         flags=re.DOTALL,
-                    )
-                ]
-                message["content"] = re.sub(
-                    r"<tool_call>.*?</tool_call>",
-                    "",
-                    message["content"],
-                    flags=re.DOTALL,
-                ).strip()
-        yield doc
+                    ).strip()
+            yield doc
+        except Exception:
+            continue
 
 
 if __name__ == "__main__":
@@ -88,9 +88,6 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
 
     for subset in ["func_calling", "glaive_func_calling"]:
         pipeline = [
@@ -102,11 +99,9 @@ if __name__ == "__main__":
             ),
             format_messages,
             # partial(replace_tool_name, rename_names=True, rename_params=False),
-            partial(add_system_prompt, tokenizer=tokenizer),
             clean_tool_response,
             check_last_message,
             NemoRLFormat(),
-            partial(apply_chat_template, tokenizer=tokenizer),
             FilterChinese(
                 exclusion_writer=JsonlWriter(
                     f"{DATA_PATH}/hermes_oaiformat/{subset}/chinese_heavy"
@@ -121,6 +116,7 @@ if __name__ == "__main__":
                 private=True,
                 cleanup=False,
                 expand_metadata=True,
+                commit_message=args.commit,
             ),
         ]
 

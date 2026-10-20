@@ -1,15 +1,11 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
-from functools import partial
-from transformers import AutoTokenizer
 from utils import (
     hub_adapter,
     FilterChinese,
-    apply_chat_template,
     instruct_adapter,
     check_last_message,
-    add_system_prompt,
     NemoRLFormat,
 )
 from datatrove.data import Document
@@ -129,8 +125,6 @@ class TIRFormat(BaseFilter):
         )
 
         doc.metadata["messages"] = messages
-        # Leave tools as a list of dicts; add_system_prompt bakes them into the
-        # system message and json.dumps them for a load_dataset-friendly column.
         doc.metadata["tools"] = [PYTHON_TOOL]
         return True
 
@@ -140,9 +134,6 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
 
     pipeline = [
         ParquetReader(
@@ -155,10 +146,8 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/openmathreasoning_tir/tir_parsing_error"
             ),
         ),
-        partial(add_system_prompt, tokenizer=tokenizer),
         check_last_message,
         NemoRLFormat(),
-        partial(apply_chat_template, tokenizer=tokenizer),
         # DeepSeek-R1 code-switches to Chinese in its reasoning often enough to
         # be worth filtering here.
         FilterChinese(
@@ -175,6 +164,7 @@ if __name__ == "__main__":
             private=True,
             cleanup=False,
             expand_metadata=True,
+            commit_message=args.commit,
         ),
     ]
 

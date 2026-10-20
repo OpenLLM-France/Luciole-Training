@@ -4,13 +4,9 @@ from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from datatrove.pipeline.writers.disk_base import DiskWriter
-from functools import partial
-from transformers import AutoTokenizer
 from utils import (
     hub_adapter,
-    apply_chat_template,
     instruct_adapter,
-    add_system_prompt,
     NemoRLFormat,
 )
 
@@ -80,8 +76,6 @@ class DolciFilter(BaseFilter):
 
         tools = json.loads(system_turn["functions"])
         random.shuffle(tools)
-        # Left as a list of dicts: add_system_prompt bakes them into the system
-        # message and json.dumps them for a load_dataset-friendly column.
         doc.metadata["tools"] = tools
 
         def split_tool_content(content, n):
@@ -142,9 +136,6 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
 
     pipeline = [
         ParquetReader(
@@ -157,9 +148,7 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/dolci_tools/function_tools_parsing_error"
             ),
         ),
-        partial(add_system_prompt, tokenizer=tokenizer),
         NemoRLFormat(),
-        partial(apply_chat_template, tokenizer=tokenizer),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/dolci_tools",
@@ -169,6 +158,7 @@ if __name__ == "__main__":
             private=True,
             cleanup=False,
             expand_metadata=True,
+            commit_message=args.commit,
         ),
     ]
 

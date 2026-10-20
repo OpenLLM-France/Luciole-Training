@@ -2,12 +2,9 @@ from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from functools import partial
-from transformers import AutoTokenizer
 from utils import (
     hub_adapter,
-    apply_chat_template,
     instruct_adapter,
-    add_system_prompt,
     NemoRLFormat,
 )
 
@@ -174,9 +171,6 @@ if __name__ == "__main__":
     # Names the output folder, so the two variants never overwrite each other.
     VARIANT = "think_as_tool" if args.thinking_as_tool else "think_inline"
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
 
     pipeline = [
         ParquetReaderFromRow(
@@ -192,9 +186,7 @@ if __name__ == "__main__":
         ),
         format_messages,
         partial(thinking_as_tool_call, thinking_as_tool=args.thinking_as_tool),
-        partial(add_system_prompt, tokenizer=tokenizer),
         NemoRLFormat(),
-        partial(apply_chat_template, tokenizer=tokenizer),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}",
@@ -204,6 +196,7 @@ if __name__ == "__main__":
             private=True,
             cleanup=False,
             expand_metadata=True,
+            commit_message=args.commit,
         ),
     ]
 
