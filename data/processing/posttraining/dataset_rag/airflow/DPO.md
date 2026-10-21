@@ -64,8 +64,9 @@ holding calibration verdicts (`calib_from`).
 | `build_prompt_set` | prompts whose verdict agrees with the label (an unanswerable version keeps its twin) → `jz_run/<generator>/<sft_dataset>/`, calibration set copied from `calib_from` when set |
 
 Parameters: `sft_run`, `sft_dataset` (dataset name in the `jz_run`, default `hotpotqa_fr`, distinct from `hotpotqa` /
-`tatqa`), `sft_language` (`fr` or `en`), `seed`. `dataset_rag_dpo_pairs` does not take these prompts yet (datasets,
-gold columns and release are specific to `hotpotqa` / `tatqa`, and the cited-excerpt filter does not know `<ref>`), so
+`tatqa`), `sft_language` (`fr` or `en`), `seed`. In delta mode, `dataset_rag_dpo_pairs` prepares and generates on
+these prompts (the datasets are read from `input_run`), but its later stages still stop on them (judge chain, pairs,
+release and gold columns are specific to `hotpotqa` / `tatqa`, and the cited-excerpt filter does not know `<ref>`), so
 `pairs` is refused with `sft_run`. The prompts only make on-policy data for a policy whose SFT data has that format.
 
 **`ref` citation format in the DPO metrics** (`dpo/dpo_common.py`): numbered documents `[N] filename:`

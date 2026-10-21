@@ -144,6 +144,23 @@ def check_prompts(ds, p, cv):
             raise ValueError(f"{ds}/{r['pid']}: ancien clone sans rembourrage")
 
 
+def jz_datasets(run):
+    """Datasets of a jz_run (or of a prepared delta run): the directories of the first generator holding prompts,
+    hotpotqa / tatqa first. A prompt set from an SFT run has only its own (e.g. hotpotqa_fr)."""
+    found = {d.name for d in (run / GENERATORS[0]).glob("*") if (d / "prompts.jsonl").is_file()}
+    if not found:
+        raise ValueError(f"{run}: aucun jeu de prompts ({GENERATORS[0]}/<dataset>/prompts.jsonl)")
+    return [ds for ds in DATASETS if ds in found] + sorted(found - set(DATASETS))
+
+
+def check_delta_datasets(out, stage):
+    """The delta stages after the generation (judge chain, pairs, filter, cross-judge, release) still know
+    hotpotqa / tatqa only: stop before any judge call rather than half-way."""
+    other = set(jz_datasets(out)) - set(DATASETS)
+    if other:
+        raise ValueError(f"étape {stage} pas encore adaptée aux jeux {sorted(other)} (seule la génération l'est)")
+
+
 def limit(c, p, qids=None):
     """Smoke run: the first limit_questions questions by hash, so that a question's answerable and unanswerable
     versions (and its strict twin, same qid) stay together."""
@@ -170,7 +187,7 @@ def prepare(c, out):
         return prepare_onpolicy(c, out)
     source = resolve(c["input_run"])
     manifest = {"config": c, "inputs": {}}
-    for ds in DATASETS:
+    for ds in jz_datasets(source):
         p = rows(source / GENERATORS[0] / ds / "prompts.jsonl")
         other = rows(source / GENERATORS[1] / ds / "prompts.jsonl")
         if p != other or not p or len({r["pid"] for r in p}) != len(p):
@@ -648,7 +665,7 @@ def onpolicy_release(c, out):
 def generate(c, out, chosen):
     gen = GENERATORS[0 if chosen else 1]
     prefix = "chosen" if chosen else "rejected"
-    for ds in DATASETS:
+    for ds in jz_datasets(out):
         d = out / gen / ds
         samples = d / f"chosen_{gen}.jsonl"
         run("sample_policy.py", "--prompts", d / "prompts.jsonl", "--out", samples,
@@ -823,6 +840,8 @@ def main():
         lock.write_text(json.dumps(c, indent=2), encoding="utf-8")
     # Airflow stops a task with SIGTERM: exit through the finally blocks (vLLM container, SSH connection)
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+    if c["mode"] == "delta" and a.stage in ("judge", "build", "filter", "crossjudge", "release", "audit"):
+        check_delta_datasets(out, a.stage)
     if a.stage == "prepare":
         # Refuse changed prompts on resume before touching existing judge state.
         if (out / "inputs.manifest.json").exists():

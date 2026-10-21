@@ -82,6 +82,36 @@ class PrepareTests(unittest.TestCase):
         after = json.loads((self.out / "inputs.manifest.json").read_text())
         self.assertNotEqual(before, after)
 
+    def test_prompt_set_of_an_sft_run_is_prepared_and_later_stages_stop(self):
+        # jz_run of the sft_run source: one dataset of its own, no hotpotqa / tatqa
+        for gen in P.GENERATORS:
+            for ds in P.DATASETS:
+                shutil.rmtree(self.source / gen / ds)
+        for gen in P.GENERATORS:
+            shutil.copytree(self._fr_prompts(), self.source / gen / "hotpotqa_fr")
+        P.prepare(self.config, self.out)
+        self.assertEqual(P.jz_datasets(self.out), ["hotpotqa_fr"])
+        manifest = json.loads((self.out / "inputs.manifest.json").read_text())
+        self.assertEqual(list(manifest["inputs"]), ["hotpotqa_fr"])
+        with self.assertRaisesRegex(ValueError, "pas encore adaptée"):
+            P.check_delta_datasets(self.out, "judge")
+
+    def test_known_datasets_keep_their_order_and_pass_the_guard(self):
+        P.prepare(self.config, self.out)
+        self.assertEqual(P.jz_datasets(self.out), list(P.DATASETS))
+        P.check_delta_datasets(self.out, "judge")
+
+    def _fr_prompts(self):
+        d = Path(self.tmp.name) / "fr_prompts"
+        if not d.exists():
+            d.mkdir()
+            prompts = [{"pid": f"{q}-{u}", "qid": q, "is_unanswerable": u, "messages": [], "pilot_split": "train"}
+                       for q in ("f1", "f2") for u in (False, True)]
+            P.write(d / "prompts.jsonl", prompts)
+            P.write(d / "context_verdicts.jsonl", [
+                {"pid": r["pid"], "verdict": "unanswerable" if r["is_unanswerable"] else "answerable"} for r in prompts])
+        return d
+
 
 SPEC_PROMPTS = importlib.util.spec_from_file_location(
     "dpo_prompts_pipeline", Path(__file__).resolve().parents[1] / "dpo_prompts_pipeline.py")
