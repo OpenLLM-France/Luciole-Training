@@ -1,6 +1,7 @@
 """Offline checks of the DPO adapter's data and resume safeguards."""
 import importlib.util
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -357,3 +358,62 @@ class RefCitationTests(unittest.TestCase):
         self.assertEqual(self.C.context_titles(system), ["B"])  # historical behaviour of the markup prompts
         m = self.C.citation_metrics('x ##Cite "B"##', ["B"], ["B"], "default")
         self.assertNotIn("n_ref_tags", m)
+
+
+class SftRunPromptsTests(unittest.TestCase):
+    """source sft_run: questions of an SFT run left out of its SFT data -> SFT-format prompts without the invitation
+    clause, in both languages (the real extract / format scripts, no LLM)."""
+
+    @classmethod
+    def setUpClass(cls):
+        # a fresh module: other tests replace PP.run with a fake
+        spec = importlib.util.spec_from_file_location(
+            "dpo_prompts_pipeline_sft", Path(__file__).resolve().parents[1] / "dpo_prompts_pipeline.py")
+        cls.M = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.M)
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def sft_run(self, citation_format):
+        def context(titles):
+            return "\n\n".join(f"* filename: {t}\n\n[CHUNK_START]\n{t} was founded in 1901 by a sailor.\n[CHUNK_END]"
+                               for t in titles)
+        rows = []
+        for q in ("q1", "q2"):
+            common = {"type": "bridge", "level": "easy", "citation_format": citation_format,
+                      "citation_end_of_completion": False}
+            rows.append({**common, "id": q, "question": f"When was {q} founded?", "answer": "1901",
+                         "context": context([f"{q} Club", "Other", "Third"]), "reasoning_trace": "In 1901.",
+                         "is_unanswerable": False, "grounded_refusal": False, "eval_factual_judge_score": 5,
+                         "supporting_facts_titles": [f"{q} Club"], "chunks_relevant": 1, "chunks_total": 3})
+            rows.append({**common, "id": f"{q}_unanswerable", "question": f"When was {q} founded?", "answer": "",
+                         "context": context(["Other", "Third", "Fourth"]), "reasoning_trace": "No document says.",
+                         "is_unanswerable": True, "grounded_refusal": True, "eval_model_refused": True,
+                         "supporting_facts_titles": [], "chunks_relevant": 0, "chunks_total": 3})
+        run = self.root / "run"
+        run.mkdir()
+        P.write(run / "x_augmented_evaluated.jsonl", rows)
+        P.write(run / "x_augmented_evaluated_filtered.jsonl", rows[2:3])  # q2 reached the SFT data
+        return run
+
+    def test_held_out_questions_in_sft_format_without_invitation_clause(self):
+        for language, citation_format in (("en", None), ("fr", "ref")):
+            with self.subTest(language=language):
+                out = self.root / language
+                c = {"source": "sft_run", "sft_run": str(self.sft_run(citation_format)), "sft_dataset": "hp_test",
+                     "sft_language": language, "seed": 42}
+                self.M.sft_prompts(c, out)
+                ps = P.rows(out / "sft_pool/prompts.jsonl")
+                self.assertEqual({p["qid"] for p in ps}, {"q1"})
+                self.assertEqual(sorted(p["is_unanswerable"] for p in ps), [False, True])
+                clause = self.M.invite_clause(language)
+                for p in ps:
+                    system = p["messages"][0]["content"]
+                    self.assertNotIn(clause, system)
+                    self.assertNotIn(self.M.INVITE_MARKER[language], system)
+                    self.assertEqual(p["dataset"], "hp_test")
+                    self.assertEqual(p["citation_style"] == "ref", citation_format == "ref")
+                shutil.rmtree(self.root / "run")

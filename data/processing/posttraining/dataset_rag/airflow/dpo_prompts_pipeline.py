@@ -42,10 +42,20 @@ INPUTS = [D / "heldout_full_sft4152" / "prompts.jsonl", D / "heldout_full_sft415
           D / "heldout_tatqa_generic_sft4152" / "prompts.jsonl", D / "heldout_tatqa_generic_sft4152" / "context_verdicts.jsonl",
           D / "heldout_tatqa_u_sft4152" / "prompts.jsonl", D / "rag_dpo_onpolicy_8802410" / "val.jsonl",
           D / "p9_paired_eval" / "prompts.jsonl", BASE / "hotpotqa_cache_train"]
-# Invitation clause of the generic refusal rule (formatting_sft._generic_refusal_instruction), absent from the
-# published prompts (release_text.published_prompt, English only): removed in both languages.
-INVITE_CLAUSE = {"en": " and invite the user to rephrase their query or add relevant documents",
-                 "fr": " et invitez l'utilisateur à reformuler sa requête ou à ajouter des documents pertinents"}
+# Start of the invitation clause of the generic refusal rule, absent from the published prompts
+# (release_text.published_prompt, English only): removed in both languages.
+INVITE_MARKER = {"en": " and invite the user", "fr": " et invitez l'utilisateur"}
+
+
+def invite_clause(language):
+    """The invitation clause as formatting_sft writes it (read from the rule, so that a rewording cannot drift)."""
+    sys.path.insert(0, str(BASE))
+    from formatting_sft import _generic_refusal_instruction
+    rule = _generic_refusal_instruction(language)
+    i = rule.find(INVITE_MARKER[language])
+    if i < 0 or not rule.endswith("."):
+        raise ValueError(f"{language}: clause d'invitation introuvable dans la règle de refus générique : {rule!r}")
+    return rule[i:-1]
 
 
 def rows(path):
@@ -117,13 +127,14 @@ def sft_prompts(c, out):
         "--comparison-frac", -1, "--seed", c["seed"])
     run("build_dpo_prompts_heldout.py", "format", "--rows", d / "rows.jsonl", "--out", d / "formatted.jsonl",
         "--language", c["sft_language"], "--strict-prob", 0, "--seed", c["seed"])
-    clause = INVITE_CLAUSE[c["sft_language"]]
+    clause = invite_clause(c["sft_language"])
     out_rows, st = [], collections.Counter()
     for p in rows(d / "formatted.jsonl"):
         if p.get("citation_style") is None:
             raise ValueError(f"{p['pid']}: règle de citation non reconnue dans le prompt")
         system = p["messages"][0]["content"]
-        assert system.count(clause) == 1, (p["pid"], "règle de refus générique attendue")
+        if system.count(clause) != 1:
+            raise ValueError(f"{p['pid']}: règle de refus générique attendue")
         messages = [{**p["messages"][0], "content": system.replace(clause, "")}, p["messages"][1]]
         out_rows.append({**p, "messages": messages, "dataset": c["sft_dataset"], "language": c["sft_language"],
                          "sft_run": c["sft_run"], "pilot_split": "train",
@@ -215,7 +226,7 @@ def main():
     if c["source"] == "sft_run":
         if not c.get("sft_run"):
             raise ValueError("sft_run : dossier d'un run d'un DAG SFT (airflow_runs/<dag_id>/<run_name>)")
-        if c["sft_language"] not in INVITE_CLAUSE or not re.fullmatch(r"[a-z0-9_]+", str(c["sft_dataset"])):
+        if c["sft_language"] not in INVITE_MARKER or not re.fullmatch(r"[a-z0-9_]+", str(c["sft_dataset"])):
             raise ValueError("sft_language : en ou fr ; sft_dataset : minuscules, chiffres, _")
         if c["sft_dataset"] in DATASETS:
             raise ValueError(f"sft_dataset : nom distinct de {DATASETS} (pools held-out de la politique actuelle)")
