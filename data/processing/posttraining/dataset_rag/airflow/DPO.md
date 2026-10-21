@@ -175,7 +175,8 @@ host sits behind jump hosts).
   only).
 * With `crossjudge: true`: `LLM_API_KEY` (environment or `.env`) and `mistral_url` for the Mistral cross-judge;
   `mistral_concurrency` ≤ 12.
-  `.judge_key` for the judge (`none` for a vLLM without key).
+  `.judge_key` for the judge (`none` for a vLLM without key);
+  `chosen_key_file` / `rejected_key_file` (files under `dataset_rag/`) when the 35B / 4B servers require a key.
 * In `dataset_rag/`: `tatqa_dataset_train.json` (TAT-QA leak check, gold columns) and `hotpotqa_cache_train` (gold
   columns); for on-policy also `tatqa_dataset_test_gold.json`, `tatqa_dev.json` and `hotpotqa_cache_validation`
   (checks of `prepare_onpolicy_publication.py`).

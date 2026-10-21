@@ -113,11 +113,13 @@ def dotenv(name):
     return None
 
 
-def served_models(url):
+def served_models(url, key=None):
     """/v1/models of an OpenAI-compatible server (vLLM: served name, root path, max_model_len), or the error."""
     import urllib.request
+    req = urllib.request.Request(url.rstrip("/") + "/models",
+                                 headers={"Authorization": f"Bearer {key}"} if key else {})
     try:
-        with urllib.request.urlopen(url.rstrip("/") + "/models", timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r).get("data")
     except Exception as e:  # recorded, not fatal: some endpoints restrict /models
         return {"error": repr(e)[:300]}
@@ -128,6 +130,17 @@ def judge_key(c):
     if not key.is_file() or not key.read_text().strip():
         raise ValueError("judge_key_file doit contenir la clé du juge (ou 'none' pour vLLM local)")
     return key
+
+
+def generator_env(c, prefix):
+    """Environment of sample_policy.py: SAMPLER_API_KEY from <prefix>_key_file (null = server without a key)."""
+    name = c.get(f"{prefix}_key_file")
+    if not name:
+        return None
+    key = resolve(name)
+    if not key.is_file() or not key.read_text().strip():
+        raise ValueError(f"{prefix}_key_file : fichier absent ou vide ({key})")
+    return {**os.environ, "SAMPLER_API_KEY": key.read_text().strip()}
 
 
 def check_prompts(ds, p, cv):
@@ -665,6 +678,7 @@ def onpolicy_release(c, out):
 def generate(c, out, chosen):
     gen = GENERATORS[0 if chosen else 1]
     prefix = "chosen" if chosen else "rejected"
+    env = generator_env(c, prefix)
     for ds in jz_datasets(out):
         d = out / gen / ds
         samples = d / f"chosen_{gen}.jsonl"
@@ -674,7 +688,7 @@ def generate(c, out, chosen):
             "--top-p", 0.80, "--top-k", 20, "--min-p", 0,
             "--max-tokens", 2048, "--seed", c["seed"],
             "--concurrency", c["generation_concurrency"],
-            "--chat-template-kwargs", '{"enable_thinking": false}')
+            "--chat-template-kwargs", '{"enable_thinking": false}', env=env)
         last = {r["pid"]: r for r in rows(samples)}
         expected = {-1, *range(2 if chosen else 4)}
         for p in rows(d / "prompts.jsonl"):
@@ -686,7 +700,7 @@ def generate(c, out, chosen):
         # what the JZ job recorded in generation_<gen>.manifest.json (weights, precision, server)
         (d / f"generation_{gen}.manifest.json").write_text(json.dumps({
             "served_model": c[f"{prefix}_model"], "url": c[f"{prefix}_url"], "dtype": c[f"{prefix}_dtype"],
-            "server_models": served_models(c[f"{prefix}_url"]),
+            "server_models": served_models(c[f"{prefix}_url"], (env or {}).get("SAMPLER_API_KEY")),
             "prompt_sha256": sha256(d / "prompts.jsonl"), "samples_sha256": sha256(samples),
             "k_sampled": 2 if chosen else 4, "temperature": 0.7 if chosen else 1.0, "top_p": 0.80, "top_k": 20,
             "min_p": 0.0, "seed": c["seed"], "greedy": True, "max_tokens": 2048, "enable_thinking": False,

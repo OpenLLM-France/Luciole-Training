@@ -101,6 +101,15 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(P.jz_datasets(self.out), list(P.DATASETS))
         P.check_delta_datasets(self.out, "judge")
 
+    def test_generator_key_file_feeds_the_sampler(self):
+        self.assertIsNone(P.generator_env({"chosen_key_file": None}, "chosen"))
+        key = Path(self.tmp.name) / "k"
+        key.write_text("secret\n")
+        self.assertEqual(P.generator_env({"chosen_key_file": str(key)}, "chosen")["SAMPLER_API_KEY"], "secret")
+        key.write_text("")
+        with self.assertRaisesRegex(ValueError, "chosen_key_file"):
+            P.generator_env({"chosen_key_file": str(key)}, "chosen")
+
     def _fr_prompts(self):
         d = Path(self.tmp.name) / "fr_prompts"
         if not d.exists():

@@ -56,6 +56,9 @@ dag = DAG(
         "rejected_url": "http://127.0.0.1:8001/v1",
         "rejected_model": "Qwen3.5-4B",
         "rejected_dtype": "bf16",
+        # file holding the bearer key of the 35B / 4B server (relative to dataset_rag/), null = no key
+        "chosen_key_file": None,
+        "rejected_key_file": None,
         # onpolicy: prompts of input_run (jz_run) or the held-out pools of the published configs (heldout_v2);
         # replay (heldout_v2 only) reuses their samples and verdicts and must give the published files
         "prompt_source": "jz_run",
