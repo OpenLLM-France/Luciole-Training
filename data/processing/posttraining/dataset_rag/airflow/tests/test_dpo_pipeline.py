@@ -17,7 +17,7 @@ class PrepareTests(unittest.TestCase):
         self.source = Path(self.tmp.name) / "source"
         self.out = Path(self.tmp.name) / "out"
         self.out.mkdir()
-        self.config = {"input_run": str(self.source), "seed": 42,
+        self.config = {"mode": "delta", "input_run": str(self.source), "seed": 42,
                        "limit_questions": 1, "calibrate": False}
         for ds in P.DATASETS:
             prompts = [{"pid": f"{q}-{u}", "qid": q, "is_unanswerable": u,
@@ -80,10 +80,6 @@ class PrepareTests(unittest.TestCase):
         P.prepare(self.config, self.out)
         after = json.loads((self.out / "inputs.manifest.json").read_text())
         self.assertNotEqual(before, after)
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 SPEC_PROMPTS = importlib.util.spec_from_file_location(
@@ -160,6 +156,171 @@ class TriggerConfigTests(unittest.TestCase):
     def test_without_handover_params_are_unchanged(self):
         c = P.load_config(json.dumps({"run_name": "x", "from_prompts": None}))
         self.assertEqual(c, {"run_name": "x"})
+
+
+def base_config(**kw):
+    c = {"run_name": "t", "mode": "onpolicy", "prompt_source": "jz_run", "replay": False, "seed": 42,
+         "limit_questions": None, "calibrate": False, "generation_concurrency": 4, "judge_concurrency": 4,
+         "judge_max_tokens": 16000, "mistral_concurrency": 6, "max_missing_share": 0.01,
+         "policy_tokenizer": "tok", "policy_url": None, "policy_model": "luciole_policy",
+         "policy_serve": {"ssh_host": "dgx"}, "heldout_v2_dir": None, "input_run": None}
+    c.update(kw)
+    return c
+
+
+class OnPolicyPrepareTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.out = self.root / "out"
+
+    def prompts(self, strict=False):
+        return [{"pid": f"{q}-{u}" + ("_s" if strict else ""), "qid": q, "is_unanswerable": u, "messages": [],
+                 "pilot_split": "train"} for q in ("q1", "q2", "q3") for u in (False, True)]
+
+    def verdicts(self, prompts):
+        return [{"pid": r["pid"], "verdict": "unanswerable" if r["is_unanswerable"] else "answerable"} for r in prompts]
+
+    def test_jz_run_gives_one_generic_pool_per_dataset(self):
+        for ds in P.DATASETS:
+            d = self.root / "jz" / P.GENERATORS[0] / ds
+            d.mkdir(parents=True)
+            P.write(d / "prompts.jsonl", self.prompts())
+            P.write(d / "context_verdicts.jsonl", self.verdicts(self.prompts()))
+        c = base_config(input_run=str(self.root / "jz"), limit_questions=2)
+        P.prepare(c, self.out)
+        self.assertEqual([p["name"] for p in P.pools(c)], ["hotpotqa_generic", "tatqa_generic"])
+        for pool in P.pools(c):
+            rs = P.rows(P.pool_dir(self.out, pool) / "prompts.jsonl")
+            self.assertEqual(len({r["qid"] for r in rs}), 2)
+            self.assertTrue(pool["drop_u_supported"])
+
+    def heldout(self):
+        v2 = self.root / "v2"
+        for spec in P.HELDOUT_V2:
+            d = v2 / spec["src"]
+            d.mkdir(parents=True)
+            ps = self.prompts(strict=spec["instruction"] == "strict")
+            P.write(d / "prompts.jsonl", ps)
+            P.write(d / "context_verdicts.jsonl", self.verdicts(ps))
+            for name in ("samples.jsonl", "scored.jsonl", "verified.jsonl"):
+                P.write(d / name, [])
+            (d / "sampling.manifest.json").write_text("{}")
+            for key in ("u_review", "exclude"):
+                for path in (spec.get(key), spec["replay"].get(key)):
+                    if path:
+                        (v2 / path).parent.mkdir(parents=True, exist_ok=True)
+                        (v2 / path).write_text("{}")
+            (v2 / spec["replay"]["recheck"]).parent.mkdir(parents=True, exist_ok=True)
+            P.write(v2 / spec["replay"]["recheck"], [{"pid": spec["name"], "k": 0, "judge": None}])
+        return v2
+
+    def test_strict_pool_keeps_the_questions_of_its_twin(self):
+        c = base_config(prompt_source="heldout_v2", heldout_v2_dir=str(self.heldout()), limit_questions=1)
+        P.prepare(c, self.out)
+        q = {p["name"]: {r["qid"] for r in P.rows(P.pool_dir(self.out, p) / "prompts.jsonl")} for p in P.pools(c)}
+        self.assertEqual(q["hotpotqa_strict"], q["hotpotqa_generic"])
+        self.assertEqual(q["tatqa_strict"], q["tatqa_generic"])
+        self.assertEqual(len(q["hotpotqa_generic"]), 1)
+
+    def test_replay_uses_the_published_audit_and_a_new_run_does_not(self):
+        v2 = self.heldout()
+        replay = base_config(prompt_source="heldout_v2", heldout_v2_dir=str(v2), replay=True)
+        P.prepare(replay, self.out)
+        hp = next(p for p in P.pools(replay) if p["name"] == "hotpotqa_generic")
+        self.assertEqual((hp["audit"], hp["drop_u_supported"]), ("v1.1", False))
+        self.assertTrue((P.pool_dir(self.out, hp) / "u_review.json").exists())
+        self.assertEqual(P.rows(P.pool_dir(self.out, hp) / "rejected_think.jsonl")[0]["pid"], "hotpotqa_generic")
+        fresh = {p["name"]: p for p in P.pools(base_config(prompt_source="heldout_v2"))}
+        self.assertEqual((fresh["hotpotqa_generic"]["audit"], fresh["hotpotqa_generic"]["u_review"]), ("recheck", None))
+        # reviews about the prompt (context answerable, excluded pids) are kept in a new run
+        self.assertIsNotNone(fresh["tatqa_generic"]["u_review"])
+        self.assertIsNotNone(fresh["tatqa_strict"]["exclude"])
+
+
+class OnPolicyStageTests(unittest.TestCase):
+    def test_recheck_skips_the_bare_imposed_phrase_on_strict_pools(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "pairs").mkdir()
+            P.write(d / "pairs/train.jsonl", [
+                {"pid": "a", "rejected_k": 0, "rejected_source": "policy", "rejected_judge": {}},
+                {"pid": "b", "rejected_k": 1, "rejected_source": "policy", "rejected_is_exact_phrase": True},
+                {"pid": "c", "rejected_k": -1, "rejected_source": "policy_generic_twin"}])
+            P.write(d / "pairs/val.jsonl", [])
+            self.assertEqual(P.recheck_todo({"instruction": "strict"}, d), [{"pid": "a", "k": 0}])
+            self.assertEqual(len(P.recheck_todo({"instruction": "generic"}, d)), 2)
+
+    def test_missing_verdicts_ignore_truncated_and_empty_responses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "scored.jsonl"
+            P.write(f, [{"pid": "a", "k": 0, "judge": None, "finish_reason": "stop", "text": "x"},
+                        {"pid": "a", "k": 1, "judge": None, "finish_reason": "length", "text": "x"},
+                        {"pid": "a", "k": 2, "judge": None, "finish_reason": "stop", "text": " "},
+                        {"pid": "a", "k": 3, "judge": None, "finish_reason": "stop", "text": "x"},
+                        {"pid": "a", "k": 3, "judge": {}, "finish_reason": "stop", "text": "x"}])
+            self.assertEqual(P.missing(f), (1, 4))
+            with self.assertRaisesRegex(RuntimeError, "manquants"):
+                P.tolerate({"max_missing_share": 0.01}, {"x": {"missing": 1, "of": 4}}, "jugement")
+
+    def test_stop_policy_is_a_no_op_without_a_launched_server(self):
+        for c in (base_config(mode="delta"), base_config(policy_url="http://x/v1"),
+                  base_config(prompt_source="heldout_v2", replay=True)):
+            P.stop_policy(c)  # no SSH attempted
+
+
+class ServeTests(unittest.TestCase):
+    def test_vllm_bound_to_localhost_and_free_memory_checked(self):
+        c = base_config(run_name="a b/c")
+        script = P.start_script(c, P.serve_config(c))
+        self.assertIn("-p 127.0.0.1:8016:8000", script)
+        self.assertIn('[ "$free_gb" -ge 50 ]', script)
+        self.assertIn("vllm_dpo_pairs_a_b_c", script)
+        self.assertNotIn("drop_caches", script)
+
+    def test_serve_config_rejects_unknown_keys_and_shell_metacharacters(self):
+        for serve, err in (({"ssh_host": "dgx", "gpu": 1}, "inconnues"), ({"ssh_host": "dgx;rm"}, "ssh_host"),
+                           ({"ssh_host": "dgx", "model_dir": "a/../b"}, "model_dir"),
+                           ({"ssh_host": "dgx", "image": "img $(x)"}, "image")):
+            with self.assertRaisesRegex(ValueError, err):
+                P.serve_config(base_config(policy_serve=serve))
+
+
+class ValidateTests(unittest.TestCase):
+    def test_mode_constraints(self):
+        for kw, err in (({"mode": "delta", "prompt_source": "heldout_v2"}, "delta"),
+                        ({"replay": True}, "replay"),
+                        ({"prompt_source": "heldout_v2", "replay": True, "limit_questions": 3}, "replay"),
+                        ({"mistral_concurrency": 13}, "12"),
+                        ({"policy_tokenizer": None}, "policy_tokenizer"),
+                        ({"mode": "both"}, "mode")):
+            with self.assertRaisesRegex(ValueError, err):
+                P.validate(base_config(**kw))
+        P.validate(base_config(prompt_source="heldout_v2", replay=True, policy_serve={"ssh_host": "bad host"}))
+
+
+class GoldColumnTests(unittest.TestCase):
+    @unittest.skipUnless((P.BASE / "tatqa_dataset_train.json").exists(), "tatqa_dataset_train.json absent")
+    def test_tatqa_gold_after_qid_as_string_columns(self):
+        import sys
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        sys.path.insert(0, str(P.BASE / "dpo"))
+        import gold_columns
+        doc = json.load(open(P.BASE / "tatqa_dataset_train.json"))[0]
+        q = doc["questions"][0]
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "t.parquet"
+            pq.write_table(pa.Table.from_pylist([{"pid": "p", "qid": f"{doc['table']['uid']}_{q['uid']}", "x": 1}]), f)
+            gold_columns.add_to_parquet(f, "tatqa")
+            t = pq.read_table(f)
+        self.assertEqual(t.column_names, ["pid", "qid", "gold_answer", "gold_scale", "x"])
+        self.assertEqual(str(t.schema.field("gold_scale").type), "string")
+
+
+if __name__ == "__main__":
+    unittest.main()
 
 
 class RefCitationTests(unittest.TestCase):

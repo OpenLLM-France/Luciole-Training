@@ -10,7 +10,7 @@ orchestration, retries and logs.
 | `dataset_rag_hotpotqa_fr_abstracts` | convert (`Mvanypersele/hotpotqa-fr-abstracts`, length filter) → augment **in parallel with** evaluate_stream (judges each row as soon as it is written) → evaluate/filter (reuses the cached verdicts) → formatting_sft |
 | `dataset_rag_tatqa` | convert (distractors) → augment → evaluate/filter → formatting_sft |
 | `dataset_rag_frenchqa_piaf` | convert → augment → evaluate/filter → formatting_sft (`--mixed-system-prompt`) |
-| `dataset_rag_dpo_prompts`, `dataset_rag_dpo_delta` | DPO preference data, see [DPO.md](DPO.md) |
+| `dataset_rag_dpo_prompts`, `dataset_rag_dpo_pairs` | DPO preference data (delta or on-policy pairs), see [DPO.md](DPO.md) |
 
 Outputs go to `airflow_runs/<dag_id>/<run_name>/` under `dataset_rag/`.
 

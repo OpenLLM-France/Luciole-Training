@@ -1,8 +1,9 @@
-"""Delta DPO RAG, prompts: held-out pools -> usable prompts -> DAG unanswerable versions -> context judge -> jz_run.
+"""DPO RAG prompts: held-out pools -> usable prompts -> DAG unanswerable versions -> context judge -> jz_run.
 
-Output airflow_runs/dataset_rag_dpo_prompts/<run_name>/jz_run, the input_run of dataset_rag_dpo_delta. With a "delta"
-config (dict of dataset_rag_dpo_delta params), that DAG is triggered at the end with input_run filled in; without, the
-prompt set is only built (one prompt set, several generation runs). See airflow/DPO.md.
+Output airflow_runs/dataset_rag_dpo_prompts/<run_name>/jz_run, the input_run of dataset_rag_dpo_pairs (delta or
+onpolicy). With a "pairs" config (dict of dataset_rag_dpo_pairs params, mode included), that DAG is triggered at the
+end with input_run filled in; without, the prompt set is only built (one prompt set, several generation runs). See
+airflow/DPO.md.
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ LLM_POOL = os.environ.get("DATASET_RAG_LLM_POOL", "llm_api")
 
 dag = DAG(
     dag_id="dataset_rag_dpo_prompts",
-    description="DPO RAG Delta : prompts held-out, versions sans réponse du DAG, juge de contexte",
+    description="DPO RAG : prompts held-out, versions sans réponse du DAG, juge de contexte",
     schedule=None,
     catchup=False,
     max_active_runs=1,
@@ -54,9 +55,9 @@ dag = DAG(
         "judge_max_tokens": 16000,
         "max_missing_share": 0.01,
         "calib_from": None,  # jz_run whose calib/ (judge calibration set) is copied; null: none
-        # params of dataset_rag_dpo_delta (endpoints, tokenizers...); input_run is set here, run_name defaults to this
-        # run_name. null = build the prompts only.
-        "delta": None,
+        # params of dataset_rag_dpo_pairs (mode, endpoints, tokenizers...); input_run is set here, run_name defaults to
+        # this run_name. null = build the prompts only.
+        "pairs": None,
     },
 )
 
@@ -77,13 +78,13 @@ prompts = task("build_heldout_prompts", "prompts")
 unans = task("build_unanswerable_versions", "unans", llm=True)
 contexts = task("judge_unanswerable_contexts", "contexts", llm=True)
 jz_run = task("build_prompt_set", "jz_run")
-# The delta config travels as ONE JSON string (from_prompts): templated values are rendered as text, so ints and
-# booleans passed one by one would reach dataset_rag_dpo_delta as strings.
-has_delta = ShortCircuitOperator(task_id="delta_requested", dag=dag,
-                                 python_callable=lambda **ctx: bool(ctx["params"].get("delta")))
+# The pairs config travels as ONE JSON string (from_prompts): templated values are rendered as text, so ints and
+# booleans passed one by one would reach dataset_rag_dpo_pairs as strings.
+has_pairs = ShortCircuitOperator(task_id="pairs_requested", dag=dag,
+                                 python_callable=lambda **ctx: bool(ctx["params"].get("pairs")))
 trigger = TriggerDagRunOperator(
-    task_id="trigger_dataset_rag_dpo_delta", dag=dag, trigger_dag_id="dataset_rag_dpo_delta",
-    conf={"from_prompts": "{{ dict(dict({'run_name': params.run_name}, **params.delta), "
+    task_id="trigger_dataset_rag_dpo_pairs", dag=dag, trigger_dag_id="dataset_rag_dpo_pairs",
+    conf={"from_prompts": "{{ dict(dict({'run_name': params.run_name}, **params.pairs), "
                           "input_run='airflow_runs/dataset_rag_dpo_prompts/' ~ params.run_name ~ '/jz_run') | tojson }}"},
     wait_for_completion=False)
-check >> prompts >> unans >> contexts >> jz_run >> has_delta >> trigger
+check >> prompts >> unans >> contexts >> jz_run >> has_pairs >> trigger

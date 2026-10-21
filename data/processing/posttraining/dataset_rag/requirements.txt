@@ -5,5 +5,6 @@ rank-bm25
 tqdm
 # convert_hotpotqa_fr_abstracts.py: token-length filter (Luciole tokenizer)
 transformers
+jinja2  # chat template of the tokenizers (4,096-token rule of the DPO releases)
 # optional: hybrid dense+BM25 distractor ranking (--dense-model)
 # sentence-transformers

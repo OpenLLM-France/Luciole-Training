@@ -12,6 +12,7 @@ chat template, as the other configs) are removed.
 --revision none: no split reference from the hub (validation drawn by hash among all units). Writes local parquets
 only; uploading is a separate, manual step. Configs missing at the reference revision are skipped (the full off-policy
 configs themselves exist from 0f77a34 on, so a later run keeps their validation units in validation).
+--gold-columns: gold_answer / gold_scale after qid, as commit 27e169e (gold_columns.py).
 """
 import argparse
 import collections
@@ -62,6 +63,8 @@ def main():
     ap.add_argument("--crossjudge", default=str(D / "crossjudge_mistral_jz_delta" / "judged.jsonl"),
                     help="judged.jsonl of crossjudge_mistral.py; none: no Mistral verdict (chosen_mistral_judge null)")
     ap.add_argument("--val-share", type=float, default=VAL_SHARE)
+    ap.add_argument("--gold-columns", action=argparse.BooleanOptionalAction, default=False,
+                    help="gold_answer / gold_scale after qid, as commit 27e169e (gold_columns.py)")
     a = ap.parse_args()
     from huggingface_hub import hf_hub_download
     from transformers import AutoTokenizer
@@ -87,7 +90,7 @@ def main():
     out = Path(a.out)
     pairs_dir, run = Path(a.pairs_dir), Path(a.jz_run)
     man = {"source": str(pairs_dir), "source_sha256": json.loads((pairs_dir / "manifest.json").read_text())
-           ["files"]["delta_pairs.jsonl"]["sha256"], "repo_revision_for_splits": a.revision, "configs": {}}
+           ["files"]["delta_pairs.jsonl"]["sha256"], "repo_revision_for_splits": a.revision, "gold_columns": a.gold_columns, "configs": {}}
     pairs = list(rows(pairs_dir / "delta_pairs.jsonl"))
     for ds in ("hotpotqa", "tatqa"):
         st = collections.Counter()
@@ -150,11 +153,21 @@ def main():
         cfg = f"{ds}_full_offpolicy_qwen35_35b_a3b"
         (out / cfg).mkdir(parents=True, exist_ok=True)
         info = {"n": len(recs), **dict(st)}
+        if not recs:
+            man["configs"][cfg] = {**info, "train": 0, "val": 0, "empty": True}
+            continue
+        # Infer once from all records: empty splits keep the columns, and nested
+        # judge/strict fields have the same types in train and validation.
+        keys = list(dict.fromkeys(k for x in recs for k in x if not k.startswith("_")))
+        schema = pa.Table.from_pylist([{k: x.get(k) for k in keys} for x in recs]).schema
         for s in ("train", "val"):
             rs = [{k: v for k, v in x.items() if not k.startswith("_")} for u in sorted(by_unit) if split[u] == s
                   for x in by_unit[u]]
-            keys = list(dict.fromkeys(k for x in rs for k in x))  # generic and strict rows: same columns everywhere
-            pq.write_table(pa.Table.from_pylist([{k: x.get(k) for k in keys} for x in rs]), out / cfg / f"{s}.parquet")
+            pq.write_table(pa.Table.from_pylist([{k: x.get(k) for k in keys} for x in rs], schema=schema),
+                           out / cfg / f"{s}.parquet")
+            if a.gold_columns:
+                from gold_columns import add_to_parquet
+                add_to_parquet(out / cfg / f"{s}.parquet", ds)
             info[s] = len(rs)
             info[f"{s}_units"] = sum(1 for u in split if split[u] == s)
             info[f"{s}_by_category"] = dict(sorted(collections.Counter(x["category"] for x in rs).items()))
@@ -171,6 +184,8 @@ def main():
     man["models"] = {"chosen": "Qwen/Qwen3.5-35B-A3B (bf16)", "rejected": "Qwen/Qwen3.5-4B (bf16)",
                      "judge": "Qwen/Qwen3.8-27B (bf16, reasoning)", "cross_judge": "Mistral-Small-3.2-24B-Instruct-2506-FP8"}
     (out / "manifest_full_offpolicy_qwen35_35b_a3b.json").write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n")
+    if not any(info["n"] for info in man["configs"].values()):
+        raise RuntimeError("Aucune paire publiable après filtrage de longueur")
     print(json.dumps(man, indent=1, ensure_ascii=False))
 
 

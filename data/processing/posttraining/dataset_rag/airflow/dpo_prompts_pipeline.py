@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Airflow CLI adapter for the prompt preparation of the Delta DPO run (no Airflow dependency).
+"""Airflow CLI adapter for the prompt preparation of the DPO runs (no Airflow dependency).
 
 Stages, as for the Jean Zay run of 2026-10-06:
   check     inputs present (held-out pools, evaluation exclusions, HotpotQA cache, TAT-QA run files, calibration)
@@ -8,7 +8,7 @@ Stages, as for the Jean Zay run of 2026-10-06:
             removed gold chunks; Mistral for the missing TAT-QA [CONTEXT] summaries)
   contexts  judge_pilot_contexts.py on those versions (Qwen3.8-27B with reasoning); failed calls asked once more
   jz_run    build_jz_run.py: final prompt set (nogold clones dropped, DAG versions judged unanswerable added), calibration
-Output airflow_runs/dataset_rag_dpo_prompts/<run_name>/jz_run = input_run of the DAG dataset_rag_dpo_delta.
+Output airflow_runs/dataset_rag_dpo_prompts/<run_name>/jz_run = input_run of the DAG dataset_rag_dpo_pairs.
 """
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def main():
     else:
         run("build_jz_run.py", env={**env_for(out), **({"JZ_CALIB_FROM": str(resolve(c["calib_from"]))}
                                                      if c["calib_from"] else {})})
-        print(f"input_run pour dataset_rag_dpo_delta : {(out / 'jz_run').relative_to(BASE)}")
+        print(f"input_run pour dataset_rag_dpo_pairs : {(out / 'jz_run').relative_to(BASE)}")
 
 
 if __name__ == "__main__":
