@@ -327,6 +327,45 @@ class ServeTests(unittest.TestCase):
                 P.serve_config(base_config(policy_serve=serve))
 
 
+class GeneratorServeTests(unittest.TestCase):
+    """Delta generators started by the DAG (rejected_serve): an HF cache repo mounted whole, its snapshot served."""
+    SERVE = {"ssh_host": "dgx", "model_dir": "lora_instruct_ablation/hf_cache/hub/models--Qwen--Qwen3.5-4B",
+             "model_subdir": "snapshots/851bf6e"}
+
+    def config(self, **kw):
+        return base_config(**{"mode": "delta", "run_name": "fr1", "rejected_model": "Qwen3.5-4B", "rejected_url": None,
+                              "rejected_serve": self.SERVE, "chosen_url": "http://x/v1",
+                              "chosen_model": "Qwen3.5-35B-A3B", **kw})
+
+    def test_hf_cache_repo_served_from_its_snapshot_with_its_own_template(self):
+        c = self.config()
+        script = P.start_script(c, P.serve_config(c, "rejected"), "rejected")
+        self.assertIn('-v "$(readlink -f "$M"):/model:ro"', script)
+        self.assertIn("vllm serve /model/snapshots/851bf6e --served-model-name Qwen3.5-4B", script)
+        self.assertIn("-p 127.0.0.1:8017:8000", script)
+        self.assertIn("nvcr.io/nvidia/vllm:26.04-py3", script)
+        self.assertIn("vllm_dpo_pairs_rejected_fr1", script)
+        self.assertNotIn("--chat-template", script)
+
+    def test_policy_server_keeps_its_template_and_directory(self):
+        c = base_config(run_name="op")
+        script = P.start_script(c, P.serve_config(c))
+        self.assertIn("vllm serve /model --served-model-name luciole_policy", script)
+        self.assertIn("--chat-template /model/chat_template.jinja", script)
+        self.assertIn("vllm_dpo_pairs_op", script)
+
+    def test_teardown_covers_the_started_generators_only(self):
+        self.assertEqual(P.served_roles(self.config()), ["rejected"])
+        self.assertEqual(P.served_roles(self.config(rejected_serve=None, rejected_url="http://y/v1")), [])
+
+    def test_url_and_serve_are_exclusive_and_model_dir_required(self):
+        for kw, err in (({"rejected_url": "http://y/v1"}, "null avec rejected_serve"),
+                        ({"rejected_serve": None}, "rejected_url ou rejected_serve"),
+                        ({"rejected_serve": {"ssh_host": "dgx"}}, "model_dir")):
+            with self.assertRaisesRegex(ValueError, err):
+                P.validate(self.config(**kw))
+        P.validate(self.config())
+
 class ValidateTests(unittest.TestCase):
     def test_mode_constraints(self):
         for kw, err in (({"mode": "delta", "prompt_source": "heldout_v2"}, "delta"),

@@ -75,7 +75,13 @@ SERVE_DEFAULTS = {
     "min_free_gb": 50,               # MemAvailable below that: the host is busy, the task fails (no cache flush)
     "thermal_pauser": None,  # script on the host that freezes the container above 80C (null: none)
     "startup_timeout": 900,
+    "model_subdir": "",              # served directory inside model_dir (an HF cache repo: snapshots/<revision>)
+    "chat_template": "chat_template.jinja",  # inside the served directory; null: the model's own template
 }
+# delta generators started by the DAG (chosen_serve / rejected_serve): model_dir is required; an HF cache repo is
+# mounted whole (its snapshot files are symlinks to ../../blobs) and snapshots/<revision> is served
+GENERATOR_SERVE_DEFAULTS = {**SERVE_DEFAULTS, "model_dir": None, "image": "nvcr.io/nvidia/vllm:26.04-py3",
+                            "remote_port": 8017, "chat_template": None}
 
 
 def rows(path):
@@ -342,35 +348,43 @@ class Remote:
         shutil.rmtree(self.tmp, ignore_errors=True)
 
 
-def serve_config(c):
-    s = {**SERVE_DEFAULTS, **(c.get("policy_serve") or {})}
-    unknown = set(s) - set(SERVE_DEFAULTS)
+def serve_config(c, role="policy"):
+    """Server of role (policy, or the delta generator chosen / rejected): <role>_serve over its defaults."""
+    defaults = SERVE_DEFAULTS if role == "policy" else GENERATOR_SERVE_DEFAULTS
+    s = {**defaults, **(c.get(f"{role}_serve") or {})}
+    unknown = set(s) - set(defaults)
     if unknown:
-        raise ValueError(f"policy_serve : clés inconnues {sorted(unknown)}")
+        raise ValueError(f"{role}_serve : clés inconnues {sorted(unknown)}")
+    if not s["model_dir"]:
+        raise ValueError(f"{role}_serve.model_dir : dossier des poids sur l'hôte requis")
     if not re.fullmatch(r"[A-Za-z0-9@._-]+", str(s["ssh_host"])):
-        raise ValueError("policy_serve.ssh_host : alias ou user@host")
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", str(c["policy_model"])):
-        raise ValueError("policy_model : nom servi en lettres/chiffres/points/tirets/underscores")
-    for k in ("model_dir", "image") + (("thermal_pauser",) if s["thermal_pauser"] else ()):
+        raise ValueError(f"{role}_serve.ssh_host : alias ou user@host")
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", str(c[f"{role}_model"])):
+        raise ValueError(f"{role}_model : nom servi en lettres/chiffres/points/tirets/underscores")
+    paths = ("model_dir", "image") + tuple(k for k in ("thermal_pauser", "model_subdir", "chat_template") if s[k])
+    for k in paths:
         if not re.fullmatch(r"[A-Za-z0-9/@:._-]+", str(s[k])) or ".." in str(s[k]):
-            raise ValueError(f"policy_serve.{k} : chemin ou image invalide")
+            raise ValueError(f"{role}_serve.{k} : chemin ou image invalide")
     return s
 
 
-def container_name(c):
-    return "vllm_dpo_pairs_" + re.sub(r"[^A-Za-z0-9_.-]", "_", c["run_name"])[:40]
+def container_name(c, role="policy"):
+    return "vllm_dpo_pairs_" + ("" if role == "policy" else role + "_") \
+        + re.sub(r"[^A-Za-z0-9_.-]", "_", c["run_name"])[:40]
 
 
-def stop_script(c):
-    n = container_name(c)
+def stop_script(c, role="policy"):
+    n = container_name(c, role)
     return (f'P="$HOME/.{n}.pauser.pid"; if [ -f "$P" ]; then kill "$(cat "$P")" 2>/dev/null || true; rm -f "$P"; fi\n'
             f"docker unpause {n} >/dev/null 2>&1 || true\ndocker rm -f {n} >/dev/null 2>&1 || true\n"
             f'echo "conteneur {n} arrêté"\n')
 
 
-def start_script(c, s):
-    n = container_name(c)
+def start_script(c, s, role="policy"):
+    n = container_name(c, role)
     model = s["model_dir"] if s["model_dir"].startswith("/") else "$HOME/" + s["model_dir"]
+    served = "/model" + (f"/{s['model_subdir']}" if s["model_subdir"] else "")
+    template = f" --chat-template {served}/{s['chat_template']}" if s["chat_template"] else ""
     pauser = ""
     if s["thermal_pauser"]:
         tp = s["thermal_pauser"] if s["thermal_pauser"].startswith("/") else "$HOME/" + s["thermal_pauser"]
@@ -379,34 +393,51 @@ def start_script(c, s):
                   f'else echo "régulateur thermique absent : {tp}"; fi\n')
     return f"""set -euo pipefail
 M="{model}"
-[ -f "$M/model.safetensors" ] || {{ echo "politique absente : $M"; exit 3; }}
+W="$M{served[len("/model"):]}"
+ls "$W"/*.safetensors >/dev/null 2>&1 || {{ echo "poids absents : $W"; exit 3; }}
 free_gb=$(awk '/^MemAvailable/{{print int($2/1048576)}}' /proc/meminfo)
 echo "free_gb=$free_gb"
 docker ps --format '   {{{{.Names}}}}  {{{{.Image}}}}  {{{{.Status}}}}'
 [ "$free_gb" -ge {int(s["min_free_gb"])} ] || {{ echo "moins de {int(s["min_free_gb"])} Go disponibles : hôte occupé"; exit 4; }}
-# transformers 5.x tokenizer class unknown to the vLLM image (run_pilot.sh); idempotent
-sed -i 's/"TokenizersBackend"/"PreTrainedTokenizerFast"/' "$M/tokenizer_config.json"
-{stop_script(c)}docker run -d --name {n} --gpus all --ipc=host -p 127.0.0.1:{int(s["remote_port"])}:8000 -v "$M:/model:ro" \\
-    {s["image"]} vllm serve /model --served-model-name {c["policy_model"]} --max-model-len {int(s["max_model_len"])} \\
-    --gpu-memory-utilization {float(s["gpu_memory_utilization"])} --chat-template /model/chat_template.jinja >/dev/null
+# transformers 5.x tokenizer class unknown to the vLLM image (run_pilot.sh); idempotent, and an HF cache blob is left
+# untouched
+if grep -q '"TokenizersBackend"' "$W/tokenizer_config.json"; then
+    sed -i 's/"TokenizersBackend"/"PreTrainedTokenizerFast"/' "$W/tokenizer_config.json"
+fi
+{stop_script(c, role)}docker run -d --name {n} --gpus all --ipc=host -p 127.0.0.1:{int(s["remote_port"])}:8000 -v "$(readlink -f "$M"):/model:ro" \\
+    {s["image"]} vllm serve {served} --served-model-name {c[f"{role}_model"]} --max-model-len {int(s["max_model_len"])} \\
+    --gpu-memory-utilization {float(s["gpu_memory_utilization"])}{template} >/dev/null
 {pauser}echo "host=$(hostname)"
-echo "model_path=$(readlink -f "$M")"
-echo "model_sha256=$(sha256sum "$M/model.safetensors" | cut -d' ' -f1)"
+echo "model_path=$(readlink -f "$W")"
+# one file: its sha256 (the policy); shards: sha256 of their sorted "sha256  name" list
+if [ -f "$W/model.safetensors" ]; then
+    echo "model_sha256=$(sha256sum "$W/model.safetensors" | cut -d' ' -f1)"
+else
+    echo "model_sha256=$(cd "$W" && sha256sum -- *.safetensors | sort -k2 | sha256sum | cut -d' ' -f1)"
+fi
 """
 
 
+def launched(c, role):
+    """Whether the DAG starts the server of role: the policy without policy_url, a delta generator with <role>_serve."""
+    if role == "policy":
+        return not c.get("policy_url")
+    return bool(c.get(f"{role}_serve"))
+
+
 @contextlib.contextmanager
-def policy_server(c):
-    """(url, served name, server facts): policy_url as given, else vLLM started in Docker on policy_serve.ssh_host,
+def vllm_server(c, role="policy"):
+    """(url, served name, server facts) of role: the given URL, else vLLM started in Docker on <role>_serve.ssh_host,
     reached through an SSH forward, stopped on exit (stop_policy also stops it if this task is killed)."""
-    if c.get("policy_url"):
-        yield c["policy_url"], c["policy_model"], {"launched": False, "url": c["policy_url"]}
+    if not launched(c, role):
+        url = c[f"{role}_url"]
+        yield url, c[f"{role}_model"], {"launched": False, "url": url}
         return
-    s = serve_config(c)
+    s = serve_config(c, role)
     r = Remote(s)
     r.open(s["remote_port"])
     try:
-        out = r.sh(start_script(c, s)).stdout
+        out = r.sh(start_script(c, s, role)).stdout
         print(out, flush=True)
         facts = dict(line.split("=", 1) for line in out.splitlines() if re.match(r"^(host|model_path|model_sha256)=", line))
         url = f"http://127.0.0.1:{r.port}/v1"
@@ -414,32 +445,42 @@ def policy_server(c):
         while not isinstance(served_models(url), list):
             if time.time() > deadline:
                 raise RuntimeError("vLLM pas prêt à temps")
-            st = r.sh(f"docker inspect -f '{{{{.State.Running}}}}' {container_name(c)}", check=False).stdout.strip()
+            st = r.sh(f"docker inspect -f '{{{{.State.Running}}}}' {container_name(c, role)}", check=False).stdout.strip()
             if st != "true":
-                logs = r.sh(f"docker logs --tail 40 {container_name(c)} 2>&1", check=False).stdout
+                logs = r.sh(f"docker logs --tail 40 {container_name(c, role)} 2>&1", check=False).stdout
                 raise RuntimeError(f"le conteneur vLLM s'est arrêté :\n{logs}")
             time.sleep(10)
-        yield url, c["policy_model"], {"launched": True, "ssh_host": s["ssh_host"], "image": s["image"],
-                                       "container": container_name(c), **facts}
+        yield url, c[f"{role}_model"], {"launched": True, "ssh_host": s["ssh_host"], "image": s["image"],
+                                        "container": container_name(c, role), **facts}
     finally:
         try:
-            print(r.sh(stop_script(c), check=False, timeout=120).stdout, flush=True)
+            print(r.sh(stop_script(c, role), check=False, timeout=120).stdout, flush=True)
         finally:
             r.close()
 
 
+def served_roles(c):
+    """Servers this run starts: the policy (onpolicy, no replay), or the delta generators given a <role>_serve."""
+    if c["mode"] == "onpolicy":
+        return [] if c["replay"] or not launched(c, "policy") else ["policy"]
+    return [role for role in ("chosen", "rejected") if launched(c, role)]
+
+
 def stop_policy(c):
-    """Teardown (trigger_rule all_done): the policy container is removed even when the generation task was killed."""
-    if c["mode"] != "onpolicy" or c.get("policy_url") or c["replay"]:
+    """Teardown (trigger_rule all_done): the containers this run starts are removed even when a generation task was
+    killed."""
+    roles = served_roles(c)
+    if not roles:
         print("rien à arrêter")
         return
-    s = serve_config(c)
-    r = Remote(s)
-    try:
-        r.open()
-        print(r.sh(stop_script(c), check=False, timeout=120).stdout)
-    finally:
-        r.close()
+    for role in roles:
+        s = serve_config(c, role)
+        r = Remote(s)
+        try:
+            r.open()
+            print(r.sh(stop_script(c, role), check=False, timeout=120).stdout)
+        finally:
+            r.close()
 
 
 def complete_samples(d, k=SAMPLING["k"]):
@@ -457,7 +498,7 @@ def policy(c, out):
             raise RuntimeError(f"rejeu : échantillons incomplets {bad}")
         print("rejeu : échantillons de la publication réutilisés")
         return
-    with policy_server(c) as (url, served, facts):
+    with vllm_server(c) as (url, served, facts):
         for pool in pools(c):
             d = pool_dir(out, pool)
             for _ in range(3):  # a failed request is asked again on the next pass (run_pilot.sh)
@@ -678,33 +719,44 @@ def onpolicy_release(c, out):
 def generate(c, out, chosen):
     gen = GENERATORS[0 if chosen else 1]
     prefix = "chosen" if chosen else "rejected"
-    env = generator_env(c, prefix)
-    for ds in jz_datasets(out):
-        d = out / gen / ds
-        samples = d / f"chosen_{gen}.jsonl"
+    k = 2 if chosen else 4
+    # a server started by the DAG has no key; a given one may (<prefix>_key_file)
+    env = None if launched(c, prefix) else generator_env(c, prefix)
+    with vllm_server(c, prefix) as (url, served, facts):
+        for ds in jz_datasets(out):
+            generate_dataset(c, out, ds, gen, prefix, k, url, served, facts, env)
+
+
+def generate_dataset(c, out, ds, gen, prefix, k, url, served, facts, env):
+    d = out / gen / ds
+    samples = d / f"chosen_{gen}.jsonl"
+    expected = {-1, *range(k)}
+    for _ in range(3):  # a failed request is asked again on the next pass (sample_policy.py resumes)
         run("sample_policy.py", "--prompts", d / "prompts.jsonl", "--out", samples,
-            "--api-url", c[f"{prefix}_url"], "--model", c[f"{prefix}_model"],
-            "--k", 2 if chosen else 4, "--temperature", 0.7 if chosen else 1.0,
+            "--api-url", url, "--model", served,
+            "--k", k, "--temperature", 0.7 if prefix == "chosen" else 1.0,
             "--top-p", 0.80, "--top-k", 20, "--min-p", 0,
             "--max-tokens", 2048, "--seed", c["seed"],
             "--concurrency", c["generation_concurrency"],
             "--chat-template-kwargs", '{"enable_thinking": false}', env=env)
         last = {r["pid"]: r for r in rows(samples)}
-        expected = {-1, *range(2 if chosen else 4)}
-        for p in rows(d / "prompts.jsonl"):
-            r = last.get(p["pid"], {})
-            if r.get("errors") or {s["k"] for s in r.get("samples", [])} != expected:
-                raise RuntimeError(f"{ds}/{p['pid']}: génération incomplète ; relancer")
-            if any("<think>" in s["text"] or "</think>" in s["text"] for s in r["samples"]):
-                raise RuntimeError("Le serveur a activé le raisonnement malgré enable_thinking=false")
-        # what the JZ job recorded in generation_<gen>.manifest.json (weights, precision, server)
-        (d / f"generation_{gen}.manifest.json").write_text(json.dumps({
-            "served_model": c[f"{prefix}_model"], "url": c[f"{prefix}_url"], "dtype": c[f"{prefix}_dtype"],
-            "server_models": served_models(c[f"{prefix}_url"], (env or {}).get("SAMPLER_API_KEY")),
-            "prompt_sha256": sha256(d / "prompts.jsonl"), "samples_sha256": sha256(samples),
-            "k_sampled": 2 if chosen else 4, "temperature": 0.7 if chosen else 1.0, "top_p": 0.80, "top_k": 20,
-            "min_p": 0.0, "seed": c["seed"], "greedy": True, "max_tokens": 2048, "enable_thinking": False,
-            "concurrency": c["generation_concurrency"]}, indent=2), encoding="utf-8")
+        todo = [p["pid"] for p in rows(d / "prompts.jsonl") if last.get(p["pid"], {}).get("errors")
+                or {s["k"] for s in last.get(p["pid"], {}).get("samples", [])} != expected]
+        if not todo:
+            break
+    else:
+        raise RuntimeError(f"{ds}: génération incomplète ({len(todo)} prompts, ex. {todo[0]}) ; relancer")
+    if any("<think>" in s["text"] or "</think>" in s["text"] for r in last.values() for s in r["samples"]):
+        raise RuntimeError("Le serveur a activé le raisonnement malgré enable_thinking=false")
+    # what the JZ job recorded in generation_<gen>.manifest.json (weights, precision, server)
+    (d / f"generation_{gen}.manifest.json").write_text(json.dumps({
+        "served_model": served, "url": c[f"{prefix}_url"] if not facts["launched"] else None,
+        "dtype": c[f"{prefix}_dtype"], "server": facts,
+        "server_models": served_models(url, (env or {}).get("SAMPLER_API_KEY")),
+        "prompt_sha256": sha256(d / "prompts.jsonl"), "samples_sha256": sha256(samples),
+        "k_sampled": k, "temperature": 0.7 if prefix == "chosen" else 1.0, "top_p": 0.80, "top_k": 20,
+        "min_p": 0.0, "seed": c["seed"], "greedy": True, "max_tokens": 2048, "enable_thinking": False,
+        "concurrency": c["generation_concurrency"]}, indent=2), encoding="utf-8")
 
 
 def judge(c, out):
@@ -830,6 +882,14 @@ def validate(c):
         raise ValueError("max_missing_share : entre 0 et 0.1")
     if c.get("limit_questions") is not None and not is_int(c["limit_questions"], 1):
         raise ValueError("limit_questions doit être null ou un entier positif")
+    if c["mode"] == "delta":
+        for role in ("chosen", "rejected"):
+            if c.get(f"{role}_serve"):
+                if c.get(f"{role}_url"):
+                    raise ValueError(f"{role}_url doit être null avec {role}_serve (serveur lancé par le DAG)")
+                serve_config(c, role)
+            elif not c.get(f"{role}_url"):
+                raise ValueError(f"{role}_url ou {role}_serve requis")
     if c["mode"] == "onpolicy":
         if not c.get("policy_tokenizer"):
             raise ValueError("policy_tokenizer : dossier local du tokenizer de la politique (règle des 4 096 tokens)")

@@ -92,7 +92,12 @@ validation), then the `mode` task sends the run down one of the two branches; th
 | `crossjudge_mistral` | optional (`crossjudge`, default false): `dpo/crossjudge_mistral.py` on chosen refusals → `crossjudge/` (informative column `chosen_mistral_judge`, null when skipped; nothing removed) |
 | `format_release_configs` | `dpo/publish_jz_full_offpolicy.py --gold-columns` → `release/`: 4,096-token rule (policy tokenizer), splits by question / table, released columns |
 
-The 35B, 4B and judge endpoints are given (`chosen_url`, `rejected_url`, `judge_url`): this mode starts no server.
+Each generator is either given (`chosen_url`, `rejected_url`, with `chosen_key_file` / `rejected_key_file` when the
+server requires a key) or started by the DAG like the on-policy policy (`chosen_serve` / `rejected_serve`, the matching
+URL then `null`): vLLM in Docker on a GPU host over SSH, see *Policy server* below, with the keys of
+`dpo_pipeline.GENERATOR_SERVE_DEFAULTS` (`model_dir` required; an HF cache repository is mounted whole and
+`model_subdir: snapshots/<revision>` is served with the model's own chat template). `stop_policy_server` removes these
+containers too. The judge endpoint is always given.
 
 **Missing verdicts.** Some judgements never come back (reasoning beyond `judge_max_tokens`, or no verdict), always
 the same ones since the judge is greedy: about 110 out of 63,000 in the paper run. After the chain, a second pass asks
@@ -167,7 +172,8 @@ host sits behind jump hosts).
 
 ## Parameters
 
-* Delta: three OpenAI-compatible endpoints reachable **from the worker** (35B, 4B, judge). The judge must be served as
+* Delta: OpenAI-compatible endpoints reachable **from the worker** for the judge and for each generator not started by
+  the DAG (35B, 4B). The judge must be served as
   `judge_model` (default `Qwen3.8-27B`). `tokenizer` (token counts of the export).
 * On-policy: the GPU host through `policy_serve` (or `policy_url`), and the judge endpoint.
 * `policy_tokenizer`: local directory of the SFT policy tokenizer (required for the parquets).

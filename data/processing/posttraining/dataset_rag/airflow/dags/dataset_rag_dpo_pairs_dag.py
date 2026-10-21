@@ -59,6 +59,11 @@ dag = DAG(
         # file holding the bearer key of the 35B / 4B server (relative to dataset_rag/), null = no key
         "chosen_key_file": None,
         "rejected_key_file": None,
+        # or a vLLM started by the DAG over SSH, as the onpolicy policy (the matching *_url then null): dict of
+        # dpo_pipeline.GENERATOR_SERVE_DEFAULTS keys, model_dir required, e.g. {"ssh_host": "dgx", "model_dir":
+        # "lora_instruct_ablation/hf_cache/hub/models--Qwen--Qwen3.5-4B", "model_subdir": "snapshots/<revision>"}
+        "chosen_serve": None,
+        "rejected_serve": None,
         # onpolicy: prompts of input_run (jz_run) or the held-out pools of the published configs (heldout_v2);
         # replay (heldout_v2 only) reuses their samples and verdicts and must give the published files
         "prompt_source": "jz_run",
@@ -133,6 +138,7 @@ cross = task("crossjudge_mistral", "crossjudge", llm=True)
 release = task("format_release_configs", "release")
 
 policy = task("generate_policy", "policy")
+# teardown of the vLLM containers the run starts (policy, or delta generators with *_serve), even after a kill
 stop = task("stop_policy_server", "stop_policy", trigger_rule="all_done")
 ojudge = task("calibrate_and_judge_policy", "onpolicy_judge")
 obuild = task("build_onpolicy_pairs", "onpolicy_build")
@@ -144,4 +150,4 @@ audit = task("audit_lengths_and_format", "audit", trigger_rule="none_failed_min_
 
 prepare >> mode >> [chosen, rejected] >> judge >> build >> filt >> cross >> release >> audit
 mode >> policy >> ojudge >> obuild >> recheck >> refine >> orelease >> audit
-policy >> stop
+[policy, chosen, rejected] >> stop
