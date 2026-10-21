@@ -7,6 +7,7 @@ from utils import (
     instruct_adapter,
     check_last_message,
     NemoRLFormat,
+    ChatTokenCount,
 )
 
 
@@ -99,6 +100,13 @@ if __name__ == "__main__":
         check_last_message,
         FilterChinese(
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/xlam/chinese_heavy"),
+        ),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/xlam_oaiformat/too_long"),
         ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,

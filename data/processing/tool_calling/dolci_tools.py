@@ -8,6 +8,7 @@ from utils import (
     hub_adapter,
     instruct_adapter,
     NemoRLFormat,
+    ChatTokenCount,
 )
 
 
@@ -149,6 +150,13 @@ if __name__ == "__main__":
             ),
         ),
         NemoRLFormat(),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/dolci_tools/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/dolci_tools",

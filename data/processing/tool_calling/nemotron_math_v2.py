@@ -6,6 +6,7 @@ from utils import (
     hub_adapter,
     instruct_adapter,
     NemoRLFormat,
+    ChatTokenCount,
 )
 
 class ParquetReaderFromRow(ParquetReader):
@@ -187,6 +188,13 @@ if __name__ == "__main__":
         format_messages,
         partial(thinking_as_tool_call, thinking_as_tool=args.thinking_as_tool),
         NemoRLFormat(),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}",

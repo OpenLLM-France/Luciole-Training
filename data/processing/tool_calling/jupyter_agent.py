@@ -7,6 +7,7 @@ from utils import (
     instruct_adapter,
     check_last_message,
     NemoRLFormat,
+    ChatTokenCount,
 )
 
 # The single user message opens with the environment description (available
@@ -136,6 +137,13 @@ if __name__ == "__main__":
         FilterChinese(
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/jupyter_agent/{split}/chinese_heavy"),
         ),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/jupyter_agent/{split}/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/jupyter_agent/{split}",
@@ -156,7 +164,7 @@ if __name__ == "__main__":
         limit_debug=args.limit_debug,
         logging_dir=f"{DATA_PATH}/jupyter_agent/{split}/logs",
         job_name=f"jupyter_agent_{split}",
-        tasks=16,
+        tasks=1,
         time="02:00:00",
         qos="qos_cpu-t3",
         skip_completed=not args.force,

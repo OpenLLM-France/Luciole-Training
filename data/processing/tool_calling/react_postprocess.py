@@ -9,6 +9,7 @@ from utils import (
     instruct_adapter,
     check_last_message,
     NemoRLFormat,
+    ChatTokenCount,
 )
 
 def id_deduplication(data, rank: int = 0, world_size: int = 1):
@@ -85,6 +86,13 @@ if __name__ == "__main__":
         id_deduplication,
         format_messages,
         NemoRLFormat(),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/react_postprocess/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/react_postprocess",
@@ -104,7 +112,7 @@ if __name__ == "__main__":
         debug=args.debug,
         logging_dir=f"{DATA_PATH}/react_postprocess/logs",
         job_name="react_postprocess",
-        tasks=14,
+        tasks=1,
         time="01:00:00",
         qos="qos_cpu-dev",
         skip_completed=not args.force,

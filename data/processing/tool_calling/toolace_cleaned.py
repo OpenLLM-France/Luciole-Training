@@ -1,7 +1,7 @@
 from utils import create_parser, parse_args, create_executor, hub_adapter
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
-from utils import instruct_adapter, NemoRLFormat
+from utils import instruct_adapter, NemoRLFormat, ChatTokenCount
 
 def format_messages(
     data,
@@ -57,6 +57,13 @@ if __name__ == "__main__":
         ),
         format_messages,
         NemoRLFormat(),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/toolace_cleaned/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/toolace_cleaned",

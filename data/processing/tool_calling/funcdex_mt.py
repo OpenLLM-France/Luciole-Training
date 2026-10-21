@@ -5,6 +5,7 @@ from utils import (
     hub_adapter,
     instruct_adapter,
     NemoRLFormat,
+    ChatTokenCount,
 )
 
 def format_messages(
@@ -48,6 +49,13 @@ if __name__ == "__main__":
         ),
         format_messages,
         NemoRLFormat(),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/funcdex_mt/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/funcdex_mt",

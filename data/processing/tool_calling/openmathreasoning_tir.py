@@ -7,6 +7,7 @@ from utils import (
     instruct_adapter,
     check_last_message,
     NemoRLFormat,
+    ChatTokenCount,
 )
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
@@ -155,6 +156,13 @@ if __name__ == "__main__":
                 f"{DATA_PATH}/openmathreasoning_tir/chinese_heavy"
             ),
         ),
+        ChatTokenCount(
+            "OpenLLM-France/tokenizer_128k_dual",
+            tools_key="tools",
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            max_tokens=2**16,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/openmathreasoning_tir/too_long"),
+        ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/openmathreasoning_tir",
@@ -175,7 +183,7 @@ if __name__ == "__main__":
         limit_debug=args.limit_debug,
         logging_dir=f"{DATA_PATH}/openmathreasoning_tir/logs",
         job_name="openmathreasoning_tir",
-        tasks=32,
+        tasks=1,
         time="02:00:00",
         qos="qos_cpu-t3",
         skip_completed=not args.force,
