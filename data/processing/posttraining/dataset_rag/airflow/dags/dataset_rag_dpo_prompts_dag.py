@@ -1,4 +1,5 @@
-"""DPO RAG prompts: held-out pools -> usable prompts -> DAG unanswerable versions -> context judge -> jz_run.
+"""DPO RAG prompts: held-out pools -> usable prompts -> DAG unanswerable versions -> context judge -> jz_run; or, with
+source sft_run, the held-out questions of an SFT DAG run -> SFT-format prompts -> context judge -> jz_run.
 
 Output airflow_runs/dataset_rag_dpo_prompts/<run_name>/jz_run, the input_run of dataset_rag_dpo_pairs (delta or
 onpolicy). With a "pairs" config (dict of dataset_rag_dpo_pairs params, mode included), that DAG is triggered at the
@@ -44,6 +45,13 @@ dag = DAG(
     tags=["dataset_rag", "dpo", "delta"],
     params={
         "run_name": "default",
+        # heldout_pools: held-out pools of the SFT newrag step 4152 policy (dpo/data/heldout_*_sft4152); sft_run: the
+        # questions of an SFT DAG run (HotpotQA family) of which no version reached the SFT data
+        "source": "heldout_pools",
+        "sft_run": None,  # e.g. airflow_runs/dataset_rag_hotpotqa_fr_abstracts/full_ref
+        "sft_dataset": "hotpotqa_fr",  # dataset name of the jz_run (jz_run/<gen>/<sft_dataset>/)
+        "sft_language": "fr",  # data language of the run (formatting_sft --language)
+        "seed": 42,
         # TAT-QA run of the dataset_rag_tatqa DAG whose converted rows and [CONTEXT] cache are reused (2026-07-22/23)
         "tatqa_converted": "airflow_runs/dataset_rag_tatqa/full/tatqa_converted.jsonl",
         "tatqa_ctx_cache": "airflow_runs/dataset_rag_tatqa/full/tatqa_augmented_contextualization_cache.jsonl",

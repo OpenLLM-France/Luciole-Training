@@ -50,6 +50,30 @@ Inputs (under `dataset_rag/`): the held-out pools `dpo/data/heldout_full_sft4152
 `tatqa_converted.jsonl` and contextualisation cache of a `dataset_rag_tatqa` run, and, optionally, an existing `jz_run`
 holding calibration verdicts (`calib_from`).
 
+### Source `sft_run`: the questions of an SFT run that stayed out of the SFT data
+
+`"source": "sft_run"` replaces the held-out pools by a run of an SFT DAG of the HotpotQA family (`sft_run`:
+`airflow_runs/<dag_id>/<run_name>`, e.g. `dataset_rag_hotpotqa_fr_abstracts/<run_name>`).
+
+| Task | Role |
+|---|---|
+| `check_inputs` | `*_augmented_evaluated.jsonl` and its `_filtered`, calibration set of `calib_from` when set |
+| `build_heldout_prompts` | `dpo/build_dpo_prompts_heldout.py extract` then `format`: every question none of whose versions reached the SFT data (answerable rows with factual judge 5; unanswerable versions the generator refused, with their answerable twin), put in the SFT format by `formatting_sft` (same language, citation format of the run, generic refusal rule only, without the invitation clause) |
+| `build_unanswerable_versions` | nothing: the unanswerable versions come from the SFT DAG itself |
+| `judge_unanswerable_contexts` | Qwen3.8-27B context judge (with reasoning) on **every** prompt of the pool |
+| `build_prompt_set` | prompts whose verdict agrees with the label (an unanswerable version keeps its twin) → `jz_run/<generator>/<sft_dataset>/`, calibration set copied from `calib_from` when set |
+
+Parameters: `sft_run`, `sft_dataset` (dataset name in the `jz_run`, default `hotpotqa_fr`, distinct from `hotpotqa` /
+`tatqa`), `sft_language` (`fr` or `en`), `seed`. `dataset_rag_dpo_pairs` does not take these prompts yet (datasets,
+gold columns and release are specific to `hotpotqa` / `tatqa`, and the cited-excerpt filter does not know `<ref>`), so
+`pairs` is refused with `sft_run`. The prompts only make on-policy data for a policy whose SFT data has that format.
+
+**`ref` citation format in the DPO metrics** (`dpo/dpo_common.py`): numbered documents `[N] filename:`
+(`context_titles`), `ref` style inline / end of completion (`requested_citation_style`), French context marker
+(`context_block`), and `citation_metrics(..., system_prompt)`: cited titles from the numbers, `n_ref_tags` /
+`n_ref_invalid` (number outside the documents, excerpt empty or not verbatim, tag of another format), as
+`eval_ref_invalid` of the SFT filter.
+
 ## `dataset_rag_dpo_pairs`
 
 `prepare_prompts` freezes the prompts (sha256 manifest; rejects unpadded clones, contradictory verdicts, leaks towards
@@ -192,6 +216,14 @@ Replay of the on-policy release (no LLM call):
 ```bash
 ./run_airflow.sh dags trigger dataset_rag_dpo_pairs --conf '{"run_name": "replay_v2", "mode": "onpolicy",
   "prompt_source": "heldout_v2", "replay": true, "policy_tokenizer": "/path/sft_policy"}'
+```
+
+Prompts from an SFT run:
+
+```bash
+./run_airflow.sh dags trigger dataset_rag_dpo_prompts --conf '{"run_name": "fr1", "source": "sft_run",
+  "sft_run": "airflow_runs/dataset_rag_hotpotqa_fr_abstracts/<run_name>", "sft_dataset": "hotpotqa_fr",
+  "sft_language": "fr", "judge_url": "http://judge:8000/v1"}'
 ```
 
 Same `run_name` and same configuration = resume; changed configuration or prompts = new name. One active run per

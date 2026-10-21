@@ -115,7 +115,7 @@ class ContextJudgeTests(unittest.TestCase):
         return run
 
     def config(self):
-        return {"judge_key_file": str(self.key), "judge_url": "http://x/v1", "judge_model": "m",
+        return {"source": "heldout_pools", "judge_key_file": str(self.key), "judge_url": "http://x/v1", "judge_model": "m",
                 "judge_max_tokens": 16000, "judge_concurrency": 4, "max_missing_share": 0.01}
 
     def test_failed_verdicts_are_asked_again(self):

@@ -11,6 +11,8 @@ distribution is unchanged, and no SFT model has seen them.
 Filter of evaluate_and_filter.py (utils.filter_row / filter_rows), hence the drop reasons:
   answerable    judge_lt5    factual judge < 5 (hard question, or doubtful gold)
                 cit_f1_lt1   judge 5 but citation F1 < 1 (generator citations, question sound)
+                ref_invalid  ref citation format: an excerpt not verbatim / a bad document number (generator)
+                french_lt5   French runs: language quality of the trace < 5 (generator)
                 pair         passed, but its unanswerable twin failed (pairs kept whole)
   unanswerable  refused      generator refused, dropped because the answerable twin failed
                 answered     generator answered: often answerable in disguise
@@ -43,7 +45,9 @@ UNANS_SUFFIX = "_unanswerable"
 KEEP_FIELDS = ("id", "question", "context", "answer", "reasoning_trace", "type", "level",
                "is_unanswerable", "grounded_refusal", "citation_end_of_completion",
                "supporting_facts_titles", "chunks_relevant", "chunks_total",
-               "eval_factual_judge_score", "eval_chunk_f1", "eval_model_refused", "eval_answer_match_type")
+               "eval_factual_judge_score", "eval_chunk_f1", "eval_model_refused", "eval_answer_match_type",
+               # runs of the ref citation format / French runs (absent from the v4 rows: unchanged there)
+               "citation_format", "eval_ref_invalid", "eval_french_quality_judge_score")
 
 
 def base_id(row_id):
@@ -58,6 +62,10 @@ def drop_reason(row, twin_passes):
         return "judge_lt5"
     if row.get("eval_chunk_f1") != 1.0:
         return "cit_f1_lt1"
+    if (row.get("eval_ref_invalid") or 0) > 0:
+        return "ref_invalid"
+    if row.get("eval_french_quality_judge_score") not in (None, 5):
+        return "french_lt5"
     return "pair" if twin_passes is False else "unknown"
 
 
@@ -156,14 +164,18 @@ def format_pool(args):
     here = Path(__file__).resolve().parent
     sys.path.insert(0, str(here.parent))  # dataset_rag: formatting_sft, utils
     sys.path.insert(0, str(here))
+    import formatting_sft  # noqa: E402
     from formatting_sft import convert_to_chat_format  # noqa: E402
     from dpo_common import context_titles, md5, requested_citation_style  # noqa: E402
+    if args.strict_prob is not None:  # e.g. 0: generic refusal rule only (the strict slice of the SFT, 5 %, left out)
+        formatting_sft.STRICT_REFUSAL_PROB = args.strict_prob
 
     rows = [json.loads(l) for l in open(args.rows, encoding="utf-8") if l.strip()]
     by_id = {r["id"]: r for r in rows}
     chat_path = Path(args.out).with_suffix(".chat.tmp.jsonl")
-    # Same function, same seed convention as the v4 DAG (formatting_sft --format chat --seed 42).
-    convert_to_chat_format(args.rows, str(chat_path), language="en", include_metadata=True, seed=args.seed)
+    # Same function, same seed convention as the v4 DAG (formatting_sft --format chat --seed 42). The citation format
+    # (markup / ref) is the one stored in the rows at generation.
+    convert_to_chat_format(args.rows, str(chat_path), language=args.language, include_metadata=True, seed=args.seed)
 
     stats = collections.Counter()
     out = []
@@ -246,6 +258,9 @@ def main():
     f.add_argument("--out", required=True)
     f.add_argument("--max-system-chars", type=int, default=16000)
     f.add_argument("--seed", type=int, default=42)
+    f.add_argument("--language", default="en", help="data language of the rows (formatting_sft --language)")
+    f.add_argument("--strict-prob", type=float, default=None,
+                   help="override formatting_sft.STRICT_REFUSAL_PROB (0 = generic refusal rule only)")
     args = ap.parse_args()
     if args.stage == "extract" and args.comparison_frac is not None and args.comparison_frac < 0:
         args.comparison_frac = None
