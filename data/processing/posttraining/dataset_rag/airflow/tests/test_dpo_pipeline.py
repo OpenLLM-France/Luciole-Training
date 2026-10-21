@@ -160,3 +160,39 @@ class TriggerConfigTests(unittest.TestCase):
     def test_without_handover_params_are_unchanged(self):
         c = P.load_config(json.dumps({"run_name": "x", "from_prompts": None}))
         self.assertEqual(c, {"run_name": "x"})
+
+
+class RefCitationTests(unittest.TestCase):
+    """dpo_common on the ref citation format (numbered documents, <ref id="N">verbatim excerpt</ref>)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import sys
+        sys.path.insert(0, str(P.BASE / "dpo"))
+        import dpo_common
+        cls.C = dpo_common
+        cls.system = ("Règles\n   * Lorsque vous citez le contexte, encadrez chaque extrait en ligne avec "
+                      "`<ref id=\"N\">extrait</ref>`, où `N` est le numéro du document cité.\n\n"
+                      "Voici les documents récupérés : `[1] filename: Paris\n\n[CHUNK_START]\nParis est la capitale "
+                      "de la France.\n[CHUNK_END]\n\n[2] filename: Lyon\n\n[CHUNK_START]\nLyon est sur le Rhône.\n"
+                      "[CHUNK_END]`")
+
+    def test_numbered_titles_include_the_first_document_after_the_backtick(self):
+        self.assertEqual(self.C.context_titles(self.system), ["Paris", "Lyon"])
+        self.assertEqual(self.C.requested_citation_style(self.system), ("ref", "inline"))
+        self.assertTrue(self.C.context_block(self.system).startswith("Voici les documents récupérés"))
+
+    def test_invalid_excerpts_ids_and_other_formats_are_counted(self):
+        text = ('<ref id="1">Paris est la  capitale</ref> ; <ref id="2">Lyon est sur la Seine</ref> ; '
+                '<ref id="7">x</ref> ##Cite "Paris"##')
+        titles, n, invalid = self.C.ref_citations(text, self.system, end_of_completion=False)
+        self.assertEqual((titles, n, invalid), (["Paris"], 3, 3))
+        m = self.C.citation_metrics(text, ["Paris"], ["Paris", "Lyon"], "ref", self.system)
+        self.assertEqual((m["n_ref_tags"], m["n_ref_invalid"], m["cit_f1"]), (3, 3, 1.0))
+        self.assertTrue(m["wrong_style"])  # a markup citation next to the ref tags
+
+    def test_markup_prompts_are_unchanged(self):
+        system = "Here are the retrieved documents: `* filename: A\n\n[CHUNK_START]\nx\n[CHUNK_END]\n* filename: B\n"
+        self.assertEqual(self.C.context_titles(system), ["B"])  # historical behaviour of the markup prompts
+        m = self.C.citation_metrics('x ##Cite "B"##', ["B"], ["B"], "default")
+        self.assertNotIn("n_ref_tags", m)

@@ -16,7 +16,8 @@ def rows(path):
 
 
 def normalized_answer(text):
-    text = re.sub(r'##Cite\s+"[^"]+"##|<cite>.*?</cite>|\[Source:.*?\]|<<cite:.*?>>', '', text)
+    text = re.sub(r'##Cite\s+"[^"]+"##|<cite>.*?</cite>|\[Source:.*?\]|<<cite:.*?>>|<ref id="\d+"/>', '', text)
+    text = re.sub(r'<ref id="\d+">(.*?)</ref>', r'\1', text, flags=re.S)  # ref format: the excerpt stays
     return " ".join(text.lower().split())
 
 

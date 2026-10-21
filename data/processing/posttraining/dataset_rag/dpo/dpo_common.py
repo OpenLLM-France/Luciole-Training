@@ -47,6 +47,15 @@ def lexical_refusal(text: str) -> bool:
 # ── Context & citations ─────────────────────────────────────────────────────
 
 _FILENAME_RE = re.compile(r"^\* filename: (.+?)\s*$", re.M)
+# ref citation format (formatting_sft.CITATION_FORMATS): documents numbered "[N] filename: <title>" (the first one follows
+# the opening backtick of the context), cited inline as <ref id="N">verbatim excerpt</ref>, or listed in a References
+# section as <ref id="N"/> (end-of-completion placement).
+_NUMBERED_RE = re.compile(r"(?:^|(?<=`))\[(\d+)\] filename: (.+?)\s*$", re.M)
+_REF_TAG_RE = re.compile(r'<ref id="(\d+)">(.*?)</ref>', re.S)
+_REF_DOC_RE = re.compile(r'<ref id="(\d+)"/>')
+# left over once the valid tags are removed: a malformed tag or a citation in another format (formatting_sft)
+_STRAY_CITATION_RE = re.compile(
+    r"</?ref\b|##Cite|##begin_quote##|##end_quote##|<<quote>>|<<cite:|<quote>|<cite>|\[QUOTE\]|\[Source:")
 
 # The 4 training citation styles of formatting_sft.CITATION_STYLES.
 STYLE_MARKERS = {
@@ -65,17 +74,53 @@ _CITE_PATTERNS = {
 
 def context_block(system_prompt: str) -> str:
     """Only the retrieved documents part of the system prompt (what the judge gets in lighteval)."""
-    marker = "Here are the retrieved documents"
-    i = system_prompt.find(marker)
-    return system_prompt[i:] if i >= 0 else system_prompt
+    for marker in ("Here are the retrieved documents", "Voici les documents récupérés"):
+        i = system_prompt.find(marker)
+        if i >= 0:
+            return system_prompt[i:]
+    return system_prompt
 
 
 def context_titles(system_prompt: str) -> list[str]:
+    """Document titles in context order; for the ref format, index N-1 is document [N]."""
+    numbered = numbered_documents(system_prompt)
+    if numbered:
+        return [numbered[n][0] for n in sorted(numbered)]
     return _FILENAME_RE.findall(system_prompt)
 
 
+def numbered_documents(system_prompt: str) -> dict[int, tuple[str, str]]:
+    """ref format: {N: (title, text)} of the documents "[N] filename: ..." (a document runs to the next header)."""
+    heads = list(_NUMBERED_RE.finditer(system_prompt))
+    return {int(m.group(1)): (m.group(2).strip(), system_prompt[m.end(): heads[i + 1].start() if i + 1 < len(heads)
+                                                                  else len(system_prompt)])
+            for i, m in enumerate(heads)}
+
+
+def ref_citations(text: str, system_prompt: str, end_of_completion: bool) -> tuple[list[str], int, int]:
+    """(cited titles, ref tags, invalid ones) as formatting_sft.parse_ref_citations (eval_ref_invalid of the SFT
+    filter): a tag is invalid when its id is not a document number or, inline, when its excerpt is empty or not verbatim
+    (up to whitespace) in that document; every stray tag or citation of another format counts as invalid."""
+    ws = lambda t: re.sub(r"\s+", " ", t).strip()  # noqa: E731
+    docs = numbered_documents(system_prompt)
+    tag_re = _REF_DOC_RE if end_of_completion else _REF_TAG_RE
+    titles, invalid = [], 0
+    refs = list(tag_re.finditer(text))
+    for ref in refs:
+        n = int(ref.group(1))
+        if n not in docs or (not end_of_completion and (not ws(ref.group(2)) or ws(ref.group(2)) not in ws(docs[n][1]))):
+            invalid += 1
+            continue
+        if docs[n][0] not in titles:
+            titles.append(docs[n][0])
+    invalid += len(_STRAY_CITATION_RE.findall(tag_re.sub("", text)))
+    return titles, len(refs), invalid
+
+
 def requested_citation_style(system_prompt: str) -> tuple[str | None, str]:
-    """(style name, placement) requested by the system prompt's citation rule."""
+    """(style name, placement) requested by the system prompt's citation rule ("ref" for the ref format)."""
+    if '<ref id="N"' in system_prompt:
+        return "ref", ("eoc" if '<ref id="N"/>' in system_prompt else "inline")
     rule = next((l for l in system_prompt.splitlines()
                  if "When quoting from the context" in l or "Lorsque vous citez" in l), "")
     style = None
@@ -110,8 +155,18 @@ def _title_match(a: str, b: str) -> bool:
 
 
 def citation_metrics(text: str, gold_titles: list[str], ctx_titles: list[str],
-                     style: str | None) -> dict:
-    by_style = extract_citations(text)
+                     style: str | None, system_prompt: str | None = None) -> dict:
+    """Citation precision / recall / F1 against the gold titles. ref format (style "ref", system_prompt needed for the
+    numbered documents): cited = documents of the valid tags, n_invalid_cited = invalid tags (eval_ref_invalid)."""
+    ref = None
+    if style == "ref":
+        if system_prompt is None:
+            raise ValueError("citation_metrics: the ref format needs the system prompt")
+        ref = ref_citations(text, system_prompt, requested_citation_style(system_prompt)[1] == "eoc")
+        by_style = {"ref": ref[0]} if ref[0] else {}
+        by_style.update(extract_citations(text))
+    else:
+        by_style = extract_citations(text)
     cited = list(dict.fromkeys(t for ts in by_style.values() for t in ts))
     cited_n = [_norm_title(t) for t in cited]
     gold_n = [_norm_title(t) for t in gold_titles]
@@ -122,7 +177,7 @@ def citation_metrics(text: str, gold_titles: list[str], ctx_titles: list[str],
     p = len(in_gold) / len(cited_n) if cited_n else None
     r = len(gold_hit) / len(gold_n) if gold_n else None
     f1 = (2 * p * r / (p + r)) if (p is not None and r is not None and p + r > 0) else (0.0 if cited_n or gold_n else None)
-    return {
+    out = {
         "n_cited": len(cited_n),
         "cit_precision": p,
         "cit_recall": r,
@@ -132,6 +187,11 @@ def citation_metrics(text: str, gold_titles: list[str], ctx_titles: list[str],
         "styles_used": sorted(by_style),
         "wrong_style": bool(style and by_style and set(by_style) != {style}),
     }
+    if ref is not None:
+        out.update(n_ref_tags=ref[1], n_ref_invalid=ref[2], n_invalid_cited=ref[2],
+                   # another format, or only stray / wrong-variant tags
+                   wrong_style=bool(set(by_style) - {"ref"}) or (ref[2] > 0 and not ref[1]))
+    return out
 
 
 # ── Judge (Lucie OpenAI-compatible endpoint) ────────────────────────────────

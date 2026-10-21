@@ -68,7 +68,8 @@ def main():
                "finish_reason": s.get("finish_reason"), "n_chars": len(text),
                "judge": None, "context_verdict": contexts[p["pid"]]["verdict"],
                "text_sha256": hashlib.sha256(text.encode()).hexdigest(),
-               **citation_metrics(text, p["gold_titles"], p["context_titles"], p["citation_style"])}
+               **citation_metrics(text, p["gold_titles"], p["context_titles"], p["citation_style"],
+                                p["messages"][0]["content"])}
         if not text.strip() or s.get("finish_reason") == "length":
             return out
         user = (f"Question:\n{p['question']}\n\nReference answer:\n{p['gold_answer']}\n\n"
