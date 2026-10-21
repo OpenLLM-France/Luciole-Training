@@ -37,7 +37,7 @@ VAL_SHARE = 0.10
 
 
 def n_tokens(tokenizer, messages):
-    """As dpo_train.n_tokens (not imported: it pulls trl); transformers 5 returns a BatchEncoding."""
+    """Same token count as the DPO trainer; transformers 5 returns a BatchEncoding."""
     ids = tokenizer.apply_chat_template(messages, tokenize=True)
     return len(ids["input_ids"] if hasattr(ids, "keys") else ids)
 

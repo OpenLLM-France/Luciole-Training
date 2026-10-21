@@ -2,7 +2,7 @@
 """Unanswerable versions built with the Airflow pipeline's own code (dataset_rag DAGs, run of 2026-07-22/23), for the
 pool questions that only have an answerable version (2026-10-05, Jean Zay generation).
 
-build_unans_extra.py / build_nogold_prompts*.py drop the gold chunks without replacing them: the unanswerable prompt
+build_nogold_prompts*.py drop the gold chunks without replacing them: the unanswerable prompt
 is always 1-2 documents shorter than its twin, so the chunk count predicts the refusal. The DAG avoids it, and this
 script calls its functions instead of re-implementing them:
   HotpotQA  augment_hotpotqa (DAG dataset_rag_hotpotqa_en, run v4_backfill_pairs): source row = HotpotQA train
@@ -21,9 +21,9 @@ as in process_row). The pool only holds generic-instruction prompts: a row drawn
 again with the next seed. The record copies its answerable twin (judge-facing gold answer, split) and gets the
 downstream names: unans_mode drop_gold / partial_hop, clone_source "dag", source_pid.
 
-Questions: as build_unans_extra.py (answerable prompts usable for training, no unanswerable version in the pool, TAT-QA
-not cloned in heldout_tatqa_u_sft4152). Prompts are then the published ones (refusal rule without its invitation clause).
-Output dpo/data/unans_dag/<dataset>/prompts.jsonl, manifest.json; the context judge runs next (run_unans_extra_judge.sh).
+Questions: answerable prompts usable for training, no unanswerable version in the pool, TAT-QA
+not cloned in heldout_tatqa_u_sft4152. Prompts are then the published ones (refusal rule without its invitation clause).
+Output dpo/data/unans_dag/<dataset>/prompts.jsonl, manifest.json; the context judge runs next (judge_pilot_contexts.py).
 
     venv/bin/python dpo/build_unans_dag.py --tatqa-converted <run>/tatqa_converted.jsonl \
         --tatqa-ctx-cache <run>/tatqa_augmented_contextualization_cache.jsonl [--mistral-concurrency 4]
@@ -68,7 +68,7 @@ def table(qid):
 
 
 def targets(ds):
-    """Answerable pool prompts usable for training whose question has no unanswerable version (build_unans_extra.py)."""
+    """Answerable pool prompts usable for training whose question has no unanswerable version."""
     val_q = {r["qid"] for r in rows(D / "rag_dpo_onpolicy_8802410" / "val.jsonl")}
     ev_q = {p["qid"] for p in rows(D / "p9_paired_eval" / "prompts.jsonl")}
     bad_tables = {table(q) for q in val_q | ev_q if "_" in q}

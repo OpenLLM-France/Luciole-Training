@@ -361,7 +361,7 @@ def format_pool(args):
                 "gold_answer": (twin or src)["answer"] if unans_row else src["answer"],
                 "gold_scale": (twin or src).get("scale", "") if unans_row else src.get("scale", ""),
                 "dataset": "tatqa",
-                # hotpot_* kept for the downstream scripts (build_pairs, to_nemo_rl): TatQA type / level
+                # hotpot_* kept for the downstream scripts (build_pairs): TatQA type / level
                 "hotpot_type": src["answer_type"] or (twin or {}).get("answer_type"),
                 "hotpot_level": src.get("level", "tatqa"),
                 "answer_type": src["answer_type"] or (twin or {}).get("answer_type"),

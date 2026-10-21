@@ -108,7 +108,7 @@ def last_by_key(path):
 
 def state(d):
     prompts = {p["pid"]: p for p in rows(d / "prompts.jsonl")}
-    for p in prompts.values():  # prompts of select_qwen_nochosen.py (E) carry no chosen_kind
+    for p in prompts.values():  # prompts without a policy chosen carry no chosen_kind
         p.setdefault("chosen_kind", "refusal" if p["is_unanswerable"] else "answer")
     samples = {r["pid"]: {s["k"]: s for s in r["samples"]} for r in rows(d / f"chosen_{GEN}.jsonl")
                if r.get("samples") and not r.get("errors")}

@@ -12,7 +12,7 @@ validation tables and the hash-split tables) and the P9 paired-evaluation questi
   A_false_refusal                            4B refusal on an answerable prompt
   A_bad_citation                             4B answer with non-conforming citations (qwen_chosen_all.citation_ok) whose
                                              content the judge finds correct and supported (`--todo-citations` lists
-                                             them, run_p10_delta.sh judges them into <4B dir>/scored_citfail.jsonl)
+                                             them, judged into <4B dir>/scored_citfail.jsonl)
   U_unsupported_answer / U_bad_refusal       4B answer on an unanswerable prompt / refusal that misstates what is missing
   U_strict_inexact                           strict prompt: 4B response that is not the imposed phrase
 Greedy rejected first, then the closest length. Release rules of the off-policy configs, on BOTH sides (both are
