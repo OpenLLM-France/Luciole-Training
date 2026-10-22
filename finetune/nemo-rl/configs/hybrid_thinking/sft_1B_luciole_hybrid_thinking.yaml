@@ -61,13 +61,7 @@ data:
       chat_template_kwargs: {enable_thinking: false}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/multilingual/*.jsonl"
       chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/persona_math/*.jsonl"
-      chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/simple_hardcoded/*.jsonl"
-      chat_template_kwargs: {enable_thinking: false}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/smol_if/*.jsonl"
-      chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/system_chats/*.jsonl"
       chat_template_kwargs: {enable_thinking: false}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/instruct_data/translation/*.jsonl"
       chat_template_kwargs: {enable_thinking: false}
