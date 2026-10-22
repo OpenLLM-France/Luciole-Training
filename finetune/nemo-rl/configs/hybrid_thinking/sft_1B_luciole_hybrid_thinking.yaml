@@ -6,7 +6,8 @@ sft:
 policy:
   model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_131k_v2_nemotron1b_context_extension/huggingface_checkpoints/luciole_131k_v2_nemotron1b_context_extension-step_0005959"
   tokenizer:
-    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/8d9e730eedf0a6b6dde9344d105fa075697af3bb"
+    # PR #3 (JSON tool calls): https://huggingface.co/OpenLLM-France/tokenizer_128k_dual/discussions/3
+    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/8b733d4a689b580e90450312860080a9e416610b"
     chat_template: "${policy.tokenizer.name}/chat_template.jinja"
     chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   megatron_cfg:
@@ -15,7 +16,9 @@ policy:
       lr_warmup_iters: 152  # round(0.03 * max_num_steps) = round(152.1)
 
 data:
-  use_preserving_dataset: false  # not read by openai_format_v2 (only by openai_format / _multifiles)
+  tool_key: "tools"  # column read by the entries with tools: true in chat_template_kwargs
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/009b1048bbb0613b93e966321d0e0b89013ceeba
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
   train_data_path:
     - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/chat/data/*.jsonl"
       weight: 0.17
@@ -30,12 +33,6 @@ data:
       weight: 0.17
       chat_template_kwargs: {enable_thinking: true}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/luciole_thinking_sft_mix_v2/science/data/*.jsonl"
-      weight: 0.17
-      chat_template_kwargs: {enable_thinking: true}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/smolagents_toolcalling/data/*.jsonl.gz"
-      weight: 0.17
-      chat_template_kwargs: {enable_thinking: true}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/nemotron_agentic_sft_v2/data/*.jsonl.gz"
       weight: 0.17
       chat_template_kwargs: {enable_thinking: true}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/pleais_rag/openrag_thinking/data/*.jsonl.gz"
@@ -73,18 +70,30 @@ data:
       chat_template_kwargs: {enable_thinking: false}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/nemotron_posttraining_v2_instruct/data/stem/*.jsonl.gz"
       chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/xlam_oaiformat/data/*.jsonl.gz"
-      chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/when2call_oaiformat/data/missing_argument/*.jsonl.gz"
-      chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_oaiformat/func_calling/data/*.jsonl.gz"
-      chat_template_kwargs: {enable_thinking: false}
-    - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/hermes_oaiformat/glaive_func_calling/data/*.jsonl.gz"
-      chat_template_kwargs: {enable_thinking: false}
     - path: "${oc.env:OpenLLM_OUTPUT}/data/raw_data/full_datasets/pleais_rag/openrag/data/en/*.jsonl.gz"
       weight: 0.125
       chat_template_kwargs: {enable_thinking: false}
-  val_data_path: 
-    -  path: "${oc.env:OpenLLM_OUTPUT}/data/thinking_data_corrformat/smolagents_toolcalling/data/*.jsonl.gz" 
-       weight: 0.17
-       chat_template_kwargs: {enable_thinking: true}
+
+    # ---- tool calling: OpenLLM-France/tool_data (${data.tool_data}) ----
+    # tools: true passes the `tools` column to the chat template
+    - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true, tools: true}
+    - path: "${data.tool_data}/nemotron_agentic_sft_v2/interactive_agent/*.parquet"
+      weight: 0.017  # 0.1 * 0.17
+      chat_template_kwargs: {enable_thinking: true, tools: true}
+    - path: "${data.tool_data}/nemotron_agentic_sft_v2/search/*.parquet"
+      weight: 0.017  # 0.1 * 0.17
+      chat_template_kwargs: {enable_thinking: true, tools: true}
+    - path: "${data.tool_data}/xlam_oaiformat/*.parquet"
+      chat_template_kwargs: {enable_thinking: false, tools: true}
+    # - path: "${data.tool_data}/when2call_oaiformat/missing_argument/*.parquet"
+    #   chat_template_kwargs: {enable_thinking: false, tools: true}
+    - path: "${data.tool_data}/hermes_oaiformat/func_calling/*.parquet"
+      chat_template_kwargs: {enable_thinking: false, tools: true}
+    - path: "${data.tool_data}/hermes_oaiformat/glaive_func_calling/*.parquet"
+      chat_template_kwargs: {enable_thinking: false, tools: true}
+  val_data_path:
+    - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true, tools: true}
