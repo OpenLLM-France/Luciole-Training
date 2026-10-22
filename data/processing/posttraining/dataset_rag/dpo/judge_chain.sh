@@ -8,6 +8,8 @@
 #   2. rejected 4B : TOUS les échantillons utilisables, avec raisonnement (jz_todo_rejected.py)
 #   1 et 2 tournent en parallèle (3/4 de CONC chacun par défaut) pour garder le serveur plein.
 # Reprise : relancer suffit (tous les scripts sautent ce qui est déjà jugé).
+# Jeux jugés : DATASETS (défaut "hotpotqa tatqa" ; run construit depuis un run SFT : son jeu, ex. hotpotqa_fr) ;
+# la calibration reste sur calib/hotpotqa et calib/tatqa.
 set -uo pipefail
 cd "${RAG_ROOT:-$(dirname "$0")/..}"
 URL="${URL:-http://127.0.0.1:8000/v1}"
@@ -26,6 +28,10 @@ HALF="${SIDE_CONC:-$(( CONC * 3 / 4 ))}"; [ $HALF -ge 1 ] || HALF=1
 # jugements avec raisonnement : 6 000 tokens laissaient ~1/4 des jugements de refus sans verdict (raisonnement coupé,
 # finish_reason=length, test JZ du 2026-10-06) -> 16 000 (max_model_len du serveur : 24 576)
 MT="${JUDGE_MAX_TOKENS:-16000}"
+DATASETS="${DATASETS:-hotpotqa tatqa}"
+# NEEDED_ONLY=1 : 4B jugé seulement là où une paire est possible (jz_todo_rejected.py --chosen-gen), puis une dernière
+# passe 4B quand le 35B a fini (ses chosen acceptés au 2e tour)
+TODO_ARGS=(); [ "${NEEDED_ONLY:-0}" = 1 ] && TODO_ARGS=(--chosen-gen qwen35_35b_a3b)
 
 JM="${JUDGE_MODEL:-Qwen3.8-27B}"   # nom servi par le juge (endpoint Lucie, vLLM --served-model-name)
 SP(){ "$PY" dpo/score_pilot_samples.py --judge-url "$URL" --judge-key-file "$KEY" --judge-model "$JM" "$@"; }
@@ -46,7 +52,7 @@ fi
 
 chosen_35b(){
     local GEN=qwen35_35b_a3b D
-    for ds in hotpotqa tatqa; do
+    for ds in $DATASETS; do
         D=$R/$GEN/$ds
         [ -s $D/chosen_$GEN.jsonl ] || { log "!! pas de génération dans $D"; return 1; }
         for KS in -1 0,1; do
@@ -76,26 +82,29 @@ chosen_35b(){
 
 rejected_4b(){
     local GEN=qwen35_4b D
-    for ds in hotpotqa tatqa; do
+    for ds in $DATASETS; do
         D=$R/$GEN/$ds
         [ -s $D/chosen_$GEN.jsonl ] || { log "!! pas de génération dans $D"; return 1; }
-        "$PY" dpo/jz_todo_rejected.py --dir $D --gen $GEN || return 1
+        "$PY" dpo/jz_todo_rejected.py --dir $D --gen $GEN ${TODO_ARGS[@]+"${TODO_ARGS[@]}"} || return 1
         if [ -s $D/todo_rej_verify.jsonl ]; then  # liste vide = rien à juger (ne pas échouer)
             SP --prompts $D/prompts.jsonl --samples $D/chosen_$GEN.jsonl \
                 --contexts $D/context_verdicts.jsonl --only $D/todo_rej_verify.jsonl --out $D/verified.jsonl \
                 --max-tokens $MT --timeout 1800 --concurrency $HALF || return 1
         fi
-        if [ -s $D/todo_rej_citfail.jsonl ]; then  # liste vide = rien à juger (ne pas échouer)
+        # citfail par tours : avec NEEDED_ONLY, un échantillon par prompt et par tour (5 échantillons au plus)
+        for r in 1 2 3 4 5 6; do
+            "$PY" dpo/jz_todo_rejected.py --dir $D --gen $GEN ${TODO_ARGS[@]+"${TODO_ARGS[@]}"} || return 1
+            [ -s $D/todo_rej_citfail.jsonl ] || break  # liste vide = rien à juger (ne pas échouer)
             SP --prompts $D/prompts.jsonl --samples $D/chosen_$GEN.jsonl \
                 --contexts $D/context_verdicts.jsonl --only $D/todo_rej_citfail.jsonl --out $D/scored_citfail.jsonl \
                 --max-tokens $MT --timeout 1800 --concurrency $HALF || return 1
-        fi
+        done
         if [ -s $D/todo_rej_refusal.pids ]; then  # liste vide = rien à juger (ne pas échouer)
             RJ --prompts $D/prompts.jsonl --samples $D/chosen_$GEN.jsonl \
                 --contexts $D/context_verdicts.jsonl --out $D/judged_chosen_$GEN.jsonl --pids $D/todo_rej_refusal.pids \
                 --ks=-1,0,1,2,3 --concurrency $HALF || return 1
         fi
-        "$PY" dpo/jz_todo_rejected.py --dir $D --gen $GEN || return 1  # reste à juger
+        "$PY" dpo/jz_todo_rejected.py --dir $D --gen $GEN ${TODO_ARGS[@]+"${TODO_ARGS[@]}"} || return 1  # reste à juger
         log "4B $ds : terminé"
     done
     log "4B : TERMINÉ"
@@ -108,6 +117,9 @@ rejected_4b > "$LOG_DIR/${TAG}_judge_4b.log" 2>&1 &
 P4=$!
 wait $P35; S35=$?
 wait $P4; S4=$?
+if [ $S35 = 0 ] && [ $S4 = 0 ] && [ "${NEEDED_ONLY:-0}" = 1 ]; then
+    rejected_4b >> "$LOG_DIR/${TAG}_judge_4b.log" 2>&1; S4=$?  # chosen du 35B désormais définitifs
+fi
 tail -n 3 "$LOG_DIR/${TAG}_judge_35b.log" "$LOG_DIR/${TAG}_judge_4b.log"
 [ $S35 = 0 ] && [ $S4 = 0 ] || { log "!! échec (35B $S35, 4B $S4)"; exit 1; }
 log "TERMINÉ"

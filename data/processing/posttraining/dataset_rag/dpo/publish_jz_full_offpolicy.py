@@ -13,6 +13,9 @@ chat template, as the other configs) are removed.
 only; uploading is a separate, manual step. Configs missing at the reference revision are skipped (the full off-policy
 configs themselves exist from 0f77a34 on, so a later run keeps their validation units in validation).
 --gold-columns: gold_answer / gold_scale after qid, as commit 27e169e (gold_columns.py).
+Datasets: those of the run (dpo_common.delta_datasets); one built from an SFT run's prompt set (e.g. hotpotqa_fr) gives
+the config <dataset>_full_offpolicy_qwen35_35b_a3b, its units shared with HotpotQA (same qids: a question translated
+from a HotpotQA validation unit stays in validation).
 """
 import argparse
 import collections
@@ -27,6 +30,7 @@ import pyarrow.parquet as pq
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import qwen_chosen_all as Q  # noqa: E402
+from dpo_common import delta_datasets  # noqa: E402
 
 D = HERE / "data"
 REPO = "OpenLLM-France/RAG_DPO_onpolicy"
@@ -92,7 +96,8 @@ def main():
     man = {"source": str(pairs_dir), "source_sha256": json.loads((pairs_dir / "manifest.json").read_text())
            ["files"]["delta_pairs.jsonl"]["sha256"], "repo_revision_for_splits": a.revision, "gold_columns": a.gold_columns, "configs": {}}
     pairs = list(rows(pairs_dir / "delta_pairs.jsonl"))
-    for ds in ("hotpotqa", "tatqa"):
+    for ds in delta_datasets(run):
+        base = "tatqa" if ds == "tatqa" else "hotpotqa"  # unit namespace of the repo splits
         st = collections.Counter()
         prompts, samples, verdict = {}, {}, {}
         for gen in ("qwen35_35b_a3b", "qwen35_4b"):
@@ -117,7 +122,7 @@ def main():
                 "category": r["category"], "pair_type": "full_offpolicy",
                 "chosen_source": "qwen35_35b_a3b", "rejected_source": "qwen35_4b",
                 "refusal_instruction": r["refusal_instruction"], "pid": r["pid"], "qid": r["qid"],
-                "hotpot_type": p.get("hotpot_type") if ds == "hotpotqa" else None,
+                "hotpot_type": p.get("hotpot_type") if base == "hotpotqa" else None,
                 "answer_type": p.get("answer_type") if ds == "tatqa" else None,
                 "answer_from": p.get("answer_from") if ds == "tatqa" else None,
                 "unans_mode": p.get("unans_mode"),
@@ -140,9 +145,9 @@ def main():
             by_unit[unit(ds, x["qid"])].append(x)
         split = {}
         for u in by_unit:
-            if u in seen["val"][ds]:
+            if u in seen["val"][base]:
                 split[u] = "val"
-            elif u in seen["train"][ds]:
+            elif u in seen["train"][base]:
                 split[u] = "train"
         target = round(a.val_share * len(recs))
         n_val = sum(len(by_unit[u]) for u, s in split.items() if s == "val")
@@ -167,12 +172,12 @@ def main():
                            out / cfg / f"{s}.parquet")
             if a.gold_columns:
                 from gold_columns import add_to_parquet
-                add_to_parquet(out / cfg / f"{s}.parquet", ds)
+                add_to_parquet(out / cfg / f"{s}.parquet", ds, run)
             info[s] = len(rs)
             info[f"{s}_units"] = sum(1 for u in split if split[u] == s)
             info[f"{s}_by_category"] = dict(sorted(collections.Counter(x["category"] for x in rs).items()))
-        info["val_units_from_existing_val"] = sum(1 for u in split if u in seen["val"][ds])
-        info["units_in_existing_train"] = sum(1 for u in split if u in seen["train"][ds])
+        info["val_units_from_existing_val"] = sum(1 for u in split if u in seen["val"][base])
+        info["units_in_existing_train"] = sum(1 for u in split if u in seen["train"][base])
         info["median_tokens"] = sorted(x["_n_tokens"] for x in recs)[len(recs) // 2]
         info["chosen_longer_chars"] = round(sum(len(x["chosen"][0]["content"]) > len(x["rejected"][0]["content"])
                                                 for x in recs) / len(recs), 3)
@@ -181,7 +186,12 @@ def main():
         info["chosen_mistral_good_U"] = f"{sum(j['good'] for j in mj_u)}/{len(mj_u)} judged of {len(u_recs)}"
         info["sha256"] = {s: hashlib.sha256((out / cfg / f"{s}.parquet").read_bytes()).hexdigest() for s in ("train", "val")}
         man["configs"][cfg] = info
-    man["models"] = {"chosen": "Qwen/Qwen3.5-35B-A3B (bf16)", "rejected": "Qwen/Qwen3.5-4B (bf16)",
+    dtype = {}  # as served: generation manifest of the run (the Jean Zay run: bf16)
+    for gen in ("qwen35_35b_a3b", "qwen35_4b"):
+        f = run / gen / delta_datasets(run)[0] / f"generation_{gen}.manifest.json"
+        dtype[gen] = json.loads(f.read_text()).get("dtype") or "bf16" if f.exists() else "bf16"
+    man["models"] = {"chosen": f"Qwen/Qwen3.5-35B-A3B ({dtype['qwen35_35b_a3b']})",
+                     "rejected": f"Qwen/Qwen3.5-4B ({dtype['qwen35_4b']})",
                      "judge": "Qwen/Qwen3.8-27B (bf16, reasoning)", "cross_judge": "Mistral-Small-3.2-24B-Instruct-2506-FP8"}
     (out / "manifest_full_offpolicy_qwen35_35b_a3b.json").write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n")
     if not any(info["n"] for info in man["configs"].values()):

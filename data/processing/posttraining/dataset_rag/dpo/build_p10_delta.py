@@ -20,7 +20,8 @@ written by a bigger model): published refusal rule, normalize() (opening about t
 chosen quotes found in the documents, lighteval phrases absent, TAT-QA unanswerable leak check.
 
 Output: dpo/data/dpo_p10_delta = P3a train + delta pairs (validation = 8802410 val), manifest.json.
---jz: the Jean Zay delta run instead (dpo/data/jz_run/{qwen35_35b_a3b,qwen35_4b}/{hotpotqa,tatqa}, build_jz_run.py, every
+--jz: the Jean Zay delta run instead (dpo/data/jz_run/{qwen35_35b_a3b,qwen35_4b}/{hotpotqa,tatqa}, build_jz_run.py, or
+the datasets of a run built from an SFT run's prompt set, e.g. hotpotqa_fr, dataset = its directory name; every
 4B sample judged there, A_bad_citation verdicts already in scored_citfail.jsonl) -> dpo/data/jz_delta/delta_pairs.jsonl +
 manifest.json, delta pairs only (no P3a base, no split), plus the DPOFilter checks of the colleague on the chosen
 ("Qwen" mention, CJK absent from the documents) and delta_pairs_datatrove.jsonl (his document format; --tokenizer PATH for token counts).
@@ -40,6 +41,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import qwen_chosen_all as Q  # noqa: E402
 from build_pilot_pairs import is_good  # noqa: E402
+from dpo_common import delta_datasets  # noqa: E402
 from release_text import TatqaLeak, normalize, published_prompt, quotes_found  # noqa: E402
 from strict_phrases import HELD_OUT  # noqa: E402
 
@@ -92,7 +94,7 @@ def main():
     jz = "--jz" in sys.argv
     if jz:
         run = Path(os.environ.get("JZ_RUN", D / "jz_run"))  # JZ_RUN=dpo/data/jz_run_test : test
-        SUBS, D35, D4 = ("hotpotqa", "tatqa"), run / "qwen35_35b_a3b", run / "qwen35_4b"
+        SUBS, D35, D4 = delta_datasets(run), run / "qwen35_35b_a3b", run / "qwen35_4b"
     Q.PREFER_QUOTED = True
     val_q = {r["qid"] for r in rows(BASE / "val.jsonl")}
     ev_q = {p["qid"] for p in rows(P9E / "prompts.jsonl")} if (P9E / "prompts.jsonl").exists() else set()
@@ -108,7 +110,7 @@ def main():
         _, S4, sc4, ve4, rj4 = Q.state(D4 / sub)
         cit = Q.last_by_key(D4 / sub / "scored_citfail.jsonl")
         todo = []
-        dataset = "tatqa" if sub == "tatqa" else "hotpotqa"
+        dataset = sub if jz else "tatqa" if sub == "tatqa" else "hotpotqa"
         for pid, p in P.items():
             q = p["qid"]
             if str(p.get("pair_source", "")).endswith("heldout_strict_sft4152"):

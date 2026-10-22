@@ -12,6 +12,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 # ── IO ──────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,13 @@ import urllib.request
 def read_jsonl(path):
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
+
+
+def delta_datasets(run, gen: str = "qwen35_35b_a3b") -> list[str]:
+    """Datasets of a delta run (dirs of gen holding prompts), hotpotqa / tatqa first: both for the Jean Zay run, the
+    set of its SFT run for a prompt set built from one (e.g. hotpotqa_fr)."""
+    found = {d.name for d in (Path(run) / gen).glob("*") if (d / "prompts.jsonl").is_file()}
+    return [ds for ds in ("hotpotqa", "tatqa") if ds in found] + sorted(found - {"hotpotqa", "tatqa"})
 
 
 def md5(s: str) -> str:

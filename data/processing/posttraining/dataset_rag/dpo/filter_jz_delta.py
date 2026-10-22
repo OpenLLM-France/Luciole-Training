@@ -14,7 +14,11 @@ import argparse
 import collections
 import hashlib
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from dpo_common import delta_datasets  # noqa: E402
 
 D = Path(__file__).resolve().parent / "data"
 SRC, OUT = D / "jz_delta", D / "jz_delta_v2"
@@ -42,8 +46,11 @@ def main():
     a = ap.parse_args()
     src, out, run = Path(a.src), Path(a.out), Path(a.jz_run)
     judge = {}
-    for ds in ("hotpotqa", "tatqa"):
-        for r in rows(run / "qwen35_4b" / ds / "judged_chosen_qwen35_4b.jsonl"):
+    for ds in delta_datasets(run):
+        verdicts = run / "qwen35_4b" / ds / "judged_chosen_qwen35_4b.jsonl"
+        # NEEDED_ONLY may never schedule a refusal judgment for this dataset.
+        # Missing verdicts still fail below if a U_bad_refusal pair needs them.
+        for r in (rows(verdicts) if verdicts.exists() else []):
             if r.get("judge"):
                 judge[(r["pid"], r["k"])] = r["judge"]
     drop = set()

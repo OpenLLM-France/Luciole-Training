@@ -230,8 +230,9 @@ def main():
             raise ValueError("sft_language : en ou fr ; sft_dataset : minuscules, chiffres, _")
         if c["sft_dataset"] in DATASETS:
             raise ValueError(f"sft_dataset : nom distinct de {DATASETS} (pools held-out de la politique actuelle)")
-        if c.get("pairs"):
-            raise ValueError("source sft_run : dataset_rag_dpo_pairs ne prend pas encore ces prompts (pairs = null)")
+        pairs = json.loads(c["pairs"]) if isinstance(c.get("pairs"), str) else c.get("pairs")
+        if pairs and pairs.get("mode", "delta") != "delta":
+            raise ValueError("source sft_run : dataset_rag_dpo_pairs ne prend ces prompts qu'en mode delta")
     out = BASE / "airflow_runs/dataset_rag_dpo_prompts" / c["run_name"]
     out.mkdir(parents=True, exist_ok=True)
     lock = out / "config.json"

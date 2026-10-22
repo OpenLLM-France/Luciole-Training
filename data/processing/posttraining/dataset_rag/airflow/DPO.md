@@ -64,10 +64,16 @@ holding calibration verdicts (`calib_from`).
 | `build_prompt_set` | prompts whose verdict agrees with the label (an unanswerable version keeps its twin) → `jz_run/<generator>/<sft_dataset>/`, calibration set copied from `calib_from` when set |
 
 Parameters: `sft_run`, `sft_dataset` (dataset name in the `jz_run`, default `hotpotqa_fr`, distinct from `hotpotqa` /
-`tatqa`), `sft_language` (`fr` or `en`), `seed`. In delta mode, `dataset_rag_dpo_pairs` prepares and generates on
-these prompts (the datasets are read from `input_run`), but its later stages still stop on them (judge chain, pairs,
-release and gold columns are specific to `hotpotqa` / `tatqa`, and the cited-excerpt filter does not know `<ref>`), so
-`pairs` is refused with `sft_run`. The prompts only make on-policy data for a policy whose SFT data has that format.
+`tatqa`), `sft_language` (`fr` or `en`), `seed`. `dataset_rag_dpo_pairs` takes these prompts in delta mode only
+(`pairs` with another mode is refused): every stage reads the datasets of the run (`dpo_common.delta_datasets`), the
+dataset of the pairs and of the config `<sft_dataset>_full_offpolicy_qwen35_35b_a3b` is `sft_dataset`. With the `ref`
+format, a chosen answer must carry valid tags only (`qwen_chosen_all.citation_ok`: document numbers, inline excerpts
+verbatim up to whitespace, as `eval_ref_invalid`; an excerpt cut by "..." is invalid), the release checks the inline
+excerpts against the documents (`release_text.quotes_found`) and also strips the French document openings and
+inviting sentences (`normalize`). Gold columns come from `<sft_run>/<sft_dataset>_converted.jsonl`, or the run’s unique
+`*_augmented_evaluated.jsonl` when the SFT DAG reads a cache directly (original answer,
+also for the unanswerable versions); the split units are those of HotpotQA (same question ids). The prompts only make
+on-policy data for a policy whose SFT data has that format.
 
 **`ref` citation format in the DPO metrics** (`dpo/dpo_common.py`): numbered documents `[N] filename:`
 (`context_titles`), `ref` style inline / end of completion (`requested_citation_style`), French context marker
@@ -86,8 +92,16 @@ validation), then the `mode` task sends the run down one of the two branches; th
 | Task | Role |
 |---|---|
 | `generate_chosen_35b` / `generate_rejected_4b` | `dpo/sample_policy.py`, no reasoning, top_p 0.80, top_k 20, min_p 0, 2,048 tokens; 35B: greedy + 2 samples at T 0.7, 4B: greedy + 4 at T 1.0; writes `generation_<gen>.manifest.json` (served model, precision, `/v1/models`) |
-| `calibrate_and_judge` | `dpo/judge_chain.sh`: optional calibration (`calibrate`, agreement ≥ 0.9 on `answer_correct`), 35B chosen, every 4B sample, all with reasoning |
+| `calibrate_and_judge` | `dpo/judge_chain.sh`: optional calibration (`calibrate`, agreement ≥ 0.9 on `answer_correct`), 35B chosen, 4B samples a pair can use (below), all with reasoning |
 | `build_delta_pairs` | `dpo/build_p10_delta.py --jz` → `pairs/` |
+
+**4B judge budget** (`NEEDED_ONLY=1`, `dpo/jz_todo_rejected.py --chosen-gen qwen35_35b_a3b`): the Jean Zay run judged
+every usable 4B sample; on a shared endpoint this is the bulk of the judge time (hotpotqa_fr: ~34,000 reasoning verdicts,
+~30 h). Only what `build_p10_delta.py` can use is judged: prompts with an accepted 35B chosen; samples with
+non-conforming citations (category `A_bad_citation`, last in priority) only when no citation-conforming sample of the
+prompt is faulty, one per round in the order the build picks the rejected (greedy, then closest length to the chosen),
+until one qualifies. A last 4B pass runs once the 35B side has finished (chosen accepted in its second round). Same
+pairs, unless the accepted chosen of a prompt changes between two rounds.
 | `filter_u_bad_refusal` | `dpo/filter_jz_delta.py` → `pairs_v2/` (drops `U_bad_refusal` pairs with a single judged defect) |
 | `crossjudge_mistral` | optional (`crossjudge`, default false): `dpo/crossjudge_mistral.py` on chosen refusals → `crossjudge/` (informative column `chosen_mistral_judge`, null when skipped; nothing removed) |
 | `format_release_configs` | `dpo/publish_jz_full_offpolicy.py --gold-columns` → `release/`: 4,096-token rule (policy tokenizer), splits by question / table, released columns |

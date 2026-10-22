@@ -45,7 +45,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from build_pilot_pairs import chosen_order, fix_quote, is_good, rows, squash  # noqa: E402
 from build_strict_pairs import is_exact, usable  # noqa: E402
-from dpo_common import STYLE_MARKERS, _CITE_PATTERNS, _norm_title, _title_match, extract_citations  # noqa: E402
+from dpo_common import (STYLE_MARKERS, _CITE_PATTERNS, _REF_DOC_RE, _norm_title, _title_match,  # noqa: E402
+                        extract_citations, ref_citations)
 
 SOURCES = [("dpo/data/heldout_full_sft4152", "pairs_v1.1"), ("dpo/data/heldout_strict_sft4152", "pairs")]
 GEN = "qwen3_32b"
@@ -53,6 +54,9 @@ PREFER_QUOTED = False
 
 
 def quoted(p, text):
+    # ref format: no quote marker apart from the citation, whose inline tag carries the excerpt
+    if p["citation_style"] == "ref":
+        return True
     return STYLE_MARKERS[p["citation_style"]] in text
 
 
@@ -65,13 +69,24 @@ def satisfied(p, acc):
 # "* filename:" follows "Here are the retrieved documents : `" on the same line (so does the
 # prompts' context_titles field).
 DOC_TITLE_RE = re.compile(r"\* filename: (.+?)\s*$", re.M)
-REFERENCES_TAIL_RE = re.compile(r"[\s*#:\-•]*(references|sources)?[\s*#:\-•]*", re.I)
+REFERENCES_TAIL_RE = re.compile(r"[\s*#:\-•]*(references|références|sources)?[\s*#:\-•]*", re.I)
 
 
 def citation_ok(p, text):
     """Cites like the policy (99 % of its chosen answers pass): the requested markup only,
     retrieved titles only, and with eoc placement nothing but references after the first one."""
     style = p["citation_style"]
+    if style == "ref":
+        # valid tags of the requested variant only (ids of the numbered documents, inline excerpts verbatim), no
+        # stray tag nor other format; References variant: nothing but the list after the first tag
+        eoc = p["citation_placement"] == "eoc"
+        _, n, invalid = ref_citations(text, p["messages"][0]["content"], eoc)
+        if not n or invalid:
+            return False
+        if eoc:
+            tail = _REF_DOC_RE.sub(" ", text[_REF_DOC_RE.search(text).start():])
+            return REFERENCES_TAIL_RE.fullmatch(tail) is not None
+        return True
     cited = extract_citations(text)
     if set(cited) != {style}:
         return False

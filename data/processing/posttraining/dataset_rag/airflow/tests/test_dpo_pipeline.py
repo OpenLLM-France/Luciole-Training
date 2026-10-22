@@ -82,7 +82,7 @@ class PrepareTests(unittest.TestCase):
         after = json.loads((self.out / "inputs.manifest.json").read_text())
         self.assertNotEqual(before, after)
 
-    def test_prompt_set_of_an_sft_run_is_prepared_and_later_stages_stop(self):
+    def test_prompt_set_of_an_sft_run_is_prepared_and_read_by_the_later_stages(self):
         # jz_run of the sft_run source: one dataset of its own, no hotpotqa / tatqa
         for gen in P.GENERATORS:
             for ds in P.DATASETS:
@@ -93,13 +93,12 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(P.jz_datasets(self.out), ["hotpotqa_fr"])
         manifest = json.loads((self.out / "inputs.manifest.json").read_text())
         self.assertEqual(list(manifest["inputs"]), ["hotpotqa_fr"])
-        with self.assertRaisesRegex(ValueError, "pas encore adaptée"):
-            P.check_delta_datasets(self.out, "judge")
+        self.assertEqual(RefCitationTests.load("dpo_common").delta_datasets(self.out), ["hotpotqa_fr"])
 
-    def test_known_datasets_keep_their_order_and_pass_the_guard(self):
+    def test_known_datasets_keep_their_order(self):
         P.prepare(self.config, self.out)
         self.assertEqual(P.jz_datasets(self.out), list(P.DATASETS))
-        P.check_delta_datasets(self.out, "judge")
+        self.assertEqual(RefCitationTests.load("dpo_common").delta_datasets(self.out), list(P.DATASETS))
 
     def test_generator_key_file_feeds_the_sampler(self):
         self.assertIsNone(P.generator_env({"chosen_key_file": None}, "chosen"))
@@ -405,12 +404,17 @@ if __name__ == "__main__":
 class RefCitationTests(unittest.TestCase):
     """dpo_common on the ref citation format (numbered documents, <ref id="N">verbatim excerpt</ref>)."""
 
+    @staticmethod
+    def load(name):
+        import importlib
+        import sys
+        if str(P.BASE / "dpo") not in sys.path:
+            sys.path.insert(0, str(P.BASE / "dpo"))
+        return importlib.import_module(name)
+
     @classmethod
     def setUpClass(cls):
-        import sys
-        sys.path.insert(0, str(P.BASE / "dpo"))
-        import dpo_common
-        cls.C = dpo_common
+        cls.C = cls.load("dpo_common")
         cls.system = ("Règles\n   * Lorsque vous citez le contexte, encadrez chaque extrait en ligne avec "
                       "`<ref id=\"N\">extrait</ref>`, où `N` est le numéro du document cité.\n\n"
                       "Voici les documents récupérés : `[1] filename: Paris\n\n[CHUNK_START]\nParis est la capitale "
@@ -430,6 +434,70 @@ class RefCitationTests(unittest.TestCase):
         m = self.C.citation_metrics(text, ["Paris"], ["Paris", "Lyon"], "ref", self.system)
         self.assertEqual((m["n_ref_tags"], m["n_ref_invalid"], m["cit_f1"]), (3, 3, 1.0))
         self.assertTrue(m["wrong_style"])  # a markup citation next to the ref tags
+
+    def test_chosen_citation_rule_of_the_delta_run(self):
+        Q = self.load("qwen_chosen_all")
+        p = {"citation_style": "ref", "citation_placement": "inline", "messages": [{"content": self.system}]}
+        self.assertTrue(Q.citation_ok(p, 'La capitale est Paris <ref id="1">Paris est la capitale</ref>.'))
+        self.assertTrue(Q.quoted(p, "sans marqueur"))  # no quote marker besides the tag: neutral for --prefer-quoted
+        for bad in ("Paris, sans citation.", 'Paris <ref id="2">Paris est la capitale</ref>.',
+                    'Paris <ref id="1">Paris est la capitale</ref> ##Cite "Paris"##', 'Paris <ref id="1"/>.'):
+            self.assertFalse(Q.citation_ok(p, bad), bad)
+        eoc = {**p, "citation_placement": "eoc"}
+        self.assertTrue(Q.citation_ok(eoc, 'Paris.\n\n**Références**\n- <ref id="1"/>'))
+        self.assertFalse(Q.citation_ok(eoc, 'Paris <ref id="1"/>, puis la suite.'))
+
+    def test_rejected_citfail_judged_only_where_a_pair_can_use_it(self):
+        T = self.load("jz_todo_rejected")
+        ok, bad = 'Paris <ref id="1">Paris est la capitale</ref>.', "Paris, sans citation."
+        p = {"pid": "p", "citation_style": "ref", "citation_placement": "inline", "messages": [{"content": self.system}]}
+        ss = {k: {"k": k, "text": t, "finish_reason": "stop"} for k, t in ((-1, ok), (0, bad), (1, bad + " Et plus encore."))}
+        good = {"refused": False, "mixed": False, "answer_correct": True, "answer_supported": True,
+                "reasoning_supported": True, "citation_supported": True, "citation_style_ok": True,
+                "support_quote_in_context": True}
+        st = __import__("collections").Counter()
+        # the citation_ok sample not judged yet: wait; judged faulty: citfail useless; judged good: greedy first
+        self.assertEqual(T.needed_citfail(p, ss, {}, {}, ok, st), [])
+        wrong = {("p", -1): {"judge": {**good, "answer_correct": False}}}
+        self.assertEqual(T.needed_citfail(p, ss, wrong, {}, ok, st), [])
+        right = {("p", -1): {"judge": good}}
+        self.assertEqual(T.needed_citfail(p, ss, right, {}, bad, st), [{"pid": "p", "k": 0}])
+        # samples of the same rank: the closest length to the chosen first, as build_p10_delta.py picks the rejected
+        self.assertEqual(T.needed_citfail(p, ss, right, {}, ok, st), [{"pid": "p", "k": 1}])
+        # the first one judged wrong: the next one; judged right: the pair has its rejected, nothing more
+        self.assertEqual(T.needed_citfail(p, ss, right, {("p", 0): {"judge": {**good, "answer_correct": False}}}, bad, st),
+                         [{"pid": "p", "k": 1}])
+        self.assertEqual(T.needed_citfail(p, ss, right, {("p", 0): {"judge": good}}, bad, st), [])
+
+    def test_release_rules_on_french_ref_chosen(self):
+        O = self.load("release_text")
+        self.assertTrue(O.quotes_found('A <ref id="1">Paris est la capitale</ref>.', "ref", self.system))
+        self.assertFalse(O.quotes_found('A <ref id="1">Paris est la plus belle</ref>.', "ref", self.system))
+        text = ("D'après les documents fournis, Paris est la capitale. Je vous invite à reformuler votre question "
+                "ou à ajouter des documents pertinents.")
+        self.assertEqual(O.normalize(text, True), "Paris est la capitale.")
+        self.assertEqual(O.normalize("Selon Human Rights Watch, X.", True), "Selon Human Rights Watch, X.")
+        english = "Based on the provided documents, Paris is the capital. Please rephrase the query."
+        self.assertEqual(O.normalize(english, True), "Paris is the capital.")
+
+    def test_gold_columns_of_an_sft_run_dataset(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        G = self.load("gold_columns")
+        with tempfile.TemporaryDirectory() as tmp:
+            sft = Path(tmp) / "sft"
+            sft.mkdir()
+            P.write(sft / "hotpotqa_fr_converted.jsonl", [{"id": "q1", "answer": "Paris"}])
+            d = Path(tmp) / "run" / "qwen35_35b_a3b" / "hotpotqa_fr"
+            d.mkdir(parents=True)
+            P.write(d / "prompts.jsonl", [{"pid": "p", "qid": "q1", "sft_run": str(sft)}])
+            f = Path(tmp) / "t.parquet"
+            pq.write_table(pa.Table.from_pylist([{"pid": "p", "qid": "q1"}]), f)
+            G.add_to_parquet(f, "hotpotqa_fr", Path(tmp) / "run")
+            self.assertEqual(pq.read_table(f).to_pylist(), [{"pid": "p", "qid": "q1", "gold_answer": "Paris",
+                                                              "gold_scale": None}])
+            with self.assertRaisesRegex(ValueError, "run delta"):
+                G.lookup("hotpotqa_fr")
 
     def test_markup_prompts_are_unchanged(self):
         system = "Here are the retrieved documents: `* filename: A\n\n[CHUNK_START]\nx\n[CHUNK_END]\n* filename: B\n"

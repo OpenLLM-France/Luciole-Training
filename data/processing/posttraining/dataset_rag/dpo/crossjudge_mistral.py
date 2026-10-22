@@ -21,7 +21,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from dpo_common import _as_bool, _extract_json, chat_call, context_block, read_jsonl  # noqa: E402
+from dpo_common import _as_bool, _extract_json, chat_call, context_block, delta_datasets, read_jsonl  # noqa: E402
 from judge_refusal_candidates import SYSTEM as REFUSAL_SYSTEM  # noqa: E402
 
 D = HERE / "data"
@@ -43,7 +43,7 @@ def items_jz_delta():
     """Delta pairs: chosen of the U pairs, then rejected of the U_bad_refusal pairs (both refusals).
     JZ_CROSSJUDGE_REJECTED=0 to judge the chosen only (the rejected verdicts are an audit, not used downstream)."""
     run = Path(os.environ.get("JZ_RUN", D / "jz_run"))
-    prompts = {r["pid"]: r for ds in ("hotpotqa", "tatqa")
+    prompts = {r["pid"]: r for ds in delta_datasets(run)
                for r in read_jsonl(run / "qwen35_35b_a3b" / ds / "prompts.jsonl")}
     pairs = [r for r in read_jsonl(os.environ.get("JZ_PAIRS", D / "jz_delta" / "delta_pairs.jsonl"))
              if r["category"].startswith("U_")]

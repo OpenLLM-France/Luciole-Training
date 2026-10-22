@@ -165,19 +165,12 @@ def check_prompts(ds, p, cv):
 
 def jz_datasets(run):
     """Datasets of a jz_run (or of a prepared delta run): the directories of the first generator holding prompts,
-    hotpotqa / tatqa first. A prompt set from an SFT run has only its own (e.g. hotpotqa_fr)."""
+    hotpotqa / tatqa first (dpo_common.delta_datasets, read by the later stages). A prompt set from an SFT run has
+    only its own (e.g. hotpotqa_fr)."""
     found = {d.name for d in (run / GENERATORS[0]).glob("*") if (d / "prompts.jsonl").is_file()}
     if not found:
         raise ValueError(f"{run}: aucun jeu de prompts ({GENERATORS[0]}/<dataset>/prompts.jsonl)")
     return [ds for ds in DATASETS if ds in found] + sorted(found - set(DATASETS))
-
-
-def check_delta_datasets(out, stage):
-    """The delta stages after the generation (judge chain, pairs, filter, cross-judge, release) still know
-    hotpotqa / tatqa only: stop before any judge call rather than half-way."""
-    other = set(jz_datasets(out)) - set(DATASETS)
-    if other:
-        raise ValueError(f"étape {stage} pas encore adaptée aux jeux {sorted(other)} (seule la génération l'est)")
 
 
 def limit(c, p, qids=None):
@@ -767,7 +760,9 @@ def judge(c, out):
            "KEY": str(key), "DPO_PYTHON": sys.executable, "LOG_DIR": str(out / "logs"),
            "CONC": str(c["judge_concurrency"]),
            "JUDGE_MAX_TOKENS": str(c["judge_max_tokens"]),
-           "CALIB_MIN": str(c["calibration_min"]), "FORCE": "0",
+           "CALIB_MIN": str(c["calibration_min"]), "FORCE": "0", "DATASETS": " ".join(jz_datasets(out)),
+           # 4B judged only where a pair can use it (endpoint budget; Jean Zay judged every usable sample)
+           "NEEDED_ONLY": "1",
            "SKIP_CALIB": "0" if c["calibrate"] else "1"}
     subprocess.run(["bash", str(BASE / "dpo/judge_chain.sh")], cwd=BASE, env=env, check=True)
     report = missing_verdicts(out)
@@ -784,14 +779,15 @@ def judge(c, out):
 
 
 def missing_verdicts(out):
-    """Missing judge verdicts per generator/dataset: 4B = usable samples left unjudged (all are judged), 35B = items
+    """Missing judge verdicts per generator/dataset: 4B = samples a pair can use left unjudged (NEEDED_ONLY), 35B = items
     left in its todo stages, over its prompts."""
     sys.path.insert(0, str(BASE / "dpo"))
     import qwen_chosen_all as Q
     report = {}
-    for ds in DATASETS:
+    for ds in jz_datasets(out):
         d = out / GENERATORS[1] / ds
-        st = json.loads(run("jz_todo_rejected.py", "--dir", d, "--gen", GENERATORS[1], capture=True).strip().splitlines()[-1])
+        st = json.loads(run("jz_todo_rejected.py", "--dir", d, "--gen", GENERATORS[1], "--chosen-gen", GENERATORS[0],
+                            capture=True).strip().splitlines()[-1])
         Q.GEN = GENERATORS[1]
         _, samples, *_ = Q.state(d)
         usable = sum(Q.usable(s) for ss in samples.values() for s in ss.values())
@@ -914,8 +910,6 @@ def main():
         lock.write_text(json.dumps(c, indent=2), encoding="utf-8")
     # Airflow stops a task with SIGTERM: exit through the finally blocks (vLLM container, SSH connection)
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
-    if c["mode"] == "delta" and a.stage in ("judge", "build", "filter", "crossjudge", "release", "audit"):
-        check_delta_datasets(out, a.stage)
     if a.stage == "prepare":
         # Refuse changed prompts on resume before touching existing judge state.
         if (out / "inputs.manifest.json").exists():

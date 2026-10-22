@@ -38,7 +38,13 @@ INTRO_WORDS = re.compile(r"document|context|data|information|report|table|paragr
 SPECIFIC = re.compile(r"^specifically,?\s+(?:in\s+)?(?P<src>(?:Table|Paragraph) \d+)(?:\s+(?:in|of) the (?:context|documents?))?\s*,\s*", re.I)
 INVITE = re.compile(r"rephrase|reformulat|add (?:more |additional )?(?:relevant )?documents|provid(?:e|ing) (?:additional|more|further) "
                     r"(?:documents|context|information)|additional (?:relevant )?documents", re.I)
-INVITE_SENT = re.compile(r"[^.!?\n]*(?:" + INVITE.pattern + r")[^.!?\n]*[.!?]?[ \t]*", re.I)
+# French chosen (hotpotqa_fr): same opening and inviting sentence, in French
+INTRO_FR = re.compile(r"^(?:d['’]après|selon|en (?:me |nous )?(?:basant|fondant|appuyant) sur|sur la base|à partir|au vu)"
+                      r"\s*(?P<body>[^,:\n]{0,90}?)\s*[,:]\s*", re.I)
+INTRO_WORDS_FR = re.compile(r"document|contexte|donnée|information|rapport|tableau|paragraphe|source|extrait|passage", re.I)
+INVITE_FR = (r"reformul|(?:ajout|fourn|joindre|transmett|partag)\w*\s+(?:des |d['’]autres |de nouveaux |davantage de |"
+             r"plus de )?(?:documents|sources)")
+INVITE_SENT = re.compile(r"[^.!?\n]*(?:" + INVITE.pattern + "|" + INVITE_FR + r")[^.!?\n]*[.!?]?[ \t]*", re.I)
 
 
 def normalize(text, chosen_side):
@@ -52,6 +58,9 @@ def normalize(text, chosen_side):
     m = INTRO.match(t)
     if m and INTRO_WORDS.search(m.group("body")):
         t = t[m.end():]
+    m = INTRO_FR.match(t)
+    if m and INTRO_WORDS_FR.search(m.group("body")):
+        t = t[m.end():]
     m = SPECIFIC.match(t)
     if m:  # "specifically Table 4, ..." left by the first cut; the citation markers already name the source
         t = t[m.end():]
@@ -63,9 +72,12 @@ def normalize(text, chosen_side):
 
 
 def quotes_found(text, style, context):
-    """8802410 rule: every <quote> excerpt found in the documents (lowercase alphanumerics, per line / ellipsis part)."""
+    """8802410 rule: every <quote> excerpt found in the documents (lowercase alphanumerics, per line / ellipsis part);
+    ref format: the excerpt of every inline <ref id="N">...</ref> tag."""
     ctx = norm_txt(context)
-    for q in re.findall(re.escape(STYLE_MARKERS[style]) + r"(.*?)" + re.escape(QUOTE_END[style]), text, re.S):
+    pat = r'<ref id="\d+">(.*?)</ref>' if style == "ref" else \
+        re.escape(STYLE_MARKERS[style]) + r"(.*?)" + re.escape(QUOTE_END[style])
+    for q in re.findall(pat, text, re.S):
         parts = [p for line in q.splitlines() for p in re.split(r"\.\.\.|…", line) if norm_txt(p)]
         if not all(norm_txt(p) in ctx for p in parts):
             return False
