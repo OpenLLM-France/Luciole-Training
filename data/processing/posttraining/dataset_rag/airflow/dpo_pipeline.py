@@ -22,6 +22,7 @@ import json
 import os
 import re
 import secrets
+import shlex
 import shutil
 import signal
 import socket
@@ -764,13 +765,30 @@ def judge(c, out):
            # 4B judged only where a pair can use it (endpoint budget; Jean Zay judged every usable sample)
            "NEEDED_ONLY": "1",
            "SKIP_CALIB": "0" if c["calibrate"] else "1"}
-    subprocess.run(["bash", str(BASE / "dpo/judge_chain.sh")], cwd=BASE, env=env, check=True)
-    report = missing_verdicts(out)
-    if any(v["missing"] for v in report.values()):
-        # one more pass for transient failures (the chain resumes: only the missing verdicts are asked again)
-        subprocess.run(["bash", str(BASE / "dpo/judge_chain.sh")], cwd=BASE, env={**env, "SKIP_CALIB": "1"},
-                       check=True)
+    # Optional second server of the same judge (e.g. the same model already started on a GPU host), added while a run is going
+    # on: <run>/judge_extra.json {"ssh_host", "ssh_config", "remote_port", "concurrency", "stop_container"}. Runtime
+    # only, outside config.json (same model, greedy): reached through an SSH forward, calls shared by JudgePool,
+    # container removed once the judging is done.
+    extra, remote = out / "judge_extra.json", None
+    if extra.exists():
+        x = json.loads(extra.read_text())
+        remote = Remote({"ssh_host": x["ssh_host"], "ssh_config": x.get("ssh_config")})
+        remote.open(x["remote_port"])
+        env["URL"] = f"{c['judge_url']},http://127.0.0.1:{remote.port}/v1@{x['concurrency']}"
+        print(f"juge en renfort : {x['ssh_host']}:{x['remote_port']} à {x['concurrency']} appels", flush=True)
+    try:
+        subprocess.run(["bash", str(BASE / "dpo/judge_chain.sh")], cwd=BASE, env=env, check=True)
         report = missing_verdicts(out)
+        if any(v["missing"] for v in report.values()):
+            # one more pass for transient failures (the chain resumes: only the missing verdicts are asked again)
+            subprocess.run(["bash", str(BASE / "dpo/judge_chain.sh")], cwd=BASE, env={**env, "SKIP_CALIB": "1"},
+                           check=True)
+            report = missing_verdicts(out)
+        if remote and x.get("stop_container"):  # judging done (a failed attempt keeps it for the retry)
+            remote.sh(f"docker rm -f {shlex.quote(x['stop_container'])}", check=False)
+    finally:
+        if remote:
+            remote.close()
     # Some verdicts never come back (reasoning beyond judge_max_tokens, or ended without a verdict): JZ run, about
     # 110 of 63,000, the same at every retry since the judge is greedy. Tolerated up to max_missing_share per
     # generator and dataset, recorded, and the pairs simply skip them; above, fail so that Airflow retries.

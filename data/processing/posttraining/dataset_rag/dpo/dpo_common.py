@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -293,3 +294,51 @@ def chat_call(url: str, key: str, model: str, messages, max_tokens=512, retries=
                 return None
             time.sleep(3 * (k + 1))
     return None
+
+
+class JudgePool:
+    """The same judge on several servers: --judge-url "URL" or "URL,URL2@32" (an entry without @n gets --concurrency).
+    Run with `size` threads: each call takes a free slot on a live server; a server whose /models stops answering is
+    left aside for 5 minutes and the call goes to another one (a GPU host killed overnight costs no verdict)."""
+
+    def __init__(self, spec: str, concurrency: int):
+        self.servers = []
+        for part in spec.split(","):
+            u, _, n = part.strip().partition("@")
+            self.servers.append({"url": u.rstrip("/"), "slots": int(n) if n else concurrency, "busy": 0, "down": 0.0})
+        self.size = sum(s["slots"] for s in self.servers)
+        self.cv = threading.Condition()
+
+    def _take(self):
+        with self.cv:
+            while True:
+                live = [s for s in self.servers if s["down"] < time.time() and s["busy"] < s["slots"]]
+                if live:
+                    s = max(live, key=lambda s: s["slots"] - s["busy"])
+                    s["busy"] += 1
+                    return s
+                self.cv.wait(30)
+
+    def _alive(self, s, key):
+        try:
+            rq = urllib.request.Request(s["url"] + "/models", headers={"Authorization": f"Bearer {key}"})
+            with urllib.request.urlopen(rq, timeout=10):
+                return True
+        except Exception:
+            return False
+
+    def call(self, key: str, model: str, messages, **kw):
+        for _ in range(len(self.servers) + 1):
+            s = self._take()
+            try:
+                raw = chat_call(s["url"] + "/chat/completions", key, model, messages, **kw)
+            finally:
+                with self.cv:
+                    s["busy"] -= 1
+                    self.cv.notify_all()
+            if raw is not None or len(self.servers) == 1 or self._alive(s, key):
+                return raw
+            print(f"[judge-pool] {s['url']} ne répond plus : écarté 5 min", file=sys.stderr, flush=True)
+            with self.cv:
+                s["down"] = time.time() + 300
+        return None

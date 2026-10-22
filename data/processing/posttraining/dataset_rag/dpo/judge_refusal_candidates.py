@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from dpo_common import _as_bool, _extract_json, chat_call, context_block, read_jsonl
+from dpo_common import _as_bool, _extract_json, JudgePool, context_block, read_jsonl
 
 SYSTEM = """You audit the response of a RAG assistant to a question that the retrieved documents
 do NOT allow to answer. Use ONLY the retrieved documents; the reference answer is given only
@@ -64,7 +64,7 @@ def main():
             for s in r["samples"] if (not args.only_greedy or s["k"] == -1) and (ks is None or s["k"] in ks)
             and (r["pid"], s["k"]) not in done]
     key = Path(args.judge_key_file).read_text().strip()
-    url = args.judge_url.rstrip("/") + "/chat/completions"
+    pool = JudgePool(args.judge_url, args.concurrency)
     print(f"[refusal-judge] {len(jobs)} completions to judge", flush=True)
 
     def work(job):
@@ -76,7 +76,7 @@ def main():
             return out
         user = (f"Question:\n{p['question']}\n\nReference answer (NOT supported by the documents):\n{p['gold_answer']}"
                 f"\n\nRetrieved documents:\n{context_block(p['messages'][0]['content'])}\n\nAssistant response:\n{text}")
-        raw = chat_call(url, key, args.judge_model, [{"role": "system", "content": SYSTEM},
+        raw = pool.call(key, args.judge_model, [{"role": "system", "content": SYSTEM},
                         {"role": "user", "content": user}], max_tokens=args.max_tokens, timeout=args.timeout)
         try:
             d = _extract_json(raw)
@@ -95,7 +95,7 @@ def main():
             out["judge_error"] = "no_response" if raw is None else "unparsable: " + str(raw)[-300:]
         return out
 
-    with open(args.out, "a", encoding="utf-8") as f, ThreadPoolExecutor(args.concurrency) as ex:
+    with open(args.out, "a", encoding="utf-8") as f, ThreadPoolExecutor(pool.size) as ex:
         for i, r in enumerate(ex.map(work, jobs), 1):
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
             f.flush()

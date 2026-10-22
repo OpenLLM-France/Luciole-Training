@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from dpo_common import _as_bool, _extract_json, chat_call, citation_metrics, context_block, read_jsonl
+from dpo_common import _as_bool, _extract_json, JudgePool, citation_metrics, context_block, read_jsonl
 
 SYSTEM = """Evaluate one RAG assistant response using ONLY the retrieved documents.
 The supplied reference answer is a target, not evidence. Inspect every factual step.
@@ -57,7 +57,7 @@ def main():
             and contexts.get(pid, {}).get("verdict") == ("unanswerable" if prompts[pid]["is_unanswerable"] else "answerable")
             for s in row["samples"] if (pid, s["k"]) not in done and (only is None or (pid, s["k"]) in only)]
     key = Path(args.judge_key_file).read_text().strip()
-    url = args.judge_url.rstrip("/") + "/chat/completions"
+    pool = JudgePool(args.judge_url, args.concurrency)
     print(f"[score] {len(samples)} sampled prompts, {len(jobs)} completions to judge", flush=True)
 
     def work(job):
@@ -75,7 +75,7 @@ def main():
         user = (f"Question:\n{p['question']}\n\nReference answer:\n{p['gold_answer']}\n\n"
                 f"Context sufficiency verdict:\n{contexts[p['pid']]['verdict']}\n\n"
                 f"Retrieved documents:\n{body}\n\nAssistant response:\n{text}")
-        raw = chat_call(url, key, args.judge_model, [
+        raw = pool.call(key, args.judge_model, [
             {"role": "system", "content": SYSTEM}, {"role": "user", "content": user}],
             max_tokens=args.max_tokens, timeout=args.timeout,
             thinking=False if args.no_thinking else None)
@@ -95,7 +95,7 @@ def main():
         return out
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    with open(args.out, "a", encoding="utf-8") as f, ThreadPoolExecutor(max_workers=args.concurrency) as ex:
+    with open(args.out, "a", encoding="utf-8") as f, ThreadPoolExecutor(max_workers=pool.size) as ex:
         for i, r in enumerate(ex.map(work, jobs), 1):
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
             if i % 100 == 0 or i == len(jobs):

@@ -505,6 +505,50 @@ class RefCitationTests(unittest.TestCase):
         m = self.C.citation_metrics('x ##Cite "B"##', ["B"], ["B"], "default")
         self.assertNotIn("n_ref_tags", m)
 
+    def test_judge_pool_shares_calls_and_skips_a_dead_server(self):
+        import socket
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        seen, lock = [], threading.Lock()
+
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.end_headers(); self.wfile.write(b"{}")
+
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                with lock:
+                    seen.append(self.server.server_port)
+                body = json.dumps({"choices": [{"message": {"content": "ok"}}]}).encode()
+                self.send_response(200); self.send_header("Content-Length", str(len(body))); self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+
+        servers = [ThreadingHTTPServer(("127.0.0.1", 0), H) for _ in range(2)]
+        for s in servers:
+            threading.Thread(target=s.serve_forever, daemon=True).start()
+        with socket.socket() as sk:  # a port with nothing listening on it
+            sk.bind(("127.0.0.1", 0))
+            dead = sk.getsockname()[1]
+        a, b = (s.server_port for s in servers)
+        pool = self.C.JudgePool(f"http://127.0.0.1:{a}/v1,http://127.0.0.1:{b}/v1@3,http://127.0.0.1:{dead}/v1@2", 1)
+        self.assertEqual(pool.size, 6)
+        self.C.time.sleep, sleep = (lambda s: None), self.C.time.sleep  # chat_call retries the dead server
+        try:
+            with ThreadPoolExecutor(pool.size) as ex:
+                out = list(ex.map(lambda _: pool.call("k", "m", [], max_tokens=1), range(40)))
+        finally:
+            self.C.time.sleep = sleep
+        for s in servers:
+            s.shutdown()
+        self.assertEqual(out, ["ok"] * 40)  # no verdict lost to the dead server
+        self.assertEqual(len(seen), 40)
+        self.assertEqual({a, b}, set(seen))
+        self.assertTrue(pool.servers[2]["down"] > 0)
+
 
 class SftRunPromptsTests(unittest.TestCase):
     """source sft_run: questions of an SFT run left out of its SFT data -> SFT-format prompts without the invitation
