@@ -57,6 +57,18 @@ def unit(ds, qid):
     return qid.split("_", 1)[0] if ds == "tatqa" else qid
 
 
+def generation_manifest(run, gen):
+    f = run / gen / delta_datasets(run)[0] / f"generation_{gen}.manifest.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def rejected_model(run):
+    """(rejected_source, HF name) of the model sampled in the qwen35_4b directory: the served name of its generation
+    manifest (a smaller Qwen3.5 can stand in for the 4B, e.g. Qwen3.5-2B -> qwen35_2b); the Jean Zay run: the 4B."""
+    served = generation_manifest(run, "qwen35_4b").get("served_model") or "Qwen3.5-4B"
+    return served.lower().replace(".", "").replace("-", "_"), f"Qwen/{served}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tokenizer", required=True)
@@ -96,6 +108,7 @@ def main():
     man = {"source": str(pairs_dir), "source_sha256": json.loads((pairs_dir / "manifest.json").read_text())
            ["files"]["delta_pairs.jsonl"]["sha256"], "repo_revision_for_splits": a.revision, "gold_columns": a.gold_columns, "configs": {}}
     pairs = list(rows(pairs_dir / "delta_pairs.jsonl"))
+    rejected_source, rejected_name = rejected_model(run)
     for ds in delta_datasets(run):
         base = "tatqa" if ds == "tatqa" else "hotpotqa"  # unit namespace of the repo splits
         st = collections.Counter()
@@ -120,7 +133,7 @@ def main():
             recs.append({
                 "prompt": r["prompt"], "chosen": r["chosen"], "rejected": r["rejected"],
                 "category": r["category"], "pair_type": "full_offpolicy",
-                "chosen_source": "qwen35_35b_a3b", "rejected_source": "qwen35_4b",
+                "chosen_source": "qwen35_35b_a3b", "rejected_source": rejected_source,
                 "refusal_instruction": r["refusal_instruction"], "pid": r["pid"], "qid": r["qid"],
                 "hotpot_type": p.get("hotpot_type") if base == "hotpotqa" else None,
                 "answer_type": p.get("answer_type") if ds == "tatqa" else None,
@@ -188,10 +201,9 @@ def main():
         man["configs"][cfg] = info
     dtype = {}  # as served: generation manifest of the run (the Jean Zay run: bf16)
     for gen in ("qwen35_35b_a3b", "qwen35_4b"):
-        f = run / gen / delta_datasets(run)[0] / f"generation_{gen}.manifest.json"
-        dtype[gen] = json.loads(f.read_text()).get("dtype") or "bf16" if f.exists() else "bf16"
+        dtype[gen] = generation_manifest(run, gen).get("dtype") or "bf16"
     man["models"] = {"chosen": f"Qwen/Qwen3.5-35B-A3B ({dtype['qwen35_35b_a3b']})",
-                     "rejected": f"Qwen/Qwen3.5-4B ({dtype['qwen35_4b']})",
+                     "rejected": f"{rejected_name} ({dtype['qwen35_4b']})",
                      "judge": "Qwen/Qwen3.8-27B (bf16, reasoning)", "cross_judge": "Mistral-Small-3.2-24B-Instruct-2506-FP8"}
     (out / "manifest_full_offpolicy_qwen35_35b_a3b.json").write_text(json.dumps(man, indent=1, ensure_ascii=False) + "\n")
     if not any(info["n"] for info in man["configs"].values()):
