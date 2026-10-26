@@ -20,9 +20,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import lighteval.tasks.default_prompts as prompt
 from lighteval.metrics.metrics import Metrics
 from lighteval.tasks.lighteval_task import LightevalTaskConfig
+from lighteval.tasks.requests import Doc
+
+
+def ruler_prompt(line, task_name: str = None):
+    """RULER prompt that keeps the answer prefix out of the user turn.
+
+    Upstream ``default_prompts.ruler`` concatenates the answer prefix onto the user
+    query; once a chat template is applied that leaves it dangling at the end of the
+    user turn, and a chat model opens a fresh assistant turn and ignores it. Here the
+    answer prefix is carried in ``specific["assistant_prefix"]`` so the prompt manager
+    uses it as an assistant-turn prefill for chat models (matching NVIDIA's reference
+    RULER setup). Completion (non-chat-template) models still receive it appended to
+    the prompt exactly as before.
+    """
+    return Doc(
+        task_name=task_name,
+        query=line["input"],
+        instruction=None,
+        choices=line["outputs"],
+        gold_index=list(range(len(line["outputs"]))),
+        specific={"assistant_prefix": line.get("answer_prefix", "")},
+    )
 
 
 subsets = [
@@ -53,7 +74,7 @@ for subset in subsets:
             LightevalTaskConfig(
                 name=f"ruler_{length}:{subset}",
                 suite=["custom"],
-                prompt_function=prompt.ruler,
+                prompt_function=ruler_prompt,
                 hf_repo="OpenLLM-France/RULER-luciole_tokenizer_128k-arab-regional_v2",
                 hf_subset=f"{subset}-{length}",
                 hf_avail_splits=["validation"],
