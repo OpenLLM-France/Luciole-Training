@@ -1070,12 +1070,16 @@ def analyze_one_model(path, label, device, max_new_tokens, batch_size, affected_
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     print(f"\n[loading {label}] {path}", flush=True)
-    tok = AutoTokenizer.from_pretrained(path)
+    tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
     # Newer transformers use `dtype=`, older ones `torch_dtype=`; support both.
     try:
-        model = AutoModelForCausalLM.from_pretrained(path, dtype=torch.bfloat16)
+        model = AutoModelForCausalLM.from_pretrained(
+            path, dtype=torch.bfloat16, trust_remote_code=True
+        )
     except TypeError:
-        model = AutoModelForCausalLM.from_pretrained(path, torch_dtype=torch.bfloat16)
+        model = AutoModelForCausalLM.from_pretrained(
+            path, torch_dtype=torch.bfloat16, trust_remote_code=True
+        )
     model = model.to(device)
     model.eval()
 
