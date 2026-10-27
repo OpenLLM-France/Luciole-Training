@@ -16,7 +16,7 @@ policy:
       lr_warmup_iters: 152  # round(0.03 * max_num_steps) = round(152.1)
 
 data:
-  tool_key: "tools"  # column read by the entries with tools: true in chat_template_kwargs
+  tool_key: "tools"  # column read by the entries with use_tools: true
   # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/009b1048bbb0613b93e966321d0e0b89013ceeba
   tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
   train_data_path:
@@ -75,25 +75,33 @@ data:
       chat_template_kwargs: {enable_thinking: false}
 
     # ---- tool calling: OpenLLM-France/tool_data (${data.tool_data}) ----
-    # tools: true passes the `tools` column to the chat template
+    # use_tools: true passes the `tools` column to the chat template
     - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
       weight: 0.17
-      chat_template_kwargs: {enable_thinking: true, tools: true}
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
     - path: "${data.tool_data}/nemotron_agentic_sft_v2/interactive_agent/*.parquet"
       weight: 0.017  # 0.1 * 0.17
-      chat_template_kwargs: {enable_thinking: true, tools: true}
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
     - path: "${data.tool_data}/nemotron_agentic_sft_v2/search/*.parquet"
       weight: 0.017  # 0.1 * 0.17
-      chat_template_kwargs: {enable_thinking: true, tools: true}
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
     - path: "${data.tool_data}/xlam_oaiformat/*.parquet"
-      chat_template_kwargs: {enable_thinking: false, tools: true}
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
     # - path: "${data.tool_data}/when2call_oaiformat/missing_argument/*.parquet"
-    #   chat_template_kwargs: {enable_thinking: false, tools: true}
+    #   chat_template_kwargs: {enable_thinking: false}
+    #   use_tools: true
     - path: "${data.tool_data}/hermes_oaiformat/func_calling/*.parquet"
-      chat_template_kwargs: {enable_thinking: false, tools: true}
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
     - path: "${data.tool_data}/hermes_oaiformat/glaive_func_calling/*.parquet"
-      chat_template_kwargs: {enable_thinking: false, tools: true}
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
   val_data_path:
     - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
       weight: 0.17
-      chat_template_kwargs: {enable_thinking: true, tools: true}
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
