@@ -36,8 +36,10 @@ from utils import (
 )
 # Shared generation==inference prompt builder (single source of truth).
 from formatting_sft import (
+    CITATION_FORMATS,
     DEFAULT_CITATION_STYLE,
     EOC_PROB,
+    REF_EOC_PROB,
     _generic_refusal_instruction,
     build_chat_system_prompt,
 )
@@ -550,6 +552,8 @@ async def process_row(
     source_documents: SourceDocuments | None = None,
     source_lookup: SourceChunkLookup | None = None,
     contextualize: bool = False,
+    gen_options: dict | None = None,
+    citation_format: str = "markup",
 ) -> dict | None:
     is_unanswerable = row.get("_is_unanswerable", False)
 
@@ -586,7 +590,8 @@ async def process_row(
 
     # Citation placement decided per row (deterministic by id) so the generation
     # prompt matches the inference prompt; formatting reuses this stored value.
-    end_of_completion = random.Random(f"{row['id']}:eoc").random() < EOC_PROB
+    eoc_prob = REF_EOC_PROB if citation_format == "ref" else EOC_PROB
+    end_of_completion = random.Random(f"{row['id']}:eoc").random() < eoc_prob
     # Answerable AND unanswerable rows are generated with the SAME OpenRAG prompt
     # (generic refusal instruction). On an insufficient context the model is
     # expected to refuse; the verification step keeps only the rows where it did.
@@ -596,6 +601,7 @@ async def process_row(
         style=DEFAULT_CITATION_STYLE,
         end_of_completion=end_of_completion,
         refusal_instruction=_generic_refusal_instruction("en"),
+        citation_format=citation_format,
     )
     reasoning = await call_llm(
         session,
@@ -609,6 +615,7 @@ async def process_row(
         timeout_seconds=request_timeout,
         max_tokens=max_tokens,
         debug_http=debug_http,
+        **(gen_options or {}),
     )
     if reasoning is None:
         log(f"Row failed: id={row.get('id')}")
@@ -634,6 +641,7 @@ async def process_row(
         "is_unanswerable": is_unanswerable,
         "grounded_refusal": grounded_refusal,
         "citation_end_of_completion": end_of_completion,
+        "citation_format": citation_format,
         "supporting_facts_titles": sf_titles,
         "type": row.get("type", row.get("answer_type", "unknown")),
         "level": row.get("level", "tatqa"),
@@ -658,6 +666,8 @@ async def run(
     unanswerable_partial_ratio: float = 0.0,
     unanswerable_backfill: bool = True,
     source_documents_path: str | None = None,
+    gen_options: dict | None = None,
+    citation_format: str = "markup",
 ) -> None:
     if seed is not None:
         random.seed(seed)
@@ -750,6 +760,8 @@ async def run(
                         source_documents=source_documents,
                         source_lookup=source_lookup,
                         contextualize=flag,
+                        gen_options=gen_options,
+                        citation_format=citation_format,
                     )
                     for row, flag in zip(batch, batch_flags)
                 ]
@@ -819,9 +831,17 @@ def main() -> None:
                              "which makes the context length predict the refusal (default: backfill)")
     parser.add_argument("--no-shuffle", action="store_true", help="Disable chunk shuffling")
     parser.add_argument("--max-retries", type=int, default=3, help="LLM call retries per row")
-    parser.add_argument("--request-timeout", type=int, default=120, help="HTTP timeout per LLM call (seconds)")
+    parser.add_argument("--request-timeout", "--timeout", type=int, default=120, help="HTTP timeout per LLM call (seconds)")
     parser.add_argument("--max-tokens", type=int, default=1200, help="LLM max_tokens")
     parser.add_argument("--debug-http", action="store_true", help="Verbose LLM failure diagnostics")
+    parser.add_argument("--model", type=str, default=LLM_MODEL,
+                        help=f"Generator model (default: LLM_MODEL from .env, {LLM_MODEL})")
+    parser.add_argument("--chat-template-kwargs", type=str, default=None,
+                        help='JSON passed as chat_template_kwargs, e.g. \'{"enable_thinking": false}\' for Qwen3')
+    parser.add_argument("--citation-format", choices=CITATION_FORMATS, default="markup",
+                        help="markup: quote/cite markers, restyled at formatting (inline or References); "
+                             "ref: numbered documents + inline <ref id=\"N\">excerpt</ref> (References list of "
+                             "<ref id=\"N\"/> on REF_EOC_PROB of the rows), used as generated")
     parser.add_argument(
         "--max-remove-background-ratio",
         type=float,
@@ -837,6 +857,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be >= 1")
+    gen_options = {"model": args.model}
+    if args.chat_template_kwargs:
+        gen_options["chat_template_kwargs"] = json.loads(args.chat_template_kwargs)
+    log(f"Generator: {gen_options}")
 
     run_async(
         run(
@@ -856,6 +880,8 @@ def main() -> None:
             debug_http=args.debug_http,
             contextualize_ratio=args.contextualize_ratio,
             source_documents_path=args.source_documents,
+            gen_options=gen_options,
+            citation_format=args.citation_format,
         )
     )
 

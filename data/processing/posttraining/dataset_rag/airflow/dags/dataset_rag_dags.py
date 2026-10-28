@@ -432,6 +432,12 @@ def build_tatqa_dag() -> DAG:
             # yield: ~0.21 of the created refusals reach the final dataset.
             # 0.22 lands back on the ~11% refusal share of the `full` run.
             "unanswerable_ratio": 0.22,
+            **LLM_PARAMS,
+            # Single citation format of the SFT mix (as hotpotqa_fr_abstracts):
+            # inline <ref id="N">excerpt</ref>, References list on REF_EOC_PROB.
+            "citation_format": "ref",
+            "gen_max_tokens": 2048,
+            "gen_timeout": 300,
         },
         tags=[*BASE_TAGS, "tatqa", "en"],
     )
@@ -447,6 +453,7 @@ def build_tatqa_dag() -> DAG:
         f" --output {prefix}_converted.jsonl"
         " --num-distractors {{ params.num_distractors }}"
         " --distractor-start-rank {{ params.distractor_start_rank }}"
+        " --verify-concurrency {{ params.judge_concurrency }}"
         f" {MIX_OPTS} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}_converted.jsonl",),
@@ -461,7 +468,7 @@ def build_tatqa_dag() -> DAG:
         f" --output {prefix}_augmented"
         " --unanswerable-partial-ratio {{ params.partial_ratio }}"
         " --unanswerable-ratio {{ params.unanswerable_ratio }}"
-        f" {CONTEXTUALIZE_OPT} {SEED_OPT} {LIMIT_OPT}",
+        f" {CONTEXTUALIZE_OPT} {GEN_OPTS} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}_augmented.jsonl",),
     )
@@ -472,7 +479,7 @@ def build_tatqa_dag() -> DAG:
         f"{PYTHON} evaluate_tatqa.py"
         f" --input {prefix}_augmented.jsonl"
         f" --output {prefix}_augmented_evaluated.jsonl"
-        " --eval-chunks --llm-judge-factual --llm-judge-refusal --no-answer-match --filter"
+        f" --eval-chunks --llm-judge-factual --llm-judge-refusal {JUDGE_OPTS} --no-answer-match --filter"
         f" --export {prefix}_stats.json",
         llm=True,
         required_outputs=(

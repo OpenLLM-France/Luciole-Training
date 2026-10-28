@@ -11,6 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from formatting_sft import parse_ref_citations, row_citation_format
 from utils import (
     JUDGE_API_KEY,
     JUDGE_MODEL,
@@ -276,8 +277,24 @@ def evaluate(
         chunk_precision = None
         chunk_recall = None
         chunk_f1 = None
+
+        # Ref-format rows: every <ref id="N"> must point at a document whose text
+        # holds the excerpt verbatim; refusals are checked too (they may quote).
+        ref_count = ref_invalid = None
+        is_ref = row_citation_format(row) == "ref"
+        if is_ref:
+            ref_titles, ref_count, ref_invalid = parse_ref_citations(
+                reasoning, row.get("context", ""),
+                end_of_completion=bool(row.get("citation_end_of_completion")),
+            )
+            stats["ref_rows"] += 1
+            stats["ref_tags"] += ref_count
+            stats["ref_tags_invalid"] += ref_invalid
+            if ref_invalid:
+                stats["ref_rows_invalid"] += 1
+
         if eval_chunks and not is_unanswerable:
-            cited_titles = extract_cited_titles(reasoning)
+            cited_titles = ref_titles if is_ref else extract_cited_titles(reasoning)
             expected_titles = row.get("supporting_facts_titles", [])
             chunk_precision, chunk_recall = evaluate_chunk_citations(cited_titles, expected_titles)
             if chunk_precision is not None and chunk_recall is not None and (chunk_precision + chunk_recall) > 0:
@@ -317,6 +334,9 @@ def evaluate(
             enriched["eval_model_refused"] = model_refused
             if refusal_judge_justification is not None:
                 enriched["eval_refusal_judge_justification"] = refusal_judge_justification
+        if is_ref:
+            enriched["eval_ref_count"] = ref_count
+            enriched["eval_ref_invalid"] = ref_invalid
         if eval_chunks and not is_unanswerable:
             enriched["eval_cited_titles"] = cited_titles
             enriched["eval_chunk_precision"] = chunk_precision
@@ -387,6 +407,13 @@ def print_report(eval_data: dict) -> None:
     print(f"Correct: {correct}")
     print(f"Incorrect: {stats.get('incorrect', 0)}")
     print(f"Accuracy: {acc:.1f}%")
+
+    if stats.get("ref_rows"):
+        print("\nRef citations (<ref id=\"N\">, verbatim excerpt in document N)")
+        print(f"  Rows:            {stats['ref_rows']}")
+        print(f"  Tags:            {stats.get('ref_tags', 0)}")
+        print(f"  Invalid tags:    {stats.get('ref_tags_invalid', 0)}")
+        print(f"  Rows w/ invalid: {stats.get('ref_rows_invalid', 0)} (dropped by --filter)")
 
     print("\nBy answer_type")
     for key, d in sorted(eval_data["stats_by_answer_type"].items()):
