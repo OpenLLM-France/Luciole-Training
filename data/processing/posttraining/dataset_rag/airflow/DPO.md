@@ -68,7 +68,8 @@ Parameters: `sft_run`, `sft_dataset` (dataset name in the `jz_run`, default `hot
 (`pairs` with another mode is refused): every stage reads the datasets of the run (`dpo_common.delta_datasets`), the
 dataset of the pairs and of the config `<sft_dataset>_full_offpolicy_qwen35_35b_a3b` is `sft_dataset`. With the `ref`
 format, a chosen answer must carry valid tags only (`qwen_chosen_all.citation_ok`: document numbers, inline excerpts
-verbatim up to whitespace, as `eval_ref_invalid`; an excerpt cut by "..." is invalid), the release checks the inline
+verbatim up to whitespace, as `eval_ref_invalid`; an excerpt cut by "..." passes when each fragment is verbatim,
+in order), the release checks the inline
 excerpts against the documents (`release_text.quotes_found`) and also strips the French document openings and
 inviting sentences (`normalize`). Gold columns come from `<sft_run>/<sft_dataset>_converted.jsonl`, or the run’s unique
 `*_augmented_evaluated.jsonl` when the SFT DAG reads a cache directly (original answer,

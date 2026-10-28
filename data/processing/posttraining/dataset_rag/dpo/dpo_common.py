@@ -118,10 +118,32 @@ def numbered_documents(system_prompt: str) -> dict[int, tuple[str, str]]:
             for i, m in enumerate(heads)}
 
 
+# An elision inside an excerpt: "...", "…" or "[...]" / "[…]" (formatting_sft._ELISION_RE).
+_ELISION_RE = re.compile(r"\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\.\.\.|…)\s*")
+
+
+def excerpt_in_document(excerpt: str, document: str) -> bool:
+    """formatting_sft._excerpt_in_document (copied: this module imports nothing from the repo): the excerpt is
+    verbatim in the document, or every fragment between its elisions is, in order. Both whitespace-normalized."""
+    if excerpt in document:
+        return True
+    fragments = [f for f in _ELISION_RE.split(excerpt) if f]
+    if not fragments:
+        return False
+    pos = 0
+    for fragment in fragments:
+        found = document.find(fragment, pos)
+        if found < 0:
+            return False
+        pos = found + len(fragment)
+    return True
+
+
 def ref_citations(text: str, system_prompt: str, end_of_completion: bool) -> tuple[list[str], int, int]:
     """(cited titles, ref tags, invalid ones) as formatting_sft.parse_ref_citations (eval_ref_invalid of the SFT
     filter): a tag is invalid when its id is not a document number or, inline, when its excerpt is empty or not verbatim
-    (up to whitespace) in that document; every stray tag or citation of another format counts as invalid."""
+    (up to whitespace, elisions allowed) in that document; every stray tag or citation of another format counts as
+    invalid."""
     ws = lambda t: re.sub(r"\s+", " ", t).strip()  # noqa: E731
     docs = numbered_documents(system_prompt)
     tag_re = _REF_DOC_RE if end_of_completion else _REF_TAG_RE
@@ -129,7 +151,8 @@ def ref_citations(text: str, system_prompt: str, end_of_completion: bool) -> tup
     refs = list(tag_re.finditer(text))
     for ref in refs:
         n = int(ref.group(1))
-        if n not in docs or (not end_of_completion and (not ws(ref.group(2)) or ws(ref.group(2)) not in ws(docs[n][1]))):
+        if n not in docs or (not end_of_completion and (not ws(ref.group(2))
+                                                         or not excerpt_in_document(ws(ref.group(2)), ws(docs[n][1])))):
             invalid += 1
             continue
         if docs[n][0] not in titles:

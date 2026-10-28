@@ -435,6 +435,17 @@ class RefCitationTests(unittest.TestCase):
         self.assertEqual((m["n_ref_tags"], m["n_ref_invalid"], m["cit_f1"]), (3, 3, 1.0))
         self.assertTrue(m["wrong_style"])  # a markup citation next to the ref tags
 
+    def test_elided_excerpts_pass_as_in_the_sft_filter(self):
+        text = '<ref id="1">Paris est [...] de la France</ref> ; <ref id="2">Lyon ... la Seine</ref>'
+        self.assertEqual(self.C.ref_citations(text, self.system, end_of_completion=False), (["Paris"], 2, 1))
+        import sys
+        sys.path.insert(0, str(P.BASE))
+        from formatting_sft import _excerpt_in_document
+        doc = "Revenue 2019 12 5 2018 10 1 Net income 3 2"
+        for excerpt in ("Revenue 2019 12 5", "Revenue ... 12 5", "Revenue [...] 12 5 [...] Net income",
+                        "Net income ... Revenue", "Revenue … 99", "...", "x [ … ] y"):
+            self.assertEqual(self.C.excerpt_in_document(excerpt, doc), _excerpt_in_document(excerpt, doc), excerpt)
+
     def test_chosen_citation_rule_of_the_delta_run(self):
         Q = self.load("qwen_chosen_all")
         p = {"citation_style": "ref", "citation_placement": "inline", "messages": [{"content": self.system}]}
