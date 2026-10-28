@@ -1,0 +1,349 @@
+# DPO Algorithm Configuration
+dpo:
+  max_num_epochs: 1
+  max_num_steps: 100000
+  val_period: 25
+  val_batches: 8
+  val_global_batch_size: 8
+  val_micro_batch_size: 1
+  val_at_start: true
+  val_at_end: false
+  seed: 42
+
+  reference_policy_kl_penalty: 5
+  preference_average_log_probs: True # whether normalizing log probs according to the sequence length in preference_loss
+  sft_average_log_probs: ${.preference_average_log_probs} # whether normalizing log probs according to the sequence length in sft_loss
+
+  ## TODO(@ashors) support other loss functions
+  #preference_loss: dpo # the preference loss, we support dpo, ipo, rpo_sq, rpo_bwd_kl, rpo_fwd_kl
+  #gt_reward_scale: 1. # the scale of the rewards in RPO
+  preference_loss_weight: 1.0 # the coefficient of the preference loss
+  sft_loss_weight: 0.05 # the coefficient of the SFT loss
+
+checkpointing:
+  enabled: true
+  checkpoint_dir: "${oc.env:EXPERIMENT_PATH}/checkpoints"
+  metric_name: "val:val_loss" # one of "val:" or "train:" followed by the metric name
+  higher_is_better: false
+  keep_top_k: 100
+  save_period: 100
+  checkpoint_must_save_by: null
+  save_optimizer: true
+  
+policy:
+  model_name: "/lustre/fsn1/projects/rech/qgz/ufb61ek/kd_math_8b_hybrid_v1-step_4948_nemo-rl-latest/"
+  tokenizer:
+    name: ${policy.model_name} # use the same name as the model for the tokenizer
+    chat_template: ${policy.model_name}/chat_template.jinja
+    chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
+
+  # number of preference samples per batch
+  # each preference sample corresponds to a pair of chosen and rejected responses
+  # so the actual batch size processed by the model is train_global_batch_size * 2
+  train_global_batch_size: 128
+  train_micro_batch_size: 1
+
+  ## TODO(@ashors) support
+  #logprob_batch_size: ${policy.train_micro_batch_size}
+  max_total_sequence_length: 16384
+  precision: "bfloat16"
+
+  offload_optimizer_for_logprob: false
+
+  dtensor_cfg:
+    env_vars:
+      PYTORCH_CUDA_ALLOC_CONF: ""  # Refers to https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf
+    enabled: false
+    cpu_offload: False
+    sequence_parallel: false
+    activation_checkpointing: false
+    tensor_parallel_size: 1
+    context_parallel_size: 1
+    custom_parallel_plan: null
+    clear_cache_every_n_steps: null
+
+  dynamic_batching:
+    enabled: false
+
+  sequence_packing:
+    enabled: false
+
+  # makes the training sequence length divisible by the tensor parallel size
+  # this is useful for sequence parallel training
+  # NOTE: this run uses the megatron backend, so divisibility must follow the
+  # megatron TP size (the dtensor backend is disabled, its TP size is 1).
+  make_sequence_length_divisible_by: ${policy.megatron_cfg.tensor_model_parallel_size}
+  max_grad_norm: 1.0
+
+  optimizer:
+    null
+
+  ## ignored since enabled=false, but needed for testing purposes
+  megatron_cfg:
+    enabled: true
+    use_linear_ce_fusion_loss: true
+    linear_ce_fusion_chunk_size: 256  # tokens per chunk; smaller = less memory, larger = more throughput
+    empty_unused_memory_level: 1
+    activation_checkpointing: false
+    tensor_model_parallel_size: 4
+    expert_tensor_parallel_size: 1
+    expert_model_parallel_size: 1
+    pipeline_model_parallel_size: 1
+    context_parallel_size: 1
+    pipeline_dtype: ${policy.precision}
+    num_layers_in_first_pipeline_stage: null
+    num_layers_in_last_pipeline_stage: null
+    # Required by linear CE fusion when tensor_model_parallel_size > 1: the fused
+    # logprob path expects sequence-parallel-sharded hidden states (it all-gathers
+    # them along the sequence dim). With SP off and TP>1 the hidden states are
+    # replicated, so that gather inflates the sequence length and it no longer
+    # matches the labels (the 256-vs-186 size mismatch). SP also lowers activation
+    # memory, which helps at long context.
+    sequence_parallel: true
+    freeze_moe_router: false
+    moe_router_dtype: null
+    moe_router_load_balancing_type: "aux_loss"
+    moe_router_bias_update_rate: 1e-3
+    moe_permute_fusion: false
+    #gives ~20% training perf speedup with sequence packing 
+    apply_rope_fusion: True
+    # gives ~25% training perf speedup with sequence packing and apply_rope_fusion
+    bias_activation_fusion: False
+    defer_fp32_logits: False
+    moe_per_layer_logging: False
+    moe_enable_deepep: False
+    moe_token_dispatcher_type: "alltoall"
+    moe_shared_expert_overlap: false
+    gradient_accumulation_fusion: false
+
+    optimizer:
+      optimizer: "adam"
+      lr: 3.0e-8 #4.0e-5
+      min_lr: 0.0 #4.0e-5
+      weight_decay: 0.1
+      bf16: true
+      fp16: false
+      params_dtype: "bfloat16"
+
+      #adam
+      adam_beta1: 0.9
+      adam_beta2: 0.98
+      adam_eps: 1e-8
+
+      #sgd
+      sgd_momentum: 0.9
+    
+      #distributed optimizer
+      use_distributed_optimizer: true
+      use_precision_aware_optimizer: true
+
+      clip_grad: ${policy.max_grad_norm}
+
+      # optimizer cpu offload
+      optimizer_cpu_offload: false
+      optimizer_offload_fraction: 0.0
+
+    scheduler:
+      start_weight_decay: ${policy.megatron_cfg.optimizer.weight_decay}
+      end_weight_decay: ${policy.megatron_cfg.optimizer.weight_decay}
+      weight_decay_incr_style: "constant"
+      lr_decay_iters: 806 #THIS WILL CHANGE
+      lr_decay_style: "linear"
+      lr_warmup_init: 0.00000001
+      lr_warmup_iters: 80 #THIS WILL CHANGE
+
+    distributed_data_parallel_config:
+      grad_reduce_in_fp32: true
+      overlap_grad_reduce: true
+      overlap_param_gather: true
+      data_parallel_sharding_strategy: "optim_grads_params"
+      use_custom_fsdp: false
+    
+data:
+  max_input_seq_length: ${policy.max_total_sequence_length}
+  shuffle: true
+  num_workers: 1
+  add_generation_prompt: true
+  train:
+    dataset_name: openai_preference_v2
+    dataset_paths:
+      - name: "dolci_flan_nli"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/flan_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "dolci_sciriff_stem"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/sciriff_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "dolci_python_algos_code"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/dolci_instruct_python_algos_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "dolci_persona_if"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/chat_persona_if_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "dolci_precise_if"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/chat_precise_if_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "nemotron_chat"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_chat_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "opencodereasoning_code"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/opencode_reasoning_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "nemotron_code"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_code_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "nemotron_science"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_science_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "pleias_rag"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/pleias_rag_refiltered.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "smolagents_corrupt_argument_llm_tools"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/smolagents_toolcalling/corrupt_argument_llm/data/success/*.jsonl.gz"
+        weight: 1.0
+        use_tools: true
+        chat_template_kwargs: {enable_thinking: true}
+      - name: "nemotron_agentic_corrupt_argument_llm_tools"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/nemotron_agentic_sft_v2/corrupt_argument_llm/data/success/*.jsonl.gz"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+        use_tools: true
+      - name: "smolagents_corrupt_json_tools"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/smolagents_toolcalling/data/corrupt_json/*.jsonl.gz"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+        use_tools: true
+      - name: "smolagents_remove_argument_tools"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/smolagents_toolcalling/data/remove_required_argument/*.jsonl.gz"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+        use_tools: true
+      - name: "open_math_instruct_delta"
+        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/open_math_reasoning_filtered_delta.jsonl"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_CHAT_all_weaker/filtered_data/valid_pairs_nothink/data/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_CHAT_all_take2_weaker/filtered_data/valid_pairs_nothink/data/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_math_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.62
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_code_all_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_science_all_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/dolci_flan_temp0_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.38
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/smol_instruct_rewrite_all_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/smol_rewrite_all_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/smol_summarize_all_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/pleais_rag_citation_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/dolci_instruct_precise_IF_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/dolci_persona_precise_IF_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/dolci_sciriff_all_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/dolci_python_algorithms_weaker/filtered_data/valid_pairs/*.jsonl.gz"
+        weight: 0.05
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/when2call_dpo/data/*.jsonl.gz"
+        weight: 0.35
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_safety_v4/safety_train.jsonl"
+        weight: 0.7
+        chat_template_kwargs: {enable_thinking: false}
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/data/corrupt_json/*.jsonl.gz"
+        weight: 0.42
+        chat_template_kwargs: {enable_thinking: false}
+        use_tools: true
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/data/remove_required_argument/*.jsonl.gz"
+        weight: 0.049
+        chat_template_kwargs: {enable_thinking: false}
+        use_tools: true
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/data/remove_tool_call/*.jsonl"
+        weight: 0.105
+        chat_template_kwargs: {enable_thinking: false}
+        use_tools: true
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/corrupt_argument_llm/data/success/*.jsonl.gz"
+        weight: 0.07
+        chat_template_kwargs: {enable_thinking: false}
+        use_tools: true
+
+
+  # You can use custom preference datasets for training and validation. For example:
+  # 1. PreferenceDataset
+  #   data:
+  #     dataset_name: PreferenceDataset
+  #     train_data_path: <PathToTrainingDataset>  # e.g., /path/to/local/dataset.jsonl or hf_org/hf_dataset_name (HuggingFace)
+  #     val_data_paths:
+  #       <NameOfValidationDataset1>: <PathToValidationDataset1>
+  #       ...
+  #     train_split: <TrainSplit>, default is None  # used for HuggingFace datasets
+  #     val_split: <ValSplit>, default is None  # used for HuggingFace datasets
+  # 2. BinaryPreferenceDataset
+  #   data:
+  #     dataset_name: BinaryPreferenceDataset
+  #     train_data_path: <PathToTrainingDataset>  # e.g., /path/to/local/dataset.jsonl or hf_org/hf_dataset_name (HuggingFace)
+  #     val_data_path: <PathToValidationDataset>
+  #     prompt_key: <PromptKey>, default is "prompt"
+  #     chosen_key: <ChosenKey>, default is "chosen"
+  #     rejected_key: <RejectedKey>, default is "rejected"
+  #     train_split: <TrainSplit>, default is None  # used for HuggingFace datasets
+  #     val_split: <ValSplit>, default is None  # used for HuggingFace datasets
+  # See https://github.com/NVIDIA-NeMo/RL/blob/main/docs/guides/dpo.md#datasets for more details.
+
+  # If you are doing checkpointing, `metric_name` should reflect the metric and validation set to be tracked. For example:
+  #   checkpointing:
+  #     metric_name: "val:validation-<NameOfValidationDataset1>_loss"
+  #   ...
+
+logger:
+  log_dir: "${oc.env:EXPERIMENT_PATH}/logs"  # Base directory for all logs
+  wandb_enabled: false # Make sure you do a ``wandb login [Your API key]'' before running
+  tensorboard_enabled: true
+  mlflow_enabled: false  # Disable MLflow logging
+  swanlab_enabled: false # Disable SwanLab logging
+  monitor_gpus: true  # If true, will monitor GPU usage and log to wandb and/or tensorboard
+  num_val_samples_to_print: 0 # Number of validation samples to pretty print on terminal
+  wandb:
+    project: "dpo-dev"
+    name: "dpo"
+  tensorboard:
+    log_dir: "tb_logs-dpo-dev"
+  mlflow:
+    experiment_name: "dpo-dev"
+    run_name: "dpo"
+  gpu_monitoring:
+    collection_interval: 1  # How often to collect GPU usage metrics (in seconds)
+    flush_interval: 1  # How often to flush GPU usage metrics to the loggers (in seconds)
+
+cluster:
+  gpus_per_node: 1
+  num_nodes: 1
