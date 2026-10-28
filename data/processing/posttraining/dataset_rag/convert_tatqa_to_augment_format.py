@@ -19,7 +19,7 @@ from distractor_generation import (
     select_bm25_distractors,
     verify_hard_candidates,
 )
-from utils import load_env_key
+from utils import JUDGE_API_KEY
 
 
 def _stringify_cell(value: object) -> str:
@@ -552,7 +552,7 @@ def convert(
                 ckpt = str(Path(output_file).with_suffix("")) + "_verify_checkpoint.jsonl"
             asyncio.run(verify_hard_candidates(
                 selector,
-                api_key=load_env_key("LLM_API_KEY") or "",
+                api_key=JUDGE_API_KEY or "",
                 concurrency=verify_concurrency,
                 checkpoint_path=ckpt,
             ))

@@ -18,6 +18,9 @@ from convert_tatqa_to_augment_format import load_tatqa_docs, tatqa_document_chun
 from distractor_generation import LEAK_MIN_LENGTH, content_hash, normalize_for_leak_check
 from utils import (
     CONTEXTUALIZER_SYSTEM_PROMPT,
+    GEN_API_KEY,
+    JUDGE_API_KEY,
+    JUDGE_MODEL,
     LLM_MAX_CONCURRENT,
     LLM_MODEL,
     Metrics,
@@ -354,7 +357,7 @@ def _ctx_cache_key(document_id: str, chunks: list[dict], language: str = "en") -
             "chunks": chunks,
             "algorithm_version": CONTEXTUALIZER_CACHE_VERSION,
             "language": language,
-            "model": LLM_MODEL,
+            "model": JUDGE_MODEL,
             "prompt": CONTEXTUALIZER_SYSTEM_PROMPT,
         },
         ensure_ascii=False,
@@ -565,7 +568,7 @@ async def process_row(
             source_documents,
             source_lookup,
             semaphore,
-            api_key=LLM_API_KEY,
+            api_key=JUDGE_API_KEY,
             max_retries=max_retries,
             request_timeout=request_timeout,
             debug_http=debug_http,
@@ -599,7 +602,7 @@ async def process_row(
         row["question"],
         context_str,
         semaphore,
-        api_key=LLM_API_KEY,
+        api_key=GEN_API_KEY,
         system_prompt=system_prompt,
         context_in_system=True,
         max_retries=max_retries,
@@ -714,8 +717,8 @@ async def run(
 
     # Unanswerable rows now also call the LLM (to generate query-grounded refusals).
     needs_llm = bool(rows)
-    if needs_llm and not LLM_API_KEY:
-        raise ValueError("LLM_API_KEY is required to process rows (set in .env file or environment)")
+    if needs_llm and not GEN_API_KEY:
+        raise ValueError("LLM_API_KEY (or LLM_GEN_API_KEY_FILE) is required to process rows (set in .env file or environment)")
 
     if contextualize_ratio > 0:
         log(f"Contextualize ratio: {contextualize_ratio:.0%}")

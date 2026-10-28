@@ -31,6 +31,29 @@ _DEFAULT_LLM_MODEL = "Mistral-Small-3.1-24B-Instruct-2503"
 LLM_API_URL = load_env_key("LLM_BASE_URL") or _DEFAULT_LLM_API_URL
 LLM_MODEL = load_env_key("LLM_MODEL") or _DEFAULT_LLM_MODEL
 LLM_MAX_CONCURRENT = 10
+# Judge budget. Reasoning judges (Qwen3.8 thinks by default) need ~6000 tokens and a
+# long timeout, otherwise the JSON verdict is cut off; unset = Mistral-sized defaults.
+JUDGE_MAX_TOKENS = int(load_env_key("LLM_JUDGE_MAX_TOKENS") or 0) or None
+JUDGE_TIMEOUT = int(load_env_key("LLM_JUDGE_TIMEOUT") or 120)
+
+
+def _api_key(key_file_var: str) -> str | None:
+    """Key read from the file named by *key_file_var*, else LLM_API_KEY."""
+    key_file = load_env_key(key_file_var)
+    if key_file:
+        return Path(key_file).read_text(encoding="utf-8").strip()
+    return load_env_key("LLM_API_KEY")
+
+
+# Generator and judges can live on different servers (e.g. a vLLM generator next
+# to a judge on another GPU host). Unset = the .env endpoint for both. Auxiliary
+# calls (chunk contextualization, hard-distractor verification) go to the judge
+# server, as LLM_JUDGE_MODEL (default LLM_MODEL).
+GEN_API_URL = load_env_key("LLM_GEN_BASE_URL") or LLM_API_URL
+GEN_API_KEY = _api_key("LLM_GEN_API_KEY_FILE")
+JUDGE_API_URL = load_env_key("LLM_JUDGE_BASE_URL") or LLM_API_URL
+JUDGE_API_KEY = _api_key("LLM_JUDGE_API_KEY_FILE")
+JUDGE_MODEL = load_env_key("LLM_JUDGE_MODEL") or LLM_MODEL
 
 
 def log(message: str) -> None:
@@ -306,7 +329,7 @@ async def call_llm(
     async with semaphore:
         data = await post_chat_completion(
             session,
-            api_url=LLM_API_URL,
+            api_url=GEN_API_URL,
             api_key=api_key,
             payload=payload,
             max_retries=max_retries,
@@ -551,7 +574,7 @@ async def _contextualize_chunks_batched(
     """
     user_prompt = _build_contextualizer_batch_user_prompt(filename, chunks, language)
     payload = {
-        "model": LLM_MODEL,
+        "model": JUDGE_MODEL,
         "messages": [
             {"role": "system", "content": CONTEXTUALIZER_BATCH_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -564,7 +587,7 @@ async def _contextualize_chunks_batched(
     async with semaphore:
         data = await post_chat_completion(
             session,
-            api_url=LLM_API_URL,
+            api_url=JUDGE_API_URL,
             api_key=api_key,
             payload=payload,
             max_retries=max_retries,
@@ -643,7 +666,7 @@ async def contextualize_chunks(
             language=language,
         )
         payload = {
-            "model": LLM_MODEL,
+            "model": JUDGE_MODEL,
             "messages": [
                 {"role": "system", "content": CONTEXTUALIZER_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -655,7 +678,7 @@ async def contextualize_chunks(
             async with semaphore:
                 data = await post_chat_completion(
                     session,
-                    api_url=LLM_API_URL,
+                    api_url=JUDGE_API_URL,
                     api_key=api_key,
                     payload=payload,
                     max_retries=max_retries,
@@ -989,8 +1012,8 @@ async def _call_judge(
     semaphore: asyncio.Semaphore,
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     max_retries: int = 3,
 ) -> dict | None:
     payload = {
@@ -1000,7 +1023,7 @@ async def _call_judge(
             {"role": "user", "content": user_content},
         ],
         "temperature": temperature,
-        "max_tokens": 512,
+        "max_tokens": JUDGE_MAX_TOKENS or 512,
     }
     async with semaphore:
         result = await post_chat_completion(
@@ -1009,7 +1032,7 @@ async def _call_judge(
             api_key=api_key,
             payload=payload,
             max_retries=max_retries,
-            timeout_seconds=120,
+            timeout_seconds=JUDGE_TIMEOUT,
         )
         if result is None:
             return None
@@ -1033,8 +1056,8 @@ async def run_french_quality_judge_ordered(
     rows: list[dict],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM French quality judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1063,8 +1086,8 @@ async def run_judge_ordered(
     rows: list[dict],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1096,8 +1119,8 @@ async def run_factual_judge_ordered(
     sf_lookup: dict[str, set[str]],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM factual judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1134,8 +1157,8 @@ def run_llm_judge(
     rows: list[dict],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1151,8 +1174,8 @@ def run_factual_judge(
     sf_lookup: dict[str, set[str]],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM factual judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1167,8 +1190,8 @@ def run_french_quality_judge(
     rows: list[dict],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM French quality judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1193,8 +1216,8 @@ async def _call_refusal_judge(
     semaphore: asyncio.Semaphore,
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     max_retries: int = 3,
 ) -> dict | None:
     """Binary refusal judge: returns {"refused": bool, "justification": str} or None."""
@@ -1205,12 +1228,12 @@ async def _call_refusal_judge(
             {"role": "user", "content": user_content},
         ],
         "temperature": 0.0,
-        "max_tokens": 256,
+        "max_tokens": JUDGE_MAX_TOKENS or 256,
     }
     async with semaphore:
         result = await post_chat_completion(
             session, api_url=api_url, api_key=api_key, payload=payload,
-            max_retries=max_retries, timeout_seconds=120,
+            max_retries=max_retries, timeout_seconds=JUDGE_TIMEOUT,
         )
         if result is None:
             return None
@@ -1230,8 +1253,8 @@ async def run_refusal_judge_ordered(
     rows: list[dict],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM refusal judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:
@@ -1260,8 +1283,8 @@ def run_refusal_judge(
     rows: list[dict],
     *,
     api_key: str,
-    api_url: str = LLM_API_URL,
-    model: str = LLM_MODEL,
+    api_url: str = JUDGE_API_URL,
+    model: str = JUDGE_MODEL,
     desc: str = "LLM refusal judge",
     concurrency: int = LLM_MAX_CONCURRENT,
 ) -> list[dict | None]:

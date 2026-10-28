@@ -8,6 +8,8 @@ from datasets import load_dataset, Dataset
 from pathlib import Path
 from datetime import datetime
 from utils import (
+    GEN_API_KEY,
+    JUDGE_API_KEY,
     LLM_MAX_CONCURRENT,
     LLM_MODEL,
     Metrics,
@@ -276,7 +278,7 @@ async def process_row(
             chunks.append({"title": title, "text": text})
         summaries = await contextualize_chunks(
             session, chunks, semaphore,
-            api_key=LLM_API_KEY, language=language,
+            api_key=JUDGE_API_KEY, language=language,
         )
 
     context_str, chunk_stats = format_context_chunks(
@@ -307,7 +309,7 @@ async def process_row(
     )
     reasoning = await call_llm(
         session, row["question"], context_str, semaphore,
-        api_key=LLM_API_KEY, system_prompt=system_prompt,
+        api_key=GEN_API_KEY, system_prompt=system_prompt,
         context_in_system=True,
         **(gen_options or {}),
     )
@@ -401,8 +403,8 @@ async def main(
 
     # Unanswerable rows now also call the LLM (to generate query-grounded refusals).
     needs_llm = bool(rows_to_process)
-    if needs_llm and not LLM_API_KEY:
-        raise ValueError("LLM_API_KEY is required to process rows (set in .env file or environment)")
+    if needs_llm and not GEN_API_KEY:
+        raise ValueError("LLM_API_KEY (or LLM_GEN_API_KEY_FILE) is required to process rows (set in .env file or environment)")
 
     if contextualize_ratio > 0:
         log(f"Contextualize ratio: {contextualize_ratio:.0%}")

@@ -18,9 +18,10 @@ import hashlib
 from pathlib import Path
 from collections import defaultdict
 from utils import (
+    JUDGE_API_KEY,
     LLM_API_URL,
     LLM_MAX_CONCURRENT,
-    LLM_MODEL,
+    JUDGE_MODEL,
     load_env_key,
     normalize_answer,
     detect_refusal,
@@ -38,8 +39,6 @@ from utils import (
 )
 
 from formatting_sft import parse_ref_citations, row_citation_format
-
-LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
 
 # OpenRouter configuration
 OPENROUTER_API_KEY = load_env_key("OPENROUTER_API", base_dir=Path(__file__).parent)
@@ -243,7 +242,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
              llm_judge_french_quality: bool = False,
              llm_judge_refusal: bool = False,
              no_answer_match: bool = False,
-             judge_model: str = LLM_MODEL,
+             judge_model: str = JUDGE_MODEL,
              judge_concurrency: int = LLM_MAX_CONCURRENT,
              judge_cache: str | None = None) -> dict:
     """Evaluate all entries in the augmented dataset."""
@@ -259,7 +258,7 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
 
     # Endpoint judges (not the OpenRouter ones) share the model, the concurrency cap
     # and the verdict cache.
-    judge_kwargs = {"api_key": LLM_API_KEY, "model": judge_model, "concurrency": judge_concurrency}
+    judge_kwargs = {"api_key": JUDGE_API_KEY, "model": judge_model, "concurrency": judge_concurrency}
     cache = JudgeCache(judge_cache)
     judge_results = _collect_endpoint_judge(rows, llm_judge, "relevance", cache, **judge_kwargs)
     judge_stats: defaultdict = defaultdict(float)
@@ -589,8 +588,8 @@ def main():
                         help="Filter each row independently. By default an unanswerable row and the "
                              "answerable row it was cloned from survive the filter together or not at "
                              "all, so every refusal keeps the minimal pair it was built to form.")
-    parser.add_argument("--judge-model", type=str, default=LLM_MODEL,
-                        help=f"Model for the endpoint judges (default: LLM_MODEL from .env, {LLM_MODEL})")
+    parser.add_argument("--judge-model", type=str, default=JUDGE_MODEL,
+                        help=f"Model for the endpoint judges (default: LLM_JUDGE_MODEL, else LLM_MODEL, {JUDGE_MODEL})")
     parser.add_argument("--judge-concurrency", type=int, default=LLM_MAX_CONCURRENT,
                         help=f"Concurrent judge calls (default: {LLM_MAX_CONCURRENT}); judges run one after another")
     parser.add_argument("--judge-cache", type=str, default=None,

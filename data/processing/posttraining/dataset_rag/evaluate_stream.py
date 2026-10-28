@@ -23,8 +23,8 @@ import sys
 import time
 from pathlib import Path
 
-from evaluate_and_filter import ENDPOINT_JUDGES, LLM_API_KEY, JudgeCache, judge_rows
-from utils import LLM_MAX_CONCURRENT, LLM_MODEL, log
+from evaluate_and_filter import ENDPOINT_JUDGES, JudgeCache, judge_rows
+from utils import JUDGE_API_KEY, LLM_MAX_CONCURRENT, JUDGE_MODEL, log
 
 
 def read_new_rows(path: Path, offset: int) -> tuple[list[dict], int]:
@@ -48,7 +48,7 @@ def main() -> None:
     parser.add_argument("--llm-judge-factual", action="store_true")
     parser.add_argument("--llm-judge-french-quality", action="store_true")
     parser.add_argument("--llm-judge-refusal", action="store_true")
-    parser.add_argument("--judge-model", default=LLM_MODEL)
+    parser.add_argument("--judge-model", default=JUDGE_MODEL)
     parser.add_argument("--judge-concurrency", type=int, default=LLM_MAX_CONCURRENT)
     parser.add_argument("--batch-size", type=int, default=200, help="Max rows judged per pass")
     parser.add_argument("--poll-seconds", type=float, default=30)
@@ -67,7 +67,7 @@ def main() -> None:
     source = Path(args.input)
     done_marker = Path(args.done_marker or f"{args.input.removesuffix('.jsonl')}.done")
     cache = JudgeCache(args.judge_cache)
-    judge_kwargs = {"api_key": LLM_API_KEY, "model": args.judge_model, "concurrency": args.judge_concurrency}
+    judge_kwargs = {"api_key": JUDGE_API_KEY, "model": args.judge_model, "concurrency": args.judge_concurrency}
     log(f"Streaming judges {judges} ({args.judge_model}, concurrency {args.judge_concurrency}) on {source}; "
         f"{len(cache.entries)} cached verdicts")
 

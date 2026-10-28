@@ -41,6 +41,12 @@ may send more than 6 concurrent Mistral calls takes both slots, which keeps the
 historical one-LLM-task-at-a-time behaviour. Parallel evaluation (HotpotQA FR
 abstracts) runs a non-Mistral generator (1 slot) next to the Mistral judges
 capped at 6 (1 slot), streamed by evaluate_stream.py while rows are generated.
+
+Generator and judges may run on different servers (``gen_url`` / ``judge_url``
+params, keys read from ``gen_key_file`` / ``judge_key_file``). The judge server
+also serves chunk contextualization and hard-distractor verification. A judge
+bound to localhost on a GPU host is reached through an SSH forward opened by each
+LLM task for its own duration (``judge_ssh_host``).
 """
 
 from __future__ import annotations
@@ -111,7 +117,43 @@ DEFAULT_PARAMS = {
     "seed": 42,
     # Passed to formatting_sft.py --format: "chat" or "prompt_completion".
     "sft_format": "chat",
+    # Generator server (chat/completions URL) and a file holding its key; empty =
+    # LLM_BASE_URL / LLM_API_KEY of .env. Relative paths start at dataset_rag/.
+    "gen_url": "",
+    "gen_key_file": "",
+    # Judge server, also used for contextualization and --verify-hard.
+    "judge_url": "",
+    "judge_key_file": "",
+    # Judge bound to 127.0.0.1:judge_remote_port on an SSH host (vLLM on a GPU host):
+    # each LLM task forwards it for its own duration. Overrides judge_url.
+    "judge_ssh_host": "",
+    "judge_ssh_config": "airflow/ssh/config",
+    "judge_remote_port": 8030,
 }
+
+# Exports the server routing read by utils.py (LLM_GEN_* / LLM_JUDGE_*), opening
+# the SSH forward to the judge first when judge_ssh_host is set.
+ENDPOINT_ENV = """\
+{% if params.gen_url %}export LLM_GEN_BASE_URL="{{ params.gen_url }}"{% endif %}
+{% if params.gen_key_file %}export LLM_GEN_API_KEY_FILE="{{ params.gen_key_file }}"{% endif %}
+{% if params.judge_key_file %}export LLM_JUDGE_API_KEY_FILE="{{ params.judge_key_file }}"{% endif %}
+{% if params.get("judge_model") %}export LLM_JUDGE_MODEL="{{ params.judge_model }}"{% endif %}
+{% if params.judge_ssh_host %}
+JUDGE_PORT=$(@PYTHON@ -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+ssh -F "{{ params.judge_ssh_config }}" -N -o ExitOnForwardFailure=yes \\
+    -L "127.0.0.1:$JUDGE_PORT:127.0.0.1:{{ params.judge_remote_port }}" "{{ params.judge_ssh_host }}" &
+JUDGE_TUNNEL=$!
+trap 'kill "$JUDGE_TUNNEL" 2>/dev/null || true' EXIT
+export LLM_JUDGE_BASE_URL="http://127.0.0.1:$JUDGE_PORT/v1/chat/completions"
+for _ in $(seq 60); do
+    @PYTHON@ airflow/check_judge_server.py "http://127.0.0.1:$JUDGE_PORT/v1/models" && break
+    kill -0 "$JUDGE_TUNNEL" 2>/dev/null || { echo "SSH forward to the judge exited" >&2; exit 1; }
+    sleep 2
+done
+@PYTHON@ airflow/check_judge_server.py "http://127.0.0.1:$JUDGE_PORT/v1/models" \\
+    || { echo "judge not answering through the SSH forward" >&2; exit 1; }
+{% elif params.judge_url %}export LLM_JUDGE_BASE_URL="{{ params.judge_url }}"{% endif %}
+""".replace("@PYTHON@", PYTHON)
 
 CONTEXTUALIZE_OPT = "--contextualize-ratio {{ params.contextualize_ratio }}"
 
@@ -179,8 +221,9 @@ def _bash(
         f'echo "Task {task_id}: required output is missing or empty" >&2; exit 1; fi'
         for path in required_outputs
     ]
+    endpoints = [ENDPOINT_ENV] if llm else []
     command = "\n".join(
-        ["set -euo pipefail", WORKDIR, 'mkdir -p "$WORKDIR"', body, *output_checks]
+        ["set -euo pipefail", WORKDIR, 'mkdir -p "$WORKDIR"', *endpoints, body, *output_checks]
     )
     kwargs = {"pool": LLM_POOL, "pool_slots": llm_slots} if llm else {}
     return BashOperator(

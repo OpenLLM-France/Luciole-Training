@@ -12,6 +12,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from utils import (
+    JUDGE_API_KEY,
+    JUDGE_MODEL,
+    LLM_MAX_CONCURRENT,
     detect_refusal,
     extract_cited_titles,
     evaluate_chunk_citations,
@@ -19,11 +22,8 @@ from utils import (
     run_refusal_judge,
     normalize_answer,
     extract_answer_from_reasoning,
-    load_env_key,
     filter_rows,
 )
-
-LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
 
 
 @dataclass
@@ -202,6 +202,8 @@ def evaluate(
     llm_judge_factual: bool = False,
     llm_judge_refusal: bool = False,
     no_answer_match: bool = False,
+    judge_model: str = JUDGE_MODEL,
+    judge_concurrency: int = LLM_MAX_CONCURRENT,
 ) -> dict:
     rows = []
     with open(file_path, "r", encoding="utf-8") as f:
@@ -216,13 +218,14 @@ def evaluate(
     factual_judge_stats = defaultdict(float)
     refusal_judge_stats = defaultdict(int)
     enriched_rows = []
+    judge_kwargs = {"api_key": JUDGE_API_KEY, "model": judge_model, "concurrency": judge_concurrency}
 
     # Factual LLM-as-a-judge evaluation
     factual_judge_results: list[dict | None] = [None] * len(rows)
     if llm_judge_factual:
         answerable_indices = [i for i, r in enumerate(rows) if not r.get("is_unanswerable", False)]
         answerable_rows = [rows[i] for i in answerable_indices]
-        raw_factual = run_factual_judge(answerable_rows, {}, api_key=LLM_API_KEY)
+        raw_factual = run_factual_judge(answerable_rows, {}, **judge_kwargs)
         for idx, jr in zip(answerable_indices, raw_factual):
             factual_judge_results[idx] = jr
 
@@ -231,7 +234,7 @@ def evaluate(
     if llm_judge_refusal:
         unans_indices = [i for i, r in enumerate(rows) if r.get("is_unanswerable", False)]
         unans_rows = [rows[i] for i in unans_indices]
-        raw_refusal = run_refusal_judge(unans_rows, api_key=LLM_API_KEY)
+        raw_refusal = run_refusal_judge(unans_rows, **judge_kwargs)
         for idx, jr in zip(unans_indices, raw_refusal):
             refusal_judge_results[idx] = jr
 
@@ -469,6 +472,10 @@ def main() -> None:
                              "all, so every refusal keeps the minimal pair it was built to form.")
     parser.add_argument("--export", type=str, default=None,
                         help="Export aggregate stats to a JSON file")
+    parser.add_argument("--judge-model", type=str, default=JUDGE_MODEL,
+                        help=f"Model of the judges (default: LLM_JUDGE_MODEL, else LLM_MODEL of .env: {JUDGE_MODEL})")
+    parser.add_argument("--judge-concurrency", type=int, default=LLM_MAX_CONCURRENT,
+                        help="Concurrent judge calls (Mistral on the shared endpoint: 12 max across all jobs)")
     args = parser.parse_args()
 
     if not Path(args.input).exists():
@@ -482,6 +489,8 @@ def main() -> None:
         llm_judge_factual=args.llm_judge_factual,
         llm_judge_refusal=args.llm_judge_refusal,
         no_answer_match=args.no_answer_match,
+        judge_model=args.judge_model,
+        judge_concurrency=args.judge_concurrency,
     )
     print_report(eval_data)
 

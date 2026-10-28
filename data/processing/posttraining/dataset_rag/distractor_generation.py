@@ -525,15 +525,15 @@ async def verify_hard_candidates(
 
     import aiohttp
 
-    from utils import LLM_API_URL, LLM_MODEL, post_chat_completion
+    from utils import JUDGE_API_URL, JUDGE_MODEL, post_chat_completion
 
     pending = selector.pending_verifications()
     if not pending:
         return
     if not api_key:
         raise ValueError("api_key is required for --verify-hard (set LLM_API_KEY in .env)")
-    model = model or LLM_MODEL
-    api_url = api_url or LLM_API_URL
+    model = model or JUDGE_MODEL
+    api_url = api_url or JUDGE_API_URL
 
     # Resume: apply cached verdicts, keep only rows never verified before.
     cache = _load_verification_checkpoint(checkpoint_path) if checkpoint_path else {}
