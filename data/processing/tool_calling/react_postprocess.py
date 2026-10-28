@@ -30,41 +30,32 @@ def format_messages(data, rank: int = 0, world_size: int = 1):
         doc.metadata.setdefault("dataset", "OpenLLM-France/ReAct")
         messages = doc.metadata.pop("messages")
         tools = json.loads(doc.metadata.pop("tools"))
-        tools = [tool for tool in tools if tool.get("function").get("name") != "submit_answer"]
 
-        doc.metadata["thinking_dir"] = (
-            "thinking" if doc.metadata.get("enable_thinking") else "non_thinking"
-        )
+        # The stored system message already has the tool block rendered by the
+        # chat template ("# Tools\n\n..."); keep only the prompt before it, since
+        # the template re-renders the tools from the `tools` column.
+        if messages[0]["role"] == "system":
+            system_content = re.split(
+                r"(?:\n\n)?# Tools\n\nYou may call one or more functions",
+                messages[0]["content"],
+                maxsplit=1,
+            )[0]
+            messages[0] = {**messages[0], "content": system_content}
 
+        # Last turn is kept as is (submit_answer call included), but only
+        # single submit_answer calls are valid endings.
         last_content = messages[-1]["content"]
-        if "<tool_call>" not in last_content:
-            # Full-text answer (e.g. PleAIs_RAG, which has no submit_answer
-            # tool): leave the answer untouched.
-            doc.metadata["messages"] = messages[1:]
-            doc.metadata["tools"] = tools
-            yield doc
-            continue
+        if "<tool_call>" in last_content:
+            tool_calls = [
+                json.loads(match.group(1).strip())
+                for match in re.finditer(
+                    r"<tool_call>(.*?)</tool_call>", last_content, flags=re.DOTALL
+                )
+            ]
+            if len(tool_calls) != 1 or tool_calls[0]["name"] != "submit_answer":
+                continue
 
-        tool_calls = [
-            json.loads(match.group(1).strip())
-            for match in re.finditer(
-                r"<tool_call>(.*?)</tool_call>", last_content, flags=re.DOTALL
-            )
-        ]
-        if len(tool_calls) > 1 or tool_calls[0]["name"] != "submit_answer":
-            continue
-
-        answer = tool_calls[0]["arguments"]
-        content = answer["detailed_answer"]
-        supporting_facts = answer.get("supporting_facts") or []
-        if supporting_facts:
-            references = "\n".join(
-                f"- [{fact['id']}] \"{fact['quote']}\"" if isinstance(fact, dict) else f'- "{fact}"'
-                for fact in supporting_facts
-            )
-            content = f"{content}\n\nReferences:\n{references}"
-        messages[-1]["content"] = content
-        doc.metadata["messages"] = messages[1:]
+        doc.metadata["messages"] = messages
         doc.metadata["tools"] = tools
         yield doc
 
@@ -73,14 +64,21 @@ if __name__ == "__main__":
     parser.add_argument(
         "--seed", type=int, default=0, help="Seed of the per-episode draw."
     )
+    parser.add_argument(
+        "--thinking",
+        action="store_true",
+        help="Process the traces generated with thinking on (source folders "
+             "<dataset>/<tool_type>/thinking/<lang>) instead of non_thinking",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
+    split = "thinking" if args.thinking else "non_thinking"
 
     pipeline = [
         ParquetReader(
             "hf://datasets/OpenLLM-France/ReAct/data/",
-            glob_pattern="**/*.parquet",
+            glob_pattern=f"*/*/{split}/*/*.parquet",
             adapter=instruct_adapter,
         ),
         id_deduplication,
@@ -89,14 +87,14 @@ if __name__ == "__main__":
         ChatTokenCount(
             "OpenLLM-France/tokenizer_128k_dual",
             tools_key="tools",
-            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            chat_template_kwargs={"enable_thinking": args.thinking, "training_mode": True},
             max_tokens=2**16,
-            exclusion_writer=JsonlWriter(f"{DATA_PATH}/react_postprocess/too_long"),
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/react_postprocess/{split}/too_long"),
         ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
-            local_working_dir=f"{DATA_PATH}/react_postprocess",
-            output_filename="data/react_postprocess/${dataset_name}/${rank}.parquet",
+            local_working_dir=f"{DATA_PATH}/react_postprocess/{split}",
+            output_filename=f"data/react_postprocess/{split}/${{dataset_name}}/${{rank}}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
@@ -110,8 +108,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/react_postprocess/logs",
-        job_name="react_postprocess",
+        logging_dir=f"{DATA_PATH}/react_postprocess/{split}/logs",
+        job_name=f"react_postprocess_{split}",
         tasks=1,
         time="01:00:00",
         qos="qos_cpu-dev",

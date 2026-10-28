@@ -1,34 +1,20 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.writers import JsonlWriter
-from functools import partial
-from transformers import AutoTokenizer
-from utils import (
-    instruct_adapter,
-    add_system_prompt,
-    format_tool_calls,
-    normalize_tool_schema,
-)
-from when2call import drop_optional_marker
+from utils import instruct_adapter, format_tool_calls
+from when2call import format_messages
 
 
-def format_tools(
+def serialize_tools(
     data,
     rank: int = 0,
     world_size: int = 1,
 ):
+    """Store the tools as a JSON string, for a load_dataset-friendly column."""
     import json
-    import random
 
     for doc in data:
-        tools = doc.metadata.get("tools", [])
-        tools = [normalize_tool_schema(json.loads(tool)) for tool in tools]
-        tools = [drop_optional_marker(tool) for tool in tools]
-        tools = [{"type": "function", "function": tool} for tool in tools]
-        random.shuffle(tools)
-        # Left as a list of dicts: add_system_prompt bakes them into the system
-        # message and json.dumps them for a load_dataset-friendly column.
-        doc.metadata["tools"] = tools
+        doc.metadata["tools"] = json.dumps(doc.metadata.get("tools") or [])
         yield doc
 
 
@@ -39,8 +25,8 @@ def build_pairs(
 ):
     """Fork the prompt into a chosen and a rejected conversation.
 
-    ``messages`` already carries the system message with the tool schemas baked
-    in, courtesy of add_system_prompt.
+    No system message is added: the tool schemas live in the ``tools`` column,
+    to be rendered by the chat template at training time.
     """
     import json
     import re
@@ -74,10 +60,6 @@ if __name__ == "__main__":
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
-
     pipeline = [
         HuggingFaceDatasetReader(
             "nvidia/When2Call",
@@ -85,8 +67,8 @@ if __name__ == "__main__":
             streaming=True,
             adapter=instruct_adapter,
         ),
-        format_tools,
-        partial(add_system_prompt, tokenizer=tokenizer),
+        format_messages,
+        serialize_tools,
         build_pairs,
         JsonlWriter(
             f"{DATA_PATH}/when2call_dpo/data",

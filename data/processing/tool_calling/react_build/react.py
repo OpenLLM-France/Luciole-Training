@@ -68,7 +68,16 @@ WIKI_INDEX_PATHS = {
     "finewiki_en": os.path.join(
         _WIKI_INDEX_DIR, "finewiki_index", "en"
     ),  # FineWiki full-article chunks (English)
+    "hotpotqa_fr": os.path.join(
+        _WIKI_INDEX_DIR, "hotpotqa_fr_index"
+    ),  # HotpotQA-fr abstracts corpus (French), build_wiki_index --source hotpotqa_fr
 }
+
+# Native French HotpotQA (Mvanypersele/hotpotqa-fr-abstracts). filtered_qwen_v2 is
+# the most heavily judged question subset; its abstracts are all in the "corpus"
+# config indexed under hotpotqa_fr above.
+HOTPOTQA_FR_REPO = "Mvanypersele/hotpotqa-fr-abstracts"
+HOTPOTQA_FR_CONFIG = "filtered_qwen_v2"
 
 # Base policy, used as-is when thinking is enabled.
 SYSTEM_PROMPT = (
@@ -427,7 +436,37 @@ def create_reader(
             ),
         ]
         return reader
-    if dataset_name == "hotpotqa":
+    if dataset_name == "hotpotqa_fr":
+        if language != "fr":
+            raise ValueError("hotpotqa_fr is French-only: pass --lang fr")
+        from huggingface_hub import snapshot_download
+
+        # Read the JSONL directly: the card declares a `Json` feature that older
+        # `datasets` releases reject (see build_wiki_index.iter_hotpotqa_fr).
+        # Resolved at launch (login node, online); jobs read the shared HF cache.
+        repo = snapshot_download(
+            HOTPOTQA_FR_REPO,
+            repo_type="dataset",
+            allow_patterns=[f"data/{HOTPOTQA_FR_CONFIG}/train.jsonl"],
+        )
+
+        def drop_context(data, rank: int = 0, world_size: int = 1):
+            # The 10 gold/distractor abstracts would leak the answer and bloat
+            # every checkpoint: the agent must retrieve them itself.
+            for doc in data:
+                doc.metadata.pop("context", None)
+                yield doc
+
+        reader = [
+            JsonlReader(
+                os.path.join(repo, "data", HOTPOTQA_FR_CONFIG),
+                glob_pattern="train.jsonl",
+                id_key="_id",
+                adapter=instruct_adapter,
+            ),
+            drop_context,
+        ]
+    elif dataset_name == "hotpotqa":
         if language == "en":
             reader = [
                 HuggingFaceDatasetReader(
@@ -643,7 +682,7 @@ if __name__ == "__main__":
     dataset_name = args.dataset_name
     # Only a fresh run needs a known HF source; a continuation reads --input_path
     # and just carries the name through, so anything goes there.
-    KNOWN_DATASETS = ("hotpotqa", "multihopqa", "fever", "pleais_rag")
+    KNOWN_DATASETS = ("hotpotqa", "hotpotqa_fr", "multihopqa", "fever", "pleais_rag")
     if args.input_path is None and dataset_name not in KNOWN_DATASETS:
         parser.error(
             f"--dataset_name must be one of {KNOWN_DATASETS} (got {dataset_name!r})"

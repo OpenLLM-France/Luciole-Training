@@ -90,7 +90,7 @@ if __name__ == "__main__":
         ChatTokenCount(
             "OpenLLM-France/tokenizer_128k_dual",
             tools_key="tools",
-            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
+            chat_template_kwargs={"enable_thinking": False, "training_mode": True},
             max_tokens=2**16,
             exclusion_writer=JsonlWriter(f"{DATA_PATH}/nl2bash_oaiformat/too_long"),
         ),

@@ -79,6 +79,31 @@ def hub_adapter(self, document):
     }
 
 
+def hub_dpo_adapter(self, document):
+    """Row adapter for the DPO Hub writers: emit only the five shared columns.
+
+    Same rationale as ``hub_adapter`` (one stable schema across the repo), with
+    the ``chosen`` / ``rejected`` conversations instead of ``messages``.
+    """
+    import json
+
+    tools = document.metadata.get("tools")
+
+    def format_messages(messages):
+        return [
+            {"role": str(m.get("role", "")), "content": str(m.get("content") or "")}
+            for m in messages or []
+        ]
+
+    return {
+        "id": str(document.id),
+        "dataset": str(document.metadata.get("dataset") or ""),
+        "tools": tools if isinstance(tools, str) else json.dumps(tools or []),
+        "chosen": format_messages(document.metadata.get("chosen")),
+        "rejected": format_messages(document.metadata.get("rejected")),
+    }
+
+
 def add_system_prompt(
     data,
     rank: int = 0,

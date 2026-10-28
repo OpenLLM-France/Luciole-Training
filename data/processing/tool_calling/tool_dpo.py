@@ -1,15 +1,31 @@
 import pathlib
 from utils import create_parser, parse_args, create_executor
-from datatrove.pipeline.readers import JsonlReader
+from datatrove.pipeline.readers import JsonlReader, ParquetReader
 from datatrove.pipeline.writers import JsonlWriter
 from datatrove.pipeline.inference.run_inference import InferenceConfig, InferenceRunner
-from transformers import AutoTokenizer
 from utils import (
     instruct_adapter,
     nemo_rl_format_messages,
 )
 
 _DATA_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+
+
+def load_original_messages(data, rank: int = 0, world_size: int = 1):
+    """Restore the structured messages from the Hub's ``messages_original``.
+
+    The Hub ``messages`` column is flattened (tool calls rendered as text);
+    ``messages_original`` is the JSON string of the messages before that, with
+    the tool calls in each assistant message's ``tool_calls`` item. Docs without
+    it are dropped."""
+    import json
+
+    for doc in data:
+        original = doc.metadata.pop("messages_original", None)
+        if not original:
+            continue
+        doc.metadata["messages"] = json.loads(original)
+        yield doc
 
 
 def truncate_to_tool_call(data, rank: int = 0, world_size: int = 1):
@@ -207,10 +223,10 @@ def create_rejected(
             )
         doc.metadata["corruption"] = applied
 
-        # Keep only the DPO fields in the final output. "tools" is never needed
-        # downstream; "messages" is still needed by the corrupt_argument LLM
-        # stage, so it is kept only for that (non-final) partition.
-        doc.metadata.pop("tools", None)
+        # Keep only the DPO fields (and "tools", rendered by the chat template
+        # at training time) in the final output. "messages" is still needed by
+        # the corrupt_argument LLM stage, so it is kept only for that
+        # (non-final) partition.
         if applied != "corrupt_argument":
             doc.metadata.pop("messages", None)
         yield doc
@@ -348,8 +364,8 @@ def build_corrupted_rejected(self, doc):
         doc.metadata["state"] = "fail"
 
     # Drop the intermediate fields so the final output only carries the DPO
-    # columns (chosen/rejected/corruption/...).
-    for key in ("messages", "tools", "target_call_idx"):
+    # columns (chosen/rejected/tools/corruption/...).
+    for key in ("messages", "target_call_idx"):
         doc.metadata.pop(key, None)
     return doc
 
@@ -357,21 +373,25 @@ def build_corrupted_rejected(self, doc):
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-1.7B")
-    parser.add_argument("--input_path", type=str, required=True)
+    parser.add_argument("--hf_dataset", type=str, default="OpenLLM-France/tool_data")
+    parser.add_argument(
+        "--subset",
+        type=str,
+        required=True,
+        help="Folder under data/ in the Hub dataset, e.g. xlam_oaiformat",
+    )
     parser.add_argument("--output_path", type=str, required=True)
     parser.add_argument("--glob_pattern", type=str, default=None)
     parser.add_argument("--tp", type=int, default=1)
     args = parse_args(parser)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        "OpenLLM-France/tokenizer_128k-arab-regional_v2_instruct_train"
-    )
-
     pipeline = [
-        JsonlReader(
-            args.input_path,
+        ParquetReader(
+            f"hf://datasets/{args.hf_dataset}/data/{args.subset}",
             glob_pattern=args.glob_pattern,
+            adapter=instruct_adapter,
         ),
+        load_original_messages,
         truncate_to_tool_call,
         create_rejected,
         JsonlWriter(

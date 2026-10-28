@@ -13,6 +13,11 @@ One-time, offline job. Writes under --out:
 Corpus sources (--source):
   beir     HotpotQA fullwiki corpus from HF (BeIR/hotpotqa, English, ~5.2M
            passages) -- the exact corpus the HotpotQA leaderboard retrieves over.
+  hotpotqa_fr
+           French HotpotQA abstracts (Mvanypersele/hotpotqa-fr-abstracts,
+           "corpus" config). All splits (train/validation/test, ~822k rows)
+           are pooled and de-duplicated by title -- the corpus repeats an
+           article once per question (qid) it appears in.
   finewiki Full articles from HuggingFaceFW/finewiki (--finewiki_config, e.g.
            en). Articles are split into <=max_length-token chunks with a
            RecursiveCharacterTextSplitter; continuation chunks are prefixed with
@@ -30,6 +35,7 @@ task string back from meta.json["query_instruction"] so the two stay in sync.
 Depends on sentence-transformers + datasets; faiss is optional. Run on one H100:
 
   python build_wiki_index.py --source beir --out "$OpenLLM_OUTPUT/data/wiki_index/en"
+  python build_wiki_index.py --source hotpotqa_fr --out "$OpenLLM_OUTPUT/data/wiki_index/hotpotqa_fr"
   python build_wiki_index.py --source finewiki --finewiki_config en \
     --index_type ivfpq --build_faiss --out "$OpenLLM_OUTPUT/data/finewiki_index/en"
 """
@@ -86,6 +92,42 @@ def iter_beir(limit=None):
         yield str(row.get("_id", i)), (row.get("title") or "").strip(), text
 
 
+def iter_hotpotqa_fr(limit=None):
+    """Iterate the French HotpotQA abstracts corpus, all splits pooled.
+
+    Rows are one abstract per (question, article) pair, so the same article
+    recurs across qids; keep the first occurrence of each title so retrieval
+    doesn't return the same passage several times. Same offline caveat as
+    iter_beir: pre-download on a node with internet.
+
+    Reads the corpus JSONL files directly with the generic "json" builder: the
+    dataset card declares a `Json` feature type (for the question configs) that
+    older `datasets` releases reject, which breaks load_dataset(repo, "corpus").
+    """
+    from datasets import load_dataset
+    from huggingface_hub import snapshot_download
+
+    repo = snapshot_download("Mvanypersele/hotpotqa-fr-abstracts", repo_type="dataset",
+                             allow_patterns=["data/corpus/*.jsonl"])
+    dd = load_dataset("json", data_files={
+        s: os.path.join(repo, "data", "corpus", f"{s}.jsonl")
+        for s in ("train", "validation", "test")})
+    seen, n_rows, n_out = set(), 0, 0
+    for split in ("train", "validation", "test"):
+        for row in dd[split]:
+            if limit is not None and n_out >= limit:
+                break
+            n_rows += 1
+            title = (row.get("title") or "").strip()
+            text = (row.get("text") or "").strip()
+            if not text or title in seen:
+                continue
+            seen.add(title)
+            n_out += 1
+            yield str(row["id"]), title, text
+    print(f"hotpotqa_fr: {n_rows:,} rows -> {n_out:,} unique passages", flush=True)
+
+
 # ---------------------------------------------------------------------------
 # FineWiki (HuggingFaceFW/finewiki): full articles chunked into <=max_tokens
 # pieces with LangChain's RecursiveCharacterTextSplitter -- the standard recursive
@@ -136,7 +178,7 @@ def _chunk_batch(batch, tokenizer, max_tokens):
     return {"id": ids, "title": titles, "text": texts}
 
 
-SOURCES = ("beir", "finewiki")
+SOURCES = ("beir", "hotpotqa_fr", "finewiki")
 
 
 # Extra tokens the embedder tolerates on top of the chunk budget, so the title
@@ -177,7 +219,8 @@ def load_embedder(model_name, max_length):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--source", choices=SOURCES, default="beir",
-                    help="'beir' = HotpotQA corpus (English); 'finewiki' = HuggingFaceFW/finewiki")
+                    help="'beir' = HotpotQA corpus (English); 'hotpotqa_fr' = French HotpotQA "
+                         "abstracts; 'finewiki' = HuggingFaceFW/finewiki")
     ap.add_argument("--out", required=True, help="Output directory for the index artifacts")
     ap.add_argument("--model", default="Qwen/Qwen3-Embedding-0.6B")
     ap.add_argument("--max_length", type=int, default=None,
@@ -225,6 +268,8 @@ def main():
     # fed instead of starved behind a single-threaded chunker.
     if args.source == "beir":
         corpus = iter_beir(limit=args.limit)
+    elif args.source == "hotpotqa_fr":
+        corpus = iter_hotpotqa_fr(limit=args.limit)
     else:  # finewiki: parallel-chunk full articles -> <=max_length-token chunks
         import itertools
         from datasets import load_dataset
@@ -327,7 +372,7 @@ def main():
         "passage_instruction": None,  # Qwen3: passages embedded raw
         "max_length": args.max_length,
         "source": args.source,
-        "lang": args.finewiki_config if args.source == "finewiki" else "en",
+        "lang": {"finewiki": args.finewiki_config, "hotpotqa_fr": "fr"}.get(args.source, "en"),
         "index_type": args.index_type if args.build_faiss else None,
         "nprobe": args.nprobe if (args.build_faiss and args.index_type == "ivfpq") else None,
     }
