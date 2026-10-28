@@ -45,9 +45,11 @@ KEEP_FIELDS = ("id", "question", "context", "answer", "answer_raw", "answer_type
                "citation_end_of_completion", "supporting_facts_titles", "chunks_relevant", "chunks_total",
                "eval_factual_judge_score", "eval_chunk_f1", "eval_model_refused", "eval_answer_correct")
 # Not dpo_common.context_titles: anchored at line start, it misses the first document, whose
-# "* filename:" follows "Here are the retrieved documents : `" on the same line.
+# "* filename:" follows "Here are the retrieved documents : `" on the same line in prompts built before the
+# OpenRAG layout.
 DOC_TITLE_RE = re.compile(r"\* filename: (.+?)\s*$", re.M)
-CHUNK_RE = re.compile(r"\* filename: (.+?)\n\n\[CHUNK_START\]\n(.*?)\n\[CHUNK_END\]", re.S)
+# Chunk text without its surrounding newlines (one before the OpenRAG layout, two since).
+CHUNK_RE = re.compile(r"\* filename: (.+?)\n\n\[CHUNK_START\]\n+(.*?)\n+\[CHUNK_END\]", re.S)
 
 
 def base_id(row_id):

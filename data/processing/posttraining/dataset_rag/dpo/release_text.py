@@ -109,7 +109,7 @@ class TatqaLeak:
             return False
         nums = lambda s: {x.replace(",", "") for x in re.findall(r"\d[\d,]*\.?\d*", s)}  # noqa: E731
         g, uid = nums(gold), qid.split("_")[0]
-        for title, body in re.findall(r"\* filename: (.+?)\n\n\[CHUNK_START\]\n(.*?)\n\[CHUNK_END\]", prompt_system, re.S):
+        for title, body in re.findall(r"\* filename: (.+?)\n\n\[CHUNK_START\]\n+(.*?)\n+\[CHUNK_END\]", prompt_system, re.S):
             if self.owner(title, body) == uid and ((g and g <= nums(body)) or (not g and self.n(gold) in self.n(body))):
                 return True
         return False

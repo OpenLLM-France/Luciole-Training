@@ -75,8 +75,8 @@ inviting sentences (`normalize`). Gold columns come from `<sft_run>/<sft_dataset
 also for the unanswerable versions); the split units are those of HotpotQA (same question ids). The prompts only make
 on-policy data for a policy whose SFT data has that format.
 
-**`ref` citation format in the DPO metrics** (`dpo/dpo_common.py`): numbered documents `[N] filename:`
-(`context_titles`), `ref` style inline / end of completion (`requested_citation_style`), French context marker
+**`ref` citation format in the DPO metrics** (`dpo/dpo_common.py`): numbered documents, `[Source N]` blocks of the
+OpenRAG layout or `[N] filename:` in ref prompts built before it (`context_titles`), `ref` style inline / end of completion (`requested_citation_style`), French context marker
 (`context_block`), and `citation_metrics(..., system_prompt)`: cited titles from the numbers, `n_ref_tags` /
 `n_ref_invalid` (number outside the documents, excerpt empty or not verbatim, tag of another format), as
 `eval_ref_invalid` of the SFT filter.

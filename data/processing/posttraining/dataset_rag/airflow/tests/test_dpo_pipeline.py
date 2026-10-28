@@ -499,6 +499,14 @@ class RefCitationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "run delta"):
                 G.lookup("hotpotqa_fr")
 
+    def test_openrag_layout_numbers_every_document(self):
+        system = ("Voici les documents récupérés : `[Source 1]\n[CONTEXT]\n\nRésumé.\n\n* filename: Paris\n\n"
+                  "[CHUNK_START]\n\nParis est la capitale de la France.\n\n[CHUNK_END]----------\n\n[Source 2]\n"
+                  "* filename: Lyon\n\n[CHUNK_START]\n\nLyon est sur le Rhône.\n\n[CHUNK_END]`")
+        self.assertEqual(self.C.context_titles(system), ["Paris", "Lyon"])
+        text = '<ref id="2">Lyon est sur le  Rhône</ref> <ref id="1">Lyon</ref>'
+        self.assertEqual(self.C.ref_citations(text, system, end_of_completion=False), (["Lyon"], 2, 1))
+
     def test_markup_prompts_are_unchanged(self):
         system = "Here are the retrieved documents: `* filename: A\n\n[CHUNK_START]\nx\n[CHUNK_END]\n* filename: B\n"
         self.assertEqual(self.C.context_titles(system), ["B"])  # historical behaviour of the markup prompts

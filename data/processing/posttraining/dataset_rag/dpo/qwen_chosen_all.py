@@ -66,8 +66,8 @@ def satisfied(p, acc):
         return False
     return not (PREFER_QUOTED and p["chosen_kind"] == "answer") or any(quoted(p, s["text"]) for s in acc)
 # Not dpo_common._FILENAME_RE: anchored at line start, it misses the first document, whose
-# "* filename:" follows "Here are the retrieved documents : `" on the same line (so does the
-# prompts' context_titles field).
+# "* filename:" follows "Here are the retrieved documents : `" on the same line in prompts built before the
+# OpenRAG layout (so does the prompts' context_titles field).
 DOC_TITLE_RE = re.compile(r"\* filename: (.+?)\s*$", re.M)
 REFERENCES_TAIL_RE = re.compile(r"[\s*#:\-•]*(references|références|sources)?[\s*#:\-•]*", re.I)
 

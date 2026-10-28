@@ -56,9 +56,12 @@ def lexical_refusal(text: str) -> bool:
 # ── Context & citations ─────────────────────────────────────────────────────
 
 _FILENAME_RE = re.compile(r"^\* filename: (.+?)\s*$", re.M)
-# ref citation format (formatting_sft.CITATION_FORMATS): documents numbered "[N] filename: <title>" (the first one follows
-# the opening backtick of the context), cited inline as <ref id="N">verbatim excerpt</ref>, or listed in a References
-# section as <ref id="N"/> (end-of-completion placement).
+# Numbered documents. OpenRAG layout (formatting_sft.format_context): every document opens with its "[Source N]" line
+# (the first one right after the opening backtick of the context), then its chunk with its "* filename:" header; chunk
+# texts cannot contain "[Source" (neutralized). Prompts built before that layout number the documents of the ref
+# format only, as "[N] filename: <title>". ref citation format (formatting_sft.CITATION_FORMATS): cited inline as
+# <ref id="N">verbatim excerpt</ref>, or listed in a References section as <ref id="N"/> (end-of-completion placement).
+_SOURCE_RE = re.compile(r"(?:^|(?<=`))\[Source (\d+)\]$", re.M)
 _NUMBERED_RE = re.compile(r"(?:^|(?<=`))\[(\d+)\] filename: (.+?)\s*$", re.M)
 _REF_TAG_RE = re.compile(r'<ref id="(\d+)">(.*?)</ref>', re.S)
 _REF_DOC_RE = re.compile(r'<ref id="(\d+)"/>')
@@ -91,7 +94,7 @@ def context_block(system_prompt: str) -> str:
 
 
 def context_titles(system_prompt: str) -> list[str]:
-    """Document titles in context order; for the ref format, index N-1 is document [N]."""
+    """Document titles in context order; for numbered documents, index N-1 is document N."""
     numbered = numbered_documents(system_prompt)
     if numbered:
         return [numbered[n][0] for n in sorted(numbered)]
@@ -99,7 +102,16 @@ def context_titles(system_prompt: str) -> list[str]:
 
 
 def numbered_documents(system_prompt: str) -> dict[int, tuple[str, str]]:
-    """ref format: {N: (title, text)} of the documents "[N] filename: ..." (a document runs to the next header)."""
+    """{N: (title, text)} of the "[Source N]" documents, or of the "[N] filename: ..." ones of a ref prompt built before
+    the OpenRAG layout (a document runs to the next header)."""
+    heads = list(_SOURCE_RE.finditer(system_prompt))
+    if heads:
+        docs = {}
+        for i, m in enumerate(heads):
+            text = system_prompt[m.end(): heads[i + 1].start() if i + 1 < len(heads) else len(system_prompt)]
+            title = _FILENAME_RE.search(text)
+            docs[int(m.group(1))] = (title.group(1).strip() if title else "", text)
+        return docs
     heads = list(_NUMBERED_RE.finditer(system_prompt))
     return {int(m.group(1)): (m.group(2).strip(), system_prompt[m.end(): heads[i + 1].start() if i + 1 < len(heads)
                                                                   else len(system_prompt)])
