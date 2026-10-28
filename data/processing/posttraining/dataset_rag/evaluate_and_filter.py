@@ -325,7 +325,10 @@ def evaluate(file_path: str = OUTPUT_FILE, eval_chunks: bool = False,
         ref_count = ref_invalid = None
         is_ref = row_citation_format(row) == "ref"
         if is_ref:
-            ref_titles, ref_count, ref_invalid = parse_ref_citations(reasoning, row.get("context", ""))
+            ref_titles, ref_count, ref_invalid = parse_ref_citations(
+                reasoning, row.get("context", ""),
+                end_of_completion=bool(row.get("citation_end_of_completion")),
+            )
             stats["ref_rows"] += 1
             stats["ref_tags"] += ref_count
             stats["ref_tags_invalid"] += ref_invalid

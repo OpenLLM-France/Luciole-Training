@@ -27,6 +27,7 @@ from formatting_sft import (
     CITATION_FORMATS,
     DEFAULT_CITATION_STYLE,
     EOC_PROB,
+    REF_EOC_PROB,
     _generic_refusal_instruction,
     build_chat_system_prompt,
 )
@@ -293,9 +294,8 @@ async def process_row(
 
     # Citation placement decided per row (deterministic by id) so the generation
     # prompt matches the inference prompt; formatting reuses this stored value.
-    # The ref format is inline only.
-    end_of_completion = (citation_format == "markup"
-                         and random.Random(f"{row['id']}:eoc").random() < EOC_PROB)
+    eoc_prob = REF_EOC_PROB if citation_format == "ref" else EOC_PROB
+    end_of_completion = random.Random(f"{row['id']}:eoc").random() < eoc_prob
     # Answerable AND unanswerable rows are generated with the SAME OpenRAG prompt
     # (generic refusal instruction). On an insufficient context the model is
     # expected to refuse; the verification step keeps only the rows where it did.

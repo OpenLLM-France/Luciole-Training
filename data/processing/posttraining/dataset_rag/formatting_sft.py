@@ -124,6 +124,10 @@ def normalize_cite_markers(content: str) -> str:
 # the stored value (see _resolve_end_of_completion) and only falls back to a fresh
 # draw for legacy rows that predate the stored field.
 EOC_PROB = 0.30
+# Same draw for the ref citation format, kept rare: inline <ref id="N">excerpt</ref>
+# is the target behaviour, the References variant (<ref id="N"/> list) stays a
+# small slice (<= 5% of the final dataset, the filter can favour it slightly).
+REF_EOC_PROB = 0.04
 
 # Probability of using the English system prompt for non-English data
 # when --mixed-system-prompt is enabled (the query, docs, and answer stay in
@@ -519,6 +523,23 @@ REF_CITATION_INSTRUCTION = {
     ),
 }
 
+# References variant of the ref format: document-level citations only, listed at
+# the end as self-closing tags (no excerpt markers in the text).
+REF_DOC_TEMPLATE = '<ref id="{id}"/>'
+
+REF_EOC_CITATION_INSTRUCTION = {
+    "en": (
+        "Do **not** add citation markers in the text of your response. Instead, list all cited "
+        "documents at the end of your response in a **References** section, one `<ref id=\"N\"/>` "
+        "per document, where `N` is the number of the document (the `[N]` before its filename)."
+    ),
+    "fr": (
+        "N'ajoutez **pas** de marqueurs de citation dans le texte de votre réponse. Listez plutôt "
+        "tous les documents cités à la fin de votre réponse dans une section **Références**, un "
+        "`<ref id=\"N\"/>` par document, où `N` est le numéro du document (le `[N]` devant son nom de fichier)."
+    ),
+}
+
 # The first chunk follows the opening backtick of the context on the same line.
 _CHUNK_HEADER_RE = re.compile(r"(?:^|(?<=`))\* filename: ", re.MULTILINE)
 
@@ -532,10 +553,12 @@ def number_context_chunks(context: str) -> str:
 # Citation format of a row, chosen at generation and stored in the row
 # (``citation_format``) so formatting builds the same prompt. "markup" = quote +
 # cite markers restyled at formatting (4 styles, inline or References section);
-# "ref" = numbered documents + inline <ref id="N"> tags, never restyled.
+# "ref" = numbered documents + <ref id="N"> tags, never restyled: inline
+# <ref id="N">excerpt</ref>, or <ref id="N"/> in a References section.
 CITATION_FORMATS = ("markup", "ref")
 
 _REF_RE = re.compile(r'<ref id="(\d+)">(.*?)</ref>', re.DOTALL)
+_REF_DOC_RE = re.compile(r'<ref id="(\d+)"/>')
 # Left over once the valid <ref> tags are removed, any of these means a malformed
 # tag or a citation written in another format.
 _STRAY_CITATION_RE = re.compile(
@@ -558,12 +581,43 @@ def numbered_context_chunks(context: str) -> list[tuple[str | None, str]]:
     return chunks
 
 
-def parse_ref_citations(answer: str, context: str) -> tuple[list[str], int, int]:
+# An elision inside an excerpt: "...", "…" or the bracketed "[...]" / "[…]".
+_ELISION_RE = re.compile(r"\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\.\.\.|…)\s*")
+
+
+def _excerpt_in_document(excerpt: str, document: str) -> bool:
+    """Whether *excerpt* is verbatim in *document*, elisions allowed.
+
+    An excerpt cut with "..." (e.g. a table row header and its value) passes when
+    every fragment between the elisions is verbatim in the document, in order.
+    Both strings are whitespace-normalized by the caller.
+    """
+    if excerpt in document:
+        return True
+    fragments = [f for f in _ELISION_RE.split(excerpt) if f]
+    if not fragments:
+        return False
+    pos = 0
+    for fragment in fragments:
+        found = document.find(fragment, pos)
+        if found < 0:
+            return False
+        pos = found + len(fragment)
+    return True
+
+
+def parse_ref_citations(
+    answer: str, context: str, end_of_completion: bool = False,
+) -> tuple[list[str], int, int]:
     """Return (cited titles in first-seen order, number of <ref> tags, number of invalid ones).
 
-    A tag is invalid when its id is not a document number, its excerpt is empty,
-    or the excerpt is not verbatim (up to whitespace) in document N. Each stray
-    ``<ref``/``</ref>`` or citation markup of another format also counts as invalid.
+    Inline (default): a ``<ref id="N">excerpt</ref>`` tag is invalid when its id is
+    not a document number, its excerpt is empty, or the excerpt is not verbatim (up
+    to whitespace) in document N; an excerpt cut by "..." passes when its fragments
+    are verbatim in document N, in order. References variant (*end_of_completion*): only
+    ``<ref id="N"/>`` tags are expected, invalid when N is not a document number.
+    Each stray ``<ref``/``</ref>`` (including a tag of the other variant) or citation
+    markup of another format also counts as invalid.
     """
     def ws(text: str) -> str:
         return re.sub(r"\s+", " ", text).strip()
@@ -571,17 +625,30 @@ def parse_ref_citations(answer: str, context: str) -> tuple[list[str], int, int]
     chunks = numbered_context_chunks(context)
     titles: list[str] = []
     invalid = 0
-    refs = list(_REF_RE.finditer(answer))
+    tag_re = _REF_DOC_RE if end_of_completion else _REF_RE
+    refs = list(tag_re.finditer(answer))
     for ref in refs:
         n = int(ref.group(1))
-        excerpt = ws(ref.group(2))
-        if not 1 <= n <= len(chunks) or not excerpt or excerpt not in ws(chunks[n - 1][1]):
+        if not 1 <= n <= len(chunks):
             invalid += 1
             continue
+        if not end_of_completion:
+            excerpt = ws(ref.group(2))
+            if not excerpt or not _excerpt_in_document(excerpt, ws(chunks[n - 1][1])):
+                invalid += 1
+                continue
         title = chunks[n - 1][0]
         if title and title not in titles:
             titles.append(title)
-    invalid += len(_STRAY_CITATION_RE.findall(_REF_RE.sub("", answer)))
+    if end_of_completion and refs:
+        # References must be a trailing section, never markers embedded in prose.
+        before = answer[:refs[0].start()]
+        heading = re.search(r"(?im)^[ \t#*]*(?:References|Références)[ \t:*]*(?:\n|$)", before)
+        prefix = before[heading.end():] if heading else before
+        tail = tag_re.sub("", answer[refs[0].start():])
+        if heading is None or re.fullmatch(r"[\s*\-•]*", prefix + tail) is None:
+            invalid += 1
+    invalid += len(_STRAY_CITATION_RE.findall(tag_re.sub("", answer)))
     return titles, len(refs), invalid
 
 
@@ -618,7 +685,8 @@ def build_chat_system_prompt(
     formatting calls it to build the training example's system message.
 
     With ``citation_format="ref"`` the documents are numbered and the citation
-    rule is REF_CITATION_INSTRUCTION; *style* and *end_of_completion* are ignored.
+    rule is REF_CITATION_INSTRUCTION, or REF_EOC_CITATION_INSTRUCTION when
+    *end_of_completion*; *style* is ignored.
     """
     template = {"en": CHAT_SYSTEM_PROMPT, "fr": CHAT_SYSTEM_PROMPT_FR}.get(language, CHAT_SYSTEM_PROMPT)
     citation_instruction = _citation_instruction(language, style, end_of_completion, citation_format)
@@ -633,7 +701,8 @@ def build_chat_system_prompt(
 def _citation_instruction(language: str, style: CitationStyle, end_of_completion: bool,
                           citation_format: str) -> str:
     if citation_format == "ref":
-        return REF_CITATION_INSTRUCTION.get(language, REF_CITATION_INSTRUCTION["en"])
+        rules = REF_EOC_CITATION_INSTRUCTION if end_of_completion else REF_CITATION_INSTRUCTION
+        return rules.get(language, rules["en"])
     instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
     return instruction_dict.get(language, instruction_dict["en"])
 
