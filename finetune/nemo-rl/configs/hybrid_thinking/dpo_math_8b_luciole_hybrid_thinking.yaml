@@ -169,6 +169,7 @@ data:
   luciole_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-PostTraining-Dataset-1.1/snapshots/502e9de4c5013f017c1ccb3fb75581ea378c81ce"
   train:
     dataset_name: openai_preference_v2
+    prompt_key: null
     data_path:
       - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/flan_refiltered.jsonl"
         weight: 1.0

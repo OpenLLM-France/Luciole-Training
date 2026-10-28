@@ -40,7 +40,7 @@ from show_first_examples import (  # noqa: E402
 )
 
 
-def render(messages, tokenizer, task_spec, chat_template_kwargs, debug_kw):
+def render(messages, tokenizer, task_spec, chat_template_kwargs, debug_kw, add_generation_prompt=False):
     """Same call as `preference_preprocessor`, with the debug print captured."""
     from nemo_rl.data.llm_message_utils import get_formatted_message_log
 
@@ -53,6 +53,7 @@ def render(messages, tokenizer, task_spec, chat_template_kwargs, debug_kw):
             messages,
             tokenizer,
             task_spec,
+            add_generation_prompt=add_generation_prompt,
             chat_template_kwargs=chat_template_kwargs,
             **debug_kw,
         )
@@ -136,6 +137,7 @@ def main():
                     base.task_spec,
                     sample.get("chat_template_kwargs", None),
                     debug_kw,
+                    data_cfg.get("add_generation_prompt", False),
                 )
                 n_tok[label] = sum(len(m["token_ids"]) for m in message_log)
                 buf.write("=" * 80 + f"\n{label}\n" + "=" * 80 + "\n")
