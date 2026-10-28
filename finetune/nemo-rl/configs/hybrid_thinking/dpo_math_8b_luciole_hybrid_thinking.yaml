@@ -35,7 +35,7 @@ policy:
   tokenizer:
     name: ${policy.model_name} # use the same name as the model for the tokenizer
     chat_template: ${policy.model_name}/chat_template.jinja
-    chat_template_kwargs: null # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
+    chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
 
   # number of preference samples per batch
   # each preference sample corresponds to a pair of chosen and rejected responses
@@ -164,71 +164,43 @@ data:
   shuffle: true
   num_workers: 1
   add_generation_prompt: true
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data_dpo/snapshots/b5d9f97ac523f6876b947fbd62d84c94495e4501/data"
+  # refs/pr/2: dpo_thinking subsets without the spurious leading <think></think>
+  luciole_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-PostTraining-Dataset-1.1/snapshots/502e9de4c5013f017c1ccb3fb75581ea378c81ce"
   train:
     dataset_name: openai_preference_v2
-    dataset_paths:
-      - name: "dolci_flan_nli"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/flan_refiltered.jsonl"
+    data_path:
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/flan_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "dolci_sciriff_stem"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/sciriff_refiltered.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/sciriff_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "dolci_python_algos_code"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/dolci_instruct_python_algos_refiltered.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/dolci_instruct_python_algos_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "dolci_persona_if"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/chat_persona_if_refiltered.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/chat_persona_if_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "dolci_precise_if"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/chat_precise_if_refiltered.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/dolci_refiltered/chat_precise_if_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "nemotron_chat"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_chat_refiltered.jsonl"
+      - path: "${data.luciole_data}/dpo_thinking/nemotron-instruction-following-chat-v1/*.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "opencodereasoning_code"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/opencode_reasoning_refiltered.jsonl"
+      - path: "${data.luciole_data}/dpo_thinking/opencodereasoning/*.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "nemotron_code"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_code_refiltered.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_code_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "nemotron_science"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/nemotron_science_refiltered.jsonl"
+      - path: "${data.luciole_data}/dpo_thinking/nemotron-stem/*.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "pleias_rag"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/pleias_rag_refiltered.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/pleias_rag_refiltered.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
-      - name: "smolagents_corrupt_argument_llm_tools"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/smolagents_toolcalling/corrupt_argument_llm/data/success/*.jsonl.gz"
-        weight: 1.0
-        use_tools: true
-        chat_template_kwargs: {enable_thinking: true}
-      - name: "nemotron_agentic_corrupt_argument_llm_tools"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/nemotron_agentic_sft_v2/corrupt_argument_llm/data/success/*.jsonl.gz"
-        weight: 1.0
-        chat_template_kwargs: {enable_thinking: true}
-        use_tools: true
-      - name: "smolagents_corrupt_json_tools"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/smolagents_toolcalling/data/corrupt_json/*.jsonl.gz"
-        weight: 1.0
-        chat_template_kwargs: {enable_thinking: true}
-        use_tools: true
-      - name: "smolagents_remove_argument_tools"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/smolagents_toolcalling/data/remove_required_argument/*.jsonl.gz"
-        weight: 1.0
-        chat_template_kwargs: {enable_thinking: true}
-        use_tools: true
-      - name: "open_math_instruct_delta"
-        path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/open_math_reasoning_filtered_delta.jsonl"
+      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_thinking/luciole_refiltered/open_math_reasoning_filtered_delta.jsonl"
         weight: 1.0
         chat_template_kwargs: {enable_thinking: true}
       - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_CHAT_all_weaker/filtered_data/valid_pairs_nothink/data/*.jsonl.gz"
@@ -273,27 +245,47 @@ data:
       - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/dolci_python_algorithms_weaker/filtered_data/valid_pairs/*.jsonl.gz"
         weight: 0.05
         chat_template_kwargs: {enable_thinking: false}
-      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/when2call_dpo/data/*.jsonl.gz"
-        weight: 0.35
-        chat_template_kwargs: {enable_thinking: false}
       - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/dpo_data/nemotron_safety_v4/safety_train.jsonl"
         weight: 0.7
         chat_template_kwargs: {enable_thinking: false}
-      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/data/corrupt_json/*.jsonl.gz"
+
+      # Tool datasets
+      - path: "${data.tool_data}/dpo_instruct/when2call/*.parquet"
+        weight: 0.35
+        chat_template_kwargs: {enable_thinking: false}
+        use_tools: true
+      - path: "${data.tool_data}/dpo_instruct/xlam-corrupt-arg-llm/*.parquet"
         weight: 0.42
         chat_template_kwargs: {enable_thinking: false}
         use_tools: true
-      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/data/remove_required_argument/*.jsonl.gz"
+      - path: "${data.tool_data}/dpo_instruct/xlam-remove-argument/*.parquet"
         weight: 0.049
         chat_template_kwargs: {enable_thinking: false}
         use_tools: true
-      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/data/remove_tool_call/*.jsonl"
+      - path: "${data.tool_data}/dpo_instruct/xlam-remove-tool-call/*.parquet"
         weight: 0.105
         chat_template_kwargs: {enable_thinking: false}
         use_tools: true
-      - path: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/data/raw_data/full_datasets/xlam_dpo_oaiformat/corrupt_argument_llm/data/success/*.jsonl.gz"
+      - path: "${data.tool_data}/dpo_instruct/xlam-corrupt-json/*.parquet"
         weight: 0.07
         chat_template_kwargs: {enable_thinking: false}
+        use_tools: true
+
+      - path: "${data.tool_data}/dpo_thinking/smolagents-corrupt-arg-llm/*.parquet"
+        weight: 1.0
+        use_tools: true
+        chat_template_kwargs: {enable_thinking: true}
+      - path: "${data.tool_data}/dpo_thinking/nemotron-corrupt-argument/*.parquet"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+        use_tools: true
+      - path: "${data.tool_data}/dpo_thinking/smolagents-corrupt-json/*.parquet"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
+        use_tools: true
+      - path: "${data.tool_data}/dpo_thinking/smolagents-remove-argument/*.parquet"
+        weight: 1.0
+        chat_template_kwargs: {enable_thinking: true}
         use_tools: true
 
 

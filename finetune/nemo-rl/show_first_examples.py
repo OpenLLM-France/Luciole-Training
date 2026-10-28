@@ -2,9 +2,10 @@
 """Dump the first example of every dataset declared in a NeMo-RL SFT config.
 
 For each entry of `data.train_data_path` (and `data.val_data_path` with --split),
-the dataset class used by training (`load_response_dataset`, e.g.
-OpenAIFormatDataset / OpenAIFormatDatasetV2) is instantiated on that single entry
-alone, and its first sample goes through `get_formatted_message_log` with the same
+or, with the NeMo-RL v0.6.0 layout, of the `data_path` of every dataset of
+`data.train` (and `data.validation`), the dataset class used by training
+(`load_response_dataset`, e.g. OpenAIFormatDataset / OpenAIFormatDatasetV2) is
+instantiated on that single entry alone, and its first sample goes through `get_formatted_message_log` with the same
 options as `sft_preprocessor` -- so the "DEBUG: Individual message turns from
 apply_chat_template" block printed by NeMo-RL at training start is reproduced for
 every dataset, not just the first one.
@@ -24,6 +25,7 @@ import io
 import json
 import re
 import sys
+from inspect import signature
 from pathlib import Path
 
 
@@ -155,32 +157,47 @@ def main():
     import tempfile
 
     tmp_dir = tempfile.mkdtemp(prefix="first_examples_")
-    is_v2 = data_cfg["dataset_name"] == "openai_format_v2"
+    # v0.6.0: data.train / data.validation are dataset configs (or lists of
+    # them) holding a `data_path`, completed by data.default
+    is_v060 = "train" in data_cfg
+    is_v2 = not is_v060 and data_cfg["dataset_name"] == "openai_format_v2"
 
-    jobs = []  # (split, entry)
-    if args.split in ("train", "both"):
-        jobs += [("train", e) for e in as_list(data_cfg["train_data_path"])]
-    if args.split in ("val", "both"):
-        jobs += [("val", e) for e in as_list(data_cfg.get("val_data_path"))]
+    jobs = []  # (split, entry, dataset config for v0.6.0)
+    splits = [("train", "train", "train_data_path"), ("val", "validation", "val_data_path")]
+    for split, v060_key, key in splits:
+        if args.split not in (split, "both"):
+            continue
+        if not is_v060:
+            jobs += [(split, e, None) for e in as_list(data_cfg.get(key))]
+            continue
+        for ds_cfg in as_list(data_cfg.get(v060_key)):
+            ds_cfg = {**(data_cfg.get("default") or {}), **ds_cfg}
+            jobs += [(split, e, ds_cfg) for e in as_list(ds_cfg["data_path"])]
 
     n_ok = 0
-    for i, (split, entry) in enumerate(jobs):
+    for i, (split, entry, ds_cfg) in enumerate(jobs):
         name = f"{i:02d}_{split}_{slugify(entry_path(entry))}"
         out_file = out_dir / f"{name}.txt"
         print(f"[{i + 1}/{len(jobs)}] {entry_path(entry)}", flush=True)
         buf = io.StringIO()
         try:
             # instantiate the training dataset class on this single entry
-            sub_cfg = copy.deepcopy(data_cfg)
             small = entry
             if not args.full_load:  # only the first rows of the first file
                 small = truncate_entry(entry, args.index + 1, tmp_dir, name)
-            sub_cfg["train_data_path"] = [small]
-            # the v1 loaders require a validation path: reuse the entry
-            sub_cfg["val_data_path"] = None if is_v2 else [small]
-            with contextlib.redirect_stdout(io.StringIO()):  # loader chatter
-                base = load_response_dataset(sub_cfg, seed)
-            ds = base.formatted_ds["train"]
+            if is_v060:
+                sub_cfg = {**copy.deepcopy(ds_cfg), "data_path": [small]}
+                with contextlib.redirect_stdout(io.StringIO()):  # loader chatter
+                    base = load_response_dataset(sub_cfg)
+                ds = base.dataset
+            else:
+                sub_cfg = copy.deepcopy(data_cfg)
+                sub_cfg["train_data_path"] = [small]
+                # the v1 loaders require a validation path: reuse the entry
+                sub_cfg["val_data_path"] = None if is_v2 else [small]
+                with contextlib.redirect_stdout(io.StringIO()):  # loader chatter
+                    base = load_response_dataset(sub_cfg, seed)
+                ds = base.formatted_ds["train"]
             sample = ds[min(args.index, len(ds) - 1)]
 
             buf.write(f"# config : {args.config}\n# split  : {split}\n")
@@ -190,8 +207,10 @@ def main():
             buf.write(pretty_sample(sample) + "\n\n")
 
             # same call as sft_preprocessor; reset the once-only debug flag
+            # (v0.6.0 prints it with debug=True instead)
             if hasattr(get_formatted_message_log, "_debug_printed"):
                 del get_formatted_message_log._debug_printed
+            debug_kw = {"debug": True} if "debug" in signature(get_formatted_message_log).parameters else {}
             dbg = io.StringIO()
             with contextlib.redirect_stdout(dbg):
                 message_log = get_formatted_message_log(
@@ -203,6 +222,7 @@ def main():
                     add_generation_prompt=data_cfg.get("add_generation_prompt", False),
                     tools=sample.get("tools", None),
                     chat_template_kwargs=sample.get("chat_template_kwargs", None),
+                    **debug_kw,
                 )
             buf.write(dbg.getvalue())
             n_tok = sum(len(m["token_ids"]) for m in message_log)
