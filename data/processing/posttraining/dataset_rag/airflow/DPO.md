@@ -50,6 +50,11 @@ Inputs (under `dataset_rag/`): the held-out pools `dpo/data/heldout_full_sft4152
 `tatqa_converted.jsonl` and contextualisation cache of a `dataset_rag_tatqa` run, and, optionally, an existing `jz_run`
 holding calibration verdicts (`calib_from`).
 
+Names of these data directories: `sft4152` is the SFT policy the held-out pools were sampled from
+(`sft_luciole_1B_instruct_newrag`, step 4152); `rag_dpo_onpolicy_8802410` is the v2 release of
+`OpenLLM-France/RAG_DPO_onpolicy` (Hub commit `8802410`), whose validation questions are left out; `p9_paired_eval`
+holds the prompts of the paired evaluation (each question with and without its key document), left out as well.
+
 ### Source `sft_run`: the questions of an SFT run that stayed out of the SFT data
 
 `"source": "sft_run"` replaces the held-out pools by a run of an SFT DAG of the HotpotQA family (`sft_run`:

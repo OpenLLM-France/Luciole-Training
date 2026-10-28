@@ -72,7 +72,7 @@ def normalize(text, chosen_side):
 
 
 def quotes_found(text, style, context):
-    """8802410 rule: every <quote> excerpt found in the documents (lowercase alphanumerics, per line / ellipsis part);
+    """Rule of the RAG_DPO_onpolicy v2 release (Hub commit 8802410): every <quote> excerpt found in the documents (lowercase alphanumerics, per line / ellipsis part);
     ref format: the excerpt of every inline <ref id="N">...</ref> tag."""
     ctx = norm_txt(context)
     pat = r'<ref id="\d+">(.*?)</ref>' if style == "ref" else \

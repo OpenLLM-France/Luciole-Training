@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""P10 (delta pairs): chosen = a Qwen3.5-35B-A3B response confirmed by the judge, rejected = a Qwen3.5-4B response of
+"""Delta pairs: chosen = a Qwen3.5-35B-A3B response confirmed by the judge, rejected = a Qwen3.5-4B response of
 the same prompt judged faulty. No text of the policy: the pair only contrasts quality, between two models of the same
 family (no policy-vs-big-model provenance shortcut, the failure of the off-policy twins).
 
-Prompts: those of the 8802410 pairs (dpo/data/qwen35_chosen_onpolicy and qwen35_4b_chosen_onpolicy, same pids), minus
-the strict run with the 5 phrases of hotpotqa_v4 (left out of every release), the 8802410 validation questions (TAT-QA:
-validation tables and the hash-split tables) and the P9 paired-evaluation questions (TAT-QA: their tables).
+Prompts: those of the pairs of the v2 release of OpenLLM-France/RAG_DPO_onpolicy (Hub commit 8802410;
+dpo/data/qwen35_chosen_onpolicy and qwen35_4b_chosen_onpolicy, same pids), minus
+the strict run with the 5 phrases of hotpotqa_v4 (left out of every release), the validation questions of that release (TAT-QA:
+validation tables and the hash-split tables) and the questions of the paired evaluation with and without the key
+document (dpo/data/p9_paired_eval; TAT-QA: their tables).
 35B chosen = qwen_chosen_all.accepted (--prefer-quoted), as for the published twins. 4B rejected, one per prompt:
   A_wrong_answer / A_unsupported_reasoning   4B answer judged wrong / correct but with unsupported reasoning
                                              (reasoning verdict when there is one, else the first pass)
@@ -19,11 +21,12 @@ Greedy rejected first, then the closest length. Release rules of the off-policy 
 written by a bigger model): published refusal rule, normalize() (opening about the documents, inviting sentence, `**`),
 chosen quotes found in the documents, lighteval phrases absent, TAT-QA unanswerable leak check.
 
-Output: dpo/data/dpo_p10_delta = P3a train + delta pairs (validation = 8802410 val), manifest.json.
+Output: dpo/data/dpo_p10_delta = the train pairs of an earlier on-policy mix (dpo/data/dpo_p3a_Ux2) + delta pairs
+(validation = that of the 8802410 release), manifest.json.
 --jz: the Jean Zay delta run instead (dpo/data/jz_run/{qwen35_35b_a3b,qwen35_4b}/{hotpotqa,tatqa}, build_jz_run.py, or
 the datasets of a run built from an SFT run's prompt set, e.g. hotpotqa_fr, dataset = its directory name; every
 4B sample judged there, A_bad_citation verdicts already in scored_citfail.jsonl) -> dpo/data/jz_delta/delta_pairs.jsonl +
-manifest.json, delta pairs only (no P3a base, no split), plus the DPOFilter checks of the colleague on the chosen
+manifest.json, delta pairs only (no earlier mix, no split), plus the DPOFilter checks of the colleague on the chosen
 ("Qwen" mention, CJK absent from the documents) and delta_pairs_datatrove.jsonl (his document format; --tokenizer PATH for token counts).
     cd $RAG_ROOT && .venv/bin/python dpo/build_p10_delta.py [--todo-citations] [--jz]
 """

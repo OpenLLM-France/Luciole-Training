@@ -53,7 +53,7 @@ def main():
         cv = {r["pid"]: r for r in rows(pool / "context_verdicts.jsonl")}
         st, kept = collections.Counter(), []
         for p in rows(pool / "prompts.jsonl"):
-            # left out (decision 2026-10-05): context verdict contradicting the construction, 8802410 validation,
+            # left out (decision 2026-10-05): context verdict contradicting the construction, 8802410 release validation,
             # paired evaluation; --all keeps them (flags only)
             q = p["qid"]
             want = "unanswerable" if p["is_unanswerable"] else "answerable"

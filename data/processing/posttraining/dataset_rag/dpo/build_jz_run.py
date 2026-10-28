@@ -5,8 +5,8 @@ Qwen3.8-27B on JZ), from dpo/data/jz_gen_prompts (build_jz_prompts.py) and dpo/d
   - TAT-QA: the unanswerable prompts that are `nogold_clone` (gold chunks dropped WITHOUT replacement, always 1-2 chunks
     shorter than their twin: "fewer chunks => refuse" shortcut) are left out;
   - both datasets: the DAG unanswerable versions (one-for-one replacement) whose context verdict is "unanswerable" are
-    added, if their answerable twin (source_pid) is in the set and they are not in the 8802410 validation / paired
-    evaluation (same rules as build_jz_prompts.py).
+    added, if their answerable twin (source_pid) is in the set and they are not in the validation of the RAG_DPO_onpolicy
+    8802410 release / the paired evaluation (same rules as build_jz_prompts.py).
 Layout read by sample_policy.py / qwen_chosen_all.py (the judge state files carry no generator name, hence one
 directory per generator, same prompts):
   dpo/data/jz_run/<gen>/<dataset>/prompts.jsonl, context_verdicts.jsonl   gen = qwen35_35b_a3b, qwen35_4b
