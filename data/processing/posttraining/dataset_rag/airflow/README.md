@@ -68,7 +68,7 @@ Dataset parameters: `dataset_cache` (HotpotQA), `input_json`, `num_distractors`,
 `dataset_rag_hotpotqa_en` (see the main README) and, for `dataset_rag_hotpotqa_fr`, a machine-translated HotpotQA
 that is not distributed here (default `hotpotqa_french_cache_train.bak/`).
 
-Models (HotpotQA DAGs): `gen_model`, `gen_max_tokens`, `gen_timeout`, `gen_chat_template_kwargs` (JSON, e.g.
+Models (HotpotQA and TAT-QA DAGs): `gen_model`, `gen_max_tokens`, `gen_timeout`, `gen_chat_template_kwargs` (JSON, e.g.
 `{"enable_thinking": false}`), `gen_concurrency`, `judge_model`, `judge_concurrency`, `citation_format` (`markup`
 by default; `ref` = numbered documents + inline `<ref id="N">excerpt</ref>`, excerpts checked verbatim at evaluation).
 Every system prompt lays the documents out exactly as OpenRAG does (linagora/openrag `format_context`: each chunk as
@@ -76,7 +76,10 @@ indexed, `* filename:` header and `[CHUNK_START]`/`[CHUNK_END]` envelope, option
 `[Source N]`, `----------` separators; checked by `airflow/tests/test_openrag_context.py`), and `N` is the number a
 `ref` tag cites. Contexts stored by earlier runs are laid out again at formatting.
 An empty model means `LLM_MODEL` from `.env`. Judges run one after the other, so `judge_concurrency` is the peak load
-on the judge model. `dataset_rag_hotpotqa_fr_abstracts` adds `hf_config`, `hf_split`, `hf_revision` (empty = latest
+on the judge model. Servers: `gen_url` / `gen_key_file` for the generator and `judge_url` / `judge_key_file` for the
+judges, which also serve chunk contextualization and `--verify-hard` (empty = the `.env` endpoint; key files are
+relative to `dataset_rag/`). A judge bound to localhost on a GPU host is reached with `judge_ssh_host`,
+`judge_ssh_config` and `judge_remote_port`: each LLM task opens its own SSH forward for its duration. `dataset_rag_hotpotqa_fr_abstracts` adds `hf_config`, `hf_split`, `hf_revision` (empty = latest
 commit, logged in `*_convert_stats.json`), `max_seq_length` (8192) and `reserve_tokens` (1536); its convert task
 needs the Luciole tokenizer (`HF_TOKEN` or a local copy via `tokenizer`).
 
