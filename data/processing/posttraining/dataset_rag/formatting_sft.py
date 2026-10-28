@@ -33,13 +33,40 @@ import re
 from pathlib import Path
 from dataclasses import dataclass
 
-from utils import _strip_final_answer_line, detect_refusal
+from utils import _strip_final_answer_line, detect_refusal, format_chunk_base, format_chunk_openrag
 
 
-# Context helpers (aligned with OpenRAG inference format)
+# Context helpers, aligned with OpenRAG (linagora/openrag 6c4a59c): each chunk keeps
+# the text it was indexed with (utils.format_chunk_*), and format_context in
+# core/prompts/chat_prompt_builder.py numbers it "[Source N]" after neutralizing
+# its control tokens, chunks joined by SOURCE_SEPARATOR.
 
-# 10-dash separator on its own line, matching OpenRAG production format
-CONTEXT_SEPARATOR = "\n" + "-" * 10 + "\n\n"
+SOURCE_SEPARATOR = "-" * 10 + "\n\n"
+EMPTY_CONTEXT_MESSAGE = "No document found from the database"
+
+# core/utils/text.py neutralize_prompt_control_tokens: a chunk cannot forge a
+# [Source N] block, a [Sources: ...] tag or the source separator.
+_INJECT_SOURCE_BLOCK_RE = re.compile(r"\[\s*(sources?)\b(\s*:)?", re.IGNORECASE)
+_INJECT_SOURCES_TAG_RE = re.compile(r"(?im)^([ \t]*)(sources?)(\s*:\s*)(\[?[\d,\s]+\]?)[ \t]*$")
+_INJECT_SEPARATOR_RE = re.compile(r"-{4,}")
+
+
+def neutralize_prompt_control_tokens(text: str) -> str:
+    """Defang RAG control tokens inside a chunk, as OpenRAG does before numbering it."""
+    if not text:
+        return text
+    text = _INJECT_SOURCE_BLOCK_RE.sub(lambda m: "(" + m.group(1) + (" " if m.group(2) else ""), text)
+    text = _INJECT_SOURCES_TAG_RE.sub(r"\1\2 \4", text)
+    return _INJECT_SEPARATOR_RE.sub("---", text)
+
+
+def format_context(chunks: list[str]) -> str:
+    """Numbered ``[Source N]`` blocks of *chunks*, as OpenRAG's format_context (no token budget)."""
+    if not chunks:
+        return EMPTY_CONTEXT_MESSAGE
+    return SOURCE_SEPARATOR.join(
+        f"[Source {i}]\n{neutralize_prompt_control_tokens(chunk)}" for i, chunk in enumerate(chunks, 1)
+    )
 
 
 def _is_openrag_format(context: str) -> bool:
@@ -47,47 +74,26 @@ def _is_openrag_format(context: str) -> bool:
     return "[CHUNK_START]" in context and "[CHUNK_END]" in context
 
 
-def _reformat_openrag_chunks(raw_context: str) -> str:
-    """Reformat OpenRAG-style chunks with the standard separator between them.
-
-    Handles both contextualised (``[CONTEXT]...``) and base (``* filename:...``) variants.
-    """
-    chunk_pattern = re.compile(
-        r'((?:\[CONTEXT\].*?)?(?:\*\s*filename:.*?)\[CHUNK_START\].*?\[CHUNK_END\])',
-        re.DOTALL,
-    )
-    chunks = chunk_pattern.findall(raw_context)
-    if not chunks:
-        return raw_context.strip()
-    return CONTEXT_SEPARATOR.join(c.strip() for c in chunks)
+# One stored chunk, contextualised or not. Whitespace around the summary, title and
+# text is free, so contexts stored before the OpenRAG alignment (single newlines,
+# empty [CONTEXT] block) parse as well and are laid out again.
+_OPENRAG_CHUNK_RE = re.compile(
+    r"(?:\[CONTEXT\][ \t]*\n(?P<summary>.*?)\n\s*)?\*\s*filename:[ \t]*(?P<title>[^\n]*?)[ \t]*\n\s*"
+    r"\[CHUNK_START\][ \t]*\n+(?P<text>.*?)\n+\[CHUNK_END\]",
+    re.DOTALL,
+)
 
 
-def reformat_context_chunks(raw_context: str) -> str:
-    """Reformat context chunks to use OpenRAG's separator.
+def parse_openrag_chunks(raw_context: str) -> list[tuple[str, str, str]]:
+    """(title, text, summary) of each OpenRAG chunk of a stored context, in order."""
+    return [
+        (m["title"].strip(), m["text"], (m["summary"] or "").strip())
+        for m in _OPENRAG_CHUNK_RE.finditer(raw_context)
+    ]
 
-    Supports two input formats:
 
-    1. Classic ``[Title]`` format (chunks separated by double newlines):
-        [Title 1]
-        Content of chunk 1...
-
-        [Title 2]
-        Content of chunk 2...
-
-    2. OpenRAG contextualised format:
-        [CONTEXT]
-        summary...
-        * Title 1
-
-        [CHUNK_START]
-        Content of chunk 1...
-        [CHUNK_END]
-
-    Output always uses the ``----------`` separator between chunks.
-    """
-    if _is_openrag_format(raw_context):
-        return _reformat_openrag_chunks(raw_context)
-
+def _legacy_chunks(raw_context: str) -> list[str]:
+    """Chunks of the classic ``[Title]`` format (chunks separated by blank lines)."""
     clean_context = raw_context.replace("-" * 10, "\n")  # remove old separators if any
     pattern = r'\n?\[([^\]]+)\]\n'
     parts = re.split(pattern, clean_context)
@@ -99,13 +105,37 @@ def reformat_context_chunks(raw_context: str) -> str:
     for i in range(1, len(parts), 2):
         title = parts[i]
         content = parts[i + 1].strip() if i + 1 < len(parts) else ""
-        chunk = f"[{title}]\n{content}" if content else f"[{title}]"
-        chunks.append(chunk)
+        chunks.append(f"[{title}]\n{content}" if content else f"[{title}]")
+    return chunks
 
-    if not chunks:
-        return raw_context.strip()
 
-    return CONTEXT_SEPARATOR.join(chunks)
+def context_chunks(raw_context: str) -> list[tuple[str | None, str]]:
+    """(title, chunk text as OpenRAG indexes it) per chunk of a stored context.
+
+    Supports two input formats:
+
+    1. OpenRAG chunks (``* filename: ...`` + ``[CHUNK_START]...[CHUNK_END]``, with
+       or without a ``[CONTEXT]`` summary), rebuilt with utils.format_chunk_*.
+    2. Classic ``[Title]`` format (title None):
+        [Title 1]
+        Content of chunk 1...
+
+        [Title 2]
+        Content of chunk 2...
+    """
+    if _is_openrag_format(raw_context):
+        parsed = parse_openrag_chunks(raw_context)
+        if parsed:
+            return [(title, format_chunk_openrag(title, text, summary)) for title, text, summary in parsed]
+    chunks = _legacy_chunks(raw_context)
+    if not chunks and raw_context.strip():
+        chunks = [raw_context.strip()]
+    return [(None, chunk) for chunk in chunks]
+
+
+def reformat_context_chunks(raw_context: str) -> str:
+    """The context block of the system prompt, exactly as OpenRAG renders it."""
+    return format_context([chunk for _, chunk in context_chunks(raw_context)])
 
 
 def normalize_cite_markers(content: str) -> str:
@@ -435,7 +465,7 @@ CHAT_SYSTEM_PROMPT = (
     "3. Structure and Readability\n"
     "   * Ensure responses are **concise yet complete**, avoiding omission of key details.\n"
     "\n"
-    "Here are the retrieved documents : `{context}`"
+    "Here are the retrieved documents: `{context}`"
 )
 
 CHAT_SYSTEM_PROMPT_FR = (
@@ -504,21 +534,20 @@ def _pick_style(rng, fixed_style: CitationStyle | None = None) -> CitationStyle:
 CITATION_STYLES_BY_NAME = {s.name: s for s in CITATION_STYLES}
 
 
-# Numbered-reference citation format: context chunks are numbered ("[N] filename:")
-# and each verbatim excerpt is wrapped inline in a single tag pointing at its chunk
-# number. One tag binds excerpt and source, the excerpt is checkable against the
+# Numbered-reference citation format: each verbatim excerpt is wrapped inline in a
+# single tag pointing at the number of its chunk (the N of OpenRAG's "[Source N]"). One tag binds excerpt and source, the excerpt is checkable against the
 # cited chunk, and a References list can be derived from the ids by the front-end.
 REF_TEMPLATE = '<ref id="{id}">{excerpt}</ref>'
 
 REF_CITATION_INSTRUCTION = {
     "en": (
         "When quoting from the context, wrap each excerpt inline with `<ref id=\"N\">excerpt</ref>`, "
-        "where `N` is the number of the cited document (the `[N]` before its filename) "
+        "where `N` is the number of the cited document (the `N` of its `[Source N]` marker) "
         "and `excerpt` is copied verbatim from that document."
     ),
     "fr": (
         "Lorsque vous citez le contexte, encadrez chaque extrait en ligne avec `<ref id=\"N\">extrait</ref>`, "
-        "où `N` est le numéro du document cité (le `[N]` devant son nom de fichier) "
+        "où `N` est le numéro du document cité (le `N` de son marqueur `[Source N]`) "
         "et `extrait` est recopié mot pour mot depuis ce document."
     ),
 }
@@ -531,24 +560,14 @@ REF_EOC_CITATION_INSTRUCTION = {
     "en": (
         "Do **not** add citation markers in the text of your response. Instead, list all cited "
         "documents at the end of your response in a **References** section, one `<ref id=\"N\"/>` "
-        "per document, where `N` is the number of the document (the `[N]` before its filename)."
+        "per document, where `N` is the number of the document (the `N` of its `[Source N]` marker)."
     ),
     "fr": (
         "N'ajoutez **pas** de marqueurs de citation dans le texte de votre réponse. Listez plutôt "
         "tous les documents cités à la fin de votre réponse dans une section **Références**, un "
-        "`<ref id=\"N\"/>` par document, où `N` est le numéro du document (le `[N]` devant son nom de fichier)."
+        "`<ref id=\"N\"/>` par document, où `N` est le numéro du document (le `N` de son marqueur `[Source N]`)."
     ),
 }
-
-# The first chunk follows the opening backtick of the context on the same line.
-_CHUNK_HEADER_RE = re.compile(r"(?:^|(?<=`))\* filename: ", re.MULTILINE)
-
-
-def number_context_chunks(context: str) -> str:
-    """Replace each chunk's ``* filename:`` header with ``[N] filename:`` (1-based, in order)."""
-    counter = iter(range(1, 10**6))
-    return _CHUNK_HEADER_RE.sub(lambda _: f"[{next(counter)}] filename: ", context)
-
 
 # Citation format of a row, chosen at generation and stored in the row
 # (``citation_format``) so formatting builds the same prompt. "markup" = quote +
@@ -564,7 +583,6 @@ _REF_DOC_RE = re.compile(r'<ref id="(\d+)"/>')
 _STRAY_CITATION_RE = re.compile(
     r"</?ref\b|##Cite|##begin_quote##|##end_quote##|<<quote>>|<<cite:|<quote>|<cite>|\[QUOTE\]|\[Source:"
 )
-_CHUNK_TITLE_RE = re.compile(r"^\* filename: (.*)$", re.MULTILINE)
 
 
 def row_citation_format(row: dict) -> str:
@@ -573,12 +591,8 @@ def row_citation_format(row: dict) -> str:
 
 
 def numbered_context_chunks(context: str) -> list[tuple[str | None, str]]:
-    """(title, chunk text) per context chunk, in the order number_context_chunks numbers them."""
-    chunks = []
-    for chunk in reformat_context_chunks(context).split(CONTEXT_SEPARATOR):
-        title = _CHUNK_TITLE_RE.search(chunk)
-        chunks.append((title.group(1).strip() if title else None, chunk))
-    return chunks
+    """(title, chunk text as the model reads it) per context chunk; chunk N is ``[Source N]``."""
+    return [(title, neutralize_prompt_control_tokens(chunk)) for title, chunk in context_chunks(context)]
 
 
 # An elision inside an excerpt: "...", "…" or the bracketed "[...]" / "[…]".
@@ -684,18 +698,17 @@ def build_chat_system_prompt(
     scripts call this (with DEFAULT_CITATION_STYLE) to generate each trace, and
     formatting calls it to build the training example's system message.
 
-    With ``citation_format="ref"`` the documents are numbered and the citation
-    rule is REF_CITATION_INSTRUCTION, or REF_EOC_CITATION_INSTRUCTION when
-    *end_of_completion*; *style* is ignored.
+    The documents are numbered ``[Source N]`` as OpenRAG does. With
+    ``citation_format="ref"`` the citation rule is REF_CITATION_INSTRUCTION, or
+    REF_EOC_CITATION_INSTRUCTION when *end_of_completion*; *style* is ignored.
     """
     template = {"en": CHAT_SYSTEM_PROMPT, "fr": CHAT_SYSTEM_PROMPT_FR}.get(language, CHAT_SYSTEM_PROMPT)
     citation_instruction = _citation_instruction(language, style, end_of_completion, citation_format)
-    prompt = template.format(
+    return template.format(
         context=reformat_context_chunks(context),
         citation_instruction=citation_instruction,
         refusal_instruction=refusal_instruction,
     )
-    return _number_if_ref(prompt, citation_format)
 
 
 def _citation_instruction(language: str, style: CitationStyle, end_of_completion: bool,
@@ -705,16 +718,6 @@ def _citation_instruction(language: str, style: CitationStyle, end_of_completion
         return rules.get(language, rules["en"])
     instruction_dict = style.eoc_instruction if end_of_completion else style.inline_instruction
     return instruction_dict.get(language, instruction_dict["en"])
-
-
-def _number_if_ref(prompt: str, citation_format: str) -> str:
-    """Number the documents of a ref-format prompt (they need ``* filename:`` headers)."""
-    if citation_format != "ref":
-        return prompt
-    numbered = number_context_chunks(prompt)
-    if "[1] filename: " not in numbered:
-        raise ValueError("ref citation format needs OpenRAG '* filename:' context chunks")
-    return numbered
 
 
 def _assistant_answer(row: dict, style: CitationStyle, end_of_completion: bool,
@@ -784,7 +787,6 @@ def convert_row(
         citation_instruction=citation_instruction,
         refusal_instruction=refusal_instruction,
     )
-    prompt = _number_if_ref(prompt, citation_format)
 
     result = {
         "prompt": prompt,

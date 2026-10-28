@@ -705,21 +705,25 @@ async def contextualize_chunks(
     return summaries
 
 
+# Chunk text as OpenRAG indexes it (linagora/openrag, core/prompts/contextualization_builder.py):
+# the [CONTEXT] block only when a summary was generated.
+BASE_CHUNK_FORMAT = "* filename: {filename}\n\n[CHUNK_START]\n\n{content}\n\n[CHUNK_END]"
+CHUNK_FORMAT = "[CONTEXT]\n\n{chunk_context}\n\n" + BASE_CHUNK_FORMAT
+
+
 def format_chunk_base(title: str, text: str) -> str:
     """Format a single chunk in the OpenRAG base style (no contextual summary)."""
-    return (
-        f"* filename: {title}\n\n"
-        f"[CHUNK_START]\n{text}\n[CHUNK_END]"
-    )
+    return BASE_CHUNK_FORMAT.format(filename=title, content=text)
 
 
 def format_chunk_openrag(title: str, text: str, summary: str) -> str:
-    """Format a single chunk in the OpenRAG contextualised style."""
-    return (
-        f"[CONTEXT]\n{summary}\n"
-        f"* filename: {title}\n\n"
-        f"[CHUNK_START]\n{text}\n[CHUNK_END]"
-    )
+    """Format a single chunk in the OpenRAG contextualised style.
+
+    As OpenRAG, an empty summary (failed contextualization) gives the base style.
+    """
+    if not summary or not summary.strip():
+        return format_chunk_base(title, text)
+    return CHUNK_FORMAT.format(filename=title, content=text, chunk_context=summary)
 
 
 def _extract_json(text: str) -> dict:
