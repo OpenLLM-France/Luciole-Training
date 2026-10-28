@@ -35,6 +35,8 @@ from formatting_sft import (
 LLM_API_KEY = load_env_key("LLM_API_KEY", base_dir=Path(__file__).parent)
 DATASET_CACHE_DIR = Path(__file__).parent / "hotpotqa_cache"
 MAX_CONCURRENT = LLM_MAX_CONCURRENT
+# Rows between two checkpoint saves / progress lines.
+REPORT_EVERY = 100
 
 
 # Reasoning traces are generated with the shared OpenRAG prompt built by
@@ -388,6 +390,12 @@ async def main(
     )
 
     processed_ids = load_checkpoint_ids(checkpoint_file)
+    # Rows are written as they complete and checkpointed every REPORT_EVERY rows:
+    # rows already in the output count as done too, so a killed run never
+    # duplicates them on resume.
+    if Path(output_file).is_file():
+        with open(output_file, encoding="utf-8") as f:
+            processed_ids |= {json.loads(line)["id"] for line in f if line.strip()}
     rows_to_process = [r for r in rows_to_process if r["id"] not in processed_ids]
     log(f"Rows to process: {len(rows_to_process)} (checkpoint: {len(processed_ids)} already done)")
 
@@ -417,14 +425,26 @@ async def main(
 
     async with aiohttp.ClientSession() as session:
         with open(output_file, "a", encoding="utf-8") as out_f:
-            batch_size = 100
-            total_batches = (len(rows_to_process) + batch_size - 1) // batch_size
+            def report() -> None:
+                save_checkpoint_ids(processed_ids, checkpoint_file)
+                out_f.flush()
+                llm_calls = metrics.processed - metrics.unanswerable_count
+                log(
+                    f"Progress {metrics.done}/{metrics.total_rows} ({metrics.progress_pct:.1f}%) "
+                    f"| processed={metrics.processed} failed={metrics.failed} "
+                    f"| unanswerable={metrics.unanswerable_count} llm_calls={llm_calls} "
+                    f"| speed={metrics.speed:.2f} rows/s"
+                )
 
-            for bidx, batch_start in enumerate(range(0, len(rows_to_process), batch_size), start=1):
-                batch = rows_to_process[batch_start:batch_start + batch_size]
-                batch_flags = ctx_flags[batch_start:batch_start + batch_size]
-                tasks = [
-                    process_row(
+            # Sliding window instead of fixed batches: a new row starts as soon as
+            # one finishes, so the generator never idles behind the slowest row of
+            # a batch. The window stays a little larger than the semaphore.
+            todo = iter(zip(rows_to_process, ctx_flags))
+            in_flight: dict[asyncio.Task, dict] = {}
+            since_report = 0
+            while True:
+                for row, flag in todo:
+                    task = asyncio.create_task(process_row(
                         session, row, semaphore,
                         language=language,
                         shuffle=shuffle,
@@ -432,12 +452,16 @@ async def main(
                         contextualize=flag,
                         gen_options=gen_options,
                         citation_format=citation_format,
-                    )
-                    for row, flag in zip(batch, batch_flags)
-                ]
-                results = await asyncio.gather(*tasks)
-
-                for row, result in zip(batch, results):
+                    ))
+                    in_flight[task] = row
+                    if len(in_flight) >= 2 * concurrency:
+                        break
+                if not in_flight:
+                    break
+                finished, _ = await asyncio.wait(in_flight, return_when=asyncio.FIRST_COMPLETED)
+                for task in finished:
+                    row = in_flight.pop(task)
+                    result = task.result()
                     if result is None:
                         metrics.failed += 1
                         continue
@@ -446,17 +470,11 @@ async def main(
                     metrics.processed += 1
                     if result.get("is_unanswerable", False):
                         metrics.unanswerable_count += 1
-
-                save_checkpoint_ids(processed_ids, checkpoint_file)
-                out_f.flush()
-                llm_calls = metrics.processed - metrics.unanswerable_count
-                log(
-                    f"Batch {bidx}/{total_batches} — "
-                    f"Progress {metrics.done}/{metrics.total_rows} ({metrics.progress_pct:.1f}%) "
-                    f"| processed={metrics.processed} failed={metrics.failed} "
-                    f"| unanswerable={metrics.unanswerable_count} llm_calls={llm_calls} "
-                    f"| speed={metrics.speed:.2f} rows/s"
-                )
+                since_report += len(finished)
+                if since_report >= REPORT_EVERY:
+                    report()
+                    since_report = 0
+            report()
 
     log(f"Done in {metrics.elapsed:.1f}s — {metrics.processed} processed, {metrics.failed} failed, {metrics.unanswerable_count} unanswerable")
     if metrics.failed:
@@ -499,7 +517,8 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=int, default=120, help="Per-request timeout in seconds")
     parser.add_argument("--citation-format", choices=CITATION_FORMATS, default="markup",
                         help="markup: quote/cite markers, restyled at formatting (inline or References); "
-                             "ref: numbered documents + inline <ref id=\"N\">excerpt</ref>, used as generated")
+                             "ref: numbered documents + inline <ref id=\"N\">excerpt</ref> (References list of "
+                             "<ref id=\"N\"/> on REF_EOC_PROB of the rows), used as generated")
     parser.add_argument("--chat-template-kwargs", type=str, default=None,
                         help='JSON passed as chat_template_kwargs, e.g. \'{"enable_thinking": false}\' for Qwen3')
 

@@ -207,6 +207,17 @@ MIX_OPTS = (
 )
 
 
+# parallel_eval: generator and judges hit their servers together, so the
+# generator must not be Mistral and the judges stay within 6 concurrent calls
+# (half of the shared Mistral budget, whichever server judges).
+PARALLEL_EVAL_GUARD = (
+    "{% if not params.gen_model or 'mistral' in params.gen_model | lower"
+    " or params.judge_concurrency | int > 6 %}"
+    'echo "parallel_eval: non-Mistral gen_model and judge_concurrency <= 6 required" >&2; exit 1'
+    "{% endif %}"
+)
+
+
 def _bash(
     dag: DAG,
     task_id: str,
@@ -314,6 +325,8 @@ def build_hotpotqa_dag(
             raise ValueError(f"{dag_id}: parallel_eval needs a non-Mistral gen_model and judge_concurrency <= 6")
     # One slot when generation and judging run side by side, both otherwise.
     llm_slots = 1 if parallel_eval else 2
+    # The same rule at run time, since a trigger conf can override the defaults.
+    guard = PARALLEL_EVAL_GUARD + "\n" if parallel_eval else ""
 
     prefix = f'"$WORKDIR"/hotpotqa_{language}_augmented'
     judge_cache = f"{prefix}_judge_cache.jsonl"
@@ -340,7 +353,7 @@ def build_hotpotqa_dag(
     augment = _bash(
         dag,
         "augment",
-        f"{PYTHON} augment_hotpotqa.py"
+        f"{guard}{PYTHON} augment_hotpotqa.py"
         f" --dataset {dataset_arg}"
         f" --language {language}"
         f" --output {prefix}"
@@ -364,7 +377,7 @@ def build_hotpotqa_dag(
         stream = _bash(
             dag,
             "evaluate_stream",
-            f"{PYTHON} evaluate_stream.py"
+            f"{guard}{PYTHON} evaluate_stream.py"
             f" --input {prefix}.jsonl"
             f" --judge-cache {judge_cache}"
             f" {judges}",
@@ -376,7 +389,7 @@ def build_hotpotqa_dag(
     evaluate = _bash(
         dag,
         "evaluate_and_filter",
-        f"{PYTHON} evaluate_and_filter.py"
+        f"{guard}{PYTHON} evaluate_and_filter.py"
         f" --input {prefix}.jsonl"
         f" --output {prefix}_evaluated.jsonl"
         f" --eval-chunks {judges} --no-answer-match --filter"
@@ -581,8 +594,21 @@ def build_multilingual_dag(dag_id: str, dataset: str, language: str) -> DAG:
     return dag
 
 
+# Qwen3.6-35B-A3B (vLLM, gen_url) generates without thinking while the judges
+# (Mistral, .env endpoint by default, or judge_ssh_host) score rows as they come.
 hotpotqa_en = build_hotpotqa_dag(
-    "dataset_rag_hotpotqa_en", "en", str(BASE_DIR / "hotpotqa_cache_train")
+    "dataset_rag_hotpotqa_en", "en", str(BASE_DIR / "hotpotqa_cache_train"),
+    parallel_eval=True,
+    param_overrides={
+        "gen_model": "Qwen3.6-35B-A3B",
+        "gen_max_tokens": 2048,
+        "gen_timeout": 300,
+        "gen_chat_template_kwargs": '{"enable_thinking": false}',
+        "gen_concurrency": 16,
+        "judge_model": "Mistral-Small-3.2-24B-Instruct-2506-FP8",
+        "judge_concurrency": 6,
+        "citation_format": "ref",
+    },
 )
 # Le cache FR actuel est en .bak sur le disque ; ajustable via le param dataset_cache.
 hotpotqa_fr = build_hotpotqa_dag(
