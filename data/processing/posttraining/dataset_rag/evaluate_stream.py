@@ -35,7 +35,8 @@ def read_new_rows(path: Path, offset: int) -> tuple[list[dict], int]:
         f.seek(offset)
         data = f.read()
     end = data.rfind(b"\n") + 1  # a line still being written is read on the next pass
-    rows = [json.loads(line) for line in data[:end].decode("utf-8").splitlines() if line.strip()]
+    # split on "\n" only: str.splitlines() also breaks on U+2028 & co., which JSON leaves unescaped
+    rows = [json.loads(line) for line in data[:end].decode("utf-8").split("\n") if line.strip()]
     return rows, offset + end
 
 
