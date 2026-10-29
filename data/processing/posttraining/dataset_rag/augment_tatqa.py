@@ -554,6 +554,7 @@ async def process_row(
     contextualize: bool = False,
     gen_options: dict | None = None,
     citation_format: str = "markup",
+    judge_semaphore: asyncio.Semaphore | None = None,
 ) -> dict | None:
     is_unanswerable = row.get("_is_unanswerable", False)
 
@@ -571,7 +572,7 @@ async def process_row(
             row,
             source_documents,
             source_lookup,
-            semaphore,
+            judge_semaphore or semaphore,
             api_key=JUDGE_API_KEY,
             max_retries=max_retries,
             request_timeout=request_timeout,
@@ -668,6 +669,7 @@ async def run(
     source_documents_path: str | None = None,
     gen_options: dict | None = None,
     citation_format: str = "markup",
+    judge_concurrency: int | None = None,
 ) -> None:
     if seed is not None:
         random.seed(seed)
@@ -738,6 +740,9 @@ async def run(
 
     log(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     semaphore = asyncio.Semaphore(concurrency)
+    # Contextualization goes to the judge server: its own cap, so a large
+    # generator concurrency never turns into as many judge calls.
+    judge_semaphore = asyncio.Semaphore(judge_concurrency) if judge_concurrency else None
     metrics = Metrics(total_rows=len(rows))
 
     connector = aiohttp.TCPConnector(force_close=True, enable_cleanup_closed=True)
@@ -762,6 +767,7 @@ async def run(
                         contextualize=flag,
                         gen_options=gen_options,
                         citation_format=citation_format,
+                        judge_semaphore=judge_semaphore,
                     )
                     for row, flag in zip(batch, batch_flags)
                 ]
@@ -819,6 +825,8 @@ def main() -> None:
     parser.add_argument("--output", default="tatqa_augmented", help="Output prefix (default: tatqa_augmented)")
     parser.add_argument("--limit", type=int, default=None, help="Limit rows before augmentation")
     parser.add_argument("--concurrency", type=int, default=LLM_MAX_CONCURRENT, help="Async concurrency")
+    parser.add_argument("--judge-concurrency", type=int, default=None,
+                        help="Concurrent contextualization calls to the judge server (default: --concurrency)")
     parser.add_argument("--unanswerable-ratio", type=float, default=0.1, help="Target unanswerable ratio")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
     parser.add_argument("--unanswerable-partial-ratio", type=float, default=0.0,
@@ -882,6 +890,7 @@ def main() -> None:
             source_documents_path=args.source_documents,
             gen_options=gen_options,
             citation_format=args.citation_format,
+            judge_concurrency=args.judge_concurrency,
         )
     )
 

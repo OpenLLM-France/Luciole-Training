@@ -481,6 +481,7 @@ def build_tatqa_dag() -> DAG:
         f" --output {prefix}_augmented"
         " --unanswerable-partial-ratio {{ params.partial_ratio }}"
         " --unanswerable-ratio {{ params.unanswerable_ratio }}"
+        " --judge-concurrency {{ params.judge_concurrency }}"
         f" {CONTEXTUALIZE_OPT} {GEN_OPTS} {SEED_OPT} {LIMIT_OPT}",
         llm=True,
         required_outputs=(f"{prefix}_augmented.jsonl",),
