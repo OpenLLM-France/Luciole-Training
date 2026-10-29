@@ -543,12 +543,16 @@ REF_CITATION_INSTRUCTION = {
     "en": (
         "When quoting from the context, wrap each excerpt inline with `<ref id=\"N\">excerpt</ref>`, "
         "where `N` is the number of the cited document (the `N` of its `[Source N]` marker) "
-        "and `excerpt` is copied verbatim from that document."
+        "and `excerpt` is copied verbatim from that document. "
+        "From a table, quote the row you use as it is written, e.g. `<ref id=\"N\">| Revenue | 1,234 | 1,100 |</ref>`, "
+        "and give any value you compute from it after the tag."
     ),
     "fr": (
         "Lorsque vous citez le contexte, encadrez chaque extrait en ligne avec `<ref id=\"N\">extrait</ref>`, "
         "où `N` est le numéro du document cité (le `N` de son marqueur `[Source N]`) "
-        "et `extrait` est recopié mot pour mot depuis ce document."
+        "et `extrait` est recopié mot pour mot depuis ce document. "
+        "Pour un tableau, citez la ligne utilisée telle qu'elle est écrite, par exemple "
+        "`<ref id=\"N\">| Chiffre d'affaires | 1 234 | 1 100 |</ref>`, et donnez après la balise toute valeur calculée à partir d'elle."
     ),
 }
 
