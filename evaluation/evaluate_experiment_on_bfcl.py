@@ -103,11 +103,10 @@ bfcl evaluate \\
 """
 
 DEFAULT_BFCL_PATH = "$HOME/gorilla/berkeley-function-call-leaderboard"
-# Single-turn AST + irrelevance, plus the multi-turn categories. multi_turn_long_context
-# is left out: it is the slowest and mostly stresses context length, not the datamix.
-DEFAULT_TEST_CATEGORY = (
-    "non_live,live,multi_turn_base,multi_turn_miss_func,multi_turn_miss_param"
-)
+# Single-turn AST + irrelevance only. The multi_turn_* categories are left out of the
+# default: they dominate the runtime and sit near 0% at the 1B scale, so they cost a lot
+# without separating datamixes. Opt back in with --test_category.
+DEFAULT_TEST_CATEGORY = "non_live,live"
 # Chat template copied into checkpoints that have none (see BFCL_TEMPLATE).
 DEFAULT_CHAT_TEMPLATE = (
     "$OpenLLM_OUTPUT/pretrain/luciole_serie/"
@@ -125,6 +124,7 @@ def launch_evaluation(
     gpus=1,
     gpu_memory_utilization=0.9,
     chat_template=DEFAULT_CHAT_TEMPLATE,
+    enable_thinking=True,
     dependency=None,
     force=False,
     multiple_of=None,
@@ -136,9 +136,14 @@ def launch_evaluation(
 ):
     """Submit the BFCL array job and return its job id (``None`` if nothing ran)."""
     experiment_path = Path(experiment_path)
+    # Like Qwen's handlers, the no-think mode is a separate BFCL model handle
+    # (its handler passes enable_thinking=False to the chat template).
+    if not enable_thinking:
+        bfcl_model += "-NoThink"
     if not dry_run:
         print(f"\n# Experiment path: {experiment_path}")
         print(f"# BFCL test categories: {test_category}")
+        print(f"# BFCL model: {bfcl_model}")
 
     checkpoints, revisions, ckpt_dir = get_checkpoints_and_revisions(
         experiment_path, hf_model, infer_ckpt_name, is_nemo_rl
@@ -317,6 +322,11 @@ def get_parser():
         help="Chat template (jinja file) copied into checkpoints that have none.",
     )
     parser.add_argument(
+        "--no_thinking",
+        action="store_true",
+        help="If set, use the '<bfcl_model>-NoThink' handle (enable_thinking=False in the chat template).",
+    )
+    parser.add_argument(
         "--dependency",
         default=None,
         help="A dependency after which it should launch the evals",
@@ -363,6 +373,7 @@ if __name__ == "__main__":
         gpus=args.gpus,
         gpu_memory_utilization=args.gpu_memory_utilization,
         chat_template=args.chat_template,
+        enable_thinking=not args.no_thinking,
         dependency=args.dependency,
         force=args.force,
         multiple_of=args.multiple_of,

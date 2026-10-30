@@ -671,6 +671,14 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--bfcl_thinking",
+        action="store_true",
+        help=(
+            "With --bfcl: evaluate in thinking mode (OpenLLM-France/Luciole-FC handle). "
+            "By default BFCL runs in no-think mode (OpenLLM-France/Luciole-FC-NoThink)."
+        ),
+    )
+    parser.add_argument(
         "--dry_run", action="store_true", help="If set, do not submit jobs."
     )
     parser.add_argument(
@@ -713,6 +721,9 @@ if __name__ == "__main__":
     if args.bfcl:
         import evaluate_experiment_on_bfcl
 
+        if args.additional_model_args:
+            print("WARNING: --additional_model_args is ignored by BFCL (see --bfcl_thinking)")
+
         evaluate_experiment_on_bfcl.launch_evaluation(
             args.experiment_path,
             hf_model=args.hf_model,
@@ -722,6 +733,7 @@ if __name__ == "__main__":
             infer_ckpt_name=launch_conversion_needed,
             last_checkpoint_only=args.last_checkpoint_only,
             is_nemo_rl=args.is_nemo_rl,
+            enable_thinking=args.bfcl_thinking,
             dry_run=args.dry_run,
         )
         if args.dry_run:
