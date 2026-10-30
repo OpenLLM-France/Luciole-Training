@@ -8,6 +8,7 @@ import asyncio
 import hashlib
 import json
 import random
+import re
 import warnings
 from collections.abc import Coroutine
 from pathlib import Path
@@ -71,6 +72,38 @@ def _answer_leak_strings(row: dict) -> list[str]:
     values = raw if isinstance(raw, list) else [raw]
     normalized = [normalize_for_leak_check(v) for v in values if v]
     return [n for n in normalized if len(n) >= LEAK_MIN_LENGTH]
+
+
+_NUMBER_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _numbers(text: str) -> set[float]:
+    values = set()
+    for match in _NUMBER_RE.findall(text):
+        try:
+            values.add(float(match.replace(",", "")))
+        except ValueError:
+            continue
+    return values
+
+
+def _answer_survives(row: dict, texts: list[str]) -> bool:
+    """Whether the gold answer can still be read off ``texts``.
+
+    Textual answers are looked up as substrings, every span of a multi-span
+    one. An arithmetic answer survives when every operand of its derivation (or
+    the answer itself, when there is none) appears in the texts. A count lists
+    the counted items (mostly years) as its derivation, which says nothing about
+    whether they can be counted without the table, so it never survives.
+    """
+    joined = normalize_for_leak_check(" ".join(texts))
+    leaks = _answer_leak_strings(row)
+    if leaks:
+        return all(leak in joined for leak in leaks)
+    if row.get("answer_type") in {"span", "multi-span", "count"}:
+        return False
+    needed = _numbers(str(row.get("derivation") or "")) or _numbers(str(row.get("answer", "")))
+    return bool(needed) and needed <= _numbers(joined)
 
 
 def _chunk_kind(title: str) -> str:
@@ -183,9 +216,11 @@ def create_unanswerable_row(
 
     ``drop_gold`` removes every gold chunk (table and/or paragraphs).
     ``partial`` applies only to ``table-text`` questions (both modalities are
-    required to answer): it removes either the table or the gold paragraphs,
+    required to answer): it removes the table and keeps the gold paragraphs,
     leaving genuine but insufficient evidence in context, a hard refusal.
-    Returns None when the mode is not applicable.
+    Dropping the paragraphs instead left the answer readable in the table in
+    85% of the rows. Returns None when the mode is not applicable, including
+    when the kept paragraphs still hold the answer.
 
     ``backfill_pool`` replaces the dropped chunks one-for-one with distractors
     from other reports, so the twin rows keep the same chunk count and roughly
@@ -203,10 +238,14 @@ def create_unanswerable_row(
     if mode == "partial":
         if answer_from != "table-text" or "Table" not in relevant or len(relevant) < 2:
             return None
-        if random.random() < 0.5:
-            drop = {"Table"}
-        else:
-            drop = relevant - {"Table"}
+        drop = {"Table"}
+        kept_evidence = [
+            " ".join(sents)
+            for title, sents in zip(titles, sentences)
+            if title in relevant - drop
+        ]
+        if _answer_survives(row, kept_evidence):
+            return None
     elif mode == "drop_gold":
         drop = set(relevant)
         if answer_from == "table":

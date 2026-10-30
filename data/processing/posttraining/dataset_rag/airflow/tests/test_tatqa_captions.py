@@ -1,9 +1,10 @@
-"""TAT-QA table captions travel with their table."""
+"""TAT-QA table captions travel with their table; partial refusals drop the table only."""
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+import augment_tatqa as A  # noqa: E402
 import convert_tatqa_to_augment_format as C  # noqa: E402
 
 DOC = {
@@ -41,6 +42,15 @@ class CaptionTests(unittest.TestCase):
         rows = C.convert_doc(DOC)
         self.assertEqual(rows[0]["supporting_facts"]["title"], ["Table"])
         self.assertEqual(rows[1]["supporting_facts"]["title"], ["Table", "Paragraph 2"])
+
+    def test_partial_drops_the_table_only(self):
+        rows = C.convert_doc(DOC)
+        self.assertIsNone(A.create_unanswerable_row(rows[0], mode="partial"))  # caption only: one gold chunk
+        u = A.create_unanswerable_row(rows[1], mode="partial")
+        self.assertNotIn("Table", u["context"]["title"])
+        self.assertIn("Paragraph 2", u["context"]["title"])
+        # The kept paragraph still holds the answer: not a refusal.
+        self.assertIsNone(A.create_unanswerable_row(rows[2], mode="partial"))
 
 
 if __name__ == "__main__":
