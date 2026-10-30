@@ -210,6 +210,36 @@ def _merge_small_paragraphs(
     return merged_paragraphs, order_to_title
 
 
+# A table caption ("... are as follows (in millions):", "(Dollars in thousands)",
+# "The following table summarizes ...") carries the scale and the subject of the
+# table. TAT-QA stores it as a separate paragraph and lists it as gold evidence
+# of ~80% of its table-text questions, so a trace that quotes the table row and
+# takes the unit from the caption failed the citation filter for not citing a
+# chunk a real document parser would have kept with the table.
+MAX_CAPTION_CHARS = 600
+_CAPTION_PATTERNS = (
+    re.compile(r":\s*$"),
+    re.compile(
+        r"\(\s*[^()]{0,60}\bin (?:millions|thousands|billions)\b[^()]*\)"
+        r"|\bin (?:millions|thousands|billions)(?: of [^.]{0,30})?\s*[:.]?\s*$",
+        re.I,
+    ),
+    re.compile(
+        r"following table|table below|as follows|set (?:forth|out) below"
+        r"|(?:shown|summari[sz]ed|presented|detailed|provided|disclosed|outlined)"
+        r" (?:in the table )?below|consist(?:s|ed)? of the following",
+        re.I,
+    ),
+)
+
+
+def is_table_caption(text: str) -> bool:
+    text = text.strip()
+    if not text or len(text) > MAX_CAPTION_CHARS:
+        return False
+    return any(p.search(text) for p in _CAPTION_PATTERNS)
+
+
 def tatqa_document_chunks(doc: dict) -> tuple[str, list[dict], dict[int, str]]:
     """Return the stable chunking of one original TAT-QA report.
 
@@ -218,17 +248,30 @@ def tatqa_document_chunks(doc: dict) -> tuple[str, list[dict], dict[int, str]]:
     important: a retrieved chunk must be contextualized against the exact
     source document/chunk from which it was indexed, not against the mixed
     question context assembled after retrieval.
+
+    Caption paragraphs are folded into the table chunk, ahead of the table, for
+    every report alike: distractor tables then carry their caption too, so its
+    presence says nothing about which table is gold.
     """
     table = doc.get("table", {})
     doc_id = str(table.get("uid", "table"))
+    paragraphs = sorted(doc.get("paragraphs", []), key=lambda p: p.get("order", 0))
+    captions = [p for p in paragraphs if is_table_caption(str(p.get("text", "")))]
+    paragraphs = [p for p in paragraphs if p not in captions]
+
+    table_text = table_to_markdown(table.get("table", []))
+    if captions:
+        caption_text = "\n".join(str(p.get("text", "")).strip() for p in captions)
+        table_text = f"{caption_text}\n\n{table_text}"
     chunks = [{
         "id": "Table",
-        "text": table_to_markdown(table.get("table", [])),
+        "text": table_text,
         "type": "table",
     }]
 
-    paragraphs = sorted(doc.get("paragraphs", []), key=lambda p: p.get("order", 0))
     merged_paragraphs, order_to_title = _merge_small_paragraphs(paragraphs)
+    for p in captions:
+        order_to_title[p.get("order", 0)] = "Table"
     for paragraph in merged_paragraphs:
         chunks.append({
             "id": f"Paragraph {paragraph.get('order', '?')}",
