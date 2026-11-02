@@ -38,7 +38,7 @@ GENERATORS = ("qwen35_35b_a3b", "qwen35_4b")
 STAGES = {"delta": ("prepare", "chosen", "rejected", "judge", "build", "filter", "crossjudge", "release", "audit"),
           "onpolicy": ("prepare", "policy", "stop_policy", "onpolicy_judge", "onpolicy_build", "recheck", "refine",
                        "onpolicy_release", "audit")}
-# Policy sampling of the published on-policy configs (run_pilot.sh, sampling.manifest.json of the four pools)
+# Policy sampling of the published on-policy configs (sampling.manifest.json of the four pools)
 SAMPLING = {"k": 4, "temperature": 0.8, "top_p": 0.95, "max_tokens": 1024, "greedy": True}
 # Four pools of the published configs hotpotqa / tatqa (prepare_onpolicy_publication.CONFIGS), in heldout_v2_dir.
 # replay: the audit files of that run; a new run judges again with the rule of 2026-10-01 (run_audit_onpolicy.sh) and
@@ -393,7 +393,7 @@ free_gb=$(awk '/^MemAvailable/{{print int($2/1048576)}}' /proc/meminfo)
 echo "free_gb=$free_gb"
 docker ps --format '   {{{{.Names}}}}  {{{{.Image}}}}  {{{{.Status}}}}'
 [ "$free_gb" -ge {int(s["min_free_gb"])} ] || {{ echo "moins de {int(s["min_free_gb"])} Go disponibles : hôte occupé"; exit 4; }}
-# transformers 5.x tokenizer class unknown to the vLLM image (run_pilot.sh); idempotent, and an HF cache blob is left
+# transformers 5.x tokenizer class unknown to the vLLM image; idempotent, and an HF cache blob is left
 # untouched
 if grep -q '"TokenizersBackend"' "$W/tokenizer_config.json"; then
     sed -i 's/"TokenizersBackend"/"PreTrainedTokenizerFast"/' "$W/tokenizer_config.json"
@@ -495,7 +495,7 @@ def policy(c, out):
     with vllm_server(c) as (url, served, facts):
         for pool in pools(c):
             d = pool_dir(out, pool)
-            for _ in range(3):  # a failed request is asked again on the next pass (run_pilot.sh)
+            for _ in range(3):  # a failed request is asked again on the next pass
                 run("sample_policy.py", "--prompts", d / "prompts.jsonl", "--out", d / "samples.jsonl",
                     "--api-url", url, "--model", served, "--k", SAMPLING["k"],
                     "--temperature", SAMPLING["temperature"], "--top-p", SAMPLING["top_p"],
@@ -568,8 +568,8 @@ def calibrate(c, out, key):
 
 
 def onpolicy_judge(c, out):
-    """Generic pools: run_two_pass.sh (pass 1 without reasoning on every sample, then the chosen candidates confirmed
-    with reasoning, 3 rounds, greedy first). Strict pools: run_strict.sh (build_strict_pairs select / verify, 4 rounds)."""
+    """Generic pools: pass 1 without reasoning on every sample, then the chosen candidates confirmed
+    with reasoning, 3 rounds, greedy first. Strict pools: build_strict_pairs select / verify, 4 rounds."""
     if c["replay"]:
         print("rejeu : verdicts de la publication réutilisés")
         return

@@ -91,13 +91,19 @@ raw rejected answer with the current rule (807 of 3,466 in `hotpotqa_fr`, 32 of 
 OpenRAG layout or `[N] filename:` in ref prompts built before it (`context_titles`), `ref` style inline / end of completion (`requested_citation_style`), French context marker
 (`context_block`), and `citation_metrics(..., system_prompt)`: cited titles from the numbers, `n_ref_tags` /
 `n_ref_invalid` (number outside the documents, excerpt empty or not verbatim, tag of another format), as
-`eval_ref_invalid` of the SFT filter.
+`eval_ref_invalid` of the SFT filter. Both paths use `dpo/citations.py`, including the requirement that
+end-of-completion tags form a trailing References/Références section. Re-evaluating older DPO runs may therefore
+reject references embedded in prose that the previous DPO validator accepted.
 
 ## `dataset_rag_dpo_pairs`
 
 `prepare_prompts` freezes the prompts (sha256 manifest; rejects unpadded clones, contradictory verdicts, leaks towards
 validation), then the `mode` task sends the run down one of the two branches; the other is skipped.
 `audit_lengths_and_format` (`dpo/check_pairs_static.py`) ends both.
+
+The `policy`, `onpolicy_judge` and `onpolicy_build` stages in `airflow/dpo_pipeline.py` replace the former
+`run_pilot.sh`, `run_two_pass.sh` and `run_strict.sh` launchers. Use this DAG (or its CLI stages with
+`DPO_RUN_CONFIG`) for on-policy runs; the individual processing scripts remain available.
 
 ### Mode `delta`
 
