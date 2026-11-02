@@ -43,9 +43,9 @@ Output: `airflow_runs/dataset_rag_dpo_prompts/<run_name>/jz_run`. With the `pair
 filled in; without it, it stops at the prompt set, which can be reused by several generation runs, delta or on-policy.
 
 Inputs (under `dataset_rag/`): the held-out pools `dpo/data/heldout_full_sft4152`,
-`dpo/data/heldout_tatqa_generic_sft4152`, `dpo/data/heldout_tatqa_u_sft4152` (built by
-`dpo/build_dpo_prompts_heldout.py`, `dpo/build_dpo_prompts_heldout_tatqa.py` and the `dpo/run_heldout_full.sh`,
-`dpo/run_tatqa_heldout.sh`, `dpo/run_tatqa_u.sh` drivers from the rows not used for SFT), the exclusion lists
+`dpo/data/heldout_tatqa_generic_sft4152`, `dpo/data/heldout_tatqa_u_sft4152` (built once, from the rows not used
+for SFT, with `dpo/build_dpo_prompts_heldout.py` and scripts no longer in the repository; they are data, archived
+outside it with those scripts), the exclusion lists
 (`rag_dpo_onpolicy_8802410/val.jsonl`, `p9_paired_eval/prompts.jsonl`), `hotpotqa_cache_train`, the
 `tatqa_converted.jsonl` and contextualisation cache of a `dataset_rag_tatqa` run, and, optionally, an existing `jz_run`
 holding calibration verdicts (`calib_from`).
@@ -80,6 +80,12 @@ inviting sentences (`normalize`). Gold columns come from `<sft_run>/<sft_dataset
 `*_augmented_evaluated.jsonl` when the SFT DAG reads a cache directly (original answer,
 also for the unanswerable versions); the split units are those of HotpotQA (same question ids). The prompts only make
 on-policy data for a policy whose SFT data has that format.
+
+Releases built while `dpo_common.ref_citations` still required verbatim excerpts (the French delta runs of 2026-10-23
+and 2026-10-27) held `A_bad_citation` pairs whose rejected answer is correct, supported and only cuts an excerpt with
+"...": a citation the SFT data now contains. Those pairs were dropped once from the published configs, re-checking the
+raw rejected answer with the current rule (807 of 3,466 in `hotpotqa_fr`, 32 of 2,049 in
+`hotpotqa_fr_rejected_qwen35_2b`); runs made with the current rule do not produce them.
 
 **`ref` citation format in the DPO metrics** (`dpo/dpo_common.py`): numbered documents, `[Source N]` blocks of the
 OpenRAG layout or `[N] filename:` in ref prompts built before it (`context_titles`), `ref` style inline / end of completion (`requested_citation_style`), French context marker
@@ -213,10 +219,10 @@ server nearly full. In on-policy mode, pass 1 has no reasoning (~45,000 short ju
 answers), then a few thousand with reasoning.
 
 **Strict instruction (delta).** Both DAGs only produce prompts with the generic instruction. The strict-instruction
-complement (imposed refusal sentence) was built by hand: `dpo/build_jz_strict_prompts.py --quota
-hotpotqa:A=500,U=300 --quota tatqa:A=500,U=650`, same generation and judging, then `dpo/build_p10_delta.py --jz` and
-`dpo/phrase_balance.py` to cap the "sentence in chosen" pairs; merging them into the
-published configs was a one-off step (release of 2026-10-08). In on-policy
+complement (imposed refusal sentence) was built once by hand (quotas hotpotqa A=500, U=300 and tatqa A=500, U=650),
+with the same generation and judging, then `dpo/build_p10_delta.py --jz` and a cap on the "sentence in chosen" pairs;
+merging them into the published configs was a one-off step (release of 2026-10-08), whose scripts are archived with the
+held-out pools. In on-policy
 mode, the strict pools come from `heldout_v2`.
 
 ## Launching

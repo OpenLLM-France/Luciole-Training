@@ -2,7 +2,7 @@
 """Unanswerable versions built with the Airflow pipeline's own code (dataset_rag DAGs, run of 2026-07-22/23), for the
 pool questions that only have an answerable version (2026-10-05, Jean Zay generation).
 
-build_nogold_prompts*.py drop the gold chunks without replacing them: the unanswerable prompt
+The earlier unanswerable clones dropped the gold chunks without replacing them: the unanswerable prompt
 is always 1-2 documents shorter than its twin, so the chunk count predicts the refusal. The DAG avoids it, and this
 script calls its functions instead of re-implementing them:
   HotpotQA  augment_hotpotqa (DAG dataset_rag_hotpotqa_en, run v4_backfill_pairs): source row = HotpotQA train
