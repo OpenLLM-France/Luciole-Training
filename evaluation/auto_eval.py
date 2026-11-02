@@ -253,7 +253,7 @@ def launch_evaluation(
         else:
             model_size = 8
 
-    gpus = 1 if model_size <= 32 else 2
+    gpus = 1 if model_size <= 32 else (4 if model_size > 60 else 2)
 
     if eval_type in ["pretrain", "context_extension"]:
         COMMANDS += [
@@ -722,7 +722,9 @@ if __name__ == "__main__":
         import evaluate_experiment_on_bfcl
 
         if args.additional_model_args:
-            print("WARNING: --additional_model_args is ignored by BFCL (see --bfcl_thinking)")
+            print(
+                "WARNING: --additional_model_args is ignored by BFCL (see --bfcl_thinking)"
+            )
 
         evaluate_experiment_on_bfcl.launch_evaluation(
             args.experiment_path,
