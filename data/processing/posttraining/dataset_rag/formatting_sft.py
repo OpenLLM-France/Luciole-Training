@@ -22,9 +22,11 @@ actually refused survive the verification/filter step. The completion is then th
 model's own refusal, used directly (styled like any answer), query-adapted by
 construction, which avoids the systematic over-refusal a constant string would
 encourage. A legacy trace that is not itself a refusal gets the canonical phrase
-appended; an empty trace falls back to the bare phrase. For a small subset
-(STRICT_REFUSAL_PROB), the system prompt instead specifies an exact phrase to use
-when the context is insufficient and the target is that bare phrase.
+appended; an empty trace falls back to the bare phrase. For a small subset of all
+rows (STRICT_REFUSAL_PROB), the system prompt instead specifies an exact phrase to
+use when the context is insufficient: the target is that bare phrase on an
+unanswerable row and the normal answer on an answerable one, so the rule alone
+never predicts a refusal.
 """
 
 import json
@@ -166,11 +168,29 @@ REF_EOC_PROB = 0.04
 # the data language; only the system instructions switch to English).
 MIXED_SYSTEM_EN_PROB = 0.5
 
-# Fraction of unanswerable examples that are "strict": the system prompt declares an
-# exact refusal phrase ("respond exactly with X") and the target is that bare phrase
-# (verbatim controllability). The rest get the generic consigne + a grounded refusal.
+# Fraction of examples, answerable or not, whose system prompt declares an exact
+# refusal phrase ("respond exactly with X") instead of the generic rule. On an
+# unanswerable row the target is that bare phrase (verbatim controllability); on an
+# answerable row it is the normal answer. Drawing the rule on both keeps it from being
+# a refusal cue: drawn on unanswerable rows only, it was always followed by a refusal
+# in training, so a deployer declaring a phrase on every request invited over-refusal.
 # Kept small so grounded refusals dominate (avoids trivial refusal targets / over-refusal).
 STRICT_REFUSAL_PROB = 0.05
+
+
+def _strict_rule_rng(seed: int | None) -> random.Random:
+    """Stream for the answerable rows' strict-rule draw, apart from the main one."""
+    return random.Random(None if seed is None else f"strict-rule-{seed}")
+
+
+def _draw_strict_rule(rng, strict_rng, is_unanswerable: bool) -> bool:
+    """Whether this row's system prompt declares the exact refusal phrase.
+
+    Unanswerable rows draw on the main stream, as they always did, and answerable
+    rows on their own stream, so every other per-row choice (style, placement,
+    phrase) is the same as before answerable rows could get the rule.
+    """
+    return (rng if is_unanswerable else strict_rng).random() < STRICT_REFUSAL_PROB
 
 
 @dataclass
@@ -342,7 +362,8 @@ def _refusal_instruction(refusal: str, language: str) -> str:
 
     This is a *verbatim-output* consigne: it teaches the model to emit exactly this
     phrase when the context is insufficient (deployer-controllable refusal wording).
-    It is therefore only ever paired with a bare-phrase target, never a grounded one.
+    On an unanswerable row it is therefore paired with a bare-phrase target, never a
+    grounded one; on an answerable row the target is the normal answer.
     """
     if language == "fr":
         return (
@@ -692,10 +713,13 @@ def convert_row(
     rng=None,
     mixed_system_prompt: bool = False,
     fixed_style: CitationStyle | None = None,
+    strict_rng=None,
 ) -> dict:
     """Convert a single row to prompt/completion format with randomized citation style."""
     if rng is None:
         rng = random
+    if strict_rng is None:
+        strict_rng = rng
 
     citation_format = row_citation_format(row)
     style = _pick_style(rng, fixed_style)
@@ -708,9 +732,9 @@ def convert_row(
     # Refusal phrase stays in data language (assistant must reply in that language);
     # the wrapping rule text follows system_lang.
     refusal = _pick_refusal(rng, language)
-    # A small strict slice: declare the exact phrase + bare-phrase target (verbatim).
-    # Everything else is grounded with the generic consigne.
-    specific_refusal_instruction = is_unanswerable and (rng.random() < STRICT_REFUSAL_PROB)
+    # A small strict slice declares the exact phrase: bare-phrase target if unanswerable,
+    # normal answer otherwise. Everything else gets the generic consigne.
+    specific_refusal_instruction = _draw_strict_rule(rng, strict_rng, is_unanswerable)
 
     if is_unanswerable and specific_refusal_instruction:
         completion = refusal
@@ -718,6 +742,8 @@ def convert_row(
         completion = _build_refusal_completion(row, refusal, language, style, end_of_completion, citation_format)
     else:
         completion = _assistant_answer(row, style, end_of_completion, language, citation_format)
+        # An answer that reads as a (partial) refusal would not be the declared phrase.
+        specific_refusal_instruction = specific_refusal_instruction and not detect_refusal(completion)
 
     if specific_refusal_instruction:
         refusal_instruction = _refusal_instruction(refusal, system_lang)
@@ -779,6 +805,7 @@ def convert_dataset(
     stats = ConversionStats()
     converted_rows = []
     rng = random.Random(seed)
+    strict_rng = _strict_rule_rng(seed)
 
     with open(input_file, "r") as f:
         for line in f:
@@ -787,7 +814,8 @@ def convert_dataset(
 
             try:
                 converted = convert_row(
-                    row, language, rng, mixed_system_prompt=mixed_system_prompt, fixed_style=fixed_style
+                    row, language, rng, mixed_system_prompt=mixed_system_prompt, fixed_style=fixed_style,
+                    strict_rng=strict_rng,
                 )
 
                 if not include_metadata:
@@ -829,6 +857,7 @@ def convert_to_chat_format(
     """Convert augmented dataset to chat/messages format for instruction fine-tuning."""
     stats = ConversionStats()
     rng = random.Random(seed)
+    strict_rng = _strict_rule_rng(seed)
 
     metadata_fields = [
         # Original metadata
@@ -860,8 +889,9 @@ def convert_to_chat_format(
 
                 # Refusal phrase stays in data language; the wrapping rule text follows system_lang.
                 refusal = _pick_refusal(rng, language)
-                # Small strict slice = exact phrase + bare target; the rest grounded + generic.
-                specific_refusal_instruction = is_unanswerable and (rng.random() < STRICT_REFUSAL_PROB)
+                # Small strict slice = exact phrase declared, on answerable rows too (bare
+                # target only if unanswerable); the rest gets the generic consigne.
+                specific_refusal_instruction = _draw_strict_rule(rng, strict_rng, is_unanswerable)
 
                 if is_unanswerable and specific_refusal_instruction:
                     assistant_content = refusal
@@ -872,6 +902,10 @@ def convert_to_chat_format(
                 else:
                     assistant_content = _assistant_answer(
                         row, style, end_of_completion, language, citation_format
+                    )
+                    # An answer that reads as a (partial) refusal would not be the declared phrase.
+                    specific_refusal_instruction = (
+                        specific_refusal_instruction and not detect_refusal(assistant_content)
                     )
 
                 if specific_refusal_instruction:
@@ -1001,7 +1035,7 @@ def main():
     else:
         print(f"Citation styles: {len(CITATION_STYLES)} variants, EOC ratio: {EOC_PROB:.0%}")
     print(f"Refusal variants: {len(UNANSWERABLE_REFUSALS.get(args.language, UNANSWERABLE_REFUSALS['en']))} per language")
-    print(f"Strict (verbatim) refusal ratio: {STRICT_REFUSAL_PROB:.0%} of unanswerable rows (rest grounded)")
+    print(f"Strict (verbatim) refusal rule: {STRICT_REFUSAL_PROB:.0%} of all rows (bare-phrase target on unanswerable ones)")
     if args.seed is not None:
         print(f"Seed: {args.seed}")
 
