@@ -22,9 +22,9 @@ tags:
   * [Instruction template](#instruction-template)
   * [Training Procedure](#training-procedure)
 * [Evaluation](#evaluation)
-* [Testing the model](#testing-the-model)
-  * [Test with ollama](#test-with-ollama)
-  * [Test with vLLM](#test-with-vllm)
+* [Using the model](#using-the-model)
+  * [With ollama](#with-ollama)
+  * [With vLLM](#with-vllm)
 * [Citation](#citation)
 * [Acknowledgements](#acknowledgements)
 * [Contact](#contact)
@@ -149,7 +149,7 @@ However, for testing a non-thinking model, it is better to conduct experiments o
 By default, the `<think>…</think>` reasoning of all previous assistant turns is kept when formatting a multi-turn conversation. Setting ```tokenizer.apply_chat_template(…, preserve_thinking=False)``` drops it from every assistant turn preceding the last user message (only the most recent turn keeps its reasoning), which shortens the prompt and reduces the KV-cache footprint. With vLLM, set it per request via ```extra_body={"chat_template_kwargs": {"preserve_thinking": false}}```. Ollama does not use this parameter, as it formats prompts with its own built-in renderer.
 
 
-### Test with ollama
+### With ollama
 
 
 Note: for best performance, please use the [GGUF files](https://huggingface.co/OpenLLM-France/Luciole-8B-Thinking-1.1-GGUF) released officially by OpenLLM.
@@ -171,7 +171,7 @@ Useful for debug:
       * Llama 3 example: https://ollama.com/library/llama3.1
 * Add GUI : https://docs.openwebui.com/
 
-### Test with vLLM
+### With vLLM
 
 #### 1. Run vLLM Docker Container
 
@@ -184,12 +184,14 @@ docker run --runtime nvidia --gpus=all \
     -p 8000:8000 \
     --ipc=host \
     vllm/vllm-openai:latest \
-    --model OpenLLM-France/Luciole-8B-Thinking-1.1
+    --model OpenLLM-France/Luciole-8B-Thinking-1.1 \
+    --reasoning-parser qwen3 \
+    --enable-auto-tool-choice --tool-call-parser hermes
 ```
 
-#### 2. Test using OpenAI Client in Python
+#### 2. Query the model with the OpenAI Client in Python
 
-To test the deployed model, use the OpenAI Python client as follows:
+To query the deployed model, use the OpenAI Python client as follows:
 
 ```python
 from openai import OpenAI
@@ -209,6 +211,40 @@ chat_response = client.chat.completions.create(
 )
 print(chat_response.choices[0].message.content)
 ```
+
+#### 3. Tool calling
+
+With the `--enable-auto-tool-choice --tool-call-parser hermes` flags used above, the model can call functions:
+pass a list of `tools` as with the OpenAI API, and the calls chosen by the model are returned in `message.tool_calls`.
+Requests without `tools` are not affected.
+
+```python
+# Define the tools available to the model
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string", "description": "City name"}},
+            "required": ["city"],
+        },
+    },
+}]
+
+# Generate a response that may contain tool calls
+chat_response = client.chat.completions.create(
+    model="OpenLLM-France/Luciole-8B-Thinking-1.1",
+    messages=[
+        {"role": "user", "content": "What is the weather like in Paris?"}
+    ],
+    tools=tools,
+)
+print(chat_response.choices[0].message.tool_calls)
+```
+
+**Warning:** Tool usage is still a work in progress, see [BFCL v4](https://gorilla.cs.berkeley.edu/leaderboard.html) results for [live](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1/blob/main/bfcl_live.png) and [non-live](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1/blob/main/bfcl_non_live.png) categories.
 
 ## Citation
 

@@ -22,9 +22,9 @@ tags:
   * [Instruction template](#instruction-template)
   * [Training Procedure](#training-procedure)
 * [Evaluation](#evaluation)
-* [Testing the model](#testing-the-model)
-  * [Test with ollama](#test-with-ollama)
-  * [Test with vLLM](#test-with-vllm)
+* [Using the model](#using-the-model)
+  * [With ollama](#with-ollama)
+  * [With vLLM](#with-vllm)
 * [Citation](#citation)
 * [Acknowledgements](#acknowledgements)
 * [Contact](#contact)
@@ -152,7 +152,7 @@ The chat template prefills the opening `<think>` tag in the generation prompt, s
 
 
 
-### Test with ollama
+### With ollama
 
 ⚠️ While we are publishing the GGUF model, it is currently impossible to use the model with ollama due to a bug in llama.cpp (https://github.com/ggml-org/llama.cpp/issues/30518). Once this issue is fixed, the model will be usable.
 
@@ -175,7 +175,7 @@ Useful for debug:
       * Llama 3 example: https://ollama.com/library/llama3.1
 * Add GUI : https://docs.openwebui.com/
 
-### Test with vLLM
+### With vLLM
 
 #### 1. Run vLLM Docker Container
 
@@ -189,12 +189,13 @@ docker run --runtime nvidia --gpus=all \
     --ipc=host \
     vllm/vllm-openai:latest \
     --model OpenLLM-France/Luciole-8B-KD-Math-Thinking-1.1 \
-    --reasoning-parser qwen3
+    --reasoning-parser qwen3 \
+    --enable-auto-tool-choice --tool-call-parser hermes
 ```
 
-#### 2. Test using OpenAI Client in Python
+#### 2. Query the model with the OpenAI Client in Python
 
-To test the deployed model, use the OpenAI Python client as follows:
+To query the deployed model, use the OpenAI Python client as follows:
 
 ```python
 from openai import OpenAI
@@ -214,6 +215,40 @@ chat_response = client.chat.completions.create(
 )
 print(chat_response.choices[0].message.content)
 ```
+
+#### 3. Tool calling
+
+With the `--enable-auto-tool-choice --tool-call-parser hermes` flags used above, the model can call functions:
+pass a list of `tools` as with the OpenAI API, and the calls chosen by the model are returned in `message.tool_calls`.
+Requests without `tools` are not affected.
+
+```python
+# Define the tools available to the model
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string", "description": "City name"}},
+            "required": ["city"],
+        },
+    },
+}]
+
+# Generate a response that may contain tool calls
+chat_response = client.chat.completions.create(
+    model="OpenLLM-France/Luciole-8B-KD-Math-Thinking-1.1",
+    messages=[
+        {"role": "user", "content": "What is the weather like in Paris?"}
+    ],
+    tools=tools,
+)
+print(chat_response.choices[0].message.tool_calls)
+```
+
+**Warning:** Tool usage is still a work in progress, see [BFCL v4](https://gorilla.cs.berkeley.edu/leaderboard.html) results for [live](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1/blob/main/bfcl_live.png) and [non-live](https://huggingface.co/OpenLLM-France/Luciole-1B-Instruct-1.1/blob/main/bfcl_non_live.png) categories.
 
 ## Citation
 
