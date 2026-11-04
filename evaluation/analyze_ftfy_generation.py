@@ -1062,6 +1062,25 @@ def merge_payloads(payloads: list[dict]) -> dict:
     return {"config": cfg, "model_order": order, "models": merged_models}
 
 
+def select_from_payload(payload: dict, selectors: list[str]) -> dict:
+    """Keep only the selected models of a payload, in order, optionally renamed.
+
+    Each selector is ``OLD`` (keep name) or ``OLD=NEW`` (rename to NEW).
+    """
+    order, models = [], {}
+    for sel in selectors:
+        old, _, new = sel.partition("=")
+        new = new or old
+        if old not in payload["models"]:
+            raise SystemExit(
+                f"--pick: model {old!r} not found. Available: "
+                f"{', '.join(payload['model_order'])}"
+            )
+        order.append(new)
+        models[new] = payload["models"][old]
+    return {"config": payload["config"], "model_order": order, "models": models}
+
+
 # ----------------------------------------------------------------------------- #
 # Driver
 # ----------------------------------------------------------------------------- #
@@ -1172,7 +1191,42 @@ def main():
         ".json files. Several files are merged into a single report, one column "
         "per model, in the order given.",
     )
+    ap.add_argument(
+        "--pick",
+        action="append",
+        nargs="+",
+        default=None,
+        metavar="FILE OLD[=NEW]",
+        help="Like --from-json but keep only a subset of models, optionally renamed. "
+        "Repeatable; each use is a .json file followed by one or more 'OLD' or "
+        "'OLD=NEW' selectors. The report columns follow the selector order across "
+        "all --pick uses.",
+    )
     args = ap.parse_args()
+
+    # --- regenerate the markdown from a selected/renamed subset of existing json ---
+    if args.pick:
+        cache: dict[str, dict] = {}
+        subs = []
+        for entry in args.pick:
+            path, selectors = entry[0], entry[1:]
+            if not selectors:
+                ap.error(f"--pick {path}: give at least one OLD or OLD=NEW selector")
+            if path not in cache:
+                with open(path) as f:
+                    cache[path] = json.load(f)
+            subs.append(select_from_payload(cache[path], selectors))
+        payload = merge_payloads(subs)
+        json_path = args.output_prefix + ".json"
+        with open(json_path, "w") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        md_path = args.output_prefix + ".md"
+        with open(md_path, "w") as f:
+            f.write(build_markdown(payload))
+        print(
+            f"Picked {len(payload['model_order'])} model(s) -> {json_path} and {md_path}"
+        )
+        return
 
     # --- regenerate / merge markdown only ---
     if args.from_json:
