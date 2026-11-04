@@ -164,7 +164,7 @@ def launch_conversion(
     experiment_path, arch, multiple_of=1, dry_run=False, is_nemo_rl=False, latest=False
 ):
     print(
-        f"Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
+        f"# Launching conversion for {experiment_path} with arch={arch} and multiple_of={multiple_of}"
     )
     job_dir = Path(experiment_path) / "conversion"
     job_dir.mkdir(parents=True, exist_ok=True)
