@@ -59,12 +59,11 @@ if __name__ == "__main__":
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/funcdex_mt",
-            output_filename="data/funcdex_mt/${rank}.parquet",
+            output_filename="data/sft/funcdex_mt/${rank}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
             cleanup=False,
-            expand_metadata=True,
             commit_message=args.commit,
         ),
     ]

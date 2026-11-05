@@ -147,12 +147,11 @@ if __name__ == "__main__":
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/jupyter_agent/{split}",
-            output_filename=f"data/jupyter_agent/{split}/${{rank}}.parquet",
+            output_filename=f"data/sft/jupyter_agent/{split}/${{rank}}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
             cleanup=False,
-            expand_metadata=True,
             commit_message=args.commit,
         ),
     ]

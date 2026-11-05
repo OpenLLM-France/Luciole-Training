@@ -166,12 +166,11 @@ if __name__ == "__main__":
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/openmathreasoning_tir",
-            output_filename="data/openmathreasoning_tir/${rank}.parquet",
+            output_filename="data/sft/openmathreasoning_tir/${rank}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
             cleanup=False,
-            expand_metadata=True,
             commit_message=args.commit,
         ),
     ]

@@ -198,12 +198,11 @@ if __name__ == "__main__":
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}",
-            output_filename=f"data/nemotron_math_v2_tools/{VARIANT}/${{rank}}.parquet",
+            output_filename=f"data/sft/nemotron_math_v2_tools/{VARIANT}/${{rank}}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
             cleanup=False,
-            expand_metadata=True,
             commit_message=args.commit,
         ),
     ]

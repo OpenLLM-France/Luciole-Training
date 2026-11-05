@@ -12,6 +12,28 @@ from utils import (
     ChatTokenCount,
 )
 
+def react_reader_adapter(self, data: dict, path: str, id_in_file: int | str):
+    """instruct_adapter plus ``metadata["source_dataset"]``: the first folder of
+    the ReAct path (e.g. fever, hotpotqa_round2), with "-" replaced by "_" so it
+    is a valid Hub split name. The ``dataset_name`` column cannot be used: it is
+    null in some thinking files and differs from the folder name elsewhere
+    (e.g. "multihop-round2" in multihopqa-round2/)."""
+    doc = instruct_adapter(self, data, path, id_in_file)
+    doc["metadata"]["source_dataset"] = path.split("/")[0].replace("-", "_")
+    return doc
+
+def react_hub_adapter(self, document):
+    """hub_adapter plus ``generation_config`` (JSON string, like xlam_sft; its
+    struct differs between the thinking and non-thinking traces)."""
+    import json
+
+    row = hub_adapter(self, document)
+    config = document.metadata.get("generation_config") or {}
+    row["generation_config"] = (
+        config if isinstance(config, str) else json.dumps(config, ensure_ascii=False)
+    )
+    return row
+
 def id_deduplication(data, rank: int = 0, world_size: int = 1):
     dedup_ids = set()
     for doc in data:
@@ -79,7 +101,7 @@ if __name__ == "__main__":
         ParquetReader(
             "hf://datasets/OpenLLM-France/ReAct/data/",
             glob_pattern=f"*/*/{split}/*/*.parquet",
-            adapter=instruct_adapter,
+            adapter=react_reader_adapter,
         ),
         id_deduplication,
         format_messages,
@@ -94,12 +116,11 @@ if __name__ == "__main__":
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/react_postprocess/{split}",
-            output_filename=f"data/react_postprocess/{split}/${{dataset_name}}/${{rank}}.parquet",
-            adapter=hub_adapter,
+            output_filename=f"data/sft/react_${{source_dataset}}{'_thinking' * args.thinking}/${{rank}}.parquet",
+            adapter=react_hub_adapter,
             schema=None,
             private=True,
             cleanup=False,
-            expand_metadata=True,
             commit_message=args.commit,
         ),
     ]

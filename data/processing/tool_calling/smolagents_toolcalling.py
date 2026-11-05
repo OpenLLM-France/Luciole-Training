@@ -137,12 +137,11 @@ if __name__ == "__main__":
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
             local_working_dir=f"{DATA_PATH}/smolagents_toolcalling",
-            output_filename="data/smolagents_toolcalling/${rank}.parquet",
+            output_filename="data/sft/smolagents_toolcalling/${rank}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
             cleanup=False,
-            expand_metadata=True,
             commit_message=args.commit,
         ),
     ]

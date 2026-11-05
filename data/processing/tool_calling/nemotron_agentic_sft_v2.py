@@ -56,12 +56,11 @@ if __name__ == "__main__":
             HuggingFaceDatasetWriter(
                 dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
                 local_working_dir=f"{DATA_PATH}/nemotron_agentic_sft_v2/{split_name}",
-                output_filename=f"data/nemotron_agentic_sft_v2/{split_name}/${{rank}}.parquet",
+                output_filename=f"data/sft/nemotron_agentic_sft_v2/{split_name}/${{rank}}.parquet",
                 adapter=hub_adapter,
                 schema=None,
                 private=True,
                 cleanup=False,
-                expand_metadata=True,
                 commit_message=args.commit,
             ),
         ]

@@ -132,7 +132,6 @@ if __name__ == "__main__":
                 schema=None,
                 private=True,
                 cleanup=False,
-                expand_metadata=True,
                 commit_message=args.commit,
             ),
         ]

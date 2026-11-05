@@ -118,12 +118,11 @@ if __name__ == "__main__":
             HuggingFaceDatasetWriter(
                 dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
                 local_working_dir=f"{DATA_PATH}/hermes_oaiformat/{subset}",
-                output_filename=f"data/hermes_oaiformat/{subset}/${{rank}}.parquet",
+                output_filename=f"data/sft/hermes_oaiformat/{subset}/${{rank}}.parquet",
                 adapter=hub_adapter,
                 schema=None,
                 private=True,
                 cleanup=False,
-                expand_metadata=True,
                 commit_message=args.commit,
             ),
         ]
