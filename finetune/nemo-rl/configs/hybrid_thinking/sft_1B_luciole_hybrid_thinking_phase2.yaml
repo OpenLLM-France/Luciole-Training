@@ -1,0 +1,61 @@
+defaults: "template.yaml"
+
+sft:
+  max_num_steps: 5070 # This will change based on dataset size
+
+policy:
+  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/continual_pretraining/luciole_continual_pretrain_nemotron1b_context_extension/huggingface_checkpoints/luciole_continual_pretrain_nemotron1b_context_extension-step_0005959"
+  tokenizer:
+    # PR #3 (JSON tool calls): https://huggingface.co/OpenLLM-France/tokenizer_128k_dual/discussions/3
+    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/8b733d4a689b580e90450312860080a9e416610b"
+    chat_template: "${policy.tokenizer.name}/chat_template.jinja"
+    chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
+  megatron_cfg:
+    scheduler:
+      lr_decay_iters: 5064  # This will change based on dataset size
+      lr_warmup_iters: 152  # round(0.03 * max_num_steps) = round(152.1)
+
+data:
+  tool_key: "tools"  # column read by the entries with use_tools: true
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/009b1048bbb0613b93e966321d0e0b89013ceeba
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
+  hybrid_data: "" #Add huggingface cache path here for Luciole-Phase2-Hybrid-Dataset 
+  train_data_path:
+    - path: "${data.hybrid_data}/*.jsonl"
+      weight: 0.17 # proportion for thinking to be decided based on number of tokense
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.hybrid_data}/*.jsonl" # add files which are shared between instruct and thinking
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.hybrid_data}/*.jsonl" # add files exclusive to insturct data here
+      chat_template_kwargs: {enable_thinking: false}
+
+    # ---- tool calling: OpenLLM-France/tool_data (${data.tool_data}) ----
+    # use_tools: true passes the `tools` column to the chat template
+    
+    # UPDATE tools dataset
+    - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
+    - path: "${data.tool_data}/nemotron_agentic_sft_v2/interactive_agent/*.parquet"
+      weight: 0.017  # 0.1 * 0.17
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
+    - path: "${data.tool_data}/nemotron_agentic_sft_v2/search/*.parquet"
+      weight: 0.017  # 0.1 * 0.17
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
+    - path: "${data.tool_data}/xlam_oaiformat/*.parquet"
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
+    - path: "${data.tool_data}/hermes_oaiformat/func_calling/*.parquet"
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
+    - path: "${data.tool_data}/hermes_oaiformat/glaive_func_calling/*.parquet"
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
+  val_data_path:
+    - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
