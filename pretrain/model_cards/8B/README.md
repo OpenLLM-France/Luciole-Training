@@ -27,6 +27,7 @@ widget:
     group: 1-shot Question Answering
 ---
 
+
 # Model Card for Luciole-8B-Base
 
 <!-- inspired from the following template:
@@ -37,6 +38,7 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
 
 
 **Table of Contents**
+
 - [Model Card for Luciole-8B-Base](#model-card-for-luciole-8b-base)
   - [Model Description](#model-description)
   - [Uses](#uses)

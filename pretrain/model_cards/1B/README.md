@@ -27,6 +27,7 @@ widget:
     group: 1-shot Question Answering
 ---
 
+
 # Model Card for Luciole-1B-Base
 
 <!-- inspired from the following template:
@@ -274,7 +275,7 @@ The details of the intitial pretraining phase are listed below. For each subsequ
 | Total \# steps         | 5,960 |
 | Context length         | 32,768 |
 | Batch size             | 128 |
-| RoPE theta             | 1,000,000 |
+| RoPE theta             | 500,000 |
 | Learning rate schedule | Warmup + Cosine annealing |
 | Maximum Learning rate  | 6.87e-5  |
 | Final Learning rate    | 0      |

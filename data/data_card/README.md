@@ -91,6 +91,7 @@ In addition to the `text` field, which provides the content of the sample, each 
 * [`messages`] (optional): if applicable, the text formatted as a conversation following the Hugging Face chat format.
 * [`metadata`] (optional): additional metadata about the text sample, in JSON format. This may include information such as the source subset, rights, URL, date, etc.
 
+
 ## Downloading the Data
 
 ### Available Configurations
@@ -148,8 +149,7 @@ from datasets import load_dataset
 
 dataset = load_dataset(
     "OpenLLM-France/Luciole-Training-Dataset",
-    "all",
-    split="all",
+    "full",
     streaming=True,
 )
 ```
@@ -158,7 +158,7 @@ Load all French-language data:
 ```python
 dataset = load_dataset(
     "OpenLLM-France/Luciole-Training-Dataset",
-    "all",
+    "full",
     split="fr",
     streaming=True,
 )
@@ -168,7 +168,7 @@ Load aligned French-English data:
 ```python
 dataset = load_dataset(
     "OpenLLM-France/Luciole-Training-Dataset",
-    "all",
+    "full",
     split="en_fr",
     streaming=True,
 )
@@ -179,7 +179,6 @@ Load Wikipedia data:
 dataset = load_dataset(
     "OpenLLM-France/Luciole-Training-Dataset",
     "Wikimedia-wikipedia",
-    split="all",
     streaming=True,
 )
 ```
@@ -538,5 +537,3 @@ Finally, we thank the entire OpenLLM-France community, whose members have helped
 ## Contact
 
 contact@openllm-france.fr
-
-

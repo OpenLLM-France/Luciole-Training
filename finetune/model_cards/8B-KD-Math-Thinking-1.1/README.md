@@ -6,7 +6,7 @@ language:
 - fr
 - en
 base_model:
-- OpenLLM-France/Luciole-8B-Base
+- OpenLLM-France/Luciole-8B-KD-Math-Base
 tags:
 - openllm-france
 ---
@@ -77,7 +77,7 @@ Luciole-8B-KD-Math-Thinking-1.1 was trained in two phases. The model was first f
 
 |                            | **SFT with thinking** |  **DPO with thinking** |  
 |----------------------------|:----------:|:------------:|
-| **Num training samples**   |     2.6M     |      284K   |  
+| **Num training samples**   |     2.6M     |      103K   |  
 | **Num epochs**             |       4      |      1      |  
 | **Max learning rate**      |     2.0e-5     |       3.0e-8      | 
 | **Min learning rate**      |      2.0e-6  |       0       |   
