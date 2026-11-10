@@ -506,6 +506,12 @@ def main():
         help="Skip per-sample output; print only the summary.",
     )
     parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Print all samples at once instead of pausing after each one "
+        "(the default pauses for a prompt: Enter=next, q=quit, N=jump N ahead, a=show rest).",
+    )
+    parser.add_argument(
         "--cut-long-input",
         action="store_true",
         help="Show only the extracted question instead of the full user turn.",
@@ -678,7 +684,13 @@ def main():
     print(f"{colors.sep}╰{'─' * (width - 2)}╯{colors.reset}")
 
     if not args.summary_only:
-        for r in shown:
+        # Pause after each sample by default (Enter=next, q=quit, N=skip N ahead,
+        # a=show the rest). Falls back to printing everything at once with --all or
+        # when stdin is not a terminal (e.g. piped output).
+        interactive = not args.all and sys.stdin.isatty()
+        i = 0
+        while i < len(shown):
+            r = shown[i]
             print()
             print(
                 render_sample(
@@ -693,6 +705,26 @@ def main():
                     args.max_answer,
                 )
             )
+            i += 1
+            if not interactive or i >= len(shown):
+                continue
+            try:
+                ans = input(
+                    f"{colors.dim}  [{i}/{len(shown)}] Enter=next  q=quit  "
+                    f"N=jump N ahead  a=show rest > {colors.reset}"
+                ).strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                break
+            if ans.lower() == "q":
+                break
+            if ans.lower() == "a":
+                interactive = False
+            elif ans:
+                try:
+                    i += max(0, int(ans) - 1)  # jump ahead N (Enter == 1)
+                except ValueError:
+                    pass  # unrecognized input -> just go to next
 
     render_summary(models, colors, width, model_colors)
 
