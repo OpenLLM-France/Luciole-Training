@@ -20,6 +20,7 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
 * [Details on Data Sources](#details-on-data-sources)
 * [Citation](#citation)
 * [Acknowledgements](#acknowledgements)
+* [License](#license)
 * [Contact](#contact)
 
 
@@ -533,6 +534,10 @@ Thanks to the [Vikidia](https://fr.vikidia.org/wiki/Vikidia:Accueil) team for gi
 We would also like to thank the numerous open data projects that have guided us in the process of creating this dataset. This includes in particular: the [Common Corpus](https://huggingface.co/datasets/PleIAs/common_corpus) from [Pleias](https://pleias.fr/), the [Common Pile](https://huggingface.co/common-pile), the [Nemotron post-training datasets](https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2) from [Nvidia](https://www.nvidia.com/en-eu/) and numerous projects from [Hugging Face](https://huggingface.co/) and [Allen AI](https://allenai.org/). 
 
 Finally, we thank the entire OpenLLM-France community, whose members have helped in diverse ways. 
+
+## License
+
+Copyright (c) 2025-2026 LINAGORA SAS (compilation, preprocessing and project-generated data). Each source corpus remains under its original licence, listed in the "Details on Data Sources" section. Released under CC-BY-SA-4.0.
 
 ## Contact
 

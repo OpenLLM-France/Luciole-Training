@@ -59,6 +59,7 @@ https://github.com/huggingface/huggingface_hub/blob/main/src/huggingface_hub/tem
       - [Evaluation](#evaluation)
   - [Citation](#citation)
   - [Acknowledgements](#acknowledgements)
+  - [License](#license)
   - [Contact](#contact)
 
 ## Model Description
@@ -403,6 +404,10 @@ We would also like to thank members of the [Gaperon](https://huggingface.co/coll
 
 
 Finally, we thank the entire OpenLLM-France community, whose members have helped in diverse ways. 
+
+## License
+
+Copyright (c) 2025-2026 LINAGORA SAS. Luciole-23B-Base is developed by LINAGORA within the OpenLLM-France consortium (PROJET FRANCE2030 OpenLLM-France, funded by Bpifrance) and released under the Apache License 2.0.
 
 ## Contact
 
