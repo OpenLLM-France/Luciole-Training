@@ -394,6 +394,36 @@ task_group_mapping = {
         ("community|redteaching:absurd_premise|0", "refusal"),
         ("community|redteaching_noflashcard:absurd_premise|0", "refusal"),
     ],
+    # Quick sanity battery: the benchmarks launched together to check that a merged
+    # model does not regress versus the instruct model. One or two metrics per
+    # benchmark, reusing the metrics already defined above. Mirrors the task files
+    # rag2.txt, presupposition.txt, fr_cf.txt and gsm8k_lighteval.txt, plus RULER at
+    # a single context length (4096), which plots as bars (single x per model).
+    "quick": [
+        # RULER at context length 4096  (folder: ruler_4096)
+        ("custom|ruler_4096:_average|0", "ruler_match"),
+        # fr_cf.txt  (folder: fr_cf)
+        ("lighteval|global_mmlu_all_fra_cf:_average|0", "acc_norm_token"),
+        ("lighteval|mlmm_arc_fra_cf:challenge|0", "acc_norm_token"),
+        ("lighteval|mlmm_hellaswag_fra_cf|0", "acc_norm_token"),
+        ("lighteval|belebele_fra_Latn_cf|0", "acc_norm_token"),
+        ("community|eiffel_mcq_cf:_average|0", "acc_norm_token"),
+        # presupposition.txt  (folders: redteaching / falseqa / pcbench)
+        ("community|redteaching:false_premise|0", "refusal"),
+        ("community|falseqa:false_premise|0", "handled_correctly"),
+        ("community|pcbench:active|0", "recognition"),
+        # gsm8k_lighteval.txt  (folder: gsm8k_lighteval)
+        ("lighteval|gsm8k|0", "extractive_match"),
+        # rag2.txt  (folder: rag2)
+        ("community|luciole_rag:hotpotqa|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:hotpotqa_fr|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:tatqa|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:newsquadfr|0", "answer_em_fuzzy"),
+        ("community|luciole_rag:hotpotqa|0", refusal_f1),
+        ("community|luciole_rag:hotpotqa_fr|0", refusal_f1),
+        ("community|luciole_rag:tatqa|0", refusal_f1),
+        ("community|luciole_rag:newsquadfr|0", refusal_f1),
+    ],
 }
 
 task_group_mapping["common"] = [
