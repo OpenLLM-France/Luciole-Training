@@ -4,10 +4,10 @@ sft:
   max_num_steps: 5070 # This will change based on dataset size
 
 policy:
-  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/continual_pretraining/luciole_continual_pretrain_nemotron1b_context_extension/huggingface_checkpoints/luciole_continual_pretrain_nemotron1b_context_extension-step_0005959"
+  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_continual_pretrain_nemotron1b_context_extension/huggingface_checkpoints/luciole_continual_pretrain_nemotron1b_context_extension-step_0001191"
   tokenizer:
-    # PR #3 (JSON tool calls): https://huggingface.co/OpenLLM-France/tokenizer_128k_dual/discussions/3
-    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/8b733d4a689b580e90450312860080a9e416610b"
+    # PR #5 (no normalization): https://huggingface.co/OpenLLM-France/tokenizer_128k_dual/discussions/5
+    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/6574b561369fecec04936af2ae2bad95cd657dad"
     chat_template: "${policy.tokenizer.name}/chat_template.jinja"
     chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   megatron_cfg:
@@ -17,9 +17,15 @@ policy:
 
 data:
   tool_key: "tools"  # column read by the entries with use_tools: true
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/8d1070e8ca01785e027b0ec7d57d07b6f5747657
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/8d1070e8ca01785e027b0ec7d57d07b6f5747657/data"
+  # https://huggingface.co/datasets/OpenLLM-France/pleias_rag/tree/0115a3625169fed5d518ba6f6e5be799fb88514a
+  pleias_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--pleias_rag/snapshots/0115a3625169fed5d518ba6f6e5be799fb88514a/data/formatted_chat"
+  # https://huggingface.co/datasets/OpenLLM-France/Luciole-Phase2-Hybrid-Dataset/tree/b2edd5d419d5393b8b9f84cdad872f7c835e914b
+  hybrid_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-Phase2-Hybrid-Dataset/snapshots/b2edd5d419d5393b8b9f84cdad872f7c835e914b"
   # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/009b1048bbb0613b93e966321d0e0b89013ceeba
-  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
-  hybrid_data: "" #Add huggingface cache path here for Luciole-Phase2-Hybrid-Dataset 
+  val_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
+  
   train_data_path:
     - path: "${data.hybrid_data}/*.jsonl"
       weight: 0.17 # proportion for thinking to be decided based on number of tokense
@@ -29,33 +35,31 @@ data:
     - path: "${data.hybrid_data}/*.jsonl" # add files exclusive to insturct data here
       chat_template_kwargs: {enable_thinking: false}
 
-    # ---- tool calling: OpenLLM-France/tool_data (${data.tool_data}) ----
+
+    # PLEAIS RAG
+    - path: "${data.pleias_rag_data}/with_thinking/en/*.parquet" # 165.5M tokens (43.6M assistant), 50,845 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.pleias_rag_data}/without_thinking/en/*.parquet" # 164.5M tokens (18.5M assistant), 61,819 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+
+
+    # TOOL
     # use_tools: true passes the `tools` column to the chat template
-    
-    # UPDATE tools dataset
-    - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
-      weight: 0.17
+    - path: "${data.tool_data}/sft_mix/thinking/*.parquet" # 142.0M tokens (54.0M assistant), 61,771 rows
+      weight: 1.
       chat_template_kwargs: {enable_thinking: true}
       use_tools: true
-    - path: "${data.tool_data}/nemotron_agentic_sft_v2/interactive_agent/*.parquet"
-      weight: 0.017  # 0.1 * 0.17
-      chat_template_kwargs: {enable_thinking: true}
-      use_tools: true
-    - path: "${data.tool_data}/nemotron_agentic_sft_v2/search/*.parquet"
-      weight: 0.017  # 0.1 * 0.17
-      chat_template_kwargs: {enable_thinking: true}
-      use_tools: true
-    - path: "${data.tool_data}/xlam_oaiformat/*.parquet"
+    - path: "${data.tool_data}/sft_mix/non_thinking/*.parquet" # 138.2M tokens (33.8M assistant), 122,051 rows
+      weight: 1.
       chat_template_kwargs: {enable_thinking: false}
       use_tools: true
-    - path: "${data.tool_data}/hermes_oaiformat/func_calling/*.parquet"
-      chat_template_kwargs: {enable_thinking: false}
-      use_tools: true
-    - path: "${data.tool_data}/hermes_oaiformat/glaive_func_calling/*.parquet"
-      chat_template_kwargs: {enable_thinking: false}
-      use_tools: true
+
+
+
   val_data_path:
-    - path: "${data.tool_data}/smolagents_toolcalling/*.parquet"
+    - path: "${data.val_data}/smolagents_toolcalling/*.parquet"
       weight: 0.17
       chat_template_kwargs: {enable_thinking: true}
       use_tools: true
