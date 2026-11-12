@@ -18,6 +18,7 @@ create_executor = posttraining_utils.create_executor
 add_sampler_filter = posttraining_utils.add_sampler_filter
 _custom_adapter_for_hf = posttraining_utils._custom_adapter_for_hf
 HF_SCHEMA = posttraining_utils.HF_SCHEMA
+FT176_LANGUAGES = posttraining_utils.pretraining_utils.FT176_LANGUAGES
 instruct_adapter = posttraining_utils.instruct_adapter
 FilterChinese = posttraining_utils.FilterChinese
 apply_chat_template = posttraining_utils.apply_chat_template
@@ -42,7 +43,7 @@ def from_tools_to_system(system_content, tools, tokenizer):
     return system_prompt
 
 def hub_adapter(self, document):
-    """Row adapter for the Hub writers: emit only the six shared columns.
+    """Row adapter for the Hub writers: emit only the shared columns.
 
     The default adapter writes every metadata key as its own column
     (``expand_metadata``), which gives each dataset a different schema -- so one
@@ -59,6 +60,10 @@ def hub_adapter(self, document):
     ``messages_original`` is the JSON string of the messages before the NeMo-RL
     conversion (saved by ``NemoRLFormat`` in ``metadata["messages_original"]``);
     it is an empty string when the pipeline did not save it.
+
+    ``language`` is the language label set by datatrove's ``LanguageFilter``
+    (``metadata["language"]``); it is an empty string when the pipeline has no
+    language annotation, so the column stays typed.
     """
     import json
 
@@ -76,6 +81,7 @@ def hub_adapter(self, document):
             for m in messages
         ],
         "messages_original": messages_original,
+        "language": str(document.metadata.get("language") or ""),
     }
 
 

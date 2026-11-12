@@ -13,7 +13,8 @@ Stage 2 (GPU): the rejected answers are verified and only the prompts with at
 Stage 3 (CPU): the chosen answers are verified. One pair per distinct usable
     failure of the rejected model (see build_pairs), against a correct answer
     of the chosen model drawn at random. Prompts where the chosen model has no
-    correct answer give no pair.
+    correct answer give no pair. Samples whose reasoning or text names the
+    generator ("Qwen", "trained by Google", see mentions_generator) are used on neither side.
 
 Both models run in the same mode (``--enable_thinking`` or not), with the
 sampling settings of generation_config. Chosen tool calls are rendered from the
@@ -64,6 +65,7 @@ from utils import (
 )
 from xlam_sft import (
     _DATA_DIR,
+    GENERATOR_NAME_RE,
     TOOL_DATA_REVISION,
     resolve_input_path,
     _result_text,
@@ -451,11 +453,18 @@ def verify_sample(sample, ground_truth, tools, enable_thinking: bool = True):
 UNUSABLE_FAILURES = ("request_error", "not_finished")
 
 
+def mentions_generator(sample) -> bool:
+    """The generated reasoning or text names the generator ("Since I'm Qwen3.5, ...", "trained by
+    Google", see xlam_sft.GENERATOR_NAME_RE): such a sample is used on neither side of a pair."""
+    return bool(GENERATOR_NAME_RE.search(f"{sample.get('reasoning') or ''}\n{sample.get('content') or ''}"))
+
+
 def is_rejectable(sample) -> bool:
     return (
         not sample["correct"]
         and sample["failure"] not in UNUSABLE_FAILURES
         and not sample["near_miss"]
+        and not mentions_generator(sample)
     )
 
 
@@ -544,7 +553,8 @@ def build_pairs(data, rank: int = 0, world_size: int = 1):
         meta = doc.metadata
         meta.pop("tool_schemas", None)
         chosen_samples, rejected_samples = meta["chosen_samples"], meta["rejected_samples"]
-        correct = [i for i, s in enumerate(chosen_samples) if s["correct"]]
+        # a chosen answer naming the generator is not used (another correct one is drawn)
+        correct = [i for i, s in enumerate(chosen_samples) if s["correct"] and not mentions_generator(s)]
         rejected = [i for i, s in enumerate(rejected_samples) if is_rejectable(s)]
         if not correct or not rejected:
             continue

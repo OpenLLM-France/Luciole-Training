@@ -10,6 +10,9 @@ Step 2 (CPU): parse the generated tool calls and keep a sample only if they are
     the ground-truth tool calls preceded by the generated reasoning and text,
     converted to the NeMo-RL format and token-counted with the hybrid
     tokenizer like the other tool_calling datasets.
+    A generation whose reasoning or text names the generator ("Qwen", or a Google
+    self-identification such as "trained by Google", see GENERATOR_NAME_RE) is rejected
+    (``mentions_generator``).
 
 Perturbation (``--remove_tool_ratio``, default 10% of the prompts): for that ratio of the
 prompts, one tool the ground truth calls is removed from the tools, and its
@@ -26,6 +29,7 @@ reasoning, in ``xlam_non_thinking[_removed_tool]`` instead of
 import json
 import os
 import pathlib
+import re
 from functools import partial
 
 from datatrove.data import Document
@@ -369,6 +373,17 @@ def same_tool_calls(generated, ground_truth, tools=None) -> bool:
     return generated == sorted(map(_canonical, ground_truth))
 
 
+# The generator naming itself: "Qwen" (Qwen, Qwen3.5, ...; any mention), or a Google self-identification
+# ("trained by Google", "I am Gemini"). A plain "Google" is not matched: it is a common topic in xlam
+# (Google Maps, Alphabet stock, Google News tools: ~1,300 rows) while only 1 row names Google as its trainer.
+GENERATOR_NAME_RE = re.compile(
+    r"\bqwen"
+    r"|\b(?:trained|developed|created|built|made|designed)\s+by\s+google\b"
+    r"|\bi\s*(?:am|'m|’m)\s+(?:gemini|bard)\b",
+    re.IGNORECASE,
+)
+
+
 class FilterIdenticalToolCalls(BaseFilter):
     """Keep samples whose generated tool calls equal the ground truth, and
     rebuild the (nested) messages with the generated reasoning; NemoRLFormat
@@ -423,6 +438,10 @@ class FilterIdenticalToolCalls(BaseFilter):
                 "content": content or "",
                 "tool_calls": meta["ground_truth"],
             }
+        # The generator must not name itself in the kept turn (e.g. "Since I'm Qwen3.5, ..." in the
+        # reasoning): checked on the generated text only, not on the prompt or the ground-truth calls.
+        if GENERATOR_NAME_RE.search(f"{reasoning or ''}\n{content or ''}"):
+            return False, "mentions_generator"
         if self.enable_thinking:
             assistant["reasoning_content"] = reasoning
         original = meta["messages_original"]
