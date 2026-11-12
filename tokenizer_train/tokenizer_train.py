@@ -605,12 +605,9 @@ if __name__ == "__main__":
                 # "model_max_length": 1000000000000000000000000000000,
                 # "legacy": True,
                 # "spaces_between_special_tokens": False,
-                "tokenizer_class": (
-                    "LlamaTokenizer"
-                    if tokenizer_config.get("tokenizer_class")
-                    in [None, "PreTrainedTokenizerFast", "PreTrainedTokenizer"]
-                    else tokenizer_config["tokenizer_class"]
-                ),
+                # Not LlamaTokenizer(Fast): with transformers >= 5, it ignores the
+                # normalizer, pre-tokenizer and decoder of tokenizer.json.
+                "tokenizer_class": "PreTrainedTokenizerFast",
                 # "sp_model_kwargs": {},
                 # "use_default_system_prompt": False,
             }
@@ -623,9 +620,11 @@ if __name__ == "__main__":
 
         bos_token = tokenizer.bos_token
         eos_token = tokenizer.eos_token
+        # Must match add_bos_token=True / add_eos_token=False above
+        # (PreTrainedTokenizerFast uses this post-processor as-is)
         tokenizer._tokenizer.post_processor = tokenizers.processors.TemplateProcessing(
-            single=f"{bos_token} $A:0 {eos_token}",
-            pair=f"{bos_token} $A:0 {bos_token} $B:1 {eos_token}",
+            single=f"{bos_token} $A:0",
+            pair=f"{bos_token} $A:0 {bos_token} $B:1",
             special_tokens=[
                 (bos_token, tokenizer.bos_token_id),
                 (eos_token, tokenizer.eos_token_id),
