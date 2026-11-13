@@ -123,3 +123,5 @@ ruff format .
 ## License
 
 This project is licensed under the GNU General Public License v3 — see [LICENSE](LICENSE) for details.
+
+See [NOTICE](NOTICE) for copyright and attribution, including the ownership and licenses of the Luciole models and datasets.

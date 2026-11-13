@@ -1,0 +1,18 @@
+Copyright (c) 2025-2026 LINAGORA SAS, 37 rue Pierre Poli, 92130 Issy-les-Moulineaux, France
+
+This repository contains the data preprocessing, tokenizer, pretraining,
+post-training, conversion and evaluation code of the Luciole language models,
+developed by LINAGORA within the OpenLLM-France consortium.
+PROJET FRANCE2030 OpenLLM-France, funded by Bpifrance under the call
+"Communs numériques pour l'intelligence artificielle générative".
+
+The Luciole models (Luciole-1B/8B/23B-Base, Luciole-1B/8B/23B-Instruct-1.1,
+Luciole-23B-Thinking-1.1, Luciole-8B-KD-Math-Base,
+Luciole-8B-KD-Math-Thinking-1.1 and their quantized builds) and the
+Luciole-Training-Dataset are the property of LINAGORA SAS and are released
+under the Apache License 2.0 (models) and CC-BY-SA-4.0 (dataset).
+The Luciole-PostTraining-Dataset-1.1 is jointly owned by LINAGORA SAS and
+OPINIONSCIENCE SAS and released under CC-BY-SA-4.0.
+
+This code is licensed under the GNU General Public License v3.0 (see LICENSE).
+Third-party components keep their own licenses (see their respective notices).
