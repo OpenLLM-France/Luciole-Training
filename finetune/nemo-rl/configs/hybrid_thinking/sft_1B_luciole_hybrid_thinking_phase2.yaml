@@ -17,22 +17,163 @@ policy:
 
 data:
   tool_key: "tools"  # column read by the entries with use_tools: true
-  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/8d1070e8ca01785e027b0ec7d57d07b6f5747657
-  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/8d1070e8ca01785e027b0ec7d57d07b6f5747657/data"
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/2010ece32e794ad9c314371a6853c2eb50186a8a (sft_mix = mix_15)
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/2010ece32e794ad9c314371a6853c2eb50186a8a/data"
   # https://huggingface.co/datasets/OpenLLM-France/pleias_rag/tree/0115a3625169fed5d518ba6f6e5be799fb88514a
   pleias_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--pleias_rag/snapshots/0115a3625169fed5d518ba6f6e5be799fb88514a/data/formatted_chat"
-  # https://huggingface.co/datasets/OpenLLM-France/Luciole-Phase2-Hybrid-Dataset/tree/b2edd5d419d5393b8b9f84cdad872f7c835e914b
-  hybrid_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-Phase2-Hybrid-Dataset/snapshots/b2edd5d419d5393b8b9f84cdad872f7c835e914b"
+  # https://huggingface.co/datasets/OpenLLM-France/Luciole-PostTraining-Dataset-1.2/tree/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534
+  # (rows over 16,384 tokens already removed; token counts: README of the dataset)
+  posttraining_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-PostTraining-Dataset-1.2/snapshots/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534/data/sft"
   # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/009b1048bbb0613b93e966321d0e0b89013ceeba
   val_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
   
   train_data_path:
-    - path: "${data.hybrid_data}/*.jsonl"
-      weight: 0.17 # proportion for thinking to be decided based on number of tokense
+    # THINKING (Luciole-PostTraining-Dataset-1.2): 25 subsets, 10115.2M tokens (9266.2M assistant), 3,125,079 rows
+    - path: "${data.posttraining_data}/allenai_qasc_science_thinking/*.parquet" # 16.8M tokens (15.8M assistant), 7,594 rows
+      weight: 1.
       chat_template_kwargs: {enable_thinking: true}
-    - path: "${data.hybrid_data}/*.jsonl" # add files which are shared between instruct and thinking
+    - path: "${data.posttraining_data}/dolci_correctpython_code_thinking/*.parquet" # 173.7M tokens (163.9M assistant), 41,710 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/dolci_if_qwq_chat_thinking/*.parquet" # 49.8M tokens (41.8M assistant), 29,044 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/dolci_nemotron_math_thinking/*.parquet" # 188.8M tokens (173.6M assistant), 28,944 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/dolci_persona_precise_chat_thinking/*.parquet" # 112.0M tokens (97.6M assistant), 77,989 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/dolci_precise_if_chat_english_thinking/*.parquet" # 178.4M tokens (163.8M assistant), 58,207 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/dolci_synthetic_code_thinking/*.parquet" # 133.2M tokens (123.7M assistant), 25,608 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/flanv2_nli_thinking/*.parquet" # 3.3M tokens (3.1M assistant), 1,920 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_posttrain_v2_math_english_thinking/*.parquet" # 1950.3M tokens (1756.1M assistant), 1,251,149 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_science_thinking/*.parquet" # 200.3M tokens (182.5M assistant), 50,406 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_v3_chat_english_thinking/*.parquet" # 392.9M tokens (350.7M assistant), 107,612 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_v3_if_english_thinking/*.parquet" # 91.6M tokens (80.0M assistant), 42,782 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemtron_posttrain_fr_math_thinking/*.parquet" # 477.4M tokens (465.2M assistant), 79,574 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/numina_math_thinking/*.parquet" # 95.0M tokens (91.7M assistant), 23,456 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/opencodereasoning_code_english_thinking/*.parquet" # 3925.2M tokens (3683.9M assistant), 424,318 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/reasonxl_llama_nemotron_science_thinking/*.parquet" # 846.6M tokens (753.8M assistant), 417,306 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/reasonxl_nemotron_if_chat_thinking/*.parquet" # 77.7M tokens (66.0M assistant), 36,842 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/reasonxl_nemotron_science_thinking/*.parquet" # 54.5M tokens (44.3M assistant), 34,476 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/stage1_code_thinking/*.parquet" # 134.6M tokens (122.2M assistant), 30,890 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/stage1_mmlu_chat_thinking/*.parquet" # 43.4M tokens (36.6M assistant), 26,562 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/stage1_nemotron_chat_thinking/*.parquet" # 16.1M tokens (14.2M assistant), 9,322 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/stage2_mmlu_chat_thinking/*.parquet" # 251.7M tokens (191.3M assistant), 137,070 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/stage2_nemotron_chat_thinking/*.parquet" # 15.9M tokens (14.2M assistant), 9,251 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/stage2_slimorca_nli_thinking/*.parquet" # 79.6M tokens (59.6M assistant), 85,008 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/sythetic_verified_code_english_thinking/*.parquet" # 606.4M tokens (570.5M assistant), 88,039 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+
+    # NON-THINKING (Luciole-PostTraining-Dataset-1.2): 23 subsets, 2521.8M tokens (1935.3M assistant), 3,201,143 rows
+    - path: "${data.posttraining_data}/allenai_qasc_science_non_thinking/*.parquet" # 3.5M tokens (2.9M assistant), 7,594 rows
+      weight: 1.
       chat_template_kwargs: {enable_thinking: false}
-    - path: "${data.hybrid_data}/*.jsonl" # add files exclusive to insturct data here
+    - path: "${data.posttraining_data}/dolci_precise_if_chat_english_non_thinking/*.parquet" # 34.2M tokens (21.6M assistant), 59,270 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/dolci_python_algos_code_english_non_thinking/*.parquet" # 79.0M tokens (44.3M assistant), 186,037 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/flanv2_nli_non_thinking/*.parquet" # 0.6M tokens (0.4M assistant), 1,921 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/hardcoded_english_1108_non_thinking/*.parquet" # 0.1M tokens (0.0M assistant), 1,108 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/hardcoded_french_962_non_thinking/*.parquet" # 0.1M tokens (0.0M assistant), 962 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luciole_rag_english_non_thinking/*.parquet" # 55.2M tokens (4.9M assistant), 28,308 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luciole_rag_french_non_thinking/*.parquet" # 16.7M tokens (1.3M assistant), 8,278 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_aya_chat_non_thinking/*.parquet" # 0.2M tokens (0.2M assistant), 1,402 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_croissant_chat_non_thinking/*.parquet" # 10.7M tokens (8.8M assistant), 13,511 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_nemotron_code_non_thinking/*.parquet" # 244.5M tokens (185.2M assistant), 223,292 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_nemotron_math_non_thinking/*.parquet" # 474.9M tokens (459.0M assistant), 145,476 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_nemotron_science_non_thinking/*.parquet" # 657.4M tokens (547.5M assistant), 538,955 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_scholar_math_non_thinking/*.parquet" # 20.6M tokens (16.7M assistant), 20,349 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_scholar_science_non_thinking/*.parquet" # 6.0M tokens (4.3M assistant), 9,919 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/nemotron_v3_chat_english_non_thinking/*.parquet" # 343.7M tokens (306.0M assistant), 107,716 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/nemotron_v3_if_english_non_thinking/*.parquet" # 44.0M tokens (34.3M assistant), 42,835 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/open_math_instruct_gsm8k_english_non_thinking/*.parquet" # 203.5M tokens (143.9M assistant), 896,695 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/open_math_instruct_math_english_non_thinking/*.parquet" # 142.2M tokens (113.5M assistant), 681,624 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    # - path: "${data.posttraining_data}/pleias_rag_english_non_thinking/*.parquet" # 121.5M tokens (19.4M assistant), 44,196 rows
+    #   weight: 1.
+    #   chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/reasonxl_nemotron_science_non_thinking/*.parquet" # 11.7M tokens (2.9M assistant), 34,510 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/smol_contextqa_english_non_thinking/*.parquet" # 23.7M tokens (6.0M assistant), 62,995 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/stage1_slimorca_nli_non_thinking/*.parquet" # 27.9M tokens (12.0M assistant), 84,190 rows
+      weight: 1.
       chat_template_kwargs: {enable_thinking: false}
 
 
@@ -47,11 +188,11 @@ data:
 
     # TOOL
     # use_tools: true passes the `tools` column to the chat template
-    - path: "${data.tool_data}/sft_mix/thinking/*.parquet" # 142.0M tokens (54.0M assistant), 61,771 rows
+    - path: "${data.tool_data}/sft_mix/thinking/*.parquet" # 142.8M tokens (54.4M assistant), 61,818 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: true}
       use_tools: true
-    - path: "${data.tool_data}/sft_mix/non_thinking/*.parquet" # 138.2M tokens (33.8M assistant), 122,051 rows
+    - path: "${data.tool_data}/sft_mix/non_thinking/*.parquet" # 209.4M tokens (54.6M assistant), 148,423 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: false}
       use_tools: true
