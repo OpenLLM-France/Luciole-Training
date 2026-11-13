@@ -30,79 +30,79 @@ data:
   train_data_path:
     # THINKING (Luciole-PostTraining-Dataset-1.2): 25 subsets, 10115.2M tokens (9266.2M assistant), 3,125,079 rows
     - path: "${data.posttraining_data}/allenai_qasc_science_thinking/*.parquet" # 16.8M tokens (15.8M assistant), 7,594 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/dolci_correctpython_code_thinking/*.parquet" # 173.7M tokens (163.9M assistant), 41,710 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/dolci_if_qwq_chat_thinking/*.parquet" # 49.8M tokens (41.8M assistant), 29,044 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/dolci_nemotron_math_thinking/*.parquet" # 188.8M tokens (173.6M assistant), 28,944 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/dolci_persona_precise_chat_thinking/*.parquet" # 112.0M tokens (97.6M assistant), 77,989 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/dolci_precise_if_chat_english_thinking/*.parquet" # 178.4M tokens (163.8M assistant), 58,207 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/dolci_synthetic_code_thinking/*.parquet" # 133.2M tokens (123.7M assistant), 25,608 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/flanv2_nli_thinking/*.parquet" # 3.3M tokens (3.1M assistant), 1,920 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/nemotron_posttrain_v2_math_english_thinking/*.parquet" # 1950.3M tokens (1756.1M assistant), 1,251,149 rows
-      weight: 0.95
+      weight: 0.209  ##0.95
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/nemotron_science_thinking/*.parquet" # 200.3M tokens (182.5M assistant), 50,406 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/nemotron_v3_chat_english_thinking/*.parquet" # 392.9M tokens (350.7M assistant), 107,612 rows
-      weight: 0.458
+      weight: 0.1 ##0.458
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/nemotron_v3_if_english_thinking/*.parquet" # 91.6M tokens (80.0M assistant), 42,782 rows
-      weight: 0.466
+      weight: 0.102 ##0.466
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/nemtron_posttrain_fr_math_thinking/*.parquet" # 477.4M tokens (465.2M assistant), 79,574 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/numina_math_thinking/*.parquet" # 95.0M tokens (91.7M assistant), 23,456 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/opencodereasoning_code_english_thinking/*.parquet" # 3925.2M tokens (3683.9M assistant), 424,318 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/reasonxl_llama_nemotron_science_thinking/*.parquet" # 846.6M tokens (753.8M assistant), 417,306 rows
-      weight: 0.114
+      weight: 0.025 ##0.114
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/reasonxl_nemotron_if_chat_thinking/*.parquet" # 77.7M tokens (66.0M assistant), 36,842 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/reasonxl_nemotron_science_thinking/*.parquet" # 54.5M tokens (44.3M assistant), 34,476 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/stage1_code_thinking/*.parquet" # 134.6M tokens (122.2M assistant), 30,890 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/stage1_mmlu_chat_thinking/*.parquet" # 43.4M tokens (36.6M assistant), 26,562 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/stage1_nemotron_chat_thinking/*.parquet" # 16.1M tokens (14.2M assistant), 9,322 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/stage2_mmlu_chat_thinking/*.parquet" # 251.7M tokens (191.3M assistant), 137,070 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/stage2_nemotron_chat_thinking/*.parquet" # 15.9M tokens (14.2M assistant), 9,251 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/stage2_slimorca_nli_thinking/*.parquet" # 79.6M tokens (59.6M assistant), 85,008 rows
-      weight: 1.
+      weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
     - path: "${data.posttraining_data}/sythetic_verified_code_english_thinking/*.parquet" # 606.4M tokens (570.5M assistant), 88,039 rows
-      weight: 0.98
+      weight: 0.215 ##0.98
       chat_template_kwargs: {enable_thinking: true}
 
     # NON-THINKING (Luciole-PostTraining-Dataset-1.2): 23 subsets, 2521.8M tokens (1935.3M assistant), 3,201,143 rows
