@@ -2,6 +2,7 @@ defaults: "template.yaml"
 
 sft:
   max_num_steps: 5070 # This will change based on dataset size
+  max_num_epochs: 2
 
 policy:
   model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_continual_pretrain_nemotron1b_context_extension/huggingface_checkpoints/luciole_continual_pretrain_nemotron1b_context_extension-step_0001191"
@@ -29,6 +30,7 @@ data:
   
   train_data_path:
     # THINKING (Luciole-PostTraining-Dataset-1.2): 25 subsets, 10115.2M tokens (9266.2M assistant), 3,125,079 rows
+    # Downsampling this set to get around 2B tokens
     - path: "${data.posttraining_data}/allenai_qasc_science_thinking/*.parquet" # 16.8M tokens (15.8M assistant), 7,594 rows
       weight: 0.22
       chat_template_kwargs: {enable_thinking: true}
