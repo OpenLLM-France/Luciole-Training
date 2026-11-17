@@ -1,7 +1,7 @@
 defaults: "template.yaml"
 
 sft:
-  max_num_steps: 3042 # 2 epochs * floor(3,115,779 rows / 2048) (sum of floor(rows * weight), drop_last)
+  max_num_steps: 3042 # 2 epochs * floor(3,115,502 rows / 2048) (sum of floor(rows * weight), drop_last)
   max_num_epochs: 2
 
 policy:
@@ -18,15 +18,15 @@ policy:
 
 data:
   tool_key: "tools"  # column read by the entries with use_tools: true
-  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/2010ece32e794ad9c314371a6853c2eb50186a8a (sft_mix = mix_15)
-  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/2010ece32e794ad9c314371a6853c2eb50186a8a/data"
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/232f0d7e9a787d1565800aa5125fdaa521c18123 (sft_mix = mix_16)
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/232f0d7e9a787d1565800aa5125fdaa521c18123/data"
   # https://huggingface.co/datasets/OpenLLM-France/pleias_rag/tree/0115a3625169fed5d518ba6f6e5be799fb88514a
   pleias_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--pleias_rag/snapshots/0115a3625169fed5d518ba6f6e5be799fb88514a/data/formatted_chat"
   # https://huggingface.co/datasets/OpenLLM-France/Luciole-PostTraining-Dataset-1.2/tree/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534
   # (rows over 16,384 tokens already removed; token counts: README of the dataset)
   posttraining_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-PostTraining-Dataset-1.2/snapshots/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534/data/sft"
-  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/009b1048bbb0613b93e966321d0e0b89013ceeba
-  val_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/009b1048bbb0613b93e966321d0e0b89013ceeba/data"
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/232f0d7e9a787d1565800aa5125fdaa521c18123/data/sft (same snapshot as tool_data)
+  val_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/232f0d7e9a787d1565800aa5125fdaa521c18123/data/sft"
   # https://huggingface.co/datasets/OpenLLM-France/Luciole_RAG/tree/c6e899ef6c527de3f563da9f27676748f370b1b9/sft_mix_1112 (thinking split: English only)
   luciole_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/c6e899ef6c527de3f563da9f27676748f370b1b9/sft_mix_1112"
 
@@ -192,7 +192,7 @@ data:
 
     # TOOL
     # use_tools: true passes the `tools` column to the chat template
-    - path: "${data.tool_data}/sft_mix/thinking/*.parquet" # 142.8M tokens (54.4M assistant), 61,818 rows
+    - path: "${data.tool_data}/sft_mix/thinking/*.parquet" # 142.4M tokens (54.1M assistant), 61,541 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: true}
       use_tools: true
