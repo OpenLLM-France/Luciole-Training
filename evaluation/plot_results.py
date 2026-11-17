@@ -15,6 +15,7 @@ from agg_score import (
     check_benchmarks_by_tasktype,
     normalize_within_range,
 )
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -234,6 +235,117 @@ def assign_variant_colors_and_hatches(df):
     return color_map, hatch_map
 
 
+# Generation-failure rates logged by lighteval for generative benchmarks, drawn as thin
+# bars over the main bars (see _draw_rate_overlay). Each entry is
+# (metric key, slot, border color, hatch, legend label): the main bar width is split into
+# 5 slots -- thinking truncated (flush with the bar's left edge), answer truncated, free
+# center (stderr whisker), thinking loop, answer loop (flush with the right edge) -- so
+# each rate always sits at the same place. Color: green for the thinking phase, red for
+# the answer; truncation bars are transparent with a dotted hatch, loop bars are plain
+# (no hatch), filled with their color made semi-transparent (_RATE_LOOP_FILL_ALPHA).
+_RATE_SLOTS = 5
+_RATE_BARS = [
+    ("thinking_truncation_rate", 0, "green", "...", "Thinking truncated"),
+    ("truncation_rate", 1, "red", "...", "Answer truncated"),
+    ("thinking_loop_rate", 3, "green", "", "Thinking loop"),
+    ("loop_rate", 4, "red", "", "Answer loop"),
+]
+_RATE_LOOP_FILL_ALPHA = 0.4
+_RATE_METRICS = [bar[0] for bar in _RATE_BARS]
+_RATE_LABELS = [bar[4] for bar in _RATE_BARS]
+_RATE_LEGEND_TITLE = "Truncation & loops"
+
+# Direction of the truncation/loop overlay for a metric (see rate_overlay_direction).
+# Excluded: metrics with no better/worse direction or not a per-sample score, and the
+# truncation/loop rates themselves. Error rates (lower is better): bars rise from 0%.
+# Everything else is taken as higher-is-better: bars hang from 100%.
+_RATE_OVERLAY_EXCLUDED = re.compile(
+    r"^time$|^agg$|^pick_|perplexity|(^|_)ppl($|_)|loss", re.IGNORECASE
+)
+_ERROR_RATE_METRIC = re.compile(
+    r"fail|false_|distractor|error|abstention_rate|(^|_)(wer|cer|ter)($|_)",
+    re.IGNORECASE,
+)
+
+
+def rate_overlay_direction(metric):
+    """How truncation/loop rates are overlaid on ``metric`` bars.
+
+    Returns ``"from_top"`` for higher-is-better scores (the rates hang from 100% and
+    read as a share of ``1 - score``), ``"from_bottom"`` for error rates (the rates
+    rise from 0% and read as a share of the error rate), or None when no overlay is
+    drawn. E.g. extractive_match, refusal, safety_rate, qa_recall_score -> "from_top";
+    refusal_parse_failure_rate, false_refusal_format_rate, abstention_rate ->
+    "from_bottom"; time, pick_A, loop_rate -> None. Scores outside [0, 1] are
+    excluded separately (in plot_task).
+    """
+    if metric in _RATE_METRICS or _RATE_OVERLAY_EXCLUDED.search(metric):
+        return None
+    return "from_bottom" if _ERROR_RATE_METRIC.search(metric) else "from_top"
+
+
+def _rates_at_checkpoint(df_task, expe_name, tokens):
+    """Mean of each available truncation/loop rate of ``expe_name`` at the ``tokens``
+    checkpoint(s) shown for the main metric. Missing rates are simply absent."""
+    selected = set(np.atleast_1d(tokens).tolist())
+    rows = df_task[df_task["expe_name"] == expe_name]
+    rates = {}
+    for key in _RATE_METRICS:
+        values = [
+            float(v)
+            for _, row in rows[rows["metric"] == key].iterrows()
+            for t, v in zip(np.atleast_1d(row["tokens"]), np.atleast_1d(row["score"]))
+            if t in selected and v is not None and not np.isnan(v)
+        ]
+        if values:
+            rates[key] = float(np.mean(values))
+    return rates
+
+
+def _draw_rate_overlay(ax, x, width, rates, labeled, direction="from_top"):
+    """Draw truncation/loop rates as thin bars over the main bar centered on ``x``.
+
+    Each rate gets a fixed slot of ``width / 5`` (see _RATE_BARS). For a
+    higher-is-better score (``direction="from_top"``) it hangs from 100%, spanning
+    ``[1 - rate, 1]``, so it reads as a share of the error gap ``1 - score`` above the
+    bar; when the rate exceeds ``1 - score``, it goes down into the main bar (some
+    truncated/looping samples were still counted correct). For an error rate
+    (``"from_bottom"``) it rises from 0%, spanning ``[0, rate]``, over the main bar.
+    Rates are not added together (a loop usually ends in a truncation). A rate absent
+    from the results leaves its slot empty, while a rate computed as zero is drawn as
+    an empty (zero-height) bar, i.e. a short line in its color at 100% (or 0%).
+    """
+    slot_w = width / _RATE_SLOTS
+    for key, slot, color, hatch, label in _RATE_BARS:
+        value = rates.get(key)
+        if value is None or np.isnan(value):
+            continue
+        value = max(0.0, float(value))
+        xc = x - width / 2 + (slot + 0.5) * slot_w
+        bottom = 1.0 - value if direction == "from_top" else 0.0
+        # Hatched rates are transparent bars (matplotlib draws the hatch in the edge
+        # color); plain ones are filled with their semi-transparent color, so the main
+        # bar stays visible where they overlap it.
+        bars = ax.bar(
+            xc,
+            value,
+            bottom=bottom,
+            width=slot_w,
+            fill=not hatch,
+            facecolor=mcolors.to_rgba(color, _RATE_LOOP_FILL_ALPHA),
+            edgecolor=color,
+            linewidth=1.0,
+            hatch=hatch,
+            label=None if label in labeled else label,
+            zorder=1.5,
+        )
+        # A bar's base is a "sticky" autoscale limit: with bases at 100% (zero rates)
+        # the y axis would stop exactly at 1.0, gluing the rate bars to the top edge.
+        for patch in bars:
+            patch.sticky_edges.y.clear()
+        labeled.add(label)
+
+
 def _resolve_ymax(ymax, i):
     """Return the ymax value for the i-th detail plot.
 
@@ -310,6 +422,9 @@ def _plot_curves(
     # Collect out-of-range single-point stars to draw after axis limits are set
     deferred_stars = []
 
+    # Legend labels of the truncation/loop overlay already used on this axis.
+    rate_labeled = set()
+
     for i, s in enumerate(series):
         color = color_map[s["expe_name"]]
         linestyle = style_map[s["expe_name"]]
@@ -351,6 +466,15 @@ def _plot_curves(
                     linewidth=1.2 if conflict else 0.5,
                     hatch=(hatch_map or {}).get(s["expe_name"], ""),
                 )
+                if s.get("rates"):
+                    _draw_rate_overlay(
+                        ax,
+                        i + offsets[k],
+                        bar_w,
+                        s["rates"],
+                        rate_labeled,
+                        direction=s.get("rates_direction", "from_top"),
+                    )
                 if print_numbers:
                     _annotate_numbers(
                         ax, [i + offsets[k]], [heights[k]], color, yerr=yerr_k
@@ -540,9 +664,11 @@ def plot_task(
     hatch_map=None,
     linewidth_map=None,
     alpha_map=None,
+    show_rates=True,
 ):
     xaxis_column = "FLOPs" if unit == "FLOPs" else "tokens"
-    df = df[(df["task"] == task) & (df["metric"] == metric)]
+    df_task = df[df["task"] == task]  # also holds the truncation/loop rate rows
+    df = df_task[df_task["metric"] == metric]
     if max_tokens:
 
         def truncate_row(row, max_tokens):
@@ -607,6 +733,26 @@ def plot_task(
             s["slope"] = row["slope"]
             s["intercept"] = row["intercept"]
         series.append(s)
+
+    # Truncation/loop rates are overlaid on bars of scores in [0, 1] with a direction
+    # (see rate_overlay_direction), at the same checkpoint as the main score.
+    # _plot_curves ignores them on curves.
+    rates_direction = rate_overlay_direction(metric)
+    if (
+        show_rates
+        and not fit
+        and rates_direction is not None
+        and df_task["metric"].isin(_RATE_METRICS).any()
+        and all(
+            0 <= y <= 1
+            for s in series
+            for y in np.atleast_1d(s["Y"]).astype(float)
+            if not np.isnan(y)
+        )
+    ):
+        for s, (_, row) in zip(series, df.iterrows()):
+            s["rates"] = _rates_at_checkpoint(df_task, s["expe_name"], row["tokens"])
+            s["rates_direction"] = rates_direction
 
     _plot_curves(
         ax,
@@ -701,6 +847,9 @@ def _sort_legend_dict(legend_dict, df):
     def sort_key(label):
         if label == "random":
             return (1, 0)
+        if label in _RATE_LABELS:
+            # Truncation/loop overlay entries: after the systems, in a fixed order.
+            return (0, len(label_order) + 1 + _RATE_LABELS.index(label))
         try:
             return (0, label_order.index(label))
         except ValueError:
@@ -871,51 +1020,92 @@ def plot_aggregate(
     ax.set_title(title if title else "Overall Performance")
 
 
-def _draw_legend(ax_or_fig, legend_dict, as_figure=False):
-    """Draw a styled legend on an axis or as a standalone figure."""
+def _draw_legend(
+    ax_or_fig,
+    legend_dict,
+    as_figure=False,
+    title="Model",
+    loc="center",
+    bbox_to_anchor=None,
+):
+    """Draw a styled legend on an axis or as a standalone figure.
+
+    Several legends can be drawn on the same axis or figure (see _stack_legends).
+    Returns the legend.
+    """
     for handle in legend_dict.values():
         if hasattr(handle, "set_alpha"):
             handle.set_alpha(1.0)
 
-    target = ax_or_fig
-    if as_figure:
-        target = ax_or_fig  # a figure, use figlegend
-        leg = target.legend(
-            legend_dict.values(),
-            legend_dict.keys(),
-            title="Model",
-            loc="center",
-            fontsize=11,
-            title_fontsize=12,
-            frameon=True,
-            fancybox=True,
-            shadow=False,
-            edgecolor="#cccccc",
-            facecolor="white",
-            framealpha=0.9,
-            borderpad=1.0,
-            labelspacing=0.8,
-            handlelength=2.5,
+    # A new axis legend replaces the previous one unless that one is kept as an artist
+    # (figure legends accumulate natively).
+    if not as_figure and ax_or_fig.get_legend() is not None:
+        ax_or_fig.add_artist(ax_or_fig.get_legend())
+    leg = ax_or_fig.legend(
+        legend_dict.values(),
+        legend_dict.keys(),
+        title=title,
+        loc=loc,
+        bbox_to_anchor=bbox_to_anchor,
+        fontsize=11,
+        title_fontsize=12,
+        frameon=True,
+        fancybox=True,
+        shadow=False,
+        edgecolor="#cccccc",
+        facecolor="white",
+        framealpha=0.9,
+        borderpad=1.0,
+        labelspacing=0.8,
+        handlelength=2.5,
+    )
+    leg.get_title().set_fontweight("bold")
+    return leg
+
+
+def _stack_legends(ax_or_fig, model_legend, rate_legend, as_figure=False):
+    """Draw the "Model" and truncation/loop legends in the same cell, without overlap.
+
+    Used when no free subplot is available for the second legend. The legends are
+    measured once drawn: they are stacked (centered as a block) when that fits the cell
+    height, else arranged (stacked or side by side) so as to overflow the cell least.
+    """
+    top_leg = _draw_legend(
+        ax_or_fig, model_legend, as_figure, loc="upper center", bbox_to_anchor=(0.5, 1)
+    )
+    bottom_leg = _draw_legend(
+        ax_or_fig,
+        rate_legend,
+        as_figure,
+        title=_RATE_LEGEND_TITLE,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.5),
+    )
+    fig = ax_or_fig if as_figure else ax_or_fig.figure
+    trans = fig.transFigure if as_figure else ax_or_fig.transAxes
+    renderer = fig.canvas.get_renderer()
+    extents = [
+        leg.get_window_extent(renderer).transformed(trans.inverted())
+        for leg in (top_leg, bottom_leg)
+    ]
+    gap = 0.03
+    total_h = extents[0].height + gap + extents[1].height
+    total_w = extents[0].width + gap + extents[1].width
+    if total_h > 1 and total_w < total_h:
+        # Side by side, centered as a block.
+        left = 0.5 - total_w / 2
+        top_leg.set_loc("center left")
+        bottom_leg.set_loc("center left")
+        top_leg.set_bbox_to_anchor((left, 0.5), transform=trans)
+        bottom_leg.set_bbox_to_anchor(
+            (left + extents[0].width + gap, 0.5), transform=trans
         )
     else:
-        leg = target.legend(
-            legend_dict.values(),
-            legend_dict.keys(),
-            title="Model",
-            loc="center",
-            fontsize=11,
-            title_fontsize=12,
-            frameon=True,
-            fancybox=True,
-            shadow=False,
-            edgecolor="#cccccc",
-            facecolor="white",
-            framealpha=0.9,
-            borderpad=1.0,
-            labelspacing=0.8,
-            handlelength=2.5,
+        top = 0.5 + total_h / 2
+        top_leg.set_bbox_to_anchor((0.5, top), transform=trans)
+        bottom_leg.set_bbox_to_anchor(
+            (0.5, top - extents[0].height - gap), transform=trans
         )
-    leg.get_title().set_fontweight("bold")
 
 
 def plot_list_of_tasks(
@@ -941,6 +1131,7 @@ def plot_list_of_tasks(
     linewidth_list=None,
     alpha_list=None,
     hatch_list=None,
+    show_rates=True,
     suptitle=None,
     print_numbers=False,
     ymax=None,
@@ -1435,6 +1626,7 @@ def plot_list_of_tasks(
                 hatch_map=hatch_map,
                 linewidth_map=linewidth_map,
                 alpha_map=alpha_map,
+                show_rates=show_rates,
             )
 
             ymax_val = _resolve_ymax(ymax, i)
@@ -1446,14 +1638,38 @@ def plot_list_of_tasks(
                 legend_dict[label] = handle
 
         legend_dict = _sort_legend_dict(legend_dict, df)
+        # The truncation/loop overlay entries get their own legend, next to the "Model"
+        # one: in the third cell of the first row (with the aggregate), else in the
+        # cell before the "Model" legend, when that cell is free; otherwise both
+        # legends are stacked in the same cell (or standalone legend figure).
+        model_legend = {k: v for k, v in legend_dict.items() if k not in _RATE_LABELS}
+        rate_legend = {k: v for k, v in legend_dict.items() if k in _RATE_LABELS}
         if separate_legend:
-            legend_fig = plt.figure(figsize=(4, max(2, 0.4 * len(legend_dict))))
-            _draw_legend(legend_fig, legend_dict, as_figure=True)
+            legend_fig = plt.figure(
+                figsize=(4, max(2, 0.4 * (len(legend_dict) + 2 * bool(rate_legend))))
+            )
+            if rate_legend:
+                _stack_legends(legend_fig, model_legend, rate_legend, as_figure=True)
+            else:
+                _draw_legend(legend_fig, model_legend, as_figure=True)
         else:
             legend_idx = 1 if add_aggregate else (rows * cols - 1)
             used.add(legend_idx)
             axes[legend_idx].axis("off")
-            _draw_legend(axes[legend_idx], legend_dict)
+            rate_idx = (
+                (2 if cols >= 3 else None)
+                if add_aggregate
+                else (rows * cols - 2 if rows * cols >= 2 else None)
+            )
+            if rate_legend and rate_idx is not None and rate_idx not in used:
+                _draw_legend(axes[legend_idx], model_legend)
+                used.add(rate_idx)
+                axes[rate_idx].axis("off")
+                _draw_legend(axes[rate_idx], rate_legend, title=_RATE_LEGEND_TITLE)
+            elif rate_legend:
+                _stack_legends(axes[legend_idx], model_legend, rate_legend)
+            else:
+                _draw_legend(axes[legend_idx], model_legend)
 
         # Remove unused axes
         for j in range(rows * cols):
@@ -1621,6 +1837,7 @@ def plot_experiments(df, args, max_subplot=20, task_list_map=None):
             linewidth_list=parse_style_list(args.linewidth, cast=float),
             alpha_list=parse_style_list(args.alpha, cast=float),
             hatch_list=parse_style_list(args.hatch),
+            show_rates=not args.hide_rates,
             suptitle=(format_group_name_for_title(g) or g)
             if args.group_title
             else args.title,
@@ -1982,6 +2199,20 @@ if __name__ == "__main__":
             "matplotlib hatches: / \\ | - + x o O . * ; repeat a character for a denser "
             "fill (e.g. '///'); use 'none' (or 'plain') for a solid, unhatched bar. "
             "Example: --hatch 'none /// ... xxx'."
+        ),
+    )
+    parser.add_argument(
+        "--hide_rates",
+        action="store_true",
+        help=(
+            "Do not overlay the truncation/loop rates (thinking_truncation_rate, "
+            "truncation_rate, thinking_loop_rate, loop_rate) on bar plots. By default, "
+            "when a benchmark logs them (and its scores are in [0, 1]), each rate is a "
+            "thin bar (1/5 of the bar width, fixed position: truncations left of the "
+            "error bar, loops right of it; green: thinking, red: answer; dotted: "
+            "truncation, semi-transparent fill: loop). It hangs from 100%% down by the rate for a "
+            "higher-is-better score (overlapping the bar when it exceeds 100%% - score), "
+            "and rises from 0%% for an error rate (e.g. *failure_rate, abstention_rate)."
         ),
     )
     parser.add_argument(
