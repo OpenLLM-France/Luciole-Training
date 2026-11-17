@@ -940,6 +940,7 @@ def plot_list_of_tasks(
     linestyle_list=None,
     linewidth_list=None,
     alpha_list=None,
+    hatch_list=None,
     suptitle=None,
     print_numbers=False,
     ymax=None,
@@ -1320,7 +1321,16 @@ def plot_list_of_tasks(
             )
 
         bars_mode = len(df) > 0 and df.apply(_selected_len, axis=1).max() == 1
-        if bars_mode and color_list is None:
+        if hatch_list:
+            # An explicit --hatch overrides the automatic variant hatching and applies
+            # even when --color is set (hatches only affect bars, never line plots).
+            # 'none'/'plain'/'solid' means an unhatched (solid) bar.
+            norm_hatches = [
+                "" if str(h).lower() in ("none", "plain", "solid") else h
+                for h in hatch_list
+            ]
+            hatch_map = _map_by_order(df, norm_hatches)
+        elif bars_mode and color_list is None:
             variant_colors, variant_hatches = assign_variant_colors_and_hatches(df)
             if any(variant_hatches.values()):
                 color_map, hatch_map = variant_colors, variant_hatches
@@ -1610,6 +1620,7 @@ def plot_experiments(df, args, max_subplot=20, task_list_map=None):
             linestyle_list=parse_style_list(args.linestyle),
             linewidth_list=parse_style_list(args.linewidth, cast=float),
             alpha_list=parse_style_list(args.alpha, cast=float),
+            hatch_list=parse_style_list(args.hatch),
             suptitle=(format_group_name_for_title(g) or g)
             if args.group_title
             else args.title,
@@ -1958,6 +1969,19 @@ if __name__ == "__main__":
             "Whitespace-separated list of opacities in [0,1], one per system (cycled). "
             "Applies to both bars and lines. Handy to shade same-colored models by size "
             "(a dark base color + lower alpha = lighter). Example: --alpha '1 0.6 0.35'."
+        ),
+    )
+    parser.add_argument(
+        "--hatch",
+        type=str,
+        default=None,
+        help=(
+            "Whitespace-separated list of hatch patterns, one per system (cycled). "
+            "Applies to bars only (ignored on line plots). Overrides the automatic "
+            "variant hatching and works even together with --color. Patterns are "
+            "matplotlib hatches: / \\ | - + x o O . * ; repeat a character for a denser "
+            "fill (e.g. '///'); use 'none' (or 'plain') for a solid, unhatched bar. "
+            "Example: --hatch 'none /// ... xxx'."
         ),
     )
     parser.add_argument(
