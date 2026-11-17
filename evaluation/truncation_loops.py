@@ -17,9 +17,10 @@ aggregated as ``thinking_truncation_rate`` / ``truncation_rate``): these are use
 ("tokens"), which hold [thinking tokens, </think>, answer tokens]:
 - think budget-hit  <=> index of the first ``</think>`` token >= thinking_budget.
   thinking_budget is read from the task's results_*.json (``null`` -> lighteval default 5000).
-- answer truncated  <=> number of tokens after the first ``</think>`` >= answer cap, where the
-  cap is ``doc.generation_size`` (lighteval applies it to the answer only), or, if missing, the
-  max observed answer length when it occurs at least twice.
+- answer truncated  <=> number of tokens after the first ``</think>`` >= answer cap, where the cap is
+  ``generation_parameters.max_new_tokens`` if set (lighteval uses it over ``generation_size``), else
+  ``doc.generation_size`` (applied to the answer only), else the max observed answer length when it
+  occurs at least twice.
 - a sample with no ``</think>`` token ended on EOS during reasoning: neither flag is set (lighteval
   skips the answer phase). If no sample of a task has ``</think>``, the task is treated as
   non-thinking: no budget-hit, and the whole output is checked against the cap.
@@ -68,7 +69,9 @@ def find_parquets(paths: list[str], include: str | None) -> list[str]:
         if os.path.isfile(p):
             files.append(p)
         else:
-            files += glob.glob(os.path.join(p, "**", "details", "**", "*.parquet"), recursive=True)
+            files += glob.glob(
+                os.path.join(p, "**", "details", "**", "*.parquet"), recursive=True
+            )
     files = sorted(set(files))
     if include:
         files = [f for f in files if re.search(include, f)]
@@ -86,7 +89,11 @@ def main_score(metrics: list[dict]) -> tuple[str, float] | tuple[None, None]:
         if key in TRUNC_KEYS or isinstance(val, (list, np.ndarray, dict)):
             continue
         vals = [m.get(key) for m in metrics]
-        vals = [float(v) for v in vals if v is not None and not isinstance(v, (list, np.ndarray, dict))]
+        vals = [
+            float(v)
+            for v in vals
+            if v is not None and not isinstance(v, (list, np.ndarray, dict))
+        ]
         if vals:
             return key, float(np.mean(vals))
     return None, None
@@ -108,8 +115,8 @@ def _find_key(obj, key):
     return False, None
 
 
-def thinking_budget_for(details_path: str) -> int:
-    """Read thinking_budget from the matching results_<timestamp>.json (null/absent -> 5000).
+def _results_for(details_path: str):
+    """Yield the parsed results_<timestamp>.json dicts matching a details parquet (newest first).
 
     Layout: <eval>/<task>/details/<model>/<ts>/details_..._<ts>.parquet
             <eval>/<task>/results/<model>/results_<ts>.json
@@ -119,15 +126,21 @@ def thinking_budget_for(details_path: str) -> int:
     task_dir = os.path.dirname(os.path.dirname(model_dir))
     ts = os.path.basename(ts_dir)
     results_dir = os.path.join(task_dir, "results", os.path.basename(model_dir))
-    candidates = glob.glob(os.path.join(results_dir, f"results_{ts}*.json")) or glob.glob(
-        os.path.join(results_dir, "results_*.json")
-    )
+    candidates = glob.glob(
+        os.path.join(results_dir, f"results_{ts}*.json")
+    ) or glob.glob(os.path.join(results_dir, "results_*.json"))
     for path in sorted(candidates, reverse=True):
         try:
             with open(path) as f:
-                found, val = _find_key(json.load(f), "thinking_budget")
+                yield json.load(f)
         except (OSError, json.JSONDecodeError):
             continue
+
+
+def thinking_budget_for(details_path: str) -> int:
+    """Read thinking_budget from the matching results_<timestamp>.json (null/absent -> 5000)."""
+    for data in _results_for(details_path):
+        found, val = _find_key(data, "thinking_budget")
         if found and val is not None:
             return int(val)
         if found:
@@ -135,9 +148,30 @@ def thinking_budget_for(details_path: str) -> int:
     return DEFAULT_THINKING_BUDGET
 
 
-def answer_cap(gen_sizes: list, answer_lens: np.ndarray) -> np.ndarray | None:
-    """Per-sample answer token cap: doc.generation_size, else max observed length if seen >= 2 times."""
-    if all(g is not None and not (isinstance(g, float) and np.isnan(g)) for g in gen_sizes):
+def max_new_tokens_for(details_path: str) -> int | None:
+    """Read generation_parameters.max_new_tokens from the results json (absent/null -> None).
+
+    lighteval's answer budget is ``max_new_tokens or generation_size``, so when it is set it is the
+    cap the answer is truncated at, overriding ``doc.generation_size``.
+    """
+    for data in _results_for(details_path):
+        found, val = _find_key(data, "max_new_tokens")
+        if found and val is not None:
+            return int(val)
+    return None
+
+
+def answer_cap(
+    gen_sizes: list, answer_lens: np.ndarray, max_new_tokens: int | None = None
+) -> np.ndarray | None:
+    """Per-sample answer token cap, matching lighteval's ``max_new_tokens or generation_size``:
+    generation_parameters.max_new_tokens if set, else doc.generation_size, else the max observed
+    length when it occurs at least twice."""
+    if max_new_tokens is not None:
+        return np.full(len(answer_lens), max_new_tokens, dtype=float)
+    if all(
+        g is not None and not (isinstance(g, float) and np.isnan(g)) for g in gen_sizes
+    ):
         return np.array(gen_sizes, dtype=float)
     if len(answer_lens) == 0:
         return None
@@ -147,23 +181,37 @@ def answer_cap(gen_sizes: list, answer_lens: np.ndarray) -> np.ndarray | None:
     return None
 
 
-def truncation_from_tokens(df, close_id: int, budget: int):
+def truncation_from_tokens(
+    df, close_id: int, budget: int, max_new_tokens: int | None = None
+):
     tok_col = next(c for c in df.columns if c.endswith("output_tokens"))
     think_len, ans_len, has_close = [], [], []
     for out in df[tok_col]:
-        toks = np.asarray(out[0]) if out is not None and len(out) else np.array([], dtype=np.int64)
+        toks = (
+            np.asarray(out[0])
+            if out is not None and len(out)
+            else np.array([], dtype=np.int64)
+        )
         idx = np.flatnonzero(toks == close_id)
         has_close.append(len(idx) > 0)
         first = idx[0] if len(idx) else len(toks)
         think_len.append(first)
         ans_len.append(len(toks) - first - 1 if len(idx) else len(toks))
-    think_len, ans_len, has_close = np.array(think_len), np.array(ans_len), np.array(has_close)
+    think_len, ans_len, has_close = (
+        np.array(think_len),
+        np.array(ans_len),
+        np.array(has_close),
+    )
 
     thinking_task = has_close.any()
     gen_col = [c for c in df.columns if c.endswith("generation_size")]
     gen_sizes = df[gen_col[0]].tolist() if gen_col else [None] * len(df)
-    cap = answer_cap(gen_sizes, ans_len[has_close] if thinking_task else ans_len)
-    if cap is not None and thinking_task and len(cap) != len(df):  # heuristic cap: broadcast
+    cap = answer_cap(
+        gen_sizes, ans_len[has_close] if thinking_task else ans_len, max_new_tokens
+    )
+    if (
+        cap is not None and thinking_task and len(cap) != len(df)
+    ):  # heuristic cap: broadcast
         cap = np.full(len(df), cap[0])
 
     if thinking_task:
@@ -199,12 +247,17 @@ def analyse(path: str, close_id: int, recompute: bool) -> dict | None:
     has_flags = all(any(k in m for m in metrics) for k in TRUNC_KEYS)
     if has_flags and not recompute:
         source = "flags"
-        budget_hit = np.array([(m.get("thinking_truncation_rate") or 0) > 0 for m in metrics])
+        budget_hit = np.array(
+            [(m.get("thinking_truncation_rate") or 0) > 0 for m in metrics]
+        )
         ans_trunc = np.array([(m.get("truncation_rate") or 0) > 0 for m in metrics])
-    elif any(c.endswith("output_tokens") for c in df.columns):  # nested reads come back as "output_tokens"
+    elif any(
+        c.endswith("output_tokens") for c in df.columns
+    ):  # nested reads come back as "output_tokens"
         budget = thinking_budget_for(path)
+        max_new = max_new_tokens_for(path)
         source = f"tokens (budget {budget})"
-        budget_hit, ans_trunc = truncation_from_tokens(df, close_id, budget)
+        budget_hit, ans_trunc = truncation_from_tokens(df, close_id, budget, max_new)
     else:
         source = "-"
         budget_hit = ans_trunc = None
@@ -240,9 +293,16 @@ def fmt(v) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("paths", nargs="+", help="details parquet(s) or directories to search")
-    parser.add_argument("--include", help="only keep parquet paths matching this regex (e.g. 'gsm8k|aime|gpqa')")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "paths", nargs="+", help="details parquet(s) or directories to search"
+    )
+    parser.add_argument(
+        "--include",
+        help="only keep parquet paths matching this regex (e.g. 'gsm8k|aime|gpqa')",
+    )
     parser.add_argument(
         "--think-close-id",
         type=int,
@@ -250,7 +310,9 @@ def main():
         help=f"token id of </think> (default {LUCIOLE_THINK_CLOSE_ID}, Luciole tokenizers)",
     )
     parser.add_argument(
-        "--recompute", action="store_true", help="recompute truncation from tokens even when lighteval flags exist"
+        "--recompute",
+        action="store_true",
+        help="recompute truncation from tokens even when lighteval flags exist",
     )
     args = parser.parse_args()
 
@@ -258,7 +320,11 @@ def main():
     if not files:
         raise SystemExit("No details parquet found.")
 
-    rows = [r for f in files if (r := analyse(f, args.think_close_id, args.recompute)) is not None]
+    rows = [
+        r
+        for f in files
+        if (r := analyse(f, args.think_close_id, args.recompute)) is not None
+    ]
     if not rows:
         raise SystemExit("No generative task found (all details are loglikelihood).")
     header = list(rows[0])
