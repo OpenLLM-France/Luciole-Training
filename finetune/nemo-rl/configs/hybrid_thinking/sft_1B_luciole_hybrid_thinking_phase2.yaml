@@ -20,8 +20,8 @@ data:
   tool_key: "tools"  # column read by the entries with use_tools: true
   # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/232f0d7e9a787d1565800aa5125fdaa521c18123 (sft_mix = mix_16)
   tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/232f0d7e9a787d1565800aa5125fdaa521c18123/data"
-  # https://huggingface.co/datasets/OpenLLM-France/pleias_rag/tree/0115a3625169fed5d518ba6f6e5be799fb88514a
-  pleias_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--pleias_rag/snapshots/0115a3625169fed5d518ba6f6e5be799fb88514a/data/formatted_chat"
+  # https://huggingface.co/datasets/OpenLLM-France/pleias_rag/tree/5bd34a01096c4eea2ef85267f5ec1be23383d45c
+  pleias_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--pleias_rag/snapshots/5bd34a01096c4eea2ef85267f5ec1be23383d45c/data/formatted_chat"
   # https://huggingface.co/datasets/OpenLLM-France/Luciole-PostTraining-Dataset-1.2/tree/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534
   # (rows over 16,384 tokens already removed; token counts: README of the dataset)
   posttraining_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-PostTraining-Dataset-1.2/snapshots/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534/data/sft"
@@ -182,10 +182,10 @@ data:
 
 
     # PLEAIS RAG
-    - path: "${data.pleias_rag_data}/with_thinking/en/*.parquet" # 165.5M tokens (43.6M assistant), 50,845 rows
+    - path: "${data.pleias_rag_data}/with_thinking/en/*.parquet" # 154.4M tokens (40.8M assistant), 47,925 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: true}
-    - path: "${data.pleias_rag_data}/without_thinking/en/*.parquet" # 164.5M tokens (18.5M assistant), 61,819 rows
+    - path: "${data.pleias_rag_data}/without_thinking/en/*.parquet" # 153.8M tokens (17.3M assistant), 58,434 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: false}
 
