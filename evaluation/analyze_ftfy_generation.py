@@ -96,6 +96,16 @@ import unicodedata
 # carries the apostrophe) and to scan it.
 APOSTROPHE_MAX_NEW_TOKENS = 24
 
+# Default user turn for --chat mode, by probe language. The probe text itself is the
+# assistant-turn prefill (the model continues it), so the user message only has to be a
+# plausible, open-ended request to produce a sentence; it is matched to the probe's
+# language so the turn is not, e.g., French in front of a Japanese continuation.
+USER_TURN_BY_LANG = {
+    "fr": "Génère une phrase au hasard.",
+    "en": "Generate a random sentence.",
+    "ja": "ランダムな文を生成してください。",
+}
+
 # Default reference token-id list: looked up next to this script.
 DEFAULT_TOKENS_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "Luciole-ftfy-tokens.txt"
@@ -654,7 +664,134 @@ def classify_continuation(
     )
 
 
-def run_generation(model, tok, device, batch_size, closing_budget):
+_FR_WORDS = {
+    "le",
+    "la",
+    "les",
+    "un",
+    "une",
+    "des",
+    "du",
+    "dans",
+    "avec",
+    "est",
+    "pour",
+    "qui",
+    "que",
+    "ne",
+    "pas",
+    "plus",
+    "nous",
+    "vous",
+    "elle",
+    "aux",
+    "ces",
+    "cette",
+    "son",
+    "ses",
+    "leur",
+    "sur",
+    "notre",
+    "votre",
+    "ville",
+    "musée",
+    "au",
+    "et",
+    "où",
+    "déjà",
+    "dès",
+    "il",
+    "je",
+    "tu",
+    "en",
+    "ce",
+    "se",
+    "mon",
+    "ma",
+    "chaque",
+    "tout",
+    "tous",
+    "toute",
+    "alors",
+    "donc",
+    "mais",
+    "comme",
+    "sans",
+    "quand",
+    "aussi",
+    "toujours",
+    "rien",
+    "puis",
+    "depuis",
+    "pendant",
+    "entre",
+    "vers",
+    "chez",
+}
+_FR_ACCENT = set("àâäçéèêëîïôöùûüÿœæ")
+_FR_ELISION = re.compile(
+    r"\b(c|j|l|m|n|s|t|d|qu|jusqu|lorsqu|puisqu|presqu|aujourd|quelqu)['’]",
+    re.IGNORECASE,
+)
+_JA_SCRIPT = re.compile(r"[぀-ヿ㐀-䶿一-鿿]")
+
+
+def _lang_of(text: str) -> str:
+    """Best-effort probe language, used only to pick the chat user turn.
+
+    'ja' when the text uses Japanese script; otherwise 'fr' vs 'en' from French
+    accents, elisions (c'/qu'/jusqu'...) or high-precision French cue words. A rare
+    miss only changes the user turn's language, so it is harmless.
+    """
+    if _JA_SCRIPT.search(text):
+        return "ja"
+    low = text.lower()
+    if any(c in _FR_ACCENT for c in low) or _FR_ELISION.search(low):
+        return "fr"
+    if set(re.findall(r"[a-zàâäçéèêëîïôöùûüÿœæ]+", low)) & _FR_WORDS:
+        return "fr"
+    return "en"
+
+
+def _encode_batch(tok, chunk, device, chat, chat_user):
+    """Tokenize a batch of probe prompts.
+
+    In --chat mode each probe is placed as an assistant-turn PREFILL
+    (``continue_final_message``) after a user turn and with thinking disabled, so a
+    chat model CONTINUES the probe text instead of answering it; the chat template
+    supplies its own special tokens (and any default system prompt). The user turn is
+    picked per probe from its language (``chat_user`` overrides it with one turn for
+    all). In plain mode the probe is tokenized as raw completion text, as before.
+    """
+    if chat:
+        convs = [
+            [
+                {
+                    "role": "user",
+                    "content": chat_user
+                    if chat_user is not None
+                    else USER_TURN_BY_LANG[_lang_of(p)],
+                },
+                {"role": "assistant", "content": p},
+            ]
+            for p in chunk
+        ]
+        enc = tok.apply_chat_template(
+            convs,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+            padding=True,
+            add_generation_prompt=False,
+            continue_final_message=True,
+            enable_thinking=False,
+        )
+    else:
+        enc = tok(chunk, return_tensors="pt", padding=True)
+    return enc.to(device)
+
+
+def run_generation(model, tok, device, batch_size, closing_budget, chat, chat_user):
     """Generate and score every probe, category by category so each category uses
     its own token budget: quotes/parentheses get `closing_budget` (they must
     produce content and then close), apostrophes get APOSTROPHE_MAX_NEW_TOKENS
@@ -680,7 +817,7 @@ def run_generation(model, tok, device, batch_size, closing_budget):
         prompts = spec["prompts"]
         for start in range(0, len(prompts), batch_size):
             chunk = prompts[start : start + batch_size]
-            enc = tok(chunk, return_tensors="pt", padding=True).to(device)
+            enc = _encode_batch(tok, chunk, device, chat, chat_user)
             with torch.no_grad():
                 out = model.generate(
                     **enc,
@@ -725,7 +862,7 @@ def _build_glyph_token_ids(tok, glyphs):
     return out
 
 
-def _next_token_probs(model, tok, device, prompts, batch_size):
+def _next_token_probs(model, tok, device, prompts, batch_size, chat, chat_user):
     """Next-token probability distribution right after each prompt (left-padded
     batches). Returns a list of 1-D CPU tensors, one per prompt."""
     import torch
@@ -737,7 +874,7 @@ def _next_token_probs(model, tok, device, prompts, batch_size):
     out = []
     for start in range(0, len(prompts), batch_size):
         chunk = prompts[start : start + batch_size]
-        enc = tok(chunk, return_tensors="pt", padding=True).to(device)
+        enc = _encode_batch(tok, chunk, device, chat, chat_user)
         with torch.no_grad():
             logits = model(**enc).logits[:, -1, :].float()
         out.extend(list(torch.softmax(logits, dim=-1).cpu()))
@@ -745,7 +882,7 @@ def _next_token_probs(model, tok, device, prompts, batch_size):
     return out
 
 
-def run_probability_check(model, tok, device, batch_size):
+def run_probability_check(model, tok, device, batch_size, chat, chat_user):
     """Right after each prompt, is the expected glyph the most probable among the
     candidate glyphs of its type? (no generation, so no 'limit'.)
 
@@ -770,7 +907,9 @@ def run_probability_check(model, tok, device, batch_size):
         cands = list(spec["candidates"])
         for prompt, p in zip(
             spec["prompts"],
-            _next_token_probs(model, tok, device, spec["prompts"], batch_size),
+            _next_token_probs(
+                model, tok, device, spec["prompts"], batch_size, chat, chat_user
+            ),
         ):
             gp = {
                 g: (float(p[list(glyph_ids[g])].sum()) if glyph_ids[g] else 0.0)
@@ -805,7 +944,7 @@ def run_probability_check(model, tok, device, batch_size):
             )
     if pairs:
         probs = _next_token_probs(
-            model, tok, device, [c for c, *_ in pairs], batch_size
+            model, tok, device, [c for c, *_ in pairs], batch_size, chat, chat_user
         )
         for (context, sstr, sid, cstr, cid), p in zip(pairs, probs):
             ps, pc = float(p[sid]), float(p[cid])
@@ -924,6 +1063,21 @@ def build_markdown(payload: dict) -> str:
     a = lines.append
 
     a("# ftfy typographic-generation analysis\n")
+    if cfg.get("chat"):
+        cu = cfg.get("chat_user_prompt")
+        if isinstance(cu, dict):
+            turns = "; ".join(f"{k}: `{v}`" for k, v in cu.items())
+            a(
+                "- mode: **chat** (assistant-turn prefill, thinking disabled; "
+                f"user turn by language: {turns})"
+            )
+        else:
+            a(
+                "- mode: **chat** (assistant-turn prefill, thinking disabled; "
+                f"user turn: `{cu}`)"
+            )
+    else:
+        a("- mode: **completion** (raw text)")
     a(f"- closing-probe token budget: **{cfg['max_new_tokens']}**")
     a(
         f"- generation prompts: **{cfg['n_generation_items']}**, "
@@ -1084,12 +1238,18 @@ def select_from_payload(payload: dict, selectors: list[str]) -> dict:
 # ----------------------------------------------------------------------------- #
 # Driver
 # ----------------------------------------------------------------------------- #
-def analyze_one_model(path, label, device, max_new_tokens, batch_size, affected_ids):
+def analyze_one_model(
+    path, label, device, max_new_tokens, batch_size, affected_ids, chat, chat_user
+):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     print(f"\n[loading {label}] {path}", flush=True)
     tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+    if chat and tok.chat_template is None:
+        raise SystemExit(
+            f"--chat: model {label!r} ({path}) has no chat template; cannot run in chat mode."
+        )
     # Newer transformers use `dtype=`, older ones `torch_dtype=`; support both.
     try:
         model = AutoModelForCausalLM.from_pretrained(
@@ -1103,11 +1263,15 @@ def analyze_one_model(path, label, device, max_new_tokens, batch_size, affected_
     model.eval()
 
     print("  running closing-character generation ...", flush=True)
-    gen = run_generation(model, tok, device, batch_size, max_new_tokens)
+    gen = run_generation(
+        model, tok, device, batch_size, max_new_tokens, chat, chat_user
+    )
     gen_by_cat, gen_overall = aggregate_generation(gen)
 
     print("  running probability check ...", flush=True)
-    prob, prob_by_cat = run_probability_check(model, tok, device, batch_size)
+    prob, prob_by_cat = run_probability_check(
+        model, tok, device, batch_size, chat, chat_user
+    )
 
     inventory = {}
     if affected_ids:
@@ -1176,6 +1340,22 @@ def main():
         type=int,
         default=8,
         help="Prompts generated per batch (default 8)",
+    )
+    ap.add_argument(
+        "--chat",
+        action="store_true",
+        help="Evaluate instruct/chat models: each probe is placed as an assistant-turn "
+        "prefill (the model continues it) after a user turn matched to the probe's "
+        "language, with thinking disabled (enable_thinking=False) and no explicit system "
+        "prompt. The script fails if a model has no chat template. Default (off) is raw "
+        "text completion, for base/pretrained models.",
+    )
+    ap.add_argument(
+        "--chat-user",
+        default=None,
+        help="Override the per-language user turn in --chat mode with a single user turn "
+        "for all probes (the probe text is the assistant prefill). Default: per-language, "
+        f"{USER_TURN_BY_LANG}.",
     )
     ap.add_argument(
         "--tokens-file",
@@ -1277,6 +1457,22 @@ def main():
         paths.append(path)
         labels.append(base)
 
+    # In chat mode, fail fast (before any model is loaded onto the GPU) if a model
+    # lacks a chat template.
+    if args.chat:
+        from transformers import AutoTokenizer
+
+        for path in paths:
+            if (
+                AutoTokenizer.from_pretrained(
+                    path, trust_remote_code=True
+                ).chat_template
+                is None
+            ):
+                ap.error(
+                    f"--chat: {path} has no chat template; cannot run in chat mode."
+                )
+
     close_probes = build_prob_close_probes()
     n_probcheck_items = sum(len(v["prompts"]) for v in close_probes.values()) + len(
         APOSTROPHE_PREF_CONTEXTS
@@ -1285,6 +1481,12 @@ def main():
         "config": {
             "max_new_tokens": args.max_new_tokens,
             "batch_size": args.batch_size,
+            "chat": args.chat,
+            "chat_user_prompt": (
+                (args.chat_user if args.chat_user else USER_TURN_BY_LANG)
+                if args.chat
+                else None
+            ),
             "tokens_file": args.tokens_file if affected_ids else None,
             "n_affected_ids": len(affected_ids),
             "generation_categories": list(GEN_PROBES.keys()),
@@ -1303,7 +1505,14 @@ def main():
 
     for path, label in zip(paths, labels):
         payload["models"][label] = analyze_one_model(
-            path, label, device, args.max_new_tokens, args.batch_size, affected_ids
+            path,
+            label,
+            device,
+            args.max_new_tokens,
+            args.batch_size,
+            affected_ids,
+            args.chat,
+            args.chat_user,
         )
 
     json_path = args.output_prefix + ".json"
