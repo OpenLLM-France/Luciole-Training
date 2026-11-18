@@ -235,24 +235,29 @@ def assign_variant_colors_and_hatches(df):
     return color_map, hatch_map
 
 
-# Generation-failure rates logged by lighteval for generative benchmarks, drawn as thin
-# bars over the main bars (see _draw_rate_overlay). Each entry is
-# (metric key, slot, border color, hatch, legend label): the main bar width is split into
-# 5 slots -- thinking truncated (flush with the bar's left edge), answer truncated, free
-# center (stderr whisker), thinking loop, answer loop (flush with the right edge) -- so
-# each rate always sits at the same place. Color: green for the thinking phase, red for
-# the answer; truncation bars are transparent with a dotted hatch, loop bars are plain
-# (no hatch), filled with their color made semi-transparent (_RATE_LOOP_FILL_ALPHA).
-_RATE_SLOTS = 5
-_RATE_BARS = [
-    ("thinking_truncation_rate", 0, "green", "...", "Thinking truncated"),
-    ("truncation_rate", 1, "red", "...", "Answer truncated"),
-    ("thinking_loop_rate", 3, "green", "", "Thinking loop"),
-    ("loop_rate", 4, "red", "", "Answer loop"),
+# Generation-failure rates logged by lighteval for generative benchmarks, drawn over the
+# main bars (see _draw_rate_overlay), one column per generation phase. Each entry is
+# (truncation key, loop key, color, truncation label, loop label): the thinking column
+# covers the left half of the bar and the answer column the right half, so the two
+# columns are aligned with the bar edges. In a column, the truncation rate is a light
+# bar as wide as the column and the loop rate a narrower dark bar nested in it (a loop
+# usually ends in a truncation).
+_RATE_PHASES = [
+    (
+        "thinking_truncation_rate",
+        "thinking_loop_rate",
+        "#2F855A",
+        "Thinking truncated",
+        "Thinking loop",
+    ),
+    ("truncation_rate", "loop_rate", "#C53030", "Answer truncated", "Answer loop"),
 ]
-_RATE_LOOP_FILL_ALPHA = 0.4
-_RATE_METRICS = [bar[0] for bar in _RATE_BARS]
-_RATE_LABELS = [bar[4] for bar in _RATE_BARS]
+_RATE_COLUMN_FRACTION = 1 / 2
+# (rate kind index in a phase entry, width fraction of the column, fill alpha, zorder)
+_RATE_TRUNCATION_STYLE = (0, 1.0, 0.18, 1.5)
+_RATE_LOOP_STYLE = (1, 0.45, 0.6, 1.6)
+_RATE_METRICS = [key for phase in _RATE_PHASES for key in phase[:2]]
+_RATE_LABELS = [label for phase in _RATE_PHASES for label in phase[3:5]]
 _RATE_LEGEND_TITLE = "Truncation & loops"
 
 # Direction of the truncation/loop overlay for a metric (see rate_overlay_direction).
@@ -303,47 +308,48 @@ def _rates_at_checkpoint(df_task, expe_name, tokens):
 
 
 def _draw_rate_overlay(ax, x, width, rates, labeled, direction="from_top"):
-    """Draw truncation/loop rates as thin bars over the main bar centered on ``x``.
+    """Draw truncation/loop rates over the main bar centered on ``x``.
 
-    Each rate gets a fixed slot of ``width / 5`` (see _RATE_BARS). For a
-    higher-is-better score (``direction="from_top"``) it hangs from 100%, spanning
-    ``[1 - rate, 1]``, so it reads as a share of the error gap ``1 - score`` above the
-    bar; when the rate exceeds ``1 - score``, it goes down into the main bar (some
-    truncated/looping samples were still counted correct). For an error rate
-    (``"from_bottom"``) it rises from 0%, spanning ``[0, rate]``, over the main bar.
-    Rates are not added together (a loop usually ends in a truncation). A rate absent
-    from the results leaves its slot empty, while a rate computed as zero is drawn as
-    an empty (zero-height) bar, i.e. a short line in its color at 100% (or 0%).
+    Two columns (see _RATE_PHASES): thinking on the left, answer on the right; in each,
+    the truncation rate is a wide light bar and the loop rate a narrower dark bar nested
+    in it, so it reads "truncated, of which looping". For a higher-is-better score
+    (``direction="from_top"``) the rate bars hang from 100% (a thin grey line marks
+    it), spanning ``[1 - rate, 1]``, so they read as a share of the error gap
+    ``1 - score`` above the bar; a rate exceeding ``1 - score`` goes down into the main
+    bar (some truncated/looping samples were still counted correct). For an error rate
+    (``"from_bottom"``) they rise from 0%, spanning ``[0, rate]``, over the main bar.
+    A rate absent from the results is not drawn, while a rate computed as zero is drawn
+    as an empty (zero-height) bar, i.e. a short thick line in its color at 100% (or 0%).
     """
-    slot_w = width / _RATE_SLOTS
-    for key, slot, color, hatch, label in _RATE_BARS:
-        value = rates.get(key)
-        if value is None or np.isnan(value):
-            continue
-        value = max(0.0, float(value))
-        xc = x - width / 2 + (slot + 0.5) * slot_w
-        bottom = 1.0 - value if direction == "from_top" else 0.0
-        # Hatched rates are transparent bars (matplotlib draws the hatch in the edge
-        # color); plain ones are filled with their semi-transparent color, so the main
-        # bar stays visible where they overlap it.
-        bars = ax.bar(
-            xc,
-            value,
-            bottom=bottom,
-            width=slot_w,
-            fill=not hatch,
-            facecolor=mcolors.to_rgba(color, _RATE_LOOP_FILL_ALPHA),
-            edgecolor=color,
-            linewidth=1.0,
-            hatch=hatch,
-            label=None if label in labeled else label,
-            zorder=1.5,
-        )
-        # A bar's base is a "sticky" autoscale limit: with bases at 100% (zero rates)
-        # the y axis would stop exactly at 1.0, gluing the rate bars to the top edge.
-        for patch in bars:
-            patch.sticky_edges.y.clear()
-        labeled.add(label)
+    if direction == "from_top" and not getattr(ax, "_rate_ceiling_drawn", False):
+        ax.axhline(1.0, color="#9e9e9e", linewidth=0.8, zorder=0.6)
+        ax._rate_ceiling_drawn = True
+    col_w = width * _RATE_COLUMN_FRACTION
+    for p, phase in enumerate(_RATE_PHASES):
+        color = phase[2]
+        xc = x - width / 2 + col_w / 2 if p == 0 else x + width / 2 - col_w / 2
+        for kind, frac, alpha, zorder in (_RATE_TRUNCATION_STYLE, _RATE_LOOP_STYLE):
+            key, label = phase[kind], phase[3 + kind]
+            value = rates.get(key)
+            if value is None or np.isnan(value):
+                continue
+            value = max(0.0, float(value))
+            bars = ax.bar(
+                xc,
+                value,
+                bottom=1.0 - value if direction == "from_top" else 0.0,
+                width=col_w * frac,
+                facecolor=mcolors.to_rgba(color, alpha),
+                edgecolor=color,
+                linewidth=1.6 if value == 0 else 0.8,
+                label=None if label in labeled else label,
+                zorder=zorder,
+            )
+            # A bar's base is a "sticky" autoscale limit: with bases at 100% (zero
+            # rates) the y axis would stop exactly at 1.0, gluing the bars to the top.
+            for patch in bars:
+                patch.sticky_edges.y.clear()
+            labeled.add(label)
 
 
 def _resolve_ymax(ymax, i):
@@ -2207,12 +2213,12 @@ if __name__ == "__main__":
         help=(
             "Do not overlay the truncation/loop rates (thinking_truncation_rate, "
             "truncation_rate, thinking_loop_rate, loop_rate) on bar plots. By default, "
-            "when a benchmark logs them (and its scores are in [0, 1]), each rate is a "
-            "thin bar (1/5 of the bar width, fixed position: truncations left of the "
-            "error bar, loops right of it; green: thinking, red: answer; dotted: "
-            "truncation, semi-transparent fill: loop). It hangs from 100%% down by the rate for a "
-            "higher-is-better score (overlapping the bar when it exceeds 100%% - score), "
-            "and rises from 0%% for an error rate (e.g. *failure_rate, abstention_rate)."
+            "when a benchmark logs them (and its scores are in [0, 1]), they are drawn "
+            "in two columns over each bar (green: thinking, left; red: answer, right), "
+            "the loop rate (dark) nested in the truncation rate (light). They hang from "
+            "100%% down by the rate for a higher-is-better score (overlapping the bar "
+            "when the rate exceeds 100%% - score), and rise from 0%% for an error rate "
+            "(e.g. *failure_rate, abstention_rate)."
         ),
     )
     parser.add_argument(
