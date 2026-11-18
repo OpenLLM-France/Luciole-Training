@@ -14,12 +14,14 @@ from utils import (
 
 def react_reader_adapter(self, data: dict, path: str, id_in_file: int | str):
     """instruct_adapter plus ``metadata["source_dataset"]``: the first folder of
-    the ReAct path (e.g. fever, hotpotqa_round2), with "-" replaced by "_" so it
-    is a valid Hub split name. The ``dataset_name`` column cannot be used: it is
+    the ReAct path (e.g. fever, hotpotqa), with the "-round2" suffix dropped so
+    both generation rounds share one folder, and "-" replaced by "_" so it is a
+    valid Hub split name. The ``dataset_name`` column cannot be used: it is
     null in some thinking files and differs from the folder name elsewhere
     (e.g. "multihop-round2" in multihopqa-round2/)."""
     doc = instruct_adapter(self, data, path, id_in_file)
-    doc["metadata"]["source_dataset"] = path.split("/")[0].replace("-", "_")
+    source = path.split("/")[0].removesuffix("-round2")
+    doc["metadata"]["source_dataset"] = source.replace("-", "_")
     return doc
 
 def react_hub_adapter(self, document):
@@ -92,6 +94,12 @@ if __name__ == "__main__":
         help="Process the traces generated with thinking on (source folders "
              "<dataset>/<tool_type>/thinking/<lang>) instead of non_thinking",
     )
+    parser.add_argument(
+        "--source_glob",
+        default="*",
+        help="Glob on the ReAct source folders to process (e.g. 'pleais_rag', or "
+             "'[!p]*' for all but pleais_rag)",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
@@ -100,7 +108,7 @@ if __name__ == "__main__":
     pipeline = [
         ParquetReader(
             "hf://datasets/OpenLLM-France/ReAct/data/",
-            glob_pattern=f"*/*/{split}/*/*.parquet",
+            glob_pattern=f"{args.source_glob}/*/{split}/*/*.parquet",
             adapter=react_reader_adapter,
         ),
         id_deduplication,

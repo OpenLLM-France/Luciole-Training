@@ -8,6 +8,7 @@ from utils import (
     check_last_message,
     NemoRLFormat,
     ChatTokenCount,
+    ToolTypeCheck,
 )
 from datatrove.data import Document
 from datatrove.pipeline.filters.base_filter import BaseFilter
@@ -36,6 +37,10 @@ class ToolFiltering(BaseFilter):
                     except Exception:
                         return False, "fail_to_parse_tool_calling"
                     message["content"] = message["content"].replace(match.group(0), "")
+                    # "filter_year": null is the default value: drop it rather than teach explicit nulls
+                    args = parsed.get("arguments") if isinstance(parsed, dict) else None
+                    if isinstance(args, dict) and "filter_year" in args and args["filter_year"] is None:
+                        del args["filter_year"]
                     message["tool_calls"].append(parsed)
             # elif message["role"] == "tool":
             #     # remove $Obsertation:/s
@@ -70,6 +75,7 @@ def clean_tool_response(data, rank: int = 0, world_size: int = 1):
 def reformat_messages(data, rank: int = 0, world_size: int = 1):
     import json
     import random
+    import re
 
     for doc in data:
         xml_tools = doc.metadata.pop("chat_template_kwargs")["xml_tools"][0]
@@ -98,10 +104,28 @@ def reformat_messages(data, rank: int = 0, world_size: int = 1):
             for t in (json.loads(o) for o in objs)
             if t["function"]["name"] != "wikipedia_search"
         ] + [visit_webpage_tool]
+        # The source web_search schema only declares `query`, but the traces also pass the optional
+        # `filter_year` (a year, or null) and the tool accepts it: declare it so the calls match the schema.
+        for t in tools:
+            if t["function"]["name"] == "web_search":
+                t["function"]["parameters"]["properties"]["filter_year"] = {
+                    "type": ["integer", "null"],
+                    "description": "Optionally restrict results to a certain year.",
+                }
         if tools:
             random.shuffle(tools)
 
         doc.metadata["tools"] = tools
+
+        # Drop the smolagents scaffolding: "New task:" header of the first user message and
+        # "Observation:" prefix of the tool answers.
+        first_user = True
+        for message in doc.metadata["messages"]:
+            if message["role"] == "user" and first_user:
+                message["content"] = re.sub(r"^\s*New task:\s*", "", message["content"])
+                first_user = False
+            elif message["role"] == "tool":
+                message["content"] = re.sub(r"^\s*Observation:\s*", "", message["content"])
         yield doc
 
 
@@ -121,6 +145,13 @@ if __name__ == "__main__":
         reformat_messages,
         ToolFiltering(),
         check_last_message,
+        # Drop rows with tool calls that do not match their schema; allow_corrected=False because the
+        # only remaining issue is final_answer called with a bare string ("arguments": "Boris Johnson"),
+        # which renders as invalid JSON even when a later final_answer call is valid.
+        ToolTypeCheck(
+            allow_corrected=False,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/smolagents_toolcalling/bad_types"),
+        ),
         NemoRLFormat(),
         FilterChinese(
             exclusion_writer=JsonlWriter(

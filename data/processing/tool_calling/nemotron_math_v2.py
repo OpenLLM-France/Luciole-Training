@@ -78,99 +78,61 @@ def format_messages(
         yield doc
 
 
-THINK_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "think",
-        "description": "Use this tool to think and perform reasoning before calling an API. It will not obtain new information or change the database, but just append the thought to the log.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "thought": {
-                    "type": "string",
-                    "description": "The step by step thought process.",
-                }
-            },
-            "required": ["thought"],
-        },
-    },
-}
+# Rows of data/sft/nemotron_math_v2_tools/think_inline on the hub (written by this
+# script before its think_as_tool option was removed), after the too_long filter,
+# counted on 2026-11-18: with / without a "tool" turn.
+N_WITH_TOOL_TURN = 268_923
+N_WITHOUT_TOOL_TURN = 412_980
 
 
-def thinking_as_tool_call(
+def subsample_no_tool(
     data,
     rank: int = 0,
     world_size: int = 1,
-    thinking_as_tool: bool = False,
+    no_tool_frac: float | None = None,
+    seed: int = 42,
 ):
-    """Turn each assistant message's reasoning trace into a call to ``think``.
+    """Keep every conversation with a ``tool`` turn and a random part of the others,
+    so that those without one make up about ``no_tool_frac`` of the output.
 
-    Nemotron-Math-v2 carries the reasoning in ``reasoning_content`` alongside
-    the answer, which NemoRLFormat later inlines as a <think> block in the
-    same assistant turn. When ``thinking_as_tool`` is set, that reasoning is
-    pulled out into its own assistant turn instead: a call to the ``think``
-    tool with the reasoning as its ``thought`` argument, an (empty) tool
-    response, then the original message with its reasoning stripped.
+    Nemotron-Math-v2's tool rows often answer without calling the tool (60.6% of
+    them). The keep probability of a row without a tool turn is
+    ``no_tool_frac / (1 - no_tool_frac) * N_WITH_TOOL_TURN / N_WITHOUT_TOOL_TURN``;
+    it is drawn from a hash of the id, so the same rows are kept on every run.
     """
-    import json
-    import uuid
+    import hashlib
 
+    if no_tool_frac is None:
+        yield from data
+        return
+    keep_prob = min(
+        1.0, no_tool_frac / (1 - no_tool_frac) * N_WITH_TOOL_TURN / N_WITHOUT_TOOL_TURN
+    )
     for doc in data:
-        if not thinking_as_tool:
+        if any(m.get("role") == "tool" for m in doc.metadata["messages"]):
             yield doc
             continue
-
-        tools = doc.metadata.get("tools", [])
-        if not any((t.get("function") or t).get("name") == "think" for t in tools):
-            tools = tools + [THINK_TOOL]
-        doc.metadata["tools"] = tools
-
-        new_messages = []
-        for message in doc.metadata["messages"]:
-            reasoning = message.get("reasoning_content") or message.get("reasoning")
-            if message["role"] != "assistant" or not reasoning:
-                new_messages.append(message)
-                continue
-
-            call_id = f"call_{uuid.uuid4().hex[:24]}"
-            new_messages.append(
-                {
-                    "role": "assistant",
-                    "content": "",
-                    "tool_calls": [
-                        {
-                            "id": call_id,
-                            "type": "function",
-                            "function": {
-                                "name": "think",
-                                "arguments": json.dumps({"thought": reasoning}),
-                            },
-                        }
-                    ],
-                }
-            )
-            new_messages.append(
-                {"role": "tool", "tool_call_id": call_id, "content": ""}
-            )
-            new_messages.append({**message, "reasoning_content": "", "reasoning": ""})
-
-        doc.metadata["messages"] = new_messages
-        yield doc
+        h = hashlib.md5(f"{seed}:{doc.id}".encode()).digest()
+        if int.from_bytes(h[:8], "big") / 2**64 < keep_prob:
+            yield doc
 
 
 if __name__ == "__main__":
     parser = create_parser()
     parser.add_argument(
-        "--thinking_as_tool",
-        action="store_true",
-        help="Pull each assistant turn's reasoning out into a call to the `think` "
-        "tool instead of leaving it inline in a <think> block. Written to a "
-        "separate folder, so both variants can coexist.",
+        "--no_tool_frac",
+        type=float,
+        default=None,
+        help="If set (e.g. 0.1), subsample the conversations without a tool turn "
+        "so they are about this fraction of the output (all the ones with a tool "
+        "turn are kept). Written to a separate folder (nemotron_math_v2_tools_notool<pct>).",
     )
     args = parse_args(parser)
     DATA_PATH = args.data_path
-    # Names the output folder, so the two variants never overwrite each other.
-    VARIANT = "think_as_tool" if args.thinking_as_tool else "think_inline"
+    # Names the output folder, so a subsampled run never overwrites the full one.
+    NAME = "nemotron_math_v2_tools"
+    if args.no_tool_frac is not None:
+        NAME += f"_notool{round(100 * args.no_tool_frac)}"
 
 
     pipeline = [
@@ -186,19 +148,19 @@ if __name__ == "__main__":
             adapter=instruct_adapter,
         ),
         format_messages,
-        partial(thinking_as_tool_call, thinking_as_tool=args.thinking_as_tool),
         NemoRLFormat(),
         ChatTokenCount(
             "OpenLLM-France/tokenizer_128k_dual",
             tools_key="tools",
-            chat_template_kwargs={"enable_thinking": not args.thinking_as_tool, "training_mode": True},
+            chat_template_kwargs={"enable_thinking": True, "training_mode": True},
             max_tokens=2**16,
-            exclusion_writer=JsonlWriter(f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}/too_long"),
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/{NAME}/too_long"),
         ),
+        partial(subsample_no_tool, no_tool_frac=args.no_tool_frac),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
-            local_working_dir=f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}",
-            output_filename=f"data/sft/nemotron_math_v2_tools/{VARIANT}/${{rank}}.parquet",
+            local_working_dir=f"{DATA_PATH}/{NAME}",
+            output_filename=f"data/sft/{NAME}/${{rank}}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
@@ -211,8 +173,8 @@ if __name__ == "__main__":
         pipeline,
         local=args.local,
         debug=args.debug,
-        logging_dir=f"{DATA_PATH}/nemotron_math_v2_tools/{VARIANT}/logs",
-        job_name=f"nemotron_math_v2_tools_{VARIANT}",
+        logging_dir=f"{DATA_PATH}/{NAME}/logs",
+        job_name=f"{NAME}",
         tasks=1,
         time="00:30:00",
         # partition="cpu_p1",

@@ -1,4 +1,5 @@
 from utils import create_parser, parse_args, create_executor
+from datatrove.pipeline.filters import SamplerFilter
 from datatrove.pipeline.readers import JsonlReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
 from utils import (
@@ -6,6 +7,7 @@ from utils import (
     instruct_adapter,
     NemoRLFormat,
     ChatTokenCount,
+    ToolTypeCheck,
 )
 
 def format_messages(
@@ -31,20 +33,34 @@ def format_messages(
         yield doc
 
 
+SPLITS = ["interactive_agent", "search", "tool_calling"]
+
+# Fraction of a split kept (SamplerFilter, before the slow token count). tool_calling (707k rows) is used at weight
+# 0.01454 in the sft_mix: a 2% sample is enough (sft_mix.py subsamples it at 0.01454 / 0.02).
+SAMPLE_RATES = {"tool_calling": 0.02}
+
+
 if __name__ == "__main__":
     parser = create_parser()
+    parser.add_argument("--splits", nargs="+", default=SPLITS, choices=SPLITS, help="Splits to process.")
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
 
-    for split_name in ["interactive_agent", "search", "tool_calling"]:
+    for split_name in args.splits:
         pipeline = [
             JsonlReader(
                 "hf://datasets/nvidia/Nemotron-SFT-Agentic-v2/data/",
                 glob_pattern=f"{split_name}.jsonl",
                 adapter=instruct_adapter,
             ),
+            *([SamplerFilter(rate=SAMPLE_RATES[split_name], seed=42)] if split_name in SAMPLE_RATES else []),
             format_messages,
+            # Drop rows whose tool definitions / tool-call arguments have invalid JSON-Schema types
+            # (error -> retry self-corrections are kept); dropped rows are saved for inspection.
+            ToolTypeCheck(
+                exclusion_writer=JsonlWriter(f"{DATA_PATH}/nemotron_agentic_sft_v2/{split_name}/bad_types"),
+            ),
             NemoRLFormat(),
             ChatTokenCount(
                 "OpenLLM-France/tokenizer_128k_dual",

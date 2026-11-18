@@ -78,8 +78,17 @@ def format_tool_calls(tool_calls: list, content: str = "") -> str:
             tool_call = tool_call["function"]
 
         arguments = tool_call.get("arguments", {})
+        # Re-serialise string arguments too, so pretty-printed source JSON (e.g. Nemotron's
+        # '{\n  "query": ...\n}') becomes compact single-line JSON like dict arguments.
+        if isinstance(arguments, str):
+            try:
+                parsed = json.loads(arguments)
+                if not isinstance(parsed, str):  # a JSON string literal stays as-is
+                    arguments = parsed
+            except json.JSONDecodeError:
+                pass  # keep malformed args as-is (self-correction traces)
         if not isinstance(arguments, str):
-            arguments = json.dumps(arguments)
+            arguments = json.dumps(arguments, ensure_ascii=False)
 
         parts.append(
             f'<tool_call>\n{{"name": "{tool_call["name"]}", "arguments": {arguments}}}\n</tool_call>'
@@ -148,6 +157,63 @@ def nemo_rl_format_messages(messages: list) -> list:
         new_messages.append({"role": message["role"], "content": content})
     return check_last_message(new_messages)
 
+
+def assert_no_user_after_tool(messages: list, doc_id=None):
+    """Raise if a user turn directly follows a tool turn.
+
+    A tool result must be answered by the assistant (or followed by another tool
+    result: parallel calls). At inference the model always answers a tool result,
+    and NeMo-RL (get_formatted_message_log) appends the assistant generation
+    prompt after every tool turn, so a user turn there ends up inside a fake
+    assistant turn of the training sequence (e.g. funcdex_mt: 80% of the rows).
+    """
+    for i in range(len(messages) - 1):
+        if messages[i]["role"] == "tool" and messages[i + 1]["role"] == "user":
+            raise AssertionError(
+                f"document {doc_id}: user turn right after a tool turn (messages {i} -> {i + 1}); "
+                "a tool result must be followed by an assistant turn (or another tool turn)"
+            )
+
+
+def has_tool_without_call(messages: list) -> bool:
+    """True if a tool turn does not follow an assistant turn (its tool call) or another tool turn.
+
+    E.g. smolagents "Error while parsing tool call" responses whose unparsable assistant turn is gone:
+    user -> tool. NeMo-RL leaves the assistant generation prompt of the user turn before such a tool turn.
+    """
+    return any(
+        message["role"] == "tool" and (i == 0 or messages[i - 1]["role"] not in ("assistant", "tool"))
+        for i, message in enumerate(messages)
+    )
+
+
+TOOL_RESPONSE_SEPARATOR = "\n</tool_response>\n<tool_response>\n"
+
+
+def merge_parallel_tool_turns(messages: list) -> list:
+    """Merge consecutive tool turns (answers to parallel tool calls) into one tool turn.
+
+    The chat template renders each tool turn as ``\\n<tool_response>\\n{content|trim}\\n</tool_response>``
+    and groups consecutive tool turns in one user turn. NeMo-RL formats a conversation turn by turn
+    (render of messages[:i+1] minus render of messages[:i], with the assistant generation prompt after
+    every tool turn), so a second consecutive tool turn leaves a stray ``<|im_start|>assistant`` prompt
+    in the training sequence. Joining the contents with ``</tool_response>\\n<tool_response>`` gives one
+    tool turn whose render is identical to the template render of the separate turns (what the model
+    sees at inference).
+    """
+    merged = []
+    for message in messages:
+        if message["role"] == "tool" and merged and merged[-1]["role"] == "tool":
+            merged[-1]["content"] = (
+                (merged[-1]["content"] or "").strip()
+                + TOOL_RESPONSE_SEPARATOR
+                + (message["content"] or "").strip()
+            )
+        else:
+            merged.append(dict(message))
+    return merged
+
+
 class NemoRLFormat(BaseFilter):
     name = "🐟 Nemo RL Format"
 
@@ -172,11 +238,16 @@ class NemoRLFormat(BaseFilter):
         for message_key in self.message_fields:
             if message_key not in doc.metadata:
                 return False, f"missing_{message_key}"
+            assert_no_user_after_tool(doc.metadata[message_key], doc.id)
+            if has_tool_without_call(doc.metadata[message_key]):
+                return False, "tool_without_call"
             if self.original_suffix:
                 doc.metadata[f"{message_key}{self.original_suffix}"] = json.dumps(
                     doc.metadata[message_key], ensure_ascii=False
                 )
-            doc.metadata[message_key] = nemo_rl_format_messages(doc.metadata[message_key])
+            doc.metadata[message_key] = merge_parallel_tool_turns(
+                nemo_rl_format_messages(doc.metadata[message_key])
+            )
         return True
 
 
@@ -210,6 +281,10 @@ class ChatTokenCount(BaseFilter):
         (e.g. ``{"enable_thinking": False}``).
     tools_key: if set, ``metadata[tools_key]`` (list or JSON string) is passed as
         ``tools``.
+    tokenizer_revision: Hub revision of the tokenizer (branch, tag, commit or
+        ``refs/pr/N``); None for the default branch.
+    documents_key: if set, ``metadata[documents_key]`` (list or JSON string) is
+        passed as ``documents`` (RAG templates).
     """
 
     name = "🔢 Chat Token Count"
@@ -217,8 +292,10 @@ class ChatTokenCount(BaseFilter):
     def __init__(
         self,
         tokenizer_name_or_path: str,
+        tokenizer_revision: str | None = None,
         messages_key: str = "messages",
         tools_key: str | None = None,
+        documents_key: str | None = None,
         chat_template_kwargs: dict | None = None,
         max_tokens: int | None = None,
         min_assistant_tokens: int | None = None,
@@ -226,8 +303,10 @@ class ChatTokenCount(BaseFilter):
     ):
         super().__init__(exclusion_writer)
         self.tokenizer_name_or_path = tokenizer_name_or_path
+        self.tokenizer_revision = tokenizer_revision
         self.messages_key = messages_key
         self.tools_key = tools_key
+        self.documents_key = documents_key
         self.chat_template_kwargs = chat_template_kwargs or {}
         self.max_tokens = max_tokens
         self.min_assistant_tokens = min_assistant_tokens
@@ -236,7 +315,9 @@ class ChatTokenCount(BaseFilter):
     def tokenizer(self):
         from transformers import AutoTokenizer
 
-        return AutoTokenizer.from_pretrained(self.tokenizer_name_or_path)
+        return AutoTokenizer.from_pretrained(
+            self.tokenizer_name_or_path, revision=self.tokenizer_revision
+        )
 
     def update_doc_stats(self, doc: Document):
         # BaseFilter.run calls this on kept documents only (dropped ones just
@@ -260,6 +341,11 @@ class ChatTokenCount(BaseFilter):
             if isinstance(tools, str):
                 tools = json.loads(tools)
             kwargs["tools"] = tools or None
+        if self.documents_key is not None:
+            documents = doc.metadata.get(self.documents_key)
+            if isinstance(documents, str):
+                documents = json.loads(documents)
+            kwargs["documents"] = documents or None
 
         out = self.tokenizer.apply_chat_template(
             doc.metadata[self.messages_key],

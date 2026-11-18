@@ -10,9 +10,9 @@ Stage 2 (GPU): the rejected answers are verified and only the prompts with at
     least one usable failure (see is_rejectable) are kept; the chosen model
     (e.g. a stronger model) samples ``--chosen_n_samples`` answers on those
     prompts only.
-Stage 3 (CPU): the chosen answers are verified. One pair per distinct usable
-    failure of the rejected model (see build_pairs), against a correct answer
-    of the chosen model drawn at random. Prompts where the chosen model has no
+Stage 3 (CPU): the chosen answers are verified. One pair per prompt (see
+    build_pairs): a usable failure of the rejected model drawn at random,
+    against a correct answer of the chosen model drawn at random. Prompts where the chosen model has no
     correct answer give no pair. Samples whose reasoning or text names the
     generator ("Qwen", "trained by Google", see mentions_generator) are used on neither side.
 
@@ -36,6 +36,8 @@ Verification: parse each completion and compare its tool calls with the ground
       - not_finished: finish_reason != "stop" (e.g. hit max_tokens)
       - text_after_call: complete tool calls followed by text (the content
         must come before the calls)
+      - int_overflow: an integer beyond the 64-bit range in the calls (the
+        JSONL writer cannot serialize it); not used as rejected
       - unparsable: unclosed think, invalid tool call JSON/XML (BFCL
         ast_decoder:decoder_failed). Text before the calls is fine: only the
         calls are checked.
@@ -370,6 +372,18 @@ def is_near_miss(generated, ground_truth, tools) -> bool:
     return True
 
 
+def _has_int_overflow(value) -> bool:
+    """``value`` cannot be written by the JSONL writer (orjson), e.g. an int
+    beyond the 64-bit range: {"match_id": 60000000000000000001}."""
+    import orjson
+
+    try:
+        orjson.dumps(value)
+    except TypeError:
+        return True
+    return False
+
+
 def verify_sample(sample, ground_truth, tools, enable_thinking: bool = True):
     """Annotate one sample in place with ``correct``, ``failure`` / ``error``
     (None when correct), ``near_miss`` (see is_near_miss; False unless the
@@ -403,7 +417,11 @@ def verify_sample(sample, ground_truth, tools, enable_thinking: bool = True):
             reasoning, sample["content"], calls = parsed
             parsed = reasoning, calls
         text_answer = parse_text_answer(text) if parsed is None else None
-        if parsed is None and is_text_after_calls(text):
+        if parsed is not None and _has_int_overflow(parsed[1]):
+            # the parsed calls are not kept (the writer would fail on them)
+            failure = "int_overflow"
+            error = "Integer beyond the 64-bit range in the tool call arguments."
+        elif parsed is None and is_text_after_calls(text):
             failure = "text_after_call"
             error = "Text after the tool calls (content must come before them)."
         elif not ground_truth:
@@ -449,8 +467,9 @@ def verify_sample(sample, ground_truth, tools, enable_thinking: bool = True):
 
 
 # Failed samples that are not used as rejected: no text, truncated (no complete
-# answer to prefer against), or likely not a real mistake (see is_near_miss).
-UNUSABLE_FAILURES = ("request_error", "not_finished")
+# answer to prefer against), integers the writer cannot serialize, or likely
+# not a real mistake (see is_near_miss).
+UNUSABLE_FAILURES = ("request_error", "not_finished", "int_overflow")
 
 
 def mentions_generator(sample) -> bool:
@@ -483,17 +502,6 @@ def _assistant_message(sample, tool_calls, enable_thinking: bool) -> dict:
     if enable_thinking:
         message["reasoning_content"] = sample["reasoning"]
     return message
-
-
-def _rejected_key(sample, calls) -> str:
-    """What a rejected answer says, without its reasoning: its text and tool
-    calls (order-insensitive), or the raw answer when unparsable."""
-    if calls is None:
-        return (sample["generation"] or "").split("</think>", 1)[-1].strip()
-    return json.dumps(
-        {"content": sample.get("content") or "", "calls": sorted(_dump(c) for c in calls)},
-        sort_keys=True,
-    )
 
 
 SIDES = ("rejected", "chosen")
@@ -532,19 +540,36 @@ def verify_side(data, rank: int = 0, world_size: int = 1, side: str = "rejected"
         yield doc
 
 
-def keep_with_failures(data, rank: int = 0, world_size: int = 1):
-    """Only prompts where the rejected model has a usable failure need chosen
-    answers."""
+def self_as_chosen(data, rank: int = 0, world_size: int = 1):
+    """--self_pairs: the rejected model's own (verified) answers are also the
+    chosen candidates, so build_pairs pairs a correct and a failed answer of
+    the same prompt and model."""
     for doc in data:
+        meta = doc.metadata
+        meta["chosen_samples"] = meta["rejected_samples"]
+        meta["chosen_n_correct"] = meta["rejected_n_correct"]
+        meta["generation_config_chosen"] = meta["generation_config_rejected"]
+        yield doc
+
+
+def keep_with_failures(data, rank: int = 0, world_size: int = 1, only_all_wrong: bool = False):
+    """Only prompts where the rejected model has a usable failure need chosen
+    answers. With ``only_all_wrong`` (--chosen_only_all_wrong), only the prompts
+    where none of its answers is correct (the others can be paired with
+    --self_pairs)."""
+    for doc in data:
+        if only_all_wrong and doc.metadata["rejected_n_correct"] > 0:
+            continue
         if any(is_rejectable(s) for s in doc.metadata["rejected_samples"]):
             yield doc
 
 
 def build_pairs(data, rank: int = 0, world_size: int = 1):
     """xlam_dpo.build_pairs with the rejected answers from the rejected model
-    and the chosen ones from the chosen model: one pair per distinct usable
-    failure, against a random correct chosen answer (seeded with the prompt
-    id)."""
+    and the chosen ones from the chosen model: one pair per prompt, a usable
+    failure drawn at random against a correct chosen answer drawn at random
+    (seeded with the prompt id). The pair id is the prompt id
+    (``rejected_index`` / ``chosen_index`` give the samples)."""
     import random
 
     from datatrove.data import Document
@@ -568,46 +593,40 @@ def build_pairs(data, rank: int = 0, world_size: int = 1):
             original = json.loads(original)
         context = original[:-1]
         rng = random.Random(str(doc.id))
-        cast_calls = {
-            i: None if rejected_samples[i]["tool_calls"] is None
-            else [json.loads(_canonical(c, param_types)) for c in rejected_samples[i]["tool_calls"]]
-            for i in rejected
-        }
-        groups = {}  # distinct answer -> indices, in order of first appearance
-        for i in rejected:
-            groups.setdefault(_rejected_key(rejected_samples[i], cast_calls[i]), []).append(i)
-        for group in groups.values():
-            rejected_index = rng.choice(group)
-            chosen_index = rng.choice(correct)
-            bad = rejected_samples[rejected_index]
-            chosen = nemo_rl_format_messages(context + [_assistant_message(
-                chosen_samples[chosen_index], meta["ground_truth"] or None, thinking["chosen"]
-            )])
-            rejected_messages = nemo_rl_format_messages(context + [_assistant_message(
-                bad, cast_calls[rejected_index], thinking["rejected"]
-            )])
-            yield Document(
-                text="",
-                id=f"{doc.id}_{rejected_index}",
-                metadata={
-                    "dataset": meta.get("dataset") or "",
-                    "tools": meta["tools"],
-                    "chosen": chosen,
-                    "rejected": rejected_messages,
-                    "chosen_model": meta["generation_config_chosen"]["model_name_or_path"],
-                    "rejected_model": meta["generation_config_rejected"]["model_name_or_path"],
-                    "chosen_index": chosen_index,
-                    "rejected_index": rejected_index,
-                    "rejected_failure": bad["failure"],
-                    "rejected_error": bad["error"],
-                    "removed_tool": meta.get("removed_tool"),
-                    # characters of the assistant answers, to look for a length bias
-                    "chosen_length": len(chosen[-1]["content"]),
-                    "rejected_length": len(rejected_messages[-1]["content"]),
-                    "generation_config_chosen": meta["generation_config_chosen"],
-                    "generation_config_rejected": meta["generation_config_rejected"],
-                },
-            )
+        # one pair per prompt: a random usable failure against a random correct answer
+        rejected_index = rng.choice(rejected)
+        chosen_index = rng.choice(correct)
+        bad_calls = rejected_samples[rejected_index]["tool_calls"]
+        cast_calls = None if bad_calls is None else [json.loads(_canonical(c, param_types)) for c in bad_calls]
+        bad = rejected_samples[rejected_index]
+        chosen = nemo_rl_format_messages(context + [_assistant_message(
+            chosen_samples[chosen_index], meta["ground_truth"] or None, thinking["chosen"]
+        )])
+        rejected_messages = nemo_rl_format_messages(context + [_assistant_message(
+            bad, cast_calls, thinking["rejected"]
+        )])
+        yield Document(
+            text="",
+            id=str(doc.id),
+            metadata={
+                "dataset": meta.get("dataset") or "",
+                "tools": meta["tools"],
+                "chosen": chosen,
+                "rejected": rejected_messages,
+                "chosen_model": meta["generation_config_chosen"]["model_name_or_path"],
+                "rejected_model": meta["generation_config_rejected"]["model_name_or_path"],
+                "chosen_index": chosen_index,
+                "rejected_index": rejected_index,
+                "rejected_failure": bad["failure"],
+                "rejected_error": bad["error"],
+                "removed_tool": meta.get("removed_tool"),
+                # characters of the assistant answers, to look for a length bias
+                "chosen_length": len(chosen[-1]["content"]),
+                "rejected_length": len(rejected_messages[-1]["content"]),
+                "generation_config_chosen": meta["generation_config_chosen"],
+                "generation_config_rejected": meta["generation_config_rejected"],
+            },
+        )
 
 
 def inference_config(model, tp, temperature, args):
@@ -696,13 +715,25 @@ if __name__ == "__main__":
     parser.add_argument("--gpu_memory_utilization", type=float, default=None,
                         help="vLLM --gpu-memory-utilization (default: vLLM's 0.9); "
                              "lower it on unified-memory machines (DGX Spark)")
+    parser.add_argument("--chosen_only_all_wrong", action="store_true",
+                        help="Run the chosen model only on prompts where all the rejected answers "
+                             "are wrong (complements --self_pairs, which pairs the other ones); "
+                             "the pairs go to a separate _allwrong folder")
+    parser.add_argument("--self_pairs", action="store_true",
+                        help="Pair answers of the rejected model only: a correct and a failed "
+                             "answer among its --rejected_n_samples answers to the same prompt "
+                             "(no chosen model, stage 2 is skipped; --chosen_* are ignored)")
     args = parse_args(parser)
     DATA_PATH = args.data_path
     mode = "_thinking" if args.enable_thinking else ""
     # The rejected stage does not depend on the chosen model: shared by all the
     # chosen models paired with it.
     REJECTED_NAME = f"xlam_dpo_rejected_{_short(args.rejected_model)}{mode}"
-    PAIRS_NAME = f"xlam_dpo_{_short(args.chosen_model)}__{_short(args.rejected_model)}{mode}"
+    PAIRS_NAME = (
+        f"xlam_dpo_self_{_short(args.rejected_model)}{mode}" if args.self_pairs
+        else f"xlam_dpo_{_short(args.chosen_model)}__{_short(args.rejected_model)}{mode}"
+        + ("_allwrong" if args.chosen_only_all_wrong else "")
+    )
 
     gen_config = generation_config(
         temperature=args.temperature, enable_thinking=args.enable_thinking, max_tokens=args.max_tokens
@@ -759,40 +790,46 @@ if __name__ == "__main__":
     #########
     # Stage 2: chosen model, only on prompts with a usable rejected failure (GPU)
     #########
-    chosen_executor = gpu_executor(
-        rejected_input + [
-            partial(verify_side, side="rejected"),
-            keep_with_failures,
-            InferenceRunner(
-                query_builder=partial(query_builder, gen_config=gen_config, n_samples=args.chosen_n_samples),
-                config=inference_config(args.chosen_model, args.chosen_tp, gen_config["temperature"], args),
-                records_per_chunk=100,
-                checkpoints_local_dir=f"{CHOSEN_DIR}/checkpoints",
-                output_writer=JsonlWriter(
-                    f"{CHOSEN_DIR}/generations",
-                    output_filename="${rank}_chunk_${chunk_index}.jsonl",
-                    expand_metadata=True,
+    if args.self_pairs:  # the rejected answers are also the chosen ones
+        chosen_executor = rejected_executor
+    else:
+        chosen_executor = gpu_executor(
+            rejected_input + [
+                partial(verify_side, side="rejected"),
+                partial(keep_with_failures, only_all_wrong=args.chosen_only_all_wrong),
+                InferenceRunner(
+                    query_builder=partial(query_builder, gen_config=gen_config, n_samples=args.chosen_n_samples),
+                    config=inference_config(args.chosen_model, args.chosen_tp, gen_config["temperature"], args),
+                    records_per_chunk=100,
+                    checkpoints_local_dir=f"{CHOSEN_DIR}/checkpoints",
+                    output_writer=JsonlWriter(
+                        f"{CHOSEN_DIR}/generations",
+                        output_filename="${rank}_chunk_${chunk_index}.jsonl",
+                        expand_metadata=True,
+                    ),
+                    postprocess_fn=partial(
+                        postprocess, side="chosen",
+                        gen_config_meta=gen_config_meta(args.chosen_model, args.chosen_n_samples),
+                    ),
+                    skip_bad_requests=True,
                 ),
-                postprocess_fn=partial(
-                    postprocess, side="chosen",
-                    gen_config_meta=gen_config_meta(args.chosen_model, args.chosen_n_samples),
-                ),
-                skip_bad_requests=True,
-            ),
-        ],
-        f"{PAIRS_NAME}/chosen/{args.chosen_batch}", args.chosen_tp, args,
-        depends=rejected_executor,
-    )
+            ],
+            f"{PAIRS_NAME}/chosen/{args.chosen_batch}", args.chosen_tp, args,
+            depends=rejected_executor,
+        )
 
     #########
-    # Stage 3: verify the chosen answers and pair them (CPU)
+    # Stage 3: verify the chosen answers and pair them (CPU); with --self_pairs,
+    # verify the rejected answers and pair them with each other
     #########
     pairs_executor = create_executor(
-        [
+        (rejected_input + [partial(verify_side, side="rejected"), self_as_chosen]
+         if args.self_pairs else [
             # all the chosen batches so far
             JsonlReader(f"{DATA_PATH}/{PAIRS_NAME}/chosen", glob_pattern="*/generations/*.jsonl*",
                         adapter=instruct_adapter),
             partial(verify_side, side="chosen"),
+        ]) + [
             JsonlWriter(f"{DATA_PATH}/{PAIRS_NAME}/verified", expand_metadata=True),
             build_pairs,
             JsonlWriter(f"{DATA_PATH}/{PAIRS_NAME}/pairs", expand_metadata=True),

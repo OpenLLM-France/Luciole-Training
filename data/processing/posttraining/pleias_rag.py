@@ -8,7 +8,35 @@ from datatrove.pipeline.filters.base_filter import BaseFilter
 from datatrove.pipeline.writers.disk_base import DiskWriter
 
 
+# <ref name="source_N">excerpt</ref>
+REF_RE = r'<ref name="(.*?)">(.*?)</ref>'
+# Quote with its source, written as source_N, source N, Source N or sources N, M:
+#   "excerpt" (source_1) / [source 2] / (cf. source 3) / (source_1, source_4) / (sources 1 and 2)
+#   "excerpt" (Source 1, Socrates via Xenophon)     <- extra text after the source
+#   "excerpt" ● (Source 5) / "excerpt"** (Source 1) <- confidence marker or bold
+_SOURCES = r"(sources?[ _]?\d+(?:\s*(?:,|and|&)\s*(?:sources?[ _]?)?\d+)*)"
+QUOTE_THEN_SOURCE_RE = (
+    r'"([^"\n]+)"\s*(?:\*\*|[●○◐◑])?\s*[\(\[]\s*(?:cf\.\s*)?' + _SOURCES
+    + r"(?:\s*[,;:]\s*[^\)\]\d\n]*)?\s*[\)\]]"
+)
+#   Source 1: "excerpt" / (source_1: "excerpt")
+SOURCE_THEN_QUOTE_RE = r"\b" + _SOURCES + r'\s*:\s*"([^"\n]+)"'
+
+
 class CitationFilter(BaseFilter):
+    """Drop rows with a citation not found verbatim in the source it names, checked on
+    both ``synthetic_answer`` and ``synthetic_reasoning`` (strict: only leading/trailing
+    whitespace is ignored, so a quote shortened with "..." or with changed quote marks
+    fails):
+
+    - <ref name="source_N">excerpt</ref>: the excerpt must be non-empty and in source_N;
+    - quotes with their source (QUOTE_THEN_SOURCE_RE, SOURCE_THEN_QUOTE_RE): the quote
+      must be in one of the named sources. Quotes with no source next to them (e.g.
+      quoting the query) are not checked.
+
+    Sets ``metadata["has_citation"]`` (a <ref> in the answer).
+    """
+
     name = "✳️  Citation Filtering"
 
     def __init__(self, exclusion_writer: DiskWriter = None):
@@ -22,6 +50,7 @@ class CitationFilter(BaseFilter):
         return {key: value.strip() for key, value in matches}
 
     def replace_citation(self, doc: Document, sources: dict, synthetic_answer: str):
+        """Remove the unsupported <ref> (used by pleais_rag_dpo_filter.DPOCitationFilter)."""
         import re
 
         def drop_unsupported_citation(match):
@@ -31,86 +60,52 @@ class CitationFilter(BaseFilter):
                 return match.group(0)
             return ""
 
-        cleaned_answer = re.sub(
-            r'<ref name="(.*?)">(.*?)</ref>',
-            drop_unsupported_citation,
-            synthetic_answer,
-            flags=re.DOTALL,
-        )
-
-        return cleaned_answer
+        return re.sub(REF_RE, drop_unsupported_citation, synthetic_answer, flags=re.DOTALL)
 
     @staticmethod
     def has_citation(answer: str) -> bool:
         import re
 
-        # A document still has citations if any <ref> tag survived the cleaning.
-        return bool(
-            re.search(r'<ref name="(.*?)">(.*?)</ref>', answer, flags=re.DOTALL)
-        )
+        return bool(re.search(REF_RE, answer, flags=re.DOTALL))
 
     @staticmethod
-    def all_citations_supported(sources: dict, answer: str) -> bool:
+    def all_citations_supported(sources: dict, text: str) -> bool:
+        """Every <ref> points to an existing source and quotes a non-empty excerpt of it."""
         import re
 
-        # Every citation must point to an existing source and quote a non-empty
-        # excerpt found verbatim in it.
-        for source_id, content in re.findall(
-            r'<ref name="(.*?)">(.*?)</ref>', answer, flags=re.DOTALL
-        ):
+        for source_id, content in re.findall(REF_RE, text, flags=re.DOTALL):
             content = content.strip()
-            if not content or source_id not in sources or content not in sources[source_id]:
+            if not content or content not in sources.get(source_id, ""):
+                return False
+        return True
+
+    @staticmethod
+    def all_quotes_supported(sources: dict, text: str) -> bool:
+        """Every quote with its source is found in one of the named sources."""
+        import re
+
+        pairs = re.findall(QUOTE_THEN_SOURCE_RE, text, flags=re.I)
+        pairs += [(q, c) for c, q in re.findall(SOURCE_THEN_QUOTE_RE, text, flags=re.I)]
+        for quote, cited in pairs:
+            quote = quote.strip()
+            cited_sources = ["source_" + n for n in re.findall(r"\d+", cited)]
+            if not quote or not any(quote in sources.get(s, "") for s in cited_sources):
                 return False
         return True
 
     def filter(self, doc: Document) -> bool:
         sources = self.extract_sources(doc.metadata["constraints"])
         answer = doc.metadata["synthetic_answer"]
+        reasoning = doc.metadata["synthetic_reasoning"]
 
-        # Keep the answer untouched; drop the whole row if any citation is unsupported.
-        if not self.all_citations_supported(sources, answer):
-            return False, "unsupported_citation"
+        # Texts are kept untouched; the whole row is dropped on any wrong citation.
+        for field, text in (("answer", answer), ("reasoning", reasoning)):
+            if not self.all_citations_supported(sources, text):
+                return False, f"unsupported_ref_{field}"
+            if not self.all_quotes_supported(sources, text):
+                return False, f"unsupported_quote_{field}"
 
         doc.metadata["has_citation"] = self.has_citation(answer)
-        return True
-
-
-class ReasoningCitationFilter(BaseFilter):
-    """Second check, on ``synthetic_reasoning``: rows with a wrong citation are dropped.
-
-    A reasoning citation is a quote followed by its source, e.g.
-    ``"excerpt" (source_1)``, ``[source 2]``, ``(Source 3)``, ``(source_1, source_4)``.
-    The quote must be found verbatim (leading/trailing whitespace ignored) in one of
-    the cited sources. If any reasoning citation fails, the row is dropped. Quotes not
-    followed by a source (e.g. quoting the query) are not checked.
-    """
-
-    name = "✳️  Reasoning Citation Filtering"
-
-    QUOTE_WITH_SOURCE = (
-        r'"([^"\n]+)"\s*[\(\[]\s*(?:cf\.\s*)?'
-        r"(sources?[ _]?\d+(?:\s*(?:,|and|&)\s*(?:sources?[ _]?)?\d+)*)\s*[\)\]]"
-    )
-
-    @classmethod
-    def all_reasoning_citations_supported(cls, sources: dict, reasoning: str) -> bool:
-        import re
-
-        for quote, cited in re.findall(cls.QUOTE_WITH_SOURCE, reasoning, flags=re.I):
-            quote = quote.strip()
-            cited_sources = ["source_" + n for n in re.findall(r"\d+", cited)]
-            if not quote or not any(
-                quote in sources.get(source_id, "") for source_id in cited_sources
-            ):
-                return False
-        return True
-
-    def filter(self, doc: Document) -> bool:
-        sources = CitationFilter.extract_sources(doc.metadata["constraints"])
-        if not self.all_reasoning_citations_supported(
-            sources, doc.metadata["synthetic_reasoning"]
-        ):
-            return False, "unsupported_reasoning_citation"
         return True
 
 
@@ -138,7 +133,6 @@ class DocumentsFilter(BaseFilter):
 
 class InternalKnowledgeFilter(BaseFilter):
     """Drop rows whose reasoning or answer says it relies on the model's own knowledge.
-    Runs on the original reasoning, so before ReasoningCitationFilter empties it.
 
     Reasoning: SYNTH labels injected outside facts with "internal knowledge"
     ("**Historical context from internal knowledge:**", "Internal knowledge: ...",
@@ -390,10 +384,9 @@ if __name__ == "__main__":
     )
 
     ##########
-    # Step 2: citation filters, saved locally (same fields as the raw rows):
-    #   1. answer: drop rows with any <ref> whose excerpt is not verbatim in the cited source;
-    #   2. reasoning: drop rows with any quoted "excerpt" (source_N) not verbatim in the
-    #      cited source.
+    # Step 2: citation filter, saved locally (same fields as the raw rows): on both the
+    # answer and the reasoning, drop rows with any <ref> or quoted "excerpt" (source_N) /
+    # Source N: "excerpt" not verbatim in the cited source.
     # --step push_citation_filter pushes it to data/citation_filter/ (subset citation_filter).
     ##########
 
@@ -402,7 +395,6 @@ if __name__ == "__main__":
         [
             JsonlReader(RAW_DIR, adapter=instruct_adapter),
             CitationFilter(),
-            ReasoningCitationFilter(),
             JsonlWriter(f"{CITATION_DIR}/data", expand_metadata=True),
         ],
         local=args.local,

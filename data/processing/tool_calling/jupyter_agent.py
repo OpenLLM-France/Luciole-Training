@@ -1,6 +1,7 @@
 from utils import create_parser, parse_args, create_executor
 from datatrove.pipeline.readers import ParquetReader
 from datatrove.pipeline.writers import JsonlWriter, HuggingFaceDatasetWriter
+from datatrove.pipeline.filters import LambdaFilter
 from utils import (
     hub_adapter,
     FilterChinese,
@@ -116,11 +117,31 @@ if __name__ == "__main__":
         help="Process the 'thinking' split (traces whose assistant turns carry "
              "<think> blocks) instead of 'non_thinking'",
     )
+    parser.add_argument(
+        "--executor_type",
+        choices=["e2b", "llm"],
+        default=None,
+        help="Keep only traces from this executor: 'e2b' = code really run in "
+             "a sandbox, 'llm' = cell outputs simulated by Qwen-Coder. "
+             "Default: keep both. Output goes to jupyter_agent_<executor_type>/<split>.",
+    )
     args = parse_args(parser)
     DATA_PATH = args.data_path
 
 
     split = "thinking" if args.thinking else "non_thinking"
+    # Dataset folder: jupyter_agent or jupyter_agent_<executor_type>, one split
+    # per subfolder. The HF split read below stays `split`.
+    dataset_name = "jupyter_agent" + (f"_{args.executor_type}" if args.executor_type else "")
+    name = f"{dataset_name}/{split}"
+
+    executor_filter = (
+        [LambdaFilter(
+            lambda doc: doc.metadata.get("executor_type") == args.executor_type,
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/{name}/other_executor"),
+        )]
+        if args.executor_type else []
+    )
 
     pipeline = [
         ParquetReader(
@@ -131,23 +152,24 @@ if __name__ == "__main__":
             batch_size=50,
             adapter=instruct_adapter,
         ),
+        *executor_filter,
         format_messages,
         check_last_message,
         NemoRLFormat(),
         FilterChinese(
-            exclusion_writer=JsonlWriter(f"{DATA_PATH}/jupyter_agent/{split}/chinese_heavy"),
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/{name}/chinese_heavy"),
         ),
         ChatTokenCount(
             "OpenLLM-France/tokenizer_128k_dual",
             tools_key="tools",
             chat_template_kwargs={"enable_thinking": args.thinking, "training_mode": True},
             max_tokens=2**16,
-            exclusion_writer=JsonlWriter(f"{DATA_PATH}/jupyter_agent/{split}/too_long"),
+            exclusion_writer=JsonlWriter(f"{DATA_PATH}/{name}/too_long"),
         ),
         HuggingFaceDatasetWriter(
             dataset="OpenLLM-France/tool_data" + "_debug" * args.debug,
-            local_working_dir=f"{DATA_PATH}/jupyter_agent/{split}",
-            output_filename=f"data/sft/jupyter_agent/{split}/${{rank}}.parquet",
+            local_working_dir=f"{DATA_PATH}/{name}",
+            output_filename=f"data/sft/{name}/${{rank}}.parquet",
             adapter=hub_adapter,
             schema=None,
             private=True,
@@ -161,8 +183,8 @@ if __name__ == "__main__":
         local=args.local,
         debug=args.debug,
         limit_debug=args.limit_debug,
-        logging_dir=f"{DATA_PATH}/jupyter_agent/{split}/logs",
-        job_name=f"jupyter_agent_{split}",
+        logging_dir=f"{DATA_PATH}/{name}/logs",
+        job_name=name.replace("/", "_"),
         tasks=1,
         time="02:00:00",
         qos="qos_cpu-t3",

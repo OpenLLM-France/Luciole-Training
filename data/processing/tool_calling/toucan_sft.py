@@ -149,6 +149,11 @@ class ToucanFilter(BaseFilter):
             else:
                 messages.append({"role": role, "content": content})
 
+        # a tool result must be answered by the assistant (NemoRLFormat asserts it): a few multi-turn
+        # conversations have the next user request right after a tool response
+        if any(a["role"] == "tool" and b["role"] == "user" for a, b in zip(messages, messages[1:])):
+            return False, "user_after_tool"
+
         doc.metadata["messages"] = messages
         return True
 

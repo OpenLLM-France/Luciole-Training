@@ -59,19 +59,29 @@ def render_judge_prompt(aspect: str, instruction: str, texts: list[str]) -> str:
 # --------------------------------------------------------------------------- #
 
 # The judge rates the ANSWER only: a reasoning trace is scratchpad, not part of
-# what the user sees, and its verbosity would skew the ratings.
-_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+# what the user sees, and its verbosity would skew the ratings. Reasoning is
+# hidden for EVERY turn - the two answers being rated and the context turns
+# alike. The closing tag is optional so a truncated generation (an unclosed
+# <think>) doesn't leak its whole trace to the judge.
+_THINK_RE = re.compile(r"<think>.*?(?:</think>|\Z)", re.DOTALL)
 
 
-def _strip_reasoning(text: str) -> str:
-    """Remove inlined <think>...</think> reasoning from an answer."""
-    return _THINK_RE.sub("", text).strip()
+def _strip_reasoning(text: str | None) -> str:
+    """Remove inlined <think>...</think> reasoning from a message content."""
+    return _THINK_RE.sub("", text or "").strip()
 
 
 def _format_instruction(messages: list[dict]) -> str:
-    """Serialize the prompt context (system/user/RAG turns) into the Instruction field."""
+    """Serialize the prompt context (system/user/RAG turns) into the Instruction field.
+
+    Reasoning is dropped from the context turns too: inlined <think> blocks are
+    stripped, and an out-of-band ``reasoning_content`` / ``reasoning`` field
+    (the other convention used in this repo, see posttraining/utils.py) is
+    simply never read.
+    """
     return "\n\n".join(
-        f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages
+        f"{m.get('role', 'user')}: {_strip_reasoning(m.get('content'))}"
+        for m in messages
     )
 
 
@@ -392,7 +402,7 @@ if __name__ == "__main__":
         tasks=1,
         time="00:30:00",
         partition="cpu_p1",
-        qos="qos_cpu-t3",
+        qos="qos_cpu-dev",
         skip_completed=not args.force,
         depends=executor_judge,
     )
