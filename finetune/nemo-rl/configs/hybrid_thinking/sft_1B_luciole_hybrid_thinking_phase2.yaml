@@ -1,7 +1,7 @@
 defaults: "template.yaml"
 
 sft:
-  max_num_steps: 3190 # This will change based on dataset size # 2 epochs * floor(3,265,243 rows / 2048) (sum of floor(rows * weight), drop_last)
+  max_num_steps: 3188 # This will change based on dataset size # 2 epochs * floor(3,265,243 rows / 2048) (sum of floor(rows * weight), drop_last)
   max_num_epochs: 2
 
 policy:
@@ -13,8 +13,8 @@ policy:
     chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   megatron_cfg:
     scheduler:
-      lr_decay_iters: 3189  # This will change based on dataset size
-      lr_warmup_iters: 96  # This will change based on dataset size # round(0.03 * max_num_steps) = round(95.34)
+      lr_decay_iters: 3180  # This will change based on dataset size
+      lr_warmup_iters: 96  # This will change based on dataset size # round(0.03 * max_num_steps) = round(95.64)
 
 data:
   tool_key: "tools"  # column read by the entries with use_tools: true
@@ -138,10 +138,10 @@ data:
     - path: "${data.luciole_rag_data}/thinking*.parquet" # 58.3M tokens (24.0M assistant), 21,093 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: true}
-    - path: "${data.luciole_rag_fr_thinking_data}/*.parquet" # 6,517 rows
+    - path: "${data.luciole_rag_fr_thinking_data}/*.parquet" # 16.3M tokens (4.0M assistant), 6,517 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: true}
-    - path: "${data.luciole_rag_other_instructions_data}/*.parquet" # 3,900 rows
+    - path: "${data.luciole_rag_other_instructions_data}/*.parquet" # 6.6M tokens (0.6M assistant), 3,900 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: false}
     - path: "${data.posttraining_data}/luth_aya_chat_non_thinking/*.parquet" # 0.2M tokens (0.2M assistant), 1,402 rows
