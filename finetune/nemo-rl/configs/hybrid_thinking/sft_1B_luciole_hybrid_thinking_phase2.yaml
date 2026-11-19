@@ -1,7 +1,7 @@
 defaults: "template.yaml"
 
 sft:
-  max_num_steps: 3178 # This will change based on dataset size # 2 epochs * floor(3,254,826 rows / 2048) (sum of floor(rows * weight), drop_last)
+  max_num_steps: 3190 # This will change based on dataset size # 2 epochs * floor(3,265,243 rows / 2048) (sum of floor(rows * weight), drop_last)
   max_num_epochs: 2
 
 policy:
@@ -13,8 +13,8 @@ policy:
     chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
   megatron_cfg:
     scheduler:
-      lr_decay_iters: 3170  # This will change based on dataset size
-      lr_warmup_iters: 95  # This will change based on dataset size # round(0.03 * max_num_steps) = round(95.34)
+      lr_decay_iters: 3189  # This will change based on dataset size
+      lr_warmup_iters: 96  # This will change based on dataset size # round(0.03 * max_num_steps) = round(95.34)
 
 data:
   tool_key: "tools"  # column read by the entries with use_tools: true
@@ -28,8 +28,9 @@ data:
   # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/e5a191f81c4ac59b47107a2b6f25d6ab1137e7dc/data/sft (same snapshot as tool_data)
   val_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/e5a191f81c4ac59b47107a2b6f25d6ab1137e7dc/data/sft"
   # https://huggingface.co/datasets/OpenLLM-France/Luciole_RAG/tree/c6e899ef6c527de3f563da9f27676748f370b1b9/sft_mix_1112 (thinking split: English only)
-  luciole_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/c6e899ef6c527de3f563da9f27676748f370b1b9/sft_mix_1112"
-
+  luciole_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/fbbcd0d0921cb83d018dfada1a0a983526ebb149/sft_mix_1112"
+  luciole_rag_fr_thinking_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/fbbcd0d0921cb83d018dfada1a0a983526ebb149/sft_mix_1112_fr_think"
+  luciole_rag_other_instructions_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/fbbcd0d0921cb83d018dfada1a0a983526ebb149/sft_mix_1112_other_instructions"
   train_data_path:
     # THINKING (Luciole-PostTraining-Dataset-2.0): 25 subsets, 8347.9M tokens (7690.2M assistant), 2,056,241 rows
     # Downsampling this set to get around 2B tokens
@@ -137,6 +138,12 @@ data:
     - path: "${data.luciole_rag_data}/thinking*.parquet" # 58.3M tokens (24.0M assistant), 21,093 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.luciole_rag_fr_thinking_data}/*.parquet" # 6,517 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.luciole_rag_other_instructions_data}/*.parquet" # 3,900 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
     - path: "${data.posttraining_data}/luth_aya_chat_non_thinking/*.parquet" # 0.2M tokens (0.2M assistant), 1,402 rows
       weight: 1.
       chat_template_kwargs: {enable_thinking: false}
