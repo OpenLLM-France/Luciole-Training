@@ -319,7 +319,7 @@ def launch_evaluation(
                     "fr_math",
                     "rag2",
                     "bbh",
-                    "presupposition",  # previously "redteaching", "pcbench", "falseqa"
+                    # "presupposition" moved to its own command below (raised thinking budget)
                 ]
             ]
             + [
@@ -327,11 +327,16 @@ def launch_evaluation(
                     task_to_evaluate=f"tasks/{task}.txt",
                     multiple_of=multiple_of,
                     command=command,
-                    max_model_length=32768,
+                    # Raised thinking budget (16384 vs the lighteval default 5000): AIME
+                    # reasoning was truncated at 5000 for the large majority of samples. The
+                    # answer budget is 16000 in the aime25 / aime25-fr task configs, so the
+                    # context must hold thinking + answer + prompt; bump max_model_length.
+                    max_model_length=49152,
+                    additional_model_args="generation_parameters={thinking_budget:16384}",
                     max_samples=1000,
                     gpus=gpus,
                 )
-                for task in ["aime"]
+                for task in ["aime", "aime_fr"]
             ]
             + [
                 dict(
@@ -339,10 +344,28 @@ def launch_evaluation(
                     multiple_of=multiple_of,
                     command=command,
                     max_model_length=65536,
+                    # Raised thinking budget (16384 vs the default 5000): GPQA/LCB reasoning
+                    # was truncated at 5000 for 70 to 92 percent of samples. The 65536 context
+                    # already holds 16384 thinking + the 32768 answer budget + the prompt.
+                    additional_model_args="generation_parameters={thinking_budget:16384}",
                     max_samples=1000,
                     gpus=gpus,
                 )
                 for task in ["live_code_bench", "gpqa", "gpqa-fr"]
+            ]
+            + [
+                # Presupposition (PCBench/FalseQA/RedTeaching) split into its own command so the
+                # raised thinking budget (16384) applies only here, not to the finetune tasks it
+                # used to share a command with. PCBench answer budget is 8192 in its task config.
+                dict(
+                    task_to_evaluate="tasks/presupposition.txt",
+                    multiple_of=multiple_of,
+                    command=command,
+                    max_model_length=32768,
+                    additional_model_args="generation_parameters={thinking_budget:16384}",
+                    max_samples=1000,
+                    gpus=gpus,
+                )
             ]
             + [
                 dict(
@@ -461,9 +484,18 @@ def launch_evaluation(
         COMMANDS = selected
 
     for command in COMMANDS:
+        cmd = dict(command)
+        # A command may carry its own additional_model_args (e.g. a per-benchmark
+        # generation_parameters={...}); merge it after the global ones. generation_parameters
+        # is matched greedily and must appear once, so keeping it last avoids clashes.
+        per_command_model_args = cmd.pop("additional_model_args", None)
+        merged_model_args = (
+            ",".join(a for a in (additional_model_args, per_command_model_args) if a)
+            or None
+        )
         job_id = evaluate_experiment.launch_evaluation(
             experiment_path=experiment_path,
-            **command,
+            **cmd,
             hf_model=hf_model,
             dependency=dependency_job_id,
             force=force,
@@ -471,7 +503,7 @@ def launch_evaluation(
             last_checkpoint_only=last_checkpoint_only,
             dry_run=dry_run,
             lighteval_kwargs=lighteval_kwargs,
-            additional_model_args=additional_model_args,
+            additional_model_args=merged_model_args,
             is_nemo_rl=args.is_nemo_rl,
         )
         if job_id is not None:

@@ -1,2 +1,1 @@
 lighteval|mgsm-rev2:fr|8
-community|aime25-fr|0
