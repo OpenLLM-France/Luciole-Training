@@ -1,0 +1,230 @@
+defaults: "template.yaml"
+
+sft:
+  max_num_steps: 3176 # This will change based on dataset size # 2 epochs * floor(3,252,669 rows / 2048) (sum of floor(rows * weight), drop_last)
+  max_num_epochs: 2
+
+policy:
+  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_continual_pretrain_nemotron1b_context_extension/huggingface_checkpoints/luciole_continual_pretrain_nemotron1b_context_extension-step_0001191"
+  tokenizer:
+    # PR #5 (no normalization): https://huggingface.co/OpenLLM-France/tokenizer_128k_dual/discussions/5
+    name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/6574b561369fecec04936af2ae2bad95cd657dad"
+    chat_template: "${policy.tokenizer.name}/chat_template.jinja"
+    chat_template_kwargs: {training_mode: true, preserve_thinking: true} # can be used to pass kwargs to the chat template, e.g., enable_thinking=true
+  megatron_cfg:
+    scheduler:
+      lr_decay_iters: 3176  # This will change based on dataset size
+      lr_warmup_iters: 95  # This will change based on dataset size # round(0.03 * max_num_steps) = round(95.28)
+
+data:
+  tool_key: "tools"  # column read by the entries with use_tools: true
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/e5a191f81c4ac59b47107a2b6f25d6ab1137e7dc (sft_mix = mix_17)
+  tool_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/e5a191f81c4ac59b47107a2b6f25d6ab1137e7dc/data"
+  # https://huggingface.co/datasets/OpenLLM-France/pleias_rag/tree/5bd34a01096c4eea2ef85267f5ec1be23383d45c
+  pleias_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--pleias_rag/snapshots/5bd34a01096c4eea2ef85267f5ec1be23383d45c/data/formatted_chat"
+  # https://huggingface.co/datasets/OpenLLM-France/Luciole-PostTraining-Dataset-1.2/tree/de636b351d9c7b24d2c8b27f4d8a5d062d8fd534
+  # (rows over 16,384 tokens already removed; token counts: README of the dataset)
+  posttraining_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole-PostTraining-Dataset-2.0/snapshots/23d1f5659cdc26e2ec00d9521ad0f44f1841e9ca/data/sft/"
+  # https://huggingface.co/datasets/OpenLLM-France/ReasonXL_aligned_filtered (split "filtered": French ReasonXL rows kept by the translation filter)
+  # Replaces the ReasonXL subsets of Luciole-PostTraining-Dataset-2.0 ("# was ..." = the entry it replaces).
+  # Weights set to keep the phase-2 number of rows of each entry (floor(rows * weight)), except where the filtered data is too small
+  # (weight <= 1): stage1_slimorca_nli_non_thinking (72,238 rows, 84,190 in phase 2) and reasonxl_nemotron_if_chat_thinking (7,483, 8,105)
+  #  - qasc / Nemotron-Science: different shards for thinking and non-thinking (no row in both); flan_v2 has a single shard (some rows in both)
+  # Token counts: raw text, without chat template (non-thinking: without the reasoning); rows over 16,384 tokens not removed (no loss on them)
+  reasonxl_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--ReasonXL_aligned_filtered/snapshots/24ffe9406df3ce176f728833df5817e5139f388a/data/filtered"
+  # https://huggingface.co/datasets/OpenLLM-France/tool_data/tree/e5a191f81c4ac59b47107a2b6f25d6ab1137e7dc/data/sft (same snapshot as tool_data)
+  val_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--tool_data/snapshots/e5a191f81c4ac59b47107a2b6f25d6ab1137e7dc/data/sft"
+  # https://huggingface.co/datasets/OpenLLM-France/Luciole_RAG/tree/c6e899ef6c527de3f563da9f27676748f370b1b9/sft_mix_1112 (thinking split: English only)
+  luciole_rag_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/fbbcd0d0921cb83d018dfada1a0a983526ebb149/sft_mix_1112"
+  luciole_rag_fr_thinking_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/fbbcd0d0921cb83d018dfada1a0a983526ebb149/sft_mix_1112_fr_think"
+  luciole_rag_other_instructions_data: "${oc.env:HF_HOME}/hub/datasets--OpenLLM-France--Luciole_RAG/snapshots/fbbcd0d0921cb83d018dfada1a0a983526ebb149/sft_mix_1112_other_instructions"
+  train_data_path:
+    # THINKING (Luciole-PostTraining-Dataset-2.0 + ReasonXL_aligned_filtered)
+    # Downsampling this set to get around 2B tokens
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__allenai_qasc/0000[13].parquet" # 11.4M tokens (11.1M assistant), 5,271 rows # was allenai_qasc_science_thinking
+      weight: 0.317
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Dolci-Think-SFT-7B__saumyamalik_correct_python_sft_187k_x16_thoughts_filtered_decontam_v2/*.parquet" # 185.2M tokens (178.0M assistant), 38,852 rows # was dolci_correctpython_code_thinking
+      weight: 0.2362
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Dolci-Think-SFT-7B__saumyamalik_if_qwq_reasoning_verified_filtered_decontam_v2/*.parquet" # 35.7M tokens (33.3M assistant), 13,579 rows # was dolci_if_qwq_chat_thinking
+      weight: 0.47051
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Dolci-Think-SFT-7B__allenai_nemotron_post_training_dataset_subset_ngram_filtered_no_tool_calls/*.parquet" # 485.0M tokens (464.6M assistant), 37,723 rows # was dolci_nemotron_math_thinking
+      weight: 0.1688
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Dolci-Think-SFT-7B__allenai_persona_precise_if_r1_final_content_filtered_chinese_filtered/*.parquet" # 59.0M tokens (56.2M assistant), 40,141 rows # was dolci_persona_precise_chat_thinking
+      weight: 0.42742
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/dolci_precise_if_chat_english_thinking/*.parquet" # 178.4M tokens (163.8M assistant), 58,207 rows
+      weight: 0.22
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Dolci-Think-SFT-7B__allenai_SYNTHETIC_2_SFT_cn_fltrd_final_ngram_filtered_chinese_filtered/*.parquet" # 179.4M tokens (172.0M assistant), 22,926 rows # was dolci_synthetic_code_thinking
+      weight: 0.24571
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__flan_v2/*.parquet" # 5.8M tokens (5.6M assistant), 3,545 rows # was flanv2_nli_thinking
+      weight: 0.1191
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_posttrain_v2_math_english_thinking/*.parquet" # 547.8M tokens (504.5M assistant), 295,973 rows
+      weight: 0.88
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-1-science__Nemotron_Post_Training_Dataset_v1_stem/*.parquet" # 223.3M tokens (206.5M assistant), 55,278 rows # was nemotron_science_thinking
+      weight: 0.20061
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_v3_chat_english_thinking/*.parquet" # 98.3M tokens (87.7M assistant), 26,892 rows
+      weight: 0.4
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemotron_v3_if_english_thinking/*.parquet" # 21.3M tokens (18.6M assistant), 9,840 rows
+      weight: 0.44 
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/nemtron_posttrain_fr_math_thinking/*.parquet" # 477.4M tokens (465.2M assistant), 79,574 rows
+      weight: 0.22
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-1-math__NuminaMath_CoT/*.parquet" # 105.4M tokens (103.3M assistant), 23,722 rows # was numina_math_thinking
+      weight: 0.21752
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/opencodereasoning_code_english_thinking/*.parquet" # 3925.2M tokens (3683.9M assistant), 424,318 rows
+      weight: 0.22
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Llama-Nemotron-Post-Training-Dataset__science/*.parquet" # 50.6M tokens (46.4M assistant), 24,143 rows # was reasonxl_llama_nemotron_science_thinking
+      weight: 0.4321
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Instruction-Following-Chat-v1__nemotron_v3_chat/*.parquet" # 15.6M tokens (14.3M assistant), 7,483 rows # was reasonxl_nemotron_if_chat_thinking
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Science-v1__MCQ/000*[02468].parquet" # 69.3M tokens (59.2M assistant), 43,698 rows # was reasonxl_nemotron_science_thinking
+      weight: 0.16537
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Science-v1__RQA/0000[02].parquet" # 44.0M tokens (38.1M assistant), 9,241 rows # was reasonxl_nemotron_science_thinking
+      weight: 0.0388
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-1-code__*/*.parquet" # 125.6M tokens (115.7M assistant), 28,948 rows # was stage1_code_thinking
+      weight: 0.23474
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-1-general__mmlu_auxiliary_train/*.parquet" # 47.1M tokens (41.3M assistant), 28,735 rows # was stage1_mmlu_chat_thinking
+      weight: 0.20335
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-1-general__nvidia_Nemotron_Post_Training_Dataset_v1/*.parquet" # 12.3M tokens (11.6M assistant), 7,394 rows # was stage1_nemotron_chat_thinking
+      weight: 0.2773
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__mmlu_auxiliary_train/*.parquet" # 248.3M tokens (194.0M assistant), 139,064 rows # was stage2_mmlu_chat_thinking
+      weight: 0.216843
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__nvidia_Nemotron_Post_Training_Dataset_v1/*.parquet" # 12.6M tokens (11.9M assistant), 7,513 rows # was stage2_nemotron_chat_thinking
+      weight: 0.2709
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__SlimOrca/*.parquet" # 66.2M tokens (53.3M assistant), 73,141 rows # was stage2_slimorca_nli_thinking
+      weight: 0.25569
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.posttraining_data}/sythetic_verified_code_english_thinking/*.parquet" # 606.4M tokens (570.5M assistant), 88,039 rows
+      weight: 0.215 ##0.98
+      chat_template_kwargs: {enable_thinking: true}
+
+    # NON-THINKING (Luciole-PostTraining-Dataset-2.0 + ReasonXL_aligned_filtered)
+    - path: "${data.posttraining_data}/nemotron_posttrain_v2_math_english_non_thinking/*.parquet" # 1402.5M tokens (1251.7M assistant), 955,176 rows
+      weight: 0.42
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__allenai_qasc/0000[02].parquet" # 4.3M tokens (3.6M assistant), 9,723 rows # was allenai_qasc_science_non_thinking
+      weight: 0.7811
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/dolci_precise_if_chat_english_non_thinking/*.parquet" # 34.2M tokens (21.6M assistant), 59,270 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/dolci_python_algos_code_english_non_thinking/*.parquet" # 79.0M tokens (44.3M assistant), 186,037 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-2-general__flan_v2/00000.parquet" # 1.0M tokens (0.8M assistant), 3,545 rows # was flanv2_nli_non_thinking
+      weight: 0.542
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/hardcoded_english_1108_non_thinking/*.parquet" # 0.1M tokens (0.0M assistant), 1,108 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/hardcoded_french_962_non_thinking/*.parquet" # 0.1M tokens (0.0M assistant), 962 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.luciole_rag_data}/non_thinking*.parquet" # 102.4M tokens (9.0M assistant), 56,364 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.luciole_rag_data}/thinking*.parquet" # 58.3M tokens (24.0M assistant), 21,093 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.luciole_rag_fr_thinking_data}/*.parquet" # 16.3M tokens (4.0M assistant), 6,517 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.luciole_rag_other_instructions_data}/*.parquet" # 6.6M tokens (0.6M assistant), 3,900 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_aya_chat_non_thinking/*.parquet" # 0.2M tokens (0.2M assistant), 1,402 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_croissant_chat_non_thinking/*.parquet" # 10.7M tokens (8.8M assistant), 13,511 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_nemotron_code_non_thinking/*.parquet" # 244.5M tokens (185.2M assistant), 223,292 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_nemotron_math_non_thinking/*.parquet" # 474.9M tokens (459.0M assistant), 145,476 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_nemotron_science_non_thinking/*.parquet" # 657.4M tokens (547.5M assistant), 538,955 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_scholar_math_non_thinking/*.parquet" # 20.6M tokens (16.7M assistant), 20,349 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/luth_scholar_science_non_thinking/*.parquet" # 6.0M tokens (4.3M assistant), 9,919 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/nemotron_v3_chat_english_non_thinking/*.parquet" # 638.3M tokens (569.0M assistant), 188,436 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/nemotron_v3_if_english_non_thinking/*.parquet" # 114.3M tokens (95.6M assistant), 75,777 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/open_math_instruct_math_english_non_thinking/*.parquet" # 42.8M tokens (32.5M assistant), 233,384 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    # - path: "${data.posttraining_data}/pleias_rag_english_non_thinking/*.parquet" # 121.5M tokens (19.4M assistant), 44,196 rows
+    #   weight: 1.
+    #   chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.reasonxl_data}/Nemotron-Science-v1__MCQ/000*[13579].parquet" # 11.8M tokens (2.7M assistant), 39,282 rows # was reasonxl_nemotron_science_non_thinking
+      weight: 0.83713
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.reasonxl_data}/Nemotron-Science-v1__RQA/0000[13].parquet" # 5.9M tokens (2.3M assistant), 5,597 rows # was reasonxl_nemotron_science_non_thinking
+      weight: 0.2906
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.posttraining_data}/smol_contextqa_english_non_thinking/*.parquet" # 23.7M tokens (6.0M assistant), 62,995 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+    - path: "${data.reasonxl_data}/Nemotron-Cascade-SFT-Stage-1-general__SlimOrca/*.parquet" # 22.6M tokens (10.0M assistant), 72,238 rows # was stage1_slimorca_nli_non_thinking
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+
+
+    # PLEAIS RAG
+    - path: "${data.pleias_rag_data}/with_thinking/en/*.parquet" # 154.4M tokens (40.8M assistant), 47,925 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+    - path: "${data.pleias_rag_data}/without_thinking/en/*.parquet" # 153.8M tokens (17.3M assistant), 58,434 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+
+
+    # TOOL
+    # use_tools: true passes the `tools` column to the chat template
+    - path: "${data.tool_data}/sft_mix/thinking/*.parquet" # 142.0M tokens (53.7M assistant), 59,434 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
+    - path: "${data.tool_data}/sft_mix/non_thinking/*.parquet" # 209.4M tokens (54.6M assistant), 148,423 rows
+      weight: 1.
+      chat_template_kwargs: {enable_thinking: false}
+      use_tools: true
+
+
+
+  val_data_path:
+    - path: "${data.val_data}/smolagents_toolcalling/*.parquet"
+      weight: 0.17
+      chat_template_kwargs: {enable_thinking: true}
+      use_tools: true
