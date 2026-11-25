@@ -5,7 +5,7 @@ sft:
   max_num_epochs: 2
 
 policy:
-  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/pretrain/luciole_serie/luciole_continual_pretrain_nemotron1b_context_extension/huggingface_checkpoints/luciole_continual_pretrain_nemotron1b_context_extension-step_0001191"
+  model_name: "/lustre/fsn1/projects/rech/qgz/commun/OpenLLM-BPI-output/distillation/1b_cpt_kd_data_bf16_steps11921_seq_16384_gbs_256/huggingface_checkpoints/1b_cpt_kd_data_bf16_steps11921_seq_16384_gbs_256_32kblend-step_0011920-last/"
   tokenizer:
     # PR #5 (no normalization): https://huggingface.co/OpenLLM-France/tokenizer_128k_dual/discussions/5
     name: "${oc.env:HF_HOME}/hub/models--OpenLLM-France--tokenizer_128k_dual/snapshots/6574b561369fecec04936af2ae2bad95cd657dad"
